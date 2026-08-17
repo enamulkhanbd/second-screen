@@ -1,0 +1,102 @@
+export type GitProvider = "github" | "azure";
+
+export interface GitCredentials {
+  provider: GitProvider;
+  owner: string; // GitHub owner / Azure Org
+  project?: string; // Azure Project (optional for GitHub)
+  repo: string;
+  branch: string;
+  path: string; // e.g. "tokens.json" or "tokens" or "$themes.json"
+  pat: string;
+}
+
+export type TokenType =
+  | "color"
+  | "dimension"
+  | "spacing"
+  | "sizing"
+  | "borderRadius"
+  | "borderWidth"
+  | "opacity"
+  | "fontFamilies"
+  | "fontWeights"
+  | "fontSizes"
+  | "lineHeights"
+  | "letterSpacing"
+  | "boxShadow"
+  | "typography"
+  | "composition"
+  | "other";
+
+export interface RawTokenLeaf {
+  value: string | number | Record<string, any>;
+  type?: TokenType | string;
+  description?: string;
+  $type?: TokenType | string;
+  $value?: string | number | Record<string, any>;
+  $description?: string;
+  [key: string]: any;
+}
+
+export type RawTokenTree = {
+  [key: string]: RawTokenLeaf | RawTokenTree;
+};
+
+// Top-level structure can be a single set OR multi-set dictionary: { "global": { ... }, "dark": { ... } }
+export type RawTokensDocument = Record<string, RawTokenTree>;
+
+export interface FlattenedToken {
+  id: string; // Full dot path, e.g. "global.colors.brand.primary" or "colors.brand.primary"
+  name: string; // Display name, e.g. "colors.brand.primary"
+  path: string[]; // Path array, e.g. ["global", "colors", "brand", "primary"]
+  group: string; // e.g. "colors"
+  subgroup?: string; // e.g. "brand"
+  setName: string; // e.g. "global" or "dark"
+  type: TokenType;
+  rawValue: string;
+  resolvedValue: string;
+  isAlias: boolean;
+  aliasTarget?: string;
+  description?: string;
+}
+
+export interface ThemeOption {
+  id: string;
+  name: string; // e.g. "Dark", "Light", "Default", "Atlas Connect"
+  group: string; // e.g. "Theme", "Semantic", "Components", "Brands"
+  selectedTokenSets: Record<string, "enabled" | "disabled" | "source">;
+  color?: string; // Color dot (e.g. "#f97316", "#3b82f6", "#10b981", "#ef4444", "#a855f7")
+}
+
+export interface ThemeGroup {
+  id: string;
+  name: string;
+  color: string;
+  options: ThemeOption[];
+}
+
+export interface UserProfile {
+  displayName?: string;
+  avatarUrl?: string;
+  email?: string;
+  username?: string;
+}
+
+export type ResolvedTokenMap = Record<string, any>;
+
+export type SyncStatus = "idle" | "fetching" | "pushing" | "success" | "error";
+
+export interface SyncMeta {
+  mode: "file" | "folder";
+  targetPath?: string;
+  targetFolder?: string;
+  files?: Record<string, string>;
+}
+
+export interface ToastMessage {
+  id: string;
+  type: "success" | "error" | "info";
+  title: string;
+  message?: string;
+  timestamp: number;
+}
