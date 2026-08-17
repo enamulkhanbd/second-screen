@@ -13,6 +13,7 @@ import {
   Search,
   Check,
   RefreshCw,
+  FolderGit2,
 } from "lucide-react";
 
 interface HeaderProps {
@@ -48,13 +49,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [branchSearch, setBranchSearch] = useState("");
 
-  const hasCredentials = Boolean(credentials.owner && credentials.repo && credentials.pat);
+  const isConfigured = Boolean(credentials.repo && credentials.owner);
   const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
-  const repoName = credentials.repo || "Atlas";
+  const hasTokens = Object.keys(rawTokens).length > 0;
 
   // Fetch branch list whenever branch dropdown is opened
   useEffect(() => {
-    if (!showBranchMenu || !hasCredentials) return;
+    if (!showBranchMenu || !isConfigured || !credentials.pat) return;
 
     let isMounted = true;
     const fetchBranches = async () => {
@@ -82,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     return () => {
       isMounted = false;
     };
-  }, [showBranchMenu, hasCredentials, credentials]);
+  }, [showBranchMenu, isConfigured, credentials]);
 
   const filteredBranches = useMemo(() => {
     if (!branchSearch.trim()) return branches;
@@ -92,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   }, [branches, branchSearch]);
 
   const handlePullForBranch = async (targetBranch: string) => {
-    if (!hasCredentials) {
+    if (!credentials.pat) {
       onOpenSettings();
       return;
     }
@@ -141,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const handlePull = () => handlePullForBranch(credentials.branch || "main");
 
   const handleDirectPush = async () => {
-    if (!hasCredentials) {
+    if (!credentials.pat) {
       onOpenSettings();
       return;
     }
@@ -201,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   return (
     <>
       <header className="h-12 border-b border-zinc-900 bg-[#0d0d11] px-4 flex items-center justify-between text-xs select-none relative z-30">
-        {/* Left: App Logo & Breadcrumbs */}
+        {/* Left: App Logo & Conditional Breadcrumbs */}
         <div className="flex items-center gap-3">
           {/* Tokens Studio Logo */}
           <div
@@ -212,69 +213,76 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm">
               <Layers className="w-3 h-3 text-white" />
             </div>
+            {!isConfigured && (
+              <span className="font-semibold text-zinc-200 text-xs tracking-tight">
+                Tokens Studio
+              </span>
+            )}
           </div>
 
-          {/* Interactive Breadcrumb Hierarchy */}
-          <nav className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
-            <span
-              onClick={onOpenSettings}
-              className="hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-300"
-            >
-              {repoName}: Tokens
-            </span>
-            <span className="text-zinc-600">/</span>
-            <span className="text-zinc-400">Themes</span>
-            <span className="text-zinc-600">/</span>
-
-            {/* Active Theme Group Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                className="flex items-center gap-1 font-semibold text-zinc-100 hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-800/60"
+          {/* Interactive Breadcrumb Hierarchy (Only rendered when configured or tokens loaded) */}
+          {isConfigured && hasTokens && (
+            <nav className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
+              <span
+                onClick={onOpenSettings}
+                className="hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-300"
               >
-                <span>{activeGroup?.name || "Theme"}</span>
-                <ChevronDown className="w-3 h-3 text-zinc-500" />
-              </button>
+                {credentials.repo}: Tokens
+              </span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-zinc-400">Themes</span>
+              <span className="text-zinc-600">/</span>
 
-              {/* Theme Group Menu Dropdown */}
-              {showThemeGroupMenu && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowThemeGroupMenu(false)}
-                  />
-                  <div className="absolute left-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
-                      Theme Groups
+              {/* Active Theme Group Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
+                  className="flex items-center gap-1 font-semibold text-zinc-100 hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-800/60"
+                >
+                  <span>{activeGroup?.name || "Theme"}</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-500" />
+                </button>
+
+                {/* Theme Group Menu Dropdown */}
+                {showThemeGroupMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowThemeGroupMenu(false)}
+                    />
+                    <div className="absolute left-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                        Theme Groups
+                      </div>
+                      {themeGroups.map((grp) => (
+                        <button
+                          key={grp.id}
+                          onClick={() => {
+                            setActiveThemeGroup(grp.id);
+                            setShowThemeGroupMenu(false);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
+                            grp.id === activeGroup?.id
+                              ? "bg-violet-600/20 text-violet-200 font-semibold"
+                              : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                          }`}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: grp.color }}
+                          />
+                          <span className="truncate">{grp.name}</span>
+                        </button>
+                      ))}
                     </div>
-                    {themeGroups.map((grp) => (
-                      <button
-                        key={grp.id}
-                        onClick={() => {
-                          setActiveThemeGroup(grp.id);
-                          setShowThemeGroupMenu(false);
-                        }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
-                          grp.id === activeGroup?.id
-                            ? "bg-violet-600/20 text-violet-200 font-semibold"
-                            : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                        }`}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: grp.color }}
-                        />
-                        <span className="truncate">{grp.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </nav>
+                  </>
+                )}
+              </div>
+            </nav>
+          )}
         </div>
 
-        {/* Right: Avatar + Pull + Push + Branch */}
+        {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
           {/* Dirty changes indicator tag */}
           {isDirty && (
@@ -283,139 +291,151 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             </span>
           )}
 
-          {/* 1. Avatar */}
-          <div
-            onClick={onOpenSettings}
-            className="w-6 h-6 rounded-full overflow-hidden border border-zinc-700/80 cursor-pointer bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm hover:scale-105 transition-transform"
-            title={credentials.owner ? `Connected as: ${credentials.owner}` : "Configure Git Profile"}
-          >
-            {userProfile?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={userProfile.avatarUrl}
-                alt={userProfile.displayName || "Avatar"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span>{getInitials(credentials.owner || "TS")}</span>
-            )}
-          </div>
+          {isConfigured ? (
+            <>
+              {/* 1. Avatar */}
+              <div
+                onClick={onOpenSettings}
+                className="w-6 h-6 rounded-full overflow-hidden border border-zinc-700/80 cursor-pointer bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm hover:scale-105 transition-transform"
+                title={credentials.owner ? `Connected as: ${credentials.owner}` : "Configure Git Profile"}
+              >
+                {userProfile?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={userProfile.avatarUrl}
+                    alt={userProfile.displayName || "Avatar"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{getInitials(credentials.owner || "TS")}</span>
+                )}
+              </div>
 
-          {/* 2. Pull Button */}
-          <button
-            onClick={handlePull}
-            disabled={isPulling}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
-            title="Pull latest tokens from current branch"
-          >
-            <DownloadCloud className={`w-3.5 h-3.5 text-zinc-400 ${isPulling ? "animate-bounce" : ""}`} />
-            <span>{isPulling ? "Pulling..." : "Pull"}</span>
-          </button>
+              {/* 2. Pull Button */}
+              <button
+                onClick={handlePull}
+                disabled={isPulling}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
+                title="Pull latest tokens from current branch"
+              >
+                <DownloadCloud className={`w-3.5 h-3.5 text-zinc-400 ${isPulling ? "animate-bounce" : ""}`} />
+                <span>{isPulling ? "Pulling..." : "Pull"}</span>
+              </button>
 
-          {/* 3. Push Button */}
-          <button
-            onClick={() => setShowPushModal(true)}
-            disabled={isPushing}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50 ${
-              isDirty
-                ? "bg-violet-600/20 border-violet-500/60 text-violet-200 hover:bg-violet-600/30"
-                : "bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
-            }`}
-            title="Push changes directly to branch"
-          >
-            <UploadCloud className={`w-3.5 h-3.5 ${isDirty ? "text-violet-400" : "text-zinc-400"}`} />
-            <span>Push</span>
-          </button>
+              {/* 3. Push Button */}
+              <button
+                onClick={() => setShowPushModal(true)}
+                disabled={isPushing}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50 ${
+                  isDirty
+                    ? "bg-violet-600/20 border-violet-500/60 text-violet-200 hover:bg-violet-600/30"
+                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
+                }`}
+                title="Push changes directly to branch"
+              >
+                <UploadCloud className={`w-3.5 h-3.5 ${isDirty ? "text-violet-400" : "text-zinc-400"}`} />
+                <span>Push</span>
+              </button>
 
-          {/* 4. Branch Pill Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowBranchMenu(!showBranchMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-mono text-[11px]"
-            >
-              <GitBranch className="w-3.5 h-3.5 text-zinc-400" />
-              <span className="max-w-[130px] truncate">{credentials.branch || "main"}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500 flex-shrink-0" />
-            </button>
+              {/* 4. Branch Pill Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowBranchMenu(!showBranchMenu)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-mono text-[11px]"
+                >
+                  <GitBranch className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="max-w-[130px] truncate">{credentials.branch || "main"}</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                </button>
 
-            {/* Branch Switcher Dropdown */}
-            {showBranchMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowBranchMenu(false)}
-                />
-                <div className="absolute right-0 top-full mt-1.5 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-[85vh] flex flex-col">
-                  {/* Repository Name Information */}
-                  <div className="px-2.5 py-2 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
-                    <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
-                      Repository Name
-                    </div>
-                    <div className="font-mono text-xs text-zinc-100 font-semibold truncate mt-0.5">
-                      {credentials.repo || "planet"}
-                    </div>
-                  </div>
-
-                  {/* Switch Branch Section */}
-                  <div className="flex-1 flex flex-col min-h-0 pt-0.5">
-                    <div className="flex items-center justify-between px-1 py-1 text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
-                      <span>Switch Branch</span>
-                      {loadingBranches && (
-                        <RefreshCw className="w-3 h-3 animate-spin text-zinc-500" />
-                      )}
-                    </div>
-
-                    {/* Search Branch Input */}
-                    {branches.length > 5 && (
-                      <div className="py-1">
-                        <div className="relative">
-                          <Search className="w-3 h-3 text-zinc-500 absolute left-2 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            placeholder="Filter branches..."
-                            value={branchSearch}
-                            onChange={(e) => setBranchSearch(e.target.value)}
-                            className="w-full pl-6 pr-2 py-1 bg-zinc-950 border border-zinc-800 rounded text-[11px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-violet-500 font-mono"
-                          />
+                {/* Branch Switcher Dropdown */}
+                {showBranchMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowBranchMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1.5 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-[85vh] flex flex-col">
+                      {/* Repository Name Information */}
+                      <div className="px-2.5 py-2 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
+                        <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                          Repository Name
+                        </div>
+                        <div className="font-mono text-xs text-zinc-100 font-semibold truncate mt-0.5">
+                          {credentials.repo || "planet"}
                         </div>
                       </div>
-                    )}
 
-                    {/* Branch List */}
-                    <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 mt-0.5">
-                      {filteredBranches.length === 0 && !loadingBranches ? (
-                        <div className="px-2.5 py-2 text-[11px] text-zinc-500 italic">
-                          {branches.length === 0
-                            ? `Current: ${credentials.branch || "main"}`
-                            : "No matching branches"}
+                      {/* Switch Branch Section */}
+                      <div className="flex-1 flex flex-col min-h-0 pt-0.5">
+                        <div className="flex items-center justify-between px-1 py-1 text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                          <span>Switch Branch</span>
+                          {loadingBranches && (
+                            <RefreshCw className="w-3 h-3 animate-spin text-zinc-500" />
+                          )}
                         </div>
-                      ) : (
-                        filteredBranches.map((b) => {
-                          const isCurrent = b === (credentials.branch || "main");
 
-                          return (
-                            <button
-                              key={b}
-                              onClick={() => handlePullForBranch(b)}
-                              disabled={isPulling}
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${
-                                isCurrent
-                                  ? "bg-violet-600/20 text-violet-200 font-semibold"
-                                  : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                              }`}
-                            >
-                              <span className="truncate">{b}</span>
-                              {isCurrent && <Check className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
-                            </button>
-                          );
-                        })
-                      )}
+                        {/* Search Branch Input */}
+                        {branches.length > 5 && (
+                          <div className="py-1">
+                            <div className="relative">
+                              <Search className="w-3 h-3 text-zinc-500 absolute left-2 top-1/2 -translate-y-1/2" />
+                              <input
+                                type="text"
+                                placeholder="Filter branches..."
+                                value={branchSearch}
+                                onChange={(e) => setBranchSearch(e.target.value)}
+                                className="w-full pl-6 pr-2 py-1 bg-zinc-950 border border-zinc-800 rounded text-[11px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-violet-500 font-mono"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Branch List */}
+                        <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 mt-0.5">
+                          {filteredBranches.length === 0 && !loadingBranches ? (
+                            <div className="px-2.5 py-2 text-[11px] text-zinc-500 italic">
+                              {branches.length === 0
+                                ? `Current: ${credentials.branch || "main"}`
+                                : "No matching branches"}
+                            </div>
+                          ) : (
+                            filteredBranches.map((b) => {
+                              const isCurrent = b === (credentials.branch || "main");
+
+                              return (
+                                <button
+                                  key={b}
+                                  onClick={() => handlePullForBranch(b)}
+                                  disabled={isPulling}
+                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${
+                                    isCurrent
+                                      ? "bg-violet-600/20 text-violet-200 font-semibold"
+                                      : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                                  }`}
+                                >
+                                  <span className="truncate">{b}</span>
+                                  {isCurrent && <Check className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={onOpenSettings}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium text-xs shadow-sm transition-all cursor-pointer"
+            >
+              <FolderGit2 className="w-3.5 h-3.5" />
+              <span>Connect Repository</span>
+            </button>
+          )}
         </div>
       </header>
 
