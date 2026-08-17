@@ -64,7 +64,7 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
   owner: "",
   project: "",
   repo: "",
-  branch: "main",
+  branch: "",
   path: "tokens.json",
   pat: "",
 };

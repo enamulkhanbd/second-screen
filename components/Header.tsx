@@ -340,11 +340,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               {/* 4. Branch Pill Dropdown */}
               <div className="relative">
                 <button
-                  onClick={() => setShowBranchMenu(!showBranchMenu)}
+                  onClick={() => {
+                    if (!isConfigured) {
+                      onOpenSettings();
+                    } else {
+                      setShowBranchMenu(!showBranchMenu);
+                    }
+                  }}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-mono text-[11px]"
                 >
                   <GitBranch className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="max-w-[130px] truncate">{credentials.branch || "main"}</span>
+                  <span className="max-w-[130px] truncate">
+                    {credentials.branch || "Branch"}
+                  </span>
                   <ChevronDown className="w-3 h-3 text-zinc-500 flex-shrink-0" />
                 </button>
 
@@ -362,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                           Repository Name
                         </div>
                         <div className="font-mono text-xs text-zinc-100 font-semibold truncate mt-0.5">
-                          {credentials.repo || "planet"}
+                          {credentials.repo || "Not Connected"}
                         </div>
                       </div>
 
