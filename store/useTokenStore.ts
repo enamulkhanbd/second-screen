@@ -16,7 +16,7 @@ import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 interface TokenStoreState {
   // Git Credentials
   credentials: GitCredentials;
-  setCredentials: (creds: Partial<GitCredentials>) => void;
+  setCredentials: (creds: Partial<GitCredentials>, rememberPat?: boolean) => void;
   userProfile: UserProfile | null;
   setUserProfile: (profile: UserProfile | null) => void;
 
@@ -44,6 +44,7 @@ interface TokenStoreState {
   toasts: ToastMessage[];
 
   // Actions
+  initializeFromStorage: () => void;
   setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
@@ -71,17 +72,32 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
 export const useTokenStore = create<TokenStoreState>((set, get) => ({
   credentials: DEFAULT_CREDENTIALS,
   userProfile: null,
-  setUserProfile: (profile) => set({ userProfile: profile }),
+  setUserProfile: (profile) => {
+    set({ userProfile: profile });
+    if (typeof window !== "undefined" && profile) {
+      try {
+        localStorage.setItem("ts_second_screen_user", JSON.stringify(profile));
+      } catch {}
+    }
+  },
 
-  setCredentials: (newCreds) =>
+  setCredentials: (newCreds, rememberPat = true) =>
     set((state) => {
       const updated = { ...state.credentials, ...newCreds };
       if (typeof window !== "undefined") {
         try {
           const { pat, ...safeCreds } = updated;
           localStorage.setItem("ts_second_screen_creds", JSON.stringify(safeCreds));
+
+          // Save PAT in sessionStorage (secure tab lifecycle) and localStorage if requested
+          if (updated.pat) {
+            sessionStorage.setItem("ts_second_screen_pat", updated.pat);
+            if (rememberPat) {
+              localStorage.setItem("ts_second_screen_pat_enc", updated.pat);
+            }
+          }
         } catch {
-          // LocalStorage save error
+          // Storage error
         }
       }
       return { credentials: updated };
@@ -100,9 +116,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     const grp = themeGroups.find((g) => g.id === groupId);
     const firstOption = grp?.options[0]?.id || "";
     set({ activeThemeGroupId: groupId, activeThemeOptionId: firstOption });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_active_group_id", groupId);
+      } catch {}
+    }
   },
 
-  setActiveThemeOption: (optionId) => set({ activeThemeOptionId: optionId }),
+  setActiveThemeOption: (optionId) => {
+    set({ activeThemeOptionId: optionId });
+  },
 
   activeSet: "ALL",
   activeGroup: "all",
@@ -113,12 +136,93 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
   syncMeta: null,
   toasts: [],
 
+  initializeFromStorage: () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      // 1. Restore Credentials & PAT
+      const savedCreds = localStorage.getItem("ts_second_screen_creds");
+      const sessionPat =
+        sessionStorage.getItem("ts_second_screen_pat") ||
+        localStorage.getItem("ts_second_screen_pat_enc") ||
+        "";
+
+      let parsedCreds: any = DEFAULT_CREDENTIALS;
+      if (savedCreds) {
+        parsedCreds = { ...JSON.parse(savedCreds), pat: sessionPat };
+      } else if (sessionPat) {
+        parsedCreds = { ...DEFAULT_CREDENTIALS, pat: sessionPat };
+      }
+
+      // 2. Restore User Profile
+      const savedUser = localStorage.getItem("ts_second_screen_user");
+      const userProfile = savedUser ? JSON.parse(savedUser) : null;
+
+      // 3. Restore Tokens Document & Theme Groups
+      const cachedTokens = localStorage.getItem("ts_cached_tokens");
+      const cachedMeta = localStorage.getItem("ts_cached_meta");
+      const savedGroupId = localStorage.getItem("ts_active_group_id");
+
+      let rawTokens: RawTokensDocument = {};
+      let resolvedTokens: FlattenedToken[] = [];
+      let themeGroups: ThemeGroup[] = [];
+      let activeThemeGroupId = "";
+      let activeThemeOptionId = "";
+      let syncMeta: SyncMeta | null = null;
+
+      if (cachedTokens) {
+        rawTokens = JSON.parse(cachedTokens);
+        resolvedTokens = flattenAndResolveTokens(rawTokens, "ALL");
+        themeGroups = extractThemeGroups(rawTokens);
+
+        const matchedGroup =
+          themeGroups.find((g) => g.id === savedGroupId) ||
+          themeGroups.find((g) => g.name.toLowerCase() === "theme") ||
+          themeGroups[0];
+
+        activeThemeGroupId = matchedGroup?.id || "";
+        activeThemeOptionId = matchedGroup?.options[0]?.id || "";
+      }
+
+      if (cachedMeta) {
+        syncMeta = JSON.parse(cachedMeta);
+      }
+
+      set({
+        credentials: parsedCreds,
+        userProfile,
+        rawTokens,
+        resolvedTokens,
+        themeGroups,
+        activeThemeGroupId,
+        activeThemeOptionId,
+        syncMeta,
+        isDirty: false,
+      });
+    } catch {
+      // ignore storage parsing error
+    }
+  },
+
   setRawTokens: (doc, meta) => {
     const { activeSet } = get();
     const resolved = flattenAndResolveTokens(doc, activeSet);
     const groups = extractThemeGroups(doc);
     const defaultGroup =
       groups.find((g) => g.name.toLowerCase() === "theme") || groups[0];
+
+    // Cache tokens and metadata to localStorage for instant reload
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_cached_tokens", JSON.stringify(doc));
+        if (meta) {
+          localStorage.setItem("ts_cached_meta", JSON.stringify(meta));
+        }
+        if (defaultGroup?.id) {
+          localStorage.setItem("ts_active_group_id", defaultGroup.id);
+        }
+      } catch {}
+    }
 
     set({
       rawTokens: doc,
@@ -141,6 +245,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
     const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
     const updatedGroups = extractThemeGroups(updatedRaw);
+
+    // Update localStorage cache on token edit
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRaw));
+      } catch {}
+    }
 
     set({
       rawTokens: updatedRaw,

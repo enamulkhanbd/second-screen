@@ -10,20 +10,12 @@ import { useTokenStore } from "@/store/useTokenStore";
 
 export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { setCredentials } = useTokenStore();
+  const { initializeFromStorage } = useTokenStore();
 
   useEffect(() => {
-    // Restore saved repo coordinates from localStorage if available
-    try {
-      const saved = localStorage.getItem("ts_second_screen_creds");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setCredentials(parsed);
-      }
-    } catch {
-      // ignore
-    }
-  }, [setCredentials]);
+    // Restore tokens, theme matrix, and credentials securely from client storage on reload
+    initializeFromStorage();
+  }, [initializeFromStorage]);
 
   return (
     <main className="flex flex-col h-screen overflow-hidden bg-[#09090d]">
