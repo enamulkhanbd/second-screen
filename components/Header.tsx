@@ -202,36 +202,36 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   return (
     <>
       <header className="h-12 border-b border-zinc-900 bg-[#0d0d11] px-4 flex items-center justify-between text-xs select-none relative z-30">
-        {/* Left: App Logo & Conditional Breadcrumbs */}
+        {/* Left: App Logo & System Name */}
         <div className="flex items-center gap-3">
-          {/* Tokens Studio Logo */}
+          {/* Second Screen Logo & Brand */}
           <div
             onClick={onOpenSettings}
             className="flex items-center gap-2 cursor-pointer group"
-            title="Tokens Studio Second Screen"
+            title="Second Screen - Tokens Studio"
           >
             <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm">
               <Layers className="w-3 h-3 text-white" />
             </div>
-            {!isConfigured && (
-              <span className="font-semibold text-zinc-200 text-xs tracking-tight">
-                Tokens Studio
-              </span>
-            )}
+            <span className="font-semibold text-zinc-100 text-xs tracking-tight">
+              Second Screen
+            </span>
           </div>
 
-          {/* Interactive Breadcrumb Hierarchy (Only rendered when configured or tokens loaded) */}
+          {/* Interactive Breadcrumb Hierarchy (Starts after the name when configured) */}
           {isConfigured && hasTokens && (
-            <nav className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
-              <span
-                onClick={onOpenSettings}
-                className="hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-300"
-              >
-                {credentials.repo}: Tokens
-              </span>
-              <span className="text-zinc-600">/</span>
-              <span className="text-zinc-400">Themes</span>
-              <span className="text-zinc-600">/</span>
+            <>
+              <span className="text-zinc-700 font-mono text-[11px]">/</span>
+              <nav className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
+                <span
+                  onClick={onOpenSettings}
+                  className="hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-300"
+                >
+                  {credentials.repo}: Tokens
+                </span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-400">Themes</span>
+                <span className="text-zinc-600">/</span>
 
               {/* Active Theme Group Selector */}
               <div className="relative">
@@ -279,8 +279,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 )}
               </div>
             </nav>
-          )}
-        </div>
+          </>
+        )}
+      </div>
 
         {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
