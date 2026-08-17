@@ -208,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
           <div
             onClick={onOpenSettings}
             className="flex items-center gap-2 cursor-pointer group"
-            title="Second Screen - Tokens Studio"
+            title="Second Screen"
           >
             <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm">
               <Layers className="w-3 h-3 text-white" />
@@ -233,55 +233,54 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 <span className="text-zinc-400">Themes</span>
                 <span className="text-zinc-600">/</span>
 
-              {/* Active Theme Group Selector */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                  className="flex items-center gap-1 font-semibold text-zinc-100 hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-800/60"
-                >
-                  <span>{activeGroup?.name || "Theme"}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500" />
-                </button>
+                {/* Active Theme Group Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
+                    className="flex items-center gap-1 font-semibold text-zinc-100 hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-800/60"
+                  >
+                    <span>{activeGroup?.name || "Theme"}</span>
+                    <ChevronDown className="w-3 h-3 text-zinc-500" />
+                  </button>
 
-                {/* Theme Group Menu Dropdown */}
-                {showThemeGroupMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowThemeGroupMenu(false)}
-                    />
-                    <div className="absolute left-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
-                        Theme Groups
+                  {/* Theme Group Menu Dropdown */}
+                  {showThemeGroupMenu && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowThemeGroupMenu(false)}
+                      />
+                      <div className="absolute left-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                          Theme Groups
+                        </div>
+                        {themeGroups.map((grp) => (
+                          <button
+                            key={grp.id}
+                            onClick={() => {
+                              setActiveThemeGroup(grp.id);
+                              setShowThemeGroupMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${grp.id === activeGroup?.id
+                                ? "bg-violet-600/20 text-violet-200 font-semibold"
+                                : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                              }`}
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: grp.color }}
+                            />
+                            <span className="truncate">{grp.name}</span>
+                          </button>
+                        ))}
                       </div>
-                      {themeGroups.map((grp) => (
-                        <button
-                          key={grp.id}
-                          onClick={() => {
-                            setActiveThemeGroup(grp.id);
-                            setShowThemeGroupMenu(false);
-                          }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
-                            grp.id === activeGroup?.id
-                              ? "bg-violet-600/20 text-violet-200 font-semibold"
-                              : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                          }`}
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: grp.color }}
-                          />
-                          <span className="truncate">{grp.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </nav>
-          </>
-        )}
-      </div>
+                    </>
+                  )}
+                </div>
+              </nav>
+            </>
+          )}
+        </div>
 
         {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
@@ -327,11 +326,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               <button
                 onClick={() => setShowPushModal(true)}
                 disabled={isPushing}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50 ${
-                  isDirty
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50 ${isDirty
                     ? "bg-violet-600/20 border-violet-500/60 text-violet-200 hover:bg-violet-600/30"
                     : "bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
-                }`}
+                  }`}
                 title="Push changes directly to branch"
               >
                 <UploadCloud className={`w-3.5 h-3.5 ${isDirty ? "text-violet-400" : "text-zinc-400"}`} />
@@ -417,11 +415,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                                   key={b}
                                   onClick={() => handlePullForBranch(b)}
                                   disabled={isPulling}
-                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${
-                                    isCurrent
+                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${isCurrent
                                       ? "bg-violet-600/20 text-violet-200 font-semibold"
                                       : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                                  }`}
+                                    }`}
                                 >
                                   <span className="truncate">{b}</span>
                                   {isCurrent && <Check className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
