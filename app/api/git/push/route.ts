@@ -47,118 +47,82 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       };
 
-      // Determine files to commit
+      // Deduplicate file paths to commit
+      const pathToContentMap = new Map<string, string>();
+
       const isFolderMode = syncMeta?.mode === "folder" && syncMeta?.files;
 
       if (isFolderMode && syncMeta.files) {
-        // Multi-file folder commit: commit each set to its respective file
         for (const [setName, setFilePath] of Object.entries(syncMeta.files)) {
           if (setName.startsWith("$") && !rawTokens[setName]) continue;
-          const contentObj = rawTokens[setName] || {};
-          const fileJson = JSON.stringify(contentObj, null, 2);
+          const contentObj = rawTokens[setName];
+          if (contentObj !== undefined) {
+            const normalizedPath = setFilePath.replace(/^\/+/, "");
+            pathToContentMap.set(normalizedPath, JSON.stringify(contentObj, null, 2));
+          }
+        }
+      } else {
+        const targetFilePath = (syncMeta?.targetPath || cleanPath || "tokens.json").replace(/^\/+/, "");
+        pathToContentMap.set(targetFilePath, JSON.stringify(rawTokens, null, 2));
+      }
 
-          // Get file SHA if exists
-          const getUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
-            repo
-          )}/contents/${setFilePath}?ref=${encodeURIComponent(branch)}`;
-          let sha: string | undefined = undefined;
+      // Commit each unique file
+      for (const [filePath, fileJson] of Array.from(pathToContentMap.entries())) {
+        const getUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+          repo
+        )}/contents/${encodeURIComponent(filePath)}?ref=${encodeURIComponent(branch)}`;
+
+        let sha: string | undefined = undefined;
+        try {
           const checkRes = await fetch(getUrl, {
-            headers: {
-              Authorization: `Bearer ${pat}`,
-              Accept: "application/vnd.github.v3+json",
-              "User-Agent": "TokensStudio-SecondScreen-Viewer",
-            },
+            headers,
             cache: "no-store",
           });
           if (checkRes.ok) {
             const fData = await checkRes.json();
             sha = fData.sha;
           }
-
-          const putUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
-            repo
-          )}/contents/${setFilePath}`;
-          const payload: any = {
-            message: `${finalCommitMessage} (${setName})`,
-            content: Buffer.from(fileJson).toString("base64"),
-            branch,
-          };
-          if (sha) payload.sha = sha;
-
-          await fetch(putUrl, { method: "PUT", headers, body: JSON.stringify(payload) });
-        }
-
-        return NextResponse.json({
-          success: true,
-          provider: "github",
-          branch,
-          message: finalCommitMessage,
-        });
-      }
-
-      // Single file commit
-      const targetFilePath = syncMeta?.targetPath || cleanPath || "tokens.json";
-      const fileJson = JSON.stringify(rawTokens, null, 2);
-
-      const getFileUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
-        repo
-      )}/contents/${targetFilePath}?ref=${encodeURIComponent(branch)}`;
-
-      let fileSha: string | undefined = undefined;
-      const checkRes = await fetch(getFileUrl, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${pat}`,
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "TokensStudio-SecondScreen-Viewer",
-        },
-        cache: "no-store",
-      });
-
-      if (checkRes.ok) {
-        const fileData = await checkRes.json();
-        fileSha = fileData.sha;
-      }
-
-      const putFileUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
-        repo
-      )}/contents/${targetFilePath}`;
-      const payload: Record<string, any> = {
-        message: finalCommitMessage,
-        content: Buffer.from(fileJson).toString("base64"),
-        branch: branch,
-      };
-      if (fileSha) {
-        payload.sha = fileSha;
-      }
-
-      const commitRes = await fetch(putFileUrl, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (!commitRes.ok) {
-        const errText = await commitRes.text();
-        let parsedMessage = commitRes.statusText;
-        try {
-          const errObj = JSON.parse(errText);
-          parsedMessage = errObj.message || parsedMessage;
         } catch {
           // ignore
         }
-        return NextResponse.json(
-          { error: `GitHub Commit Failed (${commitRes.status}): ${parsedMessage}` },
-          { status: commitRes.status }
-        );
+
+        const putUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+          repo
+        )}/contents/${encodeURIComponent(filePath)}`;
+
+        const payload: any = {
+          message: `${finalCommitMessage} (${filePath})`,
+          content: Buffer.from(fileJson).toString("base64"),
+          branch,
+        };
+        if (sha) payload.sha = sha;
+
+        const putRes = await fetch(putUrl, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        if (!putRes.ok) {
+          const errText = await putRes.text();
+          let parsedMessage = putRes.statusText;
+          try {
+            const errObj = JSON.parse(errText);
+            parsedMessage = errObj.message || parsedMessage;
+          } catch {
+            // ignore
+          }
+          return NextResponse.json(
+            { error: `GitHub Commit Failed on '${filePath}' (${putRes.status}): ${parsedMessage}` },
+            { status: putRes.status }
+          );
+        }
       }
 
-      const commitResult = await commitRes.json();
       return NextResponse.json({
         success: true,
         provider: "github",
-        commitSha: commitResult.commit?.sha || commitResult.content?.sha,
-        branch: branch,
+        branch,
         message: finalCommitMessage,
       });
     }
@@ -172,10 +136,8 @@ export async function POST(req: NextRequest) {
       const azRepo = encodeURIComponent(repo);
       const basicAuth = Buffer.from(`:${pat}`).toString("base64");
 
-      // 1. Get current branch ref and latest commit SHA
-      const getRefsUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/refs?filter=heads/${encodeURIComponent(
-        branch
-      )}&api-version=7.0`;
+      // 1. Fetch branch heads to find exact oldObjectId (handles branches with slashes like experiment/v2)
+      const getRefsUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/refs?filter=heads/&api-version=7.0`;
 
       const refRes = await fetch(getRefsUrl, {
         method: "GET",
@@ -187,65 +149,69 @@ export async function POST(req: NextRequest) {
       });
 
       if (!refRes.ok) {
+        const errText = await refRes.text();
         return NextResponse.json(
-          { error: `Could not fetch branch '${branch}' on Azure DevOps repository.` },
+          { error: `Could not connect to Azure DevOps repository: ${errText}` },
           { status: refRes.status }
         );
       }
 
       const refData = await refRes.json();
-      const currentBranchObj = refData.value?.[0];
+      const allRefs: any[] = Array.isArray(refData.value) ? refData.value : [];
+
+      const targetRefName = `refs/heads/${branch}`;
+      const currentBranchObj = allRefs.find(
+        (r) =>
+          r.name === targetRefName ||
+          r.name.toLowerCase() === targetRefName.toLowerCase() ||
+          r.name.replace(/^refs\/heads\//i, "").toLowerCase() === branch.toLowerCase()
+      );
+
       if (!currentBranchObj || !currentBranchObj.objectId) {
         return NextResponse.json(
-          { error: `Branch 'refs/heads/${branch}' not found in Azure DevOps repository.` },
+          { error: `Branch '${branch}' not found in Azure DevOps repository. Please verify branch name.` },
           { status: 404 }
         );
       }
 
       const oldObjectId = currentBranchObj.objectId;
 
-      // Prepare changes list (multi-file or single file)
+      // 2. Prepare deduplicated changes list
+      const pathToContentMap = new Map<string, string>();
+
       const isFolderMode = syncMeta?.mode === "folder" && syncMeta?.files;
-      const changes: any[] = [];
 
       if (isFolderMode && syncMeta.files) {
         for (const [setName, setFilePath] of Object.entries(syncMeta.files)) {
           if (setName.startsWith("$") && !rawTokens[setName]) continue;
-          const contentObj = rawTokens[setName] || {};
-          const fileJson = JSON.stringify(contentObj, null, 2);
-          const normalizedPath = setFilePath.startsWith("/") ? setFilePath : "/" + setFilePath;
-
-          changes.push({
-            changeType: "edit",
-            item: { path: normalizedPath },
-            newContent: {
-              content: fileJson,
-              contentType: "rawText",
-            },
-          });
+          const contentObj = rawTokens[setName];
+          if (contentObj !== undefined) {
+            const normalizedPath = setFilePath.startsWith("/") ? setFilePath : "/" + setFilePath;
+            pathToContentMap.set(normalizedPath, JSON.stringify(contentObj, null, 2));
+          }
         }
       } else {
         const targetFilePath = syncMeta?.targetPath || cleanPath || "tokens.json";
         const normalizedPath = targetFilePath.startsWith("/") ? targetFilePath : "/" + targetFilePath;
-        const fileJson = JSON.stringify(rawTokens, null, 2);
-
-        changes.push({
-          changeType: "edit",
-          item: { path: normalizedPath },
-          newContent: {
-            content: fileJson,
-            contentType: "rawText",
-          },
-        });
+        pathToContentMap.set(normalizedPath, JSON.stringify(rawTokens, null, 2));
       }
 
-      // Create push commit
+      const changes = Array.from(pathToContentMap.entries()).map(([path, content]) => ({
+        changeType: "edit",
+        item: { path },
+        newContent: {
+          content,
+          contentType: "rawText",
+        },
+      }));
+
+      // 3. Create push commit
       const pushUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/pushes?api-version=7.0`;
 
       const pushPayload = {
         refUpdates: [
           {
-            name: `refs/heads/${branch}`,
+            name: currentBranchObj.name,
             oldObjectId: oldObjectId,
           },
         ],
