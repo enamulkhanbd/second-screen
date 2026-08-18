@@ -16,9 +16,21 @@ export function getLeafValue(leaf: RawTokenLeaf): string {
 }
 
 // Extract the token type from a token leaf
-export function getLeafType(leaf: RawTokenLeaf, parentGroup?: string): TokenType {
+export function getLeafType(leaf: RawTokenLeaf, parentGroupOrPath?: string | string[]): TokenType {
   const type = (leaf.type || leaf.$type || "") as string;
-  if (type) return type.toLowerCase() as TokenType;
+  if (type) {
+    const t = type.toLowerCase();
+    if (t === "color" || t === "colors") return "color";
+    if (t === "spacing" || t === "space") return "spacing";
+    if (t === "sizing" || t === "size" || t === "dimension" || t === "dimensions") return "sizing";
+    if (t === "borderradius" || t === "radius" || t === "radii") return "borderRadius";
+    if (t === "borderwidth" || t === "border") return "borderWidth";
+    if (t === "opacity") return "opacity";
+    if (t === "boxshadow" || t === "shadow") return "boxShadow";
+    if (t === "typography") return "typography";
+    if (t === "fontfamilies" || t === "fontweights" || t === "fontsizes" || t === "lineheights" || t === "letterspacing") return "typography";
+    return t as TokenType;
+  }
 
   // Check if value is a composite typography object
   const val = leaf.value !== undefined ? leaf.value : leaf.$value;
@@ -32,12 +44,18 @@ export function getLeafType(leaf: RawTokenLeaf, parentGroup?: string): TokenType
   }
 
   // Infer type from group / path naming heuristics
-  if (parentGroup) {
-    const groupLower = parentGroup.toLowerCase();
-    if (groupLower.includes("color") || groupLower.includes("bg") || groupLower.includes("text") || groupLower.includes("border") || groupLower.includes("icon")) return "color";
-    if (groupLower.includes("spacing") || groupLower.includes("gap") || groupLower.includes("padding") || groupLower.includes("margin")) return "spacing";
-    if (groupLower.includes("radius") || groupLower.includes("round")) return "borderRadius";
-    if (groupLower.includes("font") || groupLower.includes("typography") || groupLower.includes("body") || groupLower.includes("heading") || groupLower.includes("title")) return "typography";
+  const fullPathStr = Array.isArray(parentGroupOrPath)
+    ? parentGroupOrPath.join(".").toLowerCase()
+    : (parentGroupOrPath || "").toLowerCase();
+
+  if (fullPathStr) {
+    if (fullPathStr.includes("color") || fullPathStr.includes("bg") || fullPathStr.includes("text") || fullPathStr.includes("border") || fullPathStr.includes("icon") || fullPathStr.includes("palette") || fullPathStr.includes("fill") || fullPathStr.includes("stroke") || fullPathStr.includes("brand")) return "color";
+    if (fullPathStr.includes("spacing") || fullPathStr.includes("gap") || fullPathStr.includes("padding") || fullPathStr.includes("margin") || fullPathStr.includes("space")) return "spacing";
+    if (fullPathStr.includes("radius") || fullPathStr.includes("round") || fullPathStr.includes("radii")) return "borderRadius";
+    if (fullPathStr.includes("font") || fullPathStr.includes("typography") || fullPathStr.includes("body") || fullPathStr.includes("heading") || fullPathStr.includes("title") || fullPathStr.includes("lineheight") || fullPathStr.includes("letterspacing") || fullPathStr.includes("caption")) return "typography";
+    if (fullPathStr.includes("size") || fullPathStr.includes("dimension") || fullPathStr.includes("width") || fullPathStr.includes("height") || fullPathStr.includes("sizing")) return "sizing";
+    if (fullPathStr.includes("opacity")) return "opacity";
+    if (fullPathStr.includes("shadow") || fullPathStr.includes("elevation")) return "boxShadow";
   }
 
   return "other";

@@ -190,6 +190,62 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   return groups;
 }
 
+export type TokenCategory =
+  | "color"
+  | "typography"
+  | "spacing"
+  | "sizing"
+  | "borderRadius"
+  | "boxShadow"
+  | "opacity"
+  | "other";
+
+export function getCategoryForType(type: TokenType | string): TokenCategory {
+  const t = (type || "").toLowerCase();
+  if (t === "color" || t === "colors") return "color";
+  if (
+    t === "typography" ||
+    t === "fontfamilies" ||
+    t === "fontweights" ||
+    t === "fontsizes" ||
+    t === "lineheights" ||
+    t === "letterspacing" ||
+    t === "paragraphspacing" ||
+    t === "textcase" ||
+    t === "textdecoration"
+  ) {
+    return "typography";
+  }
+  if (t === "spacing" || t === "space") return "spacing";
+  if (t === "sizing" || t === "size" || t === "dimension" || t === "dimensions") return "sizing";
+  if (t === "borderradius" || t === "radius" || t === "radii" || t === "borderwidth" || t === "border") return "borderRadius";
+  if (t === "boxshadow" || t === "shadow") return "boxShadow";
+  if (t === "opacity") return "opacity";
+  return "other";
+}
+
+export const CATEGORY_ORDER: TokenCategory[] = [
+  "color",
+  "typography",
+  "spacing",
+  "sizing",
+  "borderRadius",
+  "boxShadow",
+  "opacity",
+  "other",
+];
+
+export const CATEGORY_LABELS: Record<TokenCategory, { label: string; countLabel: string }> = {
+  color: { label: "Color", countLabel: "colors" },
+  typography: { label: "Typography", countLabel: "typography" },
+  spacing: { label: "Spacing", countLabel: "spacing" },
+  sizing: { label: "Sizing", countLabel: "sizing" },
+  borderRadius: { label: "Border & Radius", countLabel: "radius" },
+  boxShadow: { label: "Shadow", countLabel: "shadows" },
+  opacity: { label: "Opacity", countLabel: "opacity" },
+  other: { label: "Other", countLabel: "other" },
+};
+
 export interface MatrixCellData {
   rawValue: string;
   resolvedValue: string;
@@ -202,6 +258,7 @@ export interface MatrixRowData {
   tokenKey: string; // e.g. "body.body1.dl-400" or "color.semantic.bg.brandStrong"
   type: TokenType;
   group: string;
+  category: TokenCategory;
   cells: Record<string, MatrixCellData | undefined>; // optionName -> CellData
 }
 
@@ -309,7 +366,7 @@ export function buildThemeMatrix(
         const tokenKey = currentPath.join(".");
         if (!groupTokensMap.has(tokenKey)) {
           groupTokensMap.set(tokenKey, {
-            type: getLeafType(node, currentPath[0]),
+            type: getLeafType(node, currentPath),
             group: currentPath[0] || "general",
             pathSegments: currentPath,
           });
@@ -392,6 +449,7 @@ export function buildThemeMatrix(
       tokenKey,
       type,
       group: tokenGroup,
+      category: getCategoryForType(type),
       cells,
     });
   });

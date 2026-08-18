@@ -92,6 +92,65 @@ export const SAMPLE_TOKENS_DATA: RawTokensDocument = {
         },
       },
     },
+    spacing: {
+      none: { value: "0px", type: "spacing" },
+      xs: { value: "4px", type: "spacing" },
+      sm: { value: "8px", type: "spacing" },
+      md: { value: "16px", type: "spacing" },
+      lg: { value: "24px", type: "spacing" },
+      xl: { value: "32px", type: "spacing" },
+    },
+    sizing: {
+      "icon.sm": { value: "16px", type: "sizing" },
+      "icon.md": { value: "20px", type: "sizing" },
+      "icon.lg": { value: "24px", type: "sizing" },
+      "button.height": { value: "40px", type: "sizing" },
+    },
+    borderRadius: {
+      none: { value: "0px", type: "borderRadius" },
+      sm: { value: "4px", type: "borderRadius" },
+      md: { value: "8px", type: "borderRadius" },
+      lg: { value: "12px", type: "borderRadius" },
+      full: { value: "9999px", type: "borderRadius" },
+    },
+    typography: {
+      "body.regular": {
+        value: {
+          fontFamily: "Inter",
+          fontWeight: "400",
+          fontSize: "14px",
+          lineHeight: "20px",
+        },
+        type: "typography",
+      },
+      "body.medium": {
+        value: {
+          fontFamily: "Inter",
+          fontWeight: "500",
+          fontSize: "14px",
+          lineHeight: "20px",
+        },
+        type: "typography",
+      },
+      "heading.h1": {
+        value: {
+          fontFamily: "Inter",
+          fontWeight: "700",
+          fontSize: "32px",
+          lineHeight: "40px",
+        },
+        type: "typography",
+      },
+      "heading.h2": {
+        value: {
+          fontFamily: "Inter",
+          fontWeight: "600",
+          fontSize: "24px",
+          lineHeight: "32px",
+        },
+        type: "typography",
+      },
+    },
   },
 
   dark: {
@@ -138,6 +197,20 @@ export const SAMPLE_TOKENS_DATA: RawTokensDocument = {
         },
       },
     },
+    spacing: {
+      layout: {
+        card: { value: "{spacing.md}", type: "spacing" },
+        modal: { value: "{spacing.lg}", type: "spacing" },
+      },
+    },
+    borderRadius: {
+      card: { value: "{borderRadius.lg}", type: "borderRadius" },
+      button: { value: "{borderRadius.md}", type: "borderRadius" },
+    },
+    typography: {
+      cardTitle: { value: "{typography.heading.h2}", type: "typography" },
+      bodyDefault: { value: "{typography.body.regular}", type: "typography" },
+    },
   },
 
   light: {
@@ -183,6 +256,20 @@ export const SAMPLE_TOKENS_DATA: RawTokensDocument = {
           secondary: { value: "{colorMode.text.secondary}", type: "color" },
         },
       },
+    },
+    spacing: {
+      layout: {
+        card: { value: "{spacing.md}", type: "spacing" },
+        modal: { value: "{spacing.lg}", type: "spacing" },
+      },
+    },
+    borderRadius: {
+      card: { value: "{borderRadius.lg}", type: "borderRadius" },
+      button: { value: "{borderRadius.md}", type: "borderRadius" },
+    },
+    typography: {
+      cardTitle: { value: "{typography.heading.h2}", type: "typography" },
+      bodyDefault: { value: "{typography.body.regular}", type: "typography" },
     },
   },
 };

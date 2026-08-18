@@ -2,8 +2,17 @@
 
 import React, { useMemo, useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { buildThemeMatrix, MatrixRowData, MatrixCellData } from "@/utils/themeHelpers";
+import {
+  buildThemeMatrix,
+  MatrixRowData,
+  MatrixCellData,
+  TokenCategory,
+  CATEGORY_ORDER,
+  CATEGORY_LABELS,
+  getCategoryForType,
+} from "@/utils/themeHelpers";
 import { formatTypographySummary } from "@/utils/transformTokens";
+import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import {
   Folder,
   MoreVertical,
@@ -16,11 +25,89 @@ import {
   Type,
   X,
   Check,
+  Palette,
+  MoveHorizontal,
+  Ruler,
+  Square,
+  Layers,
+  Eye,
+  Tag,
+  ChevronDown,
+  ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface ThemeMatrixProps {
   onOpenSettings?: () => void;
 }
+
+const CATEGORY_CONFIG: Record<
+  TokenCategory,
+  {
+    label: string;
+    icon: React.ElementType;
+    badgeStyle: string;
+    iconColor: string;
+    dotColor: string;
+  }
+> = {
+  color: {
+    label: "Color",
+    icon: Palette,
+    badgeStyle: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+    iconColor: "text-amber-400",
+    dotColor: "bg-amber-400",
+  },
+  typography: {
+    label: "Typography",
+    icon: Type,
+    badgeStyle: "bg-violet-500/10 border-violet-500/20 text-violet-400",
+    iconColor: "text-violet-400",
+    dotColor: "bg-violet-400",
+  },
+  spacing: {
+    label: "Spacing",
+    icon: MoveHorizontal,
+    badgeStyle: "bg-blue-500/10 border-blue-500/20 text-blue-400",
+    iconColor: "text-blue-400",
+    dotColor: "bg-blue-400",
+  },
+  sizing: {
+    label: "Sizing",
+    icon: Ruler,
+    badgeStyle: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+    iconColor: "text-emerald-400",
+    dotColor: "bg-emerald-400",
+  },
+  borderRadius: {
+    label: "Border & Radius",
+    icon: Square,
+    badgeStyle: "bg-rose-500/10 border-rose-500/20 text-rose-400",
+    iconColor: "text-rose-400",
+    dotColor: "bg-rose-400",
+  },
+  boxShadow: {
+    label: "Shadow",
+    icon: Layers,
+    badgeStyle: "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+    iconColor: "text-cyan-400",
+    dotColor: "bg-cyan-400",
+  },
+  opacity: {
+    label: "Opacity",
+    icon: Eye,
+    badgeStyle: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
+    iconColor: "text-yellow-400",
+    dotColor: "bg-yellow-400",
+  },
+  other: {
+    label: "Other",
+    icon: Tag,
+    badgeStyle: "bg-zinc-500/10 border-zinc-500/20 text-zinc-400",
+    iconColor: "text-zinc-400",
+    dotColor: "bg-zinc-400",
+  },
+};
 
 export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const {
@@ -36,7 +123,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   } = useTokenStore();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | TokenCategory>("all");
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [isFetching, setIsFetching] = useState(false);
+  const [showAddOptionModal, setShowAddOptionModal] = useState(false);
 
   const hasCredentials = Boolean(credentials.owner && credentials.repo && credentials.pat);
   const isTotallyEmpty = Object.keys(rawTokens).length === 0;
@@ -51,20 +141,72 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   }, [themeGroups, activeThemeGroupId]);
 
   // Build matrix rows for active theme group
-  const matrixRows = useMemo(() => {
+  const allMatrixRows = useMemo(() => {
     if (!activeGroup) return [];
-    const rows = buildThemeMatrix(rawTokens, activeGroup);
-    if (!searchQuery.trim()) return rows;
+    return buildThemeMatrix(rawTokens, activeGroup);
+  }, [rawTokens, activeGroup]);
+
+  // Filter matrix rows based on search query
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return allMatrixRows;
 
     const q = searchQuery.toLowerCase();
-    return rows.filter((r) => {
+    return allMatrixRows.filter((r) => {
       const matchKey = r.tokenKey.toLowerCase().includes(q);
+      const matchType = r.type.toLowerCase().includes(q) || r.category.toLowerCase().includes(q);
       const matchCell = Object.values(r.cells).some((c) =>
         c?.rawValue.toLowerCase().includes(q) || c?.resolvedValue.toLowerCase().includes(q)
       );
-      return matchKey || matchCell;
+      return matchKey || matchType || matchCell;
     });
-  }, [rawTokens, activeGroup, searchQuery]);
+  }, [allMatrixRows, searchQuery]);
+
+  // Compute category count breakdown
+  const categoryCounts = useMemo(() => {
+    const counts: Partial<Record<TokenCategory, number>> = {};
+    filteredRows.forEach((row) => {
+      counts[row.category] = (counts[row.category] || 0) + 1;
+    });
+    return counts;
+  }, [filteredRows]);
+
+  // Categories that actually exist in the current filtered set
+  const availableCategories = useMemo(() => {
+    return CATEGORY_ORDER.filter((cat) => (categoryCounts[cat] || 0) > 0);
+  }, [categoryCounts]);
+
+  // Group rows by category
+  const groupedRows = useMemo(() => {
+    const map = new Map<TokenCategory, MatrixRowData[]>();
+    CATEGORY_ORDER.forEach((cat) => map.set(cat, []));
+
+    filteredRows.forEach((row) => {
+      if (selectedCategory === "all" || selectedCategory === row.category) {
+        map.get(row.category)?.push(row);
+      }
+    });
+
+    return map;
+  }, [filteredRows, selectedCategory]);
+
+  const toggleCategoryCollapse = (cat: TokenCategory) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [cat]: !prev[cat],
+    }));
+  };
+
+  const handleCollapseAll = () => {
+    const allCollapsed: Record<string, boolean> = {};
+    availableCategories.forEach((cat) => {
+      allCollapsed[cat] = true;
+    });
+    setCollapsedCategories(allCollapsed);
+  };
+
+  const handleExpandAll = () => {
+    setCollapsedCategories({});
+  };
 
   const handleFetchNow = async () => {
     if (!hasCredentials) {
@@ -186,9 +328,9 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#09090d] overflow-hidden text-xs">
-      {/* Top Header Bar of Matrix: 📁 Theme 🟠 ⋮ | + Add option */}
+      {/* Top Header Bar of Matrix: 📁 Theme 🟠 ⋮ | Filter + Search + Add option */}
       <div className="h-12 border-b border-zinc-900 bg-[#0d0d11] px-6 flex items-center justify-between flex-shrink-0 select-none">
-        {/* Left: Group Title */}
+        {/* Left: Group Title & Badge */}
         <div className="flex items-center gap-2 text-zinc-200">
           <Folder className="w-4 h-4 text-zinc-400" />
           <span className="font-semibold text-sm">{activeGroup?.name || "Theme"}</span>
@@ -199,6 +341,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           <button
             onClick={onOpenSettings}
             className="text-zinc-500 hover:text-zinc-300 p-1 rounded hover:bg-zinc-800/60 ml-1 transition-colors"
+            title="Theme Settings"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
@@ -218,8 +361,9 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           </div>
 
           <button
-            onClick={onOpenSettings}
+            onClick={() => setShowAddOptionModal(true)}
             className="flex items-center gap-1 px-3 py-1 bg-white text-black font-semibold rounded-md text-xs hover:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
+            title={`Add option to ${activeGroup?.name || "Theme"}`}
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Add option</span>
@@ -227,59 +371,221 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         </div>
       </div>
 
+      {/* Minimal Token Type Filter & Separation Sub-Bar */}
+      {availableCategories.length > 0 && (
+        <div className="h-10 px-6 border-b border-zinc-900/80 bg-[#0b0b10] flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none">
+          {/* Left: Minimal Type Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mr-1 flex items-center gap-1">
+              <SlidersHorizontal className="w-3 h-3 text-zinc-500" />
+              <span>Type:</span>
+            </span>
+
+            {/* All Chips */}
+            <button
+              onClick={() => setSelectedCategory("all")}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+                selectedCategory === "all"
+                  ? "bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700/80"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+              }`}
+            >
+              <span>All Types</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                  selectedCategory === "all"
+                    ? "bg-zinc-700 text-zinc-200"
+                    : "bg-zinc-900 text-zinc-500"
+                }`}
+              >
+                {filteredRows.length}
+              </span>
+            </button>
+
+            {/* Individual Type Chips */}
+            {availableCategories.map((cat) => {
+              const count = categoryCounts[cat] || 0;
+              const config = CATEGORY_CONFIG[cat];
+              const Icon = config.icon;
+              const isSelected = selectedCategory === cat;
+
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    isSelected
+                      ? "bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700/80"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                  }`}
+                >
+                  <Icon className={`w-3 h-3 ${isSelected ? config.iconColor : "text-zinc-500"}`} />
+                  <span>{config.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                      isSelected
+                        ? "bg-zinc-700 text-zinc-200"
+                        : "bg-zinc-900 text-zinc-500"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right: Expand / Collapse All */}
+          {selectedCategory === "all" && availableCategories.length > 1 && (
+            <div className="flex items-center gap-2 pl-4 border-l border-zinc-900 flex-shrink-0">
+              <button
+                onClick={handleExpandAll}
+                className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                Expand all
+              </button>
+              <span className="text-zinc-700 text-[10px]">•</span>
+              <button
+                onClick={handleCollapseAll}
+                className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                Collapse all
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main Table Matrix */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-left border-collapse text-xs">
-          {/* Table Header: TOKEN | OPTION_A ⚙️ | OPTION_B ⚙️ */}
-          <thead className="sticky top-0 z-10 bg-[#0d0d11] border-b border-zinc-900 text-[11px] font-bold text-zinc-400 tracking-wider">
-            <tr>
-              <th className="py-3 px-6 w-1/3 font-semibold uppercase text-zinc-500">
-                TOKEN
-              </th>
-              {activeGroup?.options.map((option) => (
-                <th
-                  key={option.id}
-                  className="py-3 px-6 font-semibold uppercase text-zinc-400"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>{option.name}</span>
-                    <Settings className="w-3 h-3 text-zinc-500" />
-                  </div>
+        {filteredRows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center select-none">
+            <p className="text-sm font-medium text-zinc-400">No matching tokens found</p>
+            <p className="text-xs text-zinc-600 mt-1">Try adjusting your search filter or selected token type.</p>
+          </div>
+        ) : (
+          <table className="w-full text-left border-collapse text-xs">
+            {/* Table Header: TOKEN | OPTION_A ⚙️ | OPTION_B ⚙️ */}
+            <thead className="sticky top-0 z-20 bg-[#0d0d11] border-b border-zinc-900 text-[11px] font-bold text-zinc-400 tracking-wider shadow-sm">
+              <tr>
+                <th className="py-3 px-6 w-1/3 font-semibold uppercase text-zinc-500">
+                  TOKEN
                 </th>
-              ))}
-            </tr>
-          </thead>
-
-          {/* Table Body: Rows with Pill Swatch Containers */}
-          <tbody className="divide-y divide-zinc-900/60 font-mono">
-            {matrixRows.map((row) => (
-              <tr key={row.tokenKey} className="hover:bg-zinc-900/30 transition-colors">
-                {/* Token Key Name */}
-                <td className="py-2.5 px-6 text-zinc-300 text-xs font-mono select-text align-middle">
-                  {row.tokenKey}
-                </td>
-
-                {/* Option Columns */}
-                {activeGroup?.options.map((option) => {
-                  const cellData = row.cells[option.name];
-
-                  return (
-                    <td key={option.id} className="py-2 px-6 align-middle">
-                      <MatrixPillCell
-                        cellData={cellData}
-                        tokenType={row.type}
-                        tokenKey={row.tokenKey}
-                        optionName={option.name}
-                        onUpdate={updateSingleToken}
-                      />
-                    </td>
-                  );
-                })}
+                {activeGroup?.options.map((option) => (
+                  <th
+                    key={option.id}
+                    className="py-3 px-6 font-semibold uppercase text-zinc-400"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>{option.name}</span>
+                      <Settings className="w-3 h-3 text-zinc-500" />
+                    </div>
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            {/* Table Body: Separated by Minimal Token Type Section Headers */}
+            <tbody className="divide-y divide-zinc-900/60 font-mono">
+              {CATEGORY_ORDER.map((cat) => {
+                const catRows = groupedRows.get(cat) || [];
+                if (catRows.length === 0) return null;
+
+                const config = CATEGORY_CONFIG[cat];
+                const Icon = config.icon;
+                const isCollapsed = Boolean(collapsedCategories[cat]);
+
+                return (
+                  <React.Fragment key={cat}>
+                    {/* Minimal Category Section Separator Header */}
+                    <tr
+                      onClick={() => toggleCategoryCollapse(cat)}
+                      className="bg-[#0e0e15]/95 sticky top-[37px] z-10 border-y border-zinc-800/80 cursor-pointer select-none hover:bg-zinc-900/60 transition-colors backdrop-blur-md"
+                    >
+                      <td
+                        colSpan={(activeGroup?.options.length || 0) + 1}
+                        className="py-2 px-6"
+                      >
+                        <div className="flex items-center justify-between">
+                          {/* Left: Category Icon, Name, Count */}
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1 rounded border ${config.badgeStyle}`}>
+                              <Icon className="w-3 h-3" />
+                            </div>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-200">
+                              {config.label}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono font-medium">
+                              ({catRows.length} {catRows.length === 1 ? "token" : "tokens"})
+                            </span>
+                          </div>
+
+                          {/* Right: Collapse / Expand Chevron Indicator */}
+                          <div className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 text-[10px]">
+                            <span className="text-[10px] text-zinc-500">
+                              {isCollapsed ? "Expand" : "Collapse"}
+                            </span>
+                            {isCollapsed ? (
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Category Rows */}
+                    {!isCollapsed &&
+                      catRows.map((row) => (
+                        <tr
+                          key={row.tokenKey}
+                          className="hover:bg-zinc-900/30 transition-colors"
+                        >
+                          {/* Token Key Name + Type Icon */}
+                          <td className="py-2.5 px-6 text-zinc-300 text-xs font-mono select-text align-middle">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dotColor}`}
+                                title={`Type: ${config.label}`}
+                              />
+                              <span className="truncate">{row.tokenKey}</span>
+                            </div>
+                          </td>
+
+                          {/* Option Columns */}
+                          {activeGroup?.options.map((option) => {
+                            const cellData = row.cells[option.name];
+
+                            return (
+                              <td key={option.id} className="py-2 px-6 align-middle">
+                                <MatrixPillCell
+                                  cellData={cellData}
+                                  tokenType={row.type}
+                                  tokenCategory={row.category}
+                                  tokenKey={row.tokenKey}
+                                  optionName={option.name}
+                                  onUpdate={updateSingleToken}
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
+
+      {/* Add Theme Option Modal */}
+      <AddThemeOptionModal
+        isOpen={showAddOptionModal}
+        onClose={() => setShowAddOptionModal(false)}
+        defaultGroupId={activeGroup?.id}
+      />
     </div>
   );
 };
@@ -287,6 +593,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 interface MatrixPillCellProps {
   cellData?: MatrixCellData;
   tokenType: string;
+  tokenCategory: TokenCategory;
   tokenKey: string;
   optionName: string;
   onUpdate: (path: string[], newValue: any) => void;
@@ -295,6 +602,7 @@ interface MatrixPillCellProps {
 const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
   cellData,
   tokenType,
+  tokenCategory,
   tokenKey,
   optionName,
   onUpdate,
@@ -317,16 +625,21 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
 
   // Check if cell is a composite typography object
   const isCompositeTypography =
-    tokenType === "typography" ||
-    (typeof cellData.rawValue === "string" &&
-      cellData.rawValue.includes("fontFamily") &&
-      cellData.rawValue.startsWith("{"));
+    tokenCategory === "typography" &&
+    (tokenType === "typography" ||
+      (typeof cellData.rawValue === "string" &&
+        cellData.rawValue.includes("fontFamily") &&
+        cellData.rawValue.startsWith("{")));
 
   const isColor =
+    tokenCategory === "color" ||
     tokenType === "color" ||
     /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(cellData.resolvedValue.trim()) ||
     /^rgba?\(.+\)$/i.test(cellData.resolvedValue.trim()) ||
     /^hsla?\(.+\)$/i.test(cellData.resolvedValue.trim());
+
+  const isBorderRadius = tokenCategory === "borderRadius";
+  const isSpacingOrSizing = tokenCategory === "spacing" || tokenCategory === "sizing";
 
   const handleBlur = () => {
     setIsEditing(false);
@@ -398,20 +711,49 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
           : "border-zinc-800/80 bg-[#121217] hover:border-zinc-700 hover:bg-[#16161d]"
       }`}
     >
-      {/* Left: Swatch Circle */}
-      <div
-        className="w-4 h-4 rounded-full flex-shrink-0 border border-black/40 overflow-hidden shadow-inner bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
-        title={`Computed: ${cellData.resolvedValue}`}
-      >
-        {isColor ? (
+      {/* Left: Swatch / Type Indicator */}
+      {isColor ? (
+        <div
+          className="w-4 h-4 rounded-full flex-shrink-0 border border-black/40 overflow-hidden shadow-inner bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
+          title={`Computed: ${cellData.resolvedValue}`}
+        >
           <div
             className="w-full h-full"
             style={{ backgroundColor: cellData.resolvedValue }}
           />
-        ) : (
-          <div className="w-full h-full bg-violet-400" />
-        )}
-      </div>
+        </div>
+      ) : isBorderRadius ? (
+        <div
+          className="w-4 h-4 rounded border border-rose-500/40 bg-rose-500/20 flex items-center justify-center flex-shrink-0"
+          title={`Border Radius: ${cellData.resolvedValue}`}
+        >
+          <div
+            className="w-2.5 h-2.5 border border-rose-400 bg-rose-400/30"
+            style={{
+              borderRadius: cellData.resolvedValue.includes("px") || cellData.resolvedValue.includes("rem")
+                ? cellData.resolvedValue
+                : "2px",
+            }}
+          />
+        </div>
+      ) : isSpacingOrSizing ? (
+        <div
+          className="w-4 h-4 rounded flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-400 flex-shrink-0"
+          title={`Dimension: ${cellData.resolvedValue}`}
+        >
+          {tokenCategory === "spacing" ? (
+            <MoveHorizontal className="w-2.5 h-2.5" />
+          ) : (
+            <Ruler className="w-2.5 h-2.5" />
+          )}
+        </div>
+      ) : (
+        <div
+          className="w-4 h-4 rounded flex items-center justify-center bg-zinc-800 border border-zinc-700 text-zinc-400 text-[9px] font-mono flex-shrink-0"
+        >
+          #
+        </div>
+      )}
 
       {/* Right: Editable Monospace Alias Text */}
       {isEditing ? (

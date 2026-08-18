@@ -42,8 +42,8 @@ export type RawTokenTree = {
   [key: string]: RawTokenLeaf | RawTokenTree;
 };
 
-// Top-level structure can be a single set OR multi-set dictionary: { "global": { ... }, "dark": { ... } }
-export type RawTokensDocument = Record<string, RawTokenTree>;
+// Top-level structure can be a single set OR multi-set dictionary: { "global": { ... }, "dark": { ... }, "$themes": [...] }
+export type RawTokensDocument = Record<string, RawTokenTree | any>;
 
 export interface FlattenedToken {
   id: string; // Full dot path, e.g. "global.colors.brand.primary" or "colors.brand.primary"

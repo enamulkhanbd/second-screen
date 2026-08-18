@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Folder, Plus } from "lucide-react";
+import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -18,6 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     rawTokens,
   } = useTokenStore();
 
+  const [addModalGroupId, setAddModalGroupId] = useState<string | null>(null);
   const isEmpty = Object.keys(rawTokens).length === 0;
 
   return (
@@ -29,9 +31,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             Theme Groups
           </span>
           <button
-            onClick={onOpenSettings}
+            onClick={() => setAddModalGroupId(activeThemeGroupId || themeGroups[0]?.id || "new")}
             className="text-zinc-400 hover:text-white p-0.5 rounded hover:bg-zinc-800 transition-colors"
-            title="Configure Themes & Token Sets"
+            title="Add Theme Option"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -52,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                   {/* Group Folder Header */}
                   <div
                     onClick={() => setActiveThemeGroup(group.id)}
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                    className={`group/header flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
                       isGroupActive
                         ? "text-zinc-100 bg-zinc-900/60 font-medium"
                         : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/30"
@@ -62,10 +64,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                       <Folder className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400" />
                       <span className="truncate text-xs font-semibold">{group.name}</span>
                     </div>
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: group.color }}
-                    />
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveThemeGroup(group.id);
+                          setAddModalGroupId(group.id);
+                        }}
+                        className="opacity-0 group-hover/header:opacity-100 text-zinc-500 hover:text-white p-0.5 rounded hover:bg-zinc-800 transition-all"
+                        title={`Add option to ${group.name}`}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: group.color }}
+                      />
+                    </div>
                   </div>
 
                   {/* Child Options List */}
@@ -107,6 +123,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       <div className="px-2 pt-4 border-t border-zinc-900 text-[10px] text-zinc-600 font-mono">
         Tokens Studio v2.0
       </div>
+
+      {/* Add Theme Option Modal */}
+      <AddThemeOptionModal
+        isOpen={Boolean(addModalGroupId)}
+        onClose={() => setAddModalGroupId(null)}
+        defaultGroupId={addModalGroupId || undefined}
+      />
     </aside>
   );
 };

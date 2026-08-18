@@ -56,6 +56,14 @@ interface TokenStoreState {
   addToast: (toast: Omit<ToastMessage, "id" | "timestamp">) => void;
   removeToast: (id: string) => void;
   resetDirtyState: () => void;
+  addThemeOption: (params: {
+    groupId: string;
+    name: string;
+    color?: string;
+    selectedTokenSets: Record<string, "enabled" | "disabled" | "source">;
+    cloneFromOptionId?: string;
+    newSetName?: string;
+  }) => void;
   loadSampleData: () => void;
 }
 
@@ -294,6 +302,105 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     })),
 
   resetDirtyState: () => set({ isDirty: false }),
+
+  addThemeOption: (params) => {
+    const { rawTokens, themeGroups, activeSet } = get();
+    const targetGroup =
+      themeGroups.find((g) => g.id === params.groupId) ||
+      themeGroups.find((g) => g.name.toLowerCase() === params.groupId.toLowerCase()) ||
+      themeGroups[0];
+
+    if (!targetGroup) return;
+
+    const optionId = `opt-${params.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString(36)}`;
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+
+    let existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+
+    if (existingThemes.length === 0) {
+      themeGroups.forEach((grp) => {
+        grp.options.forEach((opt) => {
+          existingThemes.push({
+            id: opt.id,
+            name: opt.name,
+            group: grp.name,
+            selectedTokenSets: opt.selectedTokenSets || {},
+            color: opt.color || "#ffffff",
+          });
+        });
+      });
+    }
+
+    const selectedSets = { ...params.selectedTokenSets };
+    let updatedRawDoc = { ...rawTokens };
+
+    // If creating or populating a new set name
+    if (params.newSetName && params.newSetName.trim()) {
+      const setName = params.newSetName.trim();
+      selectedSets[setName] = "enabled";
+
+      // If cloning from an existing option, clone that option's enabled set
+      if (params.cloneFromOptionId) {
+        const sourceOpt = targetGroup.options.find(
+          (o) => o.id === params.cloneFromOptionId
+        );
+        if (sourceOpt) {
+          const sourceSetNames = Object.entries(sourceOpt.selectedTokenSets || {})
+            .filter(([_, status]) => status === "enabled")
+            .map(([s]) => s);
+
+          if (sourceSetNames.length > 0 && rawTokens[sourceSetNames[0]]) {
+            updatedRawDoc[setName] = JSON.parse(
+              JSON.stringify(rawTokens[sourceSetNames[0]])
+            );
+          } else {
+            updatedRawDoc[setName] = {};
+          }
+        } else {
+          updatedRawDoc[setName] = {};
+        }
+      } else if (!updatedRawDoc[setName]) {
+        updatedRawDoc[setName] = {};
+      }
+    }
+
+    existingThemes.push({
+      id: optionId,
+      name: params.name,
+      group: targetGroup.name,
+      selectedTokenSets: selectedSets,
+      color: params.color || "#3b82f6",
+    });
+
+    updatedRawDoc[themesKey] = existingThemes as any;
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
+        localStorage.setItem("ts_active_group_id", targetGroup.id);
+      } catch {}
+    }
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeGroupId: targetGroup.id,
+      activeThemeOptionId: optionId,
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Theme Option Created",
+      message: `Added "${params.name}" to ${targetGroup.name}. You can edit its token values now.`,
+    });
+  },
 
   loadSampleData: () => {
     const resolved = flattenAndResolveTokens(SAMPLE_TOKENS_DATA, "ALL");
