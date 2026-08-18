@@ -32,7 +32,9 @@ interface TokenStoreState {
   setActiveThemeGroup: (groupId: string) => void;
   setActiveThemeOption: (optionId: string) => void;
 
-  // View Filters
+  // View Mode & Filters
+  viewMode: "matrix" | "flow";
+  setViewMode: (mode: "matrix" | "flow") => void;
   activeSet: string;
   activeGroup: string;
   searchQuery: string;
@@ -138,6 +140,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     set({ activeThemeOptionId: optionId });
   },
 
+  viewMode: "matrix",
+  setViewMode: (mode) => {
+    set({ viewMode: mode });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_view_mode", mode);
+      } catch {}
+    }
+  },
+
   activeSet: "ALL",
   activeGroup: "all",
   searchQuery: "",
@@ -165,9 +177,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         parsedCreds = { ...DEFAULT_CREDENTIALS, pat: sessionPat };
       }
 
-      // 2. Restore User Profile
+      // 2. Restore User Profile & View Mode
       const savedUser = localStorage.getItem("ts_second_screen_user");
       const userProfile = savedUser ? JSON.parse(savedUser) : null;
+      const savedViewMode = (localStorage.getItem("ts_view_mode") as "matrix" | "flow") || "matrix";
 
       // 3. Restore Tokens Document & Theme Groups
       const cachedTokens = localStorage.getItem("ts_cached_tokens");
@@ -202,6 +215,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       set({
         credentials: parsedCreds,
         userProfile,
+        viewMode: savedViewMode,
         rawTokens,
         resolvedTokens,
         themeGroups,

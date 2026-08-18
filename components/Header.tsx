@@ -14,6 +14,8 @@ import {
   Check,
   RefreshCw,
   FolderGit2,
+  LayoutGrid,
+  Workflow,
 } from "lucide-react";
 
 interface HeaderProps {
@@ -31,6 +33,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     setActiveThemeGroup,
     userProfile,
     isDirty,
+    viewMode,
+    setViewMode,
     setSyncStatus,
     setRawTokens,
     resetDirtyState,
@@ -279,6 +283,37 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 </div>
               </nav>
             </>
+          )}
+
+          {/* View Mode Switcher: Matrix vs Flow */}
+          {hasTokens && (
+            <div className="flex items-center bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 text-[11px] font-medium ml-2">
+              <button
+                onClick={() => setViewMode("matrix")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  viewMode === "matrix"
+                    ? "bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-zinc-700"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+                title="Theme Matrix Comparison Grid"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Matrix</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode("flow")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  viewMode === "flow"
+                    ? "bg-zinc-800 text-violet-300 font-semibold shadow-sm ring-1 ring-zinc-700"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+                title="Visual Token Flow & Dependency Graph"
+              >
+                <Workflow className="w-3.5 h-3.5" />
+                <span>Flow Graph</span>
+              </button>
+            </div>
           )}
         </div>
 
