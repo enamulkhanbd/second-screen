@@ -13,6 +13,7 @@ import {
 } from "@/utils/themeHelpers";
 import { formatTypographySummary } from "@/utils/transformTokens";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
+import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
 import {
   Folder,
   MoreVertical,
@@ -35,6 +36,11 @@ import {
   ChevronDown,
   ChevronRight,
   SlidersHorizontal,
+  Pencil,
+  Copy,
+  Trash2,
+  Download,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ThemeMatrixProps {
@@ -120,6 +126,8 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     setSyncStatus,
     addToast,
     loadSampleData,
+    duplicateThemeGroup,
+    deleteThemeGroup,
   } = useTokenStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,6 +135,9 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [isFetching, setIsFetching] = useState(false);
   const [showAddOptionModal, setShowAddOptionModal] = useState(false);
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const hasCredentials = Boolean(credentials.owner && credentials.repo && credentials.pat);
   const isTotallyEmpty = Object.keys(rawTokens).length === 0;
@@ -330,8 +341,8 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     <div className="flex-1 flex flex-col h-full bg-[#09090d] overflow-hidden text-xs">
       {/* Top Header Bar of Matrix: 📁 Theme 🟠 ⋮ | Filter + Search + Add option */}
       <div className="h-12 border-b border-zinc-900 bg-[#0d0d11] px-6 flex items-center justify-between flex-shrink-0 select-none">
-        {/* Left: Group Title & Badge */}
-        <div className="flex items-center gap-2 text-zinc-200">
+        {/* Left: Group Title & Badge & Actions Menu */}
+        <div className="flex items-center gap-2 text-zinc-200 relative">
           <Folder className="w-4 h-4 text-zinc-400" />
           <span className="font-semibold text-sm">{activeGroup?.name || "Theme"}</span>
           <span
@@ -339,12 +350,114 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             style={{ backgroundColor: activeGroup?.color || "#f97316" }}
           />
           <button
-            onClick={onOpenSettings}
-            className="text-zinc-500 hover:text-zinc-300 p-1 rounded hover:bg-zinc-800/60 ml-1 transition-colors"
-            title="Theme Settings"
+            onClick={() => setShowGroupMenu(!showGroupMenu)}
+            className={`p-1 rounded ml-1 transition-colors ${
+              showGroupMenu
+                ? "bg-zinc-800 text-white"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60"
+            }`}
+            title="Theme Group Actions"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
+
+          {/* Group Actions Popover Menu */}
+          {showGroupMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setShowGroupMenu(false)}
+              />
+              <div className="absolute left-0 top-full mt-2 w-56 bg-[#121217] border border-zinc-800 rounded-xl shadow-2xl py-1.5 z-40 text-xs animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 py-1.5 border-b border-zinc-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: activeGroup?.color || "#f97316" }}
+                    />
+                    <span className="font-semibold text-zinc-200 text-xs truncate">
+                      {activeGroup?.name}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {activeGroup?.options.length} options
+                  </span>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setShowGroupMenu(false);
+                      setShowAddOptionModal(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition-colors text-left"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-violet-400" />
+                    <span>Add theme option</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowGroupMenu(false);
+                      setShowEditGroupModal(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition-colors text-left"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Rename & edit color</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowGroupMenu(false);
+                      if (activeGroup) duplicateThemeGroup(activeGroup.id);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition-colors text-left"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Duplicate theme group</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowGroupMenu(false);
+                      if (activeGroup) {
+                        const jsonStr = JSON.stringify(activeGroup, null, 2);
+                        navigator.clipboard.writeText(jsonStr);
+                        addToast({
+                          type: "success",
+                          title: "Theme Group JSON Copied",
+                          message: `Copied "${activeGroup.name}" definition to clipboard.`,
+                        });
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition-colors text-left"
+                  >
+                    <Download className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Copy group JSON</span>
+                  </button>
+                </div>
+
+                <div className="pt-1 border-t border-zinc-800/80">
+                  <button
+                    onClick={() => {
+                      setShowGroupMenu(false);
+                      setShowDeleteConfirm(true);
+                    }}
+                    disabled={themeGroups.length <= 1}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 transition-colors text-left ${
+                      themeGroups.length <= 1
+                        ? "text-zinc-600 cursor-not-allowed"
+                        : "text-red-400 hover:text-red-300 hover:bg-red-950/30"
+                    }`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete theme group</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right: Search Filter & + Add option Button */}
@@ -586,6 +699,59 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         onClose={() => setShowAddOptionModal(false)}
         defaultGroupId={activeGroup?.id}
       />
+
+      {/* Edit Theme Group Modal */}
+      {activeGroup && (
+        <EditThemeGroupModal
+          isOpen={showEditGroupModal}
+          onClose={() => setShowEditGroupModal(false)}
+          groupId={activeGroup.id}
+        />
+      )}
+
+      {/* Delete Group Confirmation Modal */}
+      {showDeleteConfirm && activeGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-none">
+          <div className="w-full max-w-sm bg-[#121217] border border-zinc-800 rounded-2xl shadow-2xl p-6 text-zinc-100 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-400 flex-shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Delete Theme Group</h3>
+                <p className="text-xs text-zinc-400">
+                  Are you sure you want to delete <span className="font-semibold text-zinc-200">"{activeGroup.name}"</span>?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-zinc-400 leading-relaxed bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/60">
+              This will remove all {activeGroup.options.length} options configured for this group from your theme matrix.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteThemeGroup(activeGroup.id);
+                  setShowDeleteConfirm(false);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-600/25 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Group</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

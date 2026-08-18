@@ -64,6 +64,9 @@ interface TokenStoreState {
     cloneFromOptionId?: string;
     newSetName?: string;
   }) => void;
+  updateThemeGroup: (groupId: string, newName: string, newColor?: string) => void;
+  duplicateThemeGroup: (groupId: string) => void;
+  deleteThemeGroup: (groupId: string) => void;
   loadSampleData: () => void;
 }
 
@@ -399,6 +402,221 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       type: "success",
       title: "Theme Option Created",
       message: `Added "${params.name}" to ${targetGroup.name}. You can edit its token values now.`,
+    });
+  },
+
+  updateThemeGroup: (groupId, newName, newColor) => {
+    const { rawTokens, themeGroups, activeSet } = get();
+    const targetGroup =
+      themeGroups.find((g) => g.id === groupId) ||
+      themeGroups.find((g) => g.name.toLowerCase() === groupId.toLowerCase());
+
+    if (!targetGroup) return;
+
+    const oldName = targetGroup.name;
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+
+    let existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+
+    if (existingThemes.length === 0) {
+      themeGroups.forEach((grp) => {
+        grp.options.forEach((opt) => {
+          existingThemes.push({
+            id: opt.id,
+            name: opt.name,
+            group: grp.name,
+            selectedTokenSets: opt.selectedTokenSets || {},
+            color: opt.color || "#ffffff",
+          });
+        });
+      });
+    }
+
+    const updatedThemes = existingThemes.map((t) => {
+      if (t.group === oldName) {
+        return {
+          ...t,
+          group: newName,
+          ...(newColor ? { groupColor: newColor } : {}),
+        };
+      }
+      return t;
+    });
+
+    const updatedRawDoc = {
+      ...rawTokens,
+      [themesKey]: updatedThemes as any,
+    };
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const newMatchedGroup = updatedGroups.find((g) => g.name === newName) || updatedGroups[0];
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
+        if (newMatchedGroup) {
+          localStorage.setItem("ts_active_group_id", newMatchedGroup.id);
+        }
+      } catch {}
+    }
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeGroupId: newMatchedGroup?.id || "",
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Theme Group Updated",
+      message: `Renamed to "${newName}".`,
+    });
+  },
+
+  duplicateThemeGroup: (groupId) => {
+    const { rawTokens, themeGroups, activeSet } = get();
+    const targetGroup = themeGroups.find((g) => g.id === groupId);
+    if (!targetGroup) return;
+
+    const newGroupName = `${targetGroup.name} (Copy)`;
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+
+    let existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+
+    if (existingThemes.length === 0) {
+      themeGroups.forEach((grp) => {
+        grp.options.forEach((opt) => {
+          existingThemes.push({
+            id: opt.id,
+            name: opt.name,
+            group: grp.name,
+            selectedTokenSets: opt.selectedTokenSets || {},
+            color: opt.color || "#ffffff",
+          });
+        });
+      });
+    }
+
+    // Clone all options for this group
+    const clonedOptions = targetGroup.options.map((opt, idx) => ({
+      id: `opt-clone-${Date.now().toString(36)}-${idx}`,
+      name: opt.name,
+      group: newGroupName,
+      selectedTokenSets: { ...(opt.selectedTokenSets || {}) },
+      color: opt.color || "#ffffff",
+    }));
+
+    const updatedThemes = [...existingThemes, ...clonedOptions];
+    const updatedRawDoc = {
+      ...rawTokens,
+      [themesKey]: updatedThemes as any,
+    };
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const newMatchedGroup = updatedGroups.find((g) => g.name === newGroupName) || updatedGroups[0];
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
+        if (newMatchedGroup) {
+          localStorage.setItem("ts_active_group_id", newMatchedGroup.id);
+        }
+      } catch {}
+    }
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeGroupId: newMatchedGroup?.id || "",
+      activeThemeOptionId: newMatchedGroup?.options[0]?.id || "",
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Theme Group Duplicated",
+      message: `Created copy "${newGroupName}".`,
+    });
+  },
+
+  deleteThemeGroup: (groupId) => {
+    const { rawTokens, themeGroups, activeSet } = get();
+    const targetGroup = themeGroups.find((g) => g.id === groupId);
+    if (!targetGroup) return;
+
+    if (themeGroups.length <= 1) {
+      get().addToast({
+        type: "error",
+        title: "Cannot Delete Group",
+        message: "You must have at least one Theme Group.",
+      });
+      return;
+    }
+
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+
+    let existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+
+    if (existingThemes.length === 0) {
+      themeGroups.forEach((grp) => {
+        grp.options.forEach((opt) => {
+          existingThemes.push({
+            id: opt.id,
+            name: opt.name,
+            group: grp.name,
+            selectedTokenSets: opt.selectedTokenSets || {},
+            color: opt.color || "#ffffff",
+          });
+        });
+      });
+    }
+
+    const updatedThemes = existingThemes.filter(
+      (t) => t.group !== targetGroup.name
+    );
+
+    const updatedRawDoc = {
+      ...rawTokens,
+      [themesKey]: updatedThemes as any,
+    };
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const remainingGroup = updatedGroups[0];
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
+        if (remainingGroup) {
+          localStorage.setItem("ts_active_group_id", remainingGroup.id);
+        }
+      } catch {}
+    }
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeGroupId: remainingGroup?.id || "",
+      activeThemeOptionId: remainingGroup?.options[0]?.id || "",
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "info",
+      title: "Theme Group Deleted",
+      message: `Deleted "${targetGroup.name}".`,
     });
   },
 
