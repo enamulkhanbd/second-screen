@@ -32,6 +32,10 @@ interface TokenStoreState {
   setActiveThemeGroup: (groupId: string) => void;
   setActiveThemeOption: (optionId: string) => void;
 
+  // Theme Mode (light/dark)
+  themeMode: "light" | "dark";
+  setThemeMode: (mode: "light" | "dark") => void;
+
   // View Mode & Filters
   viewMode: "matrix" | "flow";
   setViewMode: (mode: "matrix" | "flow") => void;
@@ -150,6 +154,24 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     }
   },
 
+  // Theme mode initialization (default follows system)
+  themeMode: "light",
+  setThemeMode: (mode) => {
+    set({ themeMode: mode });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_theme_mode", mode);
+        // Apply/remove dark class on <html>
+        const root = document.documentElement;
+        if (mode === "dark") {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+      } catch {}
+    }
+  },
+
   activeSet: "ALL",
   activeGroup: "all",
   searchQuery: "",
@@ -182,7 +204,27 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       const userProfile = savedUser ? JSON.parse(savedUser) : null;
       const savedViewMode = (localStorage.getItem("ts_view_mode") as "matrix" | "flow") || "matrix";
 
-      // 3. Restore Tokens Document & Theme Groups
+      // 3. Restore Theme Mode (light/dark)
+      const savedTheme = localStorage.getItem("ts_theme_mode") as "light" | "dark" | null;
+      let initialTheme: "light" | "dark" = "light";
+      if (savedTheme) {
+        initialTheme = savedTheme;
+      } else {
+        // Follow system preference if no user setting
+        const prefersDark = typeof window !== "undefined" && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        initialTheme = prefersDark ? "dark" : "light";
+      }
+      // Apply the theme class immediately
+      if (typeof window !== "undefined") {
+        const root = document.documentElement;
+        if (initialTheme === "dark") {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+      }
+
+      // 4. Restore Tokens Document & Theme Groups
       const cachedTokens = localStorage.getItem("ts_cached_tokens");
       const cachedMeta = localStorage.getItem("ts_cached_meta");
       const savedGroupId = localStorage.getItem("ts_active_group_id");
@@ -216,13 +258,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         credentials: parsedCreds,
         userProfile,
         viewMode: savedViewMode,
+        themeMode: initialTheme,
         rawTokens,
         resolvedTokens,
         themeGroups,
         activeThemeGroupId,
         activeThemeOptionId,
         syncMeta,
-        isDirty: false,
+        syncStatus: "idle",
+        syncError: null,
+        toasts: [],
       });
     } catch {
       // ignore storage parsing error

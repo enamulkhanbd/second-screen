@@ -112,24 +112,24 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-none">
-      <div className="w-full max-w-lg bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-none">
+      <div className="w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-violet-600/20 text-violet-400 border border-violet-500/20">
+            <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20">
               <FolderGit2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">Git Provider Sync Configuration</h2>
-              <p className="text-xs text-zinc-400">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Git Provider Sync Configuration</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Connect your repository to load and synchronize design tokens
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -139,7 +139,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
         <form onSubmit={handleSaveAndFetch} className="p-6 space-y-4">
           {/* Provider Tabs */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-2">
               Git Provider
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -148,8 +148,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                 onClick={() => handleProviderChange("github")}
                 className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                   form.provider === "github"
-                    ? "bg-violet-600/20 border-violet-500 text-violet-300 shadow-sm shadow-violet-500/20"
-                    : "bg-zinc-800/60 border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+                    ? "bg-violet-50 dark:bg-violet-600/20 border-violet-400 dark:border-violet-500 text-violet-700 dark:text-violet-300 shadow-sm shadow-violet-500/20"
+                    : "bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-600"
                 }`}
               >
                 <Server className="w-4 h-4" />
@@ -160,8 +160,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                 onClick={() => handleProviderChange("azure")}
                 className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                   form.provider === "azure"
-                    ? "bg-blue-600/20 border-blue-500 text-blue-300 shadow-sm shadow-blue-500/20"
-                    : "bg-zinc-800/60 border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+                    ? "bg-blue-50 dark:bg-blue-600/20 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-300 shadow-sm shadow-blue-500/20"
+                    : "bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-600"
                 }`}
               >
                 <Server className="w-4 h-4" />
@@ -175,8 +175,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
             <>
               {/* PAT */}
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                   Personal Access Token (PAT)
                 </label>
                 <input
@@ -185,13 +185,13 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                   value={form.pat}
                   onChange={(e) => setForm({ ...form, pat: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                 />
               </div>
 
               {/* Repository */}
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                   Repository
                 </label>
                 <input
@@ -212,14 +212,14 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       setForm({ ...form, repo: val, owner: "" });
                     }
                   }}
-                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                 />
               </div>
 
               {/* Branch & Path Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
                     <GitBranch className="w-3.5 h-3.5 text-zinc-400" />
                     Branch
                   </label>
@@ -229,11 +229,11 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     placeholder="main"
                     value={form.branch}
                     onChange={(e) => setForm({ ...form, branch: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                     File / Folder Path
                   </label>
                   <input
@@ -241,7 +241,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     placeholder="e.g. tokens, app-global, or leave blank"
                     value={form.path}
                     onChange={(e) => setForm({ ...form, path: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
               </div>
@@ -252,7 +252,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
               {/* Azure Org & Project */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                     Organization
                   </label>
                   <input
@@ -261,11 +261,11 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     placeholder="e.g. azolvedevops"
                     value={form.owner}
                     onChange={(e) => setForm({ ...form, owner: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                     Project Name
                   </label>
                   <input
@@ -273,14 +273,14 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     placeholder="e.g. JustGo"
                     value={form.project || ""}
                     onChange={(e) => setForm({ ...form, project: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
               </div>
 
               {/* Azure Repo */}
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                   Repository Name
                 </label>
                 <input
@@ -289,14 +289,14 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   placeholder="e.g. planet"
                   value={form.repo}
                   onChange={(e) => setForm({ ...form, repo: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                 />
               </div>
 
               {/* Branch & Path Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
                     <GitBranch className="w-3.5 h-3.5 text-zinc-400" />
                     Branch
                   </label>
@@ -306,11 +306,11 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     placeholder="main"
                     value={form.branch}
                     onChange={(e) => setForm({ ...form, branch: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                     File / Folder Path
                   </label>
                   <input
@@ -318,15 +318,15 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     placeholder="e.g. app-global or tokens"
                     value={form.path}
                     onChange={(e) => setForm({ ...form, path: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
               </div>
 
               {/* Azure PAT */}
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                   Personal Access Token (PAT)
                 </label>
                 <input
@@ -335,14 +335,14 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   placeholder="Azure DevOps Personal Access Token"
                   value={form.pat}
                   onChange={(e) => setForm({ ...form, pat: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-all font-mono"
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                 />
               </div>
             </>
           )}
 
-          <p className="text-[11px] text-zinc-400 flex items-center gap-1.5 pt-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 pt-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             Tokens and branches are synced directly preserving all raw alias references.
           </p>
 
@@ -351,8 +351,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
             <div
               className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
                 statusMessage.type === "error"
-                  ? "bg-rose-950/30 border-rose-800 text-rose-300"
-                  : "bg-emerald-950/30 border-emerald-800 text-emerald-300"
+                  ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300"
+                  : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
               }`}
             >
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -365,7 +365,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>

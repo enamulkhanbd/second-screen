@@ -272,12 +272,12 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       ref={containerRef}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
-      className={`relative w-full h-full bg-[#08080c] overflow-hidden select-none ${
+      className={`relative w-full h-full bg-slate-100 dark:bg-[#08080c] overflow-hidden select-none transition-colors ${
         draggingNodeId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
       }`}
     >
       {/* Background Dot Grid */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30 dark:opacity-20">
         <defs>
           <pattern
             id="flow-grid"
@@ -287,7 +287,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
             height={24 * zoom}
             patternUnits="userSpaceOnUse"
           >
-            <circle cx="1.5" cy="1.5" r="1" fill="#71717a" />
+            <circle cx="1.5" cy="1.5" r="1" className="fill-zinc-400 dark:fill-zinc-600" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#flow-grid)" />
@@ -344,8 +344,8 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                     isActive
                       ? "url(#edge-active-grad)"
                       : isDimmed
-                      ? "#27272a"
-                      : "#3f3f46"
+                      ? "#a1a1aa"
+                      : "#71717a"
                   }
                   strokeWidth={isActive ? "2.5" : "1.5"}
                   strokeOpacity={isDimmed ? 0.2 : isActive ? 1 : 0.65}
@@ -389,44 +389,44 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       </div>
 
       {/* Floating Canvas Controls (Bottom Left) */}
-      <div className="absolute left-6 bottom-6 flex items-center gap-1.5 p-1 bg-[#121218]/90 border border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md z-20">
+      <div className="absolute left-6 bottom-6 flex items-center gap-1.5 p-1 bg-white/90 dark:bg-[#121218]/90 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl dark:shadow-2xl backdrop-blur-md z-20 transition-colors">
         <button
           onClick={handleZoomIn}
-          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+          className="p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           title="Zoom In"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomOut}
-          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+          className="p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           title="Zoom Out"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
-        <div className="w-[1px] h-4 bg-zinc-800" />
+        <div className="w-[1px] h-4 bg-zinc-200 dark:bg-zinc-800" />
         <button
           onClick={handleFitView}
-          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+          className="p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           title="Fit View"
         >
           <Maximize2 className="w-4 h-4" />
         </button>
         <button
           onClick={handleAutoArrange}
-          className="p-2 text-zinc-400 hover:text-violet-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+          className="p-2 text-zinc-600 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-violet-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           title="Auto-Arrange Layout"
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
         <button
           onClick={handleReset}
-          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+          className="p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           title="Reset View"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
-        <span className="px-2 font-mono text-[10px] text-zinc-500">
+        <span className="px-2 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
           {Math.round(zoom * 100)}%
         </span>
       </div>

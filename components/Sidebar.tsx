@@ -23,16 +23,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const isEmpty = Object.keys(rawTokens).length === 0;
 
   return (
-    <aside className="w-56 flex-shrink-0 border-r border-zinc-900 bg-[#0d0d11] p-3 flex flex-col justify-between select-none overflow-y-auto text-xs">
+    <aside className="w-56 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-900 bg-zinc-50/70 dark:bg-[#0d0d11] p-3 flex flex-col justify-between select-none overflow-y-auto text-xs transition-colors">
       <div>
         {/* Header: THEME GROUPS + */}
-        <div className="flex items-center justify-between px-2 py-1.5 mb-2 text-zinc-400">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+        <div className="flex items-center justify-between px-2 py-1.5 mb-2 text-zinc-500 dark:text-zinc-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Theme Groups
           </span>
           <button
             onClick={() => setAddModalGroupId(activeThemeGroupId || themeGroups[0]?.id || "new")}
-            className="text-zinc-400 hover:text-white p-0.5 rounded hover:bg-zinc-800 transition-colors"
+            className="text-zinc-400 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
             title="Add Theme Option"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
         {/* Theme Groups Tree */}
         {isEmpty || themeGroups.length === 0 ? (
-          <div className="px-2 py-4 text-center text-zinc-600 text-[11px]">
+          <div className="px-2 py-4 text-center text-zinc-400 dark:text-zinc-600 text-[11px]">
             No theme groups loaded
           </div>
         ) : (
@@ -56,12 +56,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                     onClick={() => setActiveThemeGroup(group.id)}
                     className={`group/header flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
                       isGroupActive
-                        ? "text-zinc-100 bg-zinc-900/60 font-medium"
-                        : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/30"
+                        ? "text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900/60 shadow-sm dark:shadow-none border border-zinc-200 dark:border-transparent font-medium"
+                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-900/30"
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Folder className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400" />
+                      <Folder className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
                       <span className="truncate text-xs font-semibold">{group.name}</span>
                     </div>
 
@@ -72,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                           setActiveThemeGroup(group.id);
                           setAddModalGroupId(group.id);
                         }}
-                        className="opacity-0 group-hover/header:opacity-100 text-zinc-500 hover:text-white p-0.5 rounded hover:bg-zinc-800 transition-all"
+                        className="opacity-0 group-hover/header:opacity-100 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all"
                         title={`Add option to ${group.name}`}
                       >
                         <Plus className="w-3 h-3" />
@@ -99,8 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                           }}
                           className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer text-[11px] transition-colors ${
                             isOptionActive
-                              ? "text-zinc-100 font-medium bg-zinc-900"
-                              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40"
+                              ? "text-zinc-900 dark:text-zinc-100 font-medium bg-zinc-200/80 dark:bg-zinc-900"
+                              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/40 dark:hover:bg-zinc-900/40"
                           }`}
                         >
                           <span className="truncate">{option.name}</span>
@@ -120,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       </div>
 
       {/* Bottom Info */}
-      <div className="px-2 pt-4 border-t border-zinc-900 text-[10px] text-zinc-600 font-mono">
+      <div className="px-2 pt-4 border-t border-zinc-200 dark:border-zinc-900 text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
         Tokens Studio v2.0
       </div>
 

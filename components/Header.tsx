@@ -16,6 +16,8 @@ import {
   FolderGit2,
   LayoutGrid,
   Workflow,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 interface HeaderProps {
@@ -39,6 +41,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     setRawTokens,
     resetDirtyState,
     addToast,
+    // Theme mode
+    themeMode,
+    setThemeMode,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -205,7 +210,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
   return (
     <>
-      <header className="h-12 border-b border-zinc-900 bg-[#0d0d11] px-4 flex items-center justify-between text-xs select-none relative z-30">
+      <header className="h-12 border-b border-zinc-200 dark:border-zinc-900 bg-white dark:bg-[#0d0d11] px-4 flex items-center justify-between text-xs select-none relative z-30 transition-colors">
         {/* Left: App Logo & System Name */}
         <div className="flex items-center gap-3">
           {/* Second Screen Logo & Brand */}
@@ -217,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm">
               <Layers className="w-3 h-3 text-white" />
             </div>
-            <span className="font-semibold text-zinc-100 text-xs tracking-tight">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs tracking-tight">
               Second Screen
             </span>
           </div>
@@ -225,26 +230,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
           {/* Interactive Breadcrumb Hierarchy (Starts after the name when configured) */}
           {isConfigured && hasTokens && (
             <>
-              <span className="text-zinc-700 font-mono text-[11px]">/</span>
-              <nav className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
+              <span className="text-zinc-400 dark:text-zinc-700 font-mono text-[11px]">/</span>
+              <nav className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
                 <span
                   onClick={onOpenSettings}
-                  className="hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-300"
+                  className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-700 dark:text-zinc-300"
                 >
                   {credentials.repo}: Tokens
                 </span>
-                <span className="text-zinc-600">/</span>
-                <span className="text-zinc-400">Themes</span>
-                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-300 dark:text-zinc-600">/</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Themes</span>
+                <span className="text-zinc-300 dark:text-zinc-600">/</span>
 
                 {/* Active Theme Group Selector */}
                 <div className="relative">
                   <button
                     onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                    className="flex items-center gap-1 font-semibold text-zinc-100 hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-800/60"
+                    className="flex items-center gap-1 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-violet-600 dark:hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
                   >
                     <span>{activeGroup?.name || "Theme"}</span>
-                    <ChevronDown className="w-3 h-3 text-zinc-500" />
+                    <ChevronDown className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
                   </button>
 
                   {/* Theme Group Menu Dropdown */}
@@ -254,8 +259,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                         className="fixed inset-0 z-40"
                         onClick={() => setShowThemeGroupMenu(false)}
                       />
-                      <div className="absolute left-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                      <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500 tracking-wider">
                           Theme Groups
                         </div>
                         {themeGroups.map((grp) => (
@@ -265,10 +270,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                               setActiveThemeGroup(grp.id);
                               setShowThemeGroupMenu(false);
                             }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${grp.id === activeGroup?.id
-                                ? "bg-violet-600/20 text-violet-200 font-semibold"
-                                : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                              }`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
+                              grp.id === activeGroup?.id
+                                ? "bg-violet-50 dark:bg-violet-600/20 text-violet-700 dark:text-violet-200 font-semibold"
+                                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
+                            }`}
                           >
                             <span
                               className="w-2 h-2 rounded-full flex-shrink-0"
@@ -287,13 +293,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
           {/* View Mode Switcher: Matrix vs Flow */}
           {hasTokens && (
-            <div className="flex items-center bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 text-[11px] font-medium ml-2">
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-950 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[11px] font-medium ml-2">
               <button
                 onClick={() => setViewMode("matrix")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "matrix"
-                    ? "bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-zinc-700"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Theme Matrix Comparison Grid"
               >
@@ -305,8 +311,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 onClick={() => setViewMode("flow")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "flow"
-                    ? "bg-zinc-800 text-violet-300 font-semibold shadow-sm ring-1 ring-zinc-700"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 font-semibold shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Visual Token Flow & Dependency Graph"
               >
@@ -317,61 +323,44 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
           )}
         </div>
 
-        {/* Right: Conditional Controls */}
+        {/* Right: Conditional Controls + Dark/Light Theme Switcher on Far Right */}
         <div className="flex items-center gap-2">
           {/* Dirty changes indicator tag */}
           {isDirty && (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-amber-400 font-mono bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/50 mr-1 animate-pulse">
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/50 mr-1 animate-pulse">
               unsaved changes
             </span>
           )}
 
           {isConfigured ? (
             <>
-              {/* 1. Avatar */}
-              <div
-                onClick={onOpenSettings}
-                className="w-6 h-6 rounded-full overflow-hidden border border-zinc-700/80 cursor-pointer bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm hover:scale-105 transition-transform"
-                title={credentials.owner ? `Connected as: ${credentials.owner}` : "Configure Git Profile"}
-              >
-                {userProfile?.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={userProfile.avatarUrl}
-                    alt={userProfile.displayName || "Avatar"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{getInitials(credentials.owner || "TS")}</span>
-                )}
-              </div>
-
-              {/* 2. Pull Button */}
+              {/* 1. Pull Button */}
               <button
                 onClick={handlePull}
                 disabled={isPulling}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
                 title="Pull latest tokens from current branch"
               >
-                <DownloadCloud className={`w-3.5 h-3.5 text-zinc-400 ${isPulling ? "animate-bounce" : ""}`} />
+                <DownloadCloud className={`w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 ${isPulling ? "animate-bounce" : ""}`} />
                 <span>{isPulling ? "Pulling..." : "Pull"}</span>
               </button>
 
-              {/* 3. Push Button */}
+              {/* 2. Push Button */}
               <button
                 onClick={() => setShowPushModal(true)}
                 disabled={isPushing}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50 ${isDirty
-                    ? "bg-violet-600/20 border-violet-500/60 text-violet-200 hover:bg-violet-600/30"
-                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
-                  }`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50 ${
+                  isDirty
+                    ? "bg-violet-50 dark:bg-violet-600/20 border-violet-300 dark:border-violet-500/60 text-violet-700 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-600/30"
+                    : "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
+                }`}
                 title="Push changes directly to branch"
               >
-                <UploadCloud className={`w-3.5 h-3.5 ${isDirty ? "text-violet-400" : "text-zinc-400"}`} />
+                <UploadCloud className={`w-3.5 h-3.5 ${isDirty ? "text-violet-600 dark:text-violet-400" : "text-zinc-500 dark:text-zinc-400"}`} />
                 <span>Push</span>
               </button>
 
-              {/* 4. Branch Pill Dropdown */}
+              {/* 3. Branch Pill Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => {
@@ -381,13 +370,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                       setShowBranchMenu(!showBranchMenu);
                     }
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer font-mono text-[11px]"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-all cursor-pointer font-mono text-[11px]"
                 >
-                  <GitBranch className="w-3.5 h-3.5 text-zinc-400" />
+                  <GitBranch className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                   <span className="max-w-[130px] truncate">
                     {credentials.branch || "Branch"}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                  <ChevronDown className="w-3 h-3 text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
                 </button>
 
                 {/* Branch Switcher Dropdown */}
@@ -397,23 +386,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                       className="fixed inset-0 z-40"
                       onClick={() => setShowBranchMenu(false)}
                     />
-                    <div className="absolute right-0 top-full mt-1.5 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-[85vh] flex flex-col">
+                    <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-[85vh] flex flex-col">
                       {/* Repository Name Information */}
-                      <div className="px-2.5 py-2 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
-                        <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                      <div className="px-2.5 py-2 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800/80 rounded-lg">
+                        <div className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400 tracking-wider">
                           Repository Name
                         </div>
-                        <div className="font-mono text-xs text-zinc-100 font-semibold truncate mt-0.5">
+                        <div className="font-mono text-xs text-zinc-900 dark:text-zinc-100 font-semibold truncate mt-0.5">
                           {credentials.repo || "Not Connected"}
                         </div>
                       </div>
 
                       {/* Switch Branch Section */}
                       <div className="flex-1 flex flex-col min-h-0 pt-0.5">
-                        <div className="flex items-center justify-between px-1 py-1 text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                        <div className="flex items-center justify-between px-1 py-1 text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400 tracking-wider">
                           <span>Switch Branch</span>
                           {loadingBranches && (
-                            <RefreshCw className="w-3 h-3 animate-spin text-zinc-500" />
+                            <RefreshCw className="w-3 h-3 animate-spin text-zinc-400 dark:text-zinc-500" />
                           )}
                         </div>
 
@@ -421,13 +410,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                         {branches.length > 5 && (
                           <div className="py-1">
                             <div className="relative">
-                              <Search className="w-3 h-3 text-zinc-500 absolute left-2 top-1/2 -translate-y-1/2" />
+                              <Search className="w-3 h-3 text-zinc-400 dark:text-zinc-500 absolute left-2 top-1/2 -translate-y-1/2" />
                               <input
                                 type="text"
                                 placeholder="Filter branches..."
                                 value={branchSearch}
                                 onChange={(e) => setBranchSearch(e.target.value)}
-                                className="w-full pl-6 pr-2 py-1 bg-zinc-950 border border-zinc-800 rounded text-[11px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-violet-500 font-mono"
+                                className="w-full pl-6 pr-2 py-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded text-[11px] text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-violet-500 font-mono"
                               />
                             </div>
                           </div>
@@ -436,7 +425,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                         {/* Branch List */}
                         <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 mt-0.5">
                           {filteredBranches.length === 0 && !loadingBranches ? (
-                            <div className="px-2.5 py-2 text-[11px] text-zinc-500 italic">
+                            <div className="px-2.5 py-2 text-[11px] text-zinc-400 dark:text-zinc-500 italic">
                               {branches.length === 0
                                 ? `Current: ${credentials.branch || "main"}`
                                 : "No matching branches"}
@@ -450,13 +439,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                                   key={b}
                                   onClick={() => handlePullForBranch(b)}
                                   disabled={isPulling}
-                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${isCurrent
-                                      ? "bg-violet-600/20 text-violet-200 font-semibold"
-                                      : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                                    }`}
+                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${
+                                    isCurrent
+                                      ? "bg-violet-50 dark:bg-violet-600/20 text-violet-700 dark:text-violet-200 font-semibold"
+                                      : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
+                                  }`}
                                 >
                                   <span className="truncate">{b}</span>
-                                  {isCurrent && <Check className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
+                                  {isCurrent && <Check className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 flex-shrink-0" />}
                                 </button>
                               );
                             })
@@ -465,6 +455,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                       </div>
                     </div>
                   </>
+                )}
+              </div>
+
+              {/* 4. Avatar Profile */}
+              <div
+                onClick={onOpenSettings}
+                className="w-6 h-6 rounded-full overflow-hidden border border-zinc-300 dark:border-zinc-700/80 cursor-pointer bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm hover:scale-105 transition-transform"
+                title={credentials.owner ? `Connected as: ${credentials.owner}` : "Configure Git Profile"}
+              >
+                {userProfile?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={userProfile.avatarUrl}
+                    alt={userProfile.displayName || "Avatar"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{getInitials(credentials.owner || "TS")}</span>
                 )}
               </div>
             </>
@@ -477,6 +485,22 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               <span>Connect Repository</span>
             </button>
           )}
+
+          {/* Divider before far-right theme switcher */}
+          <div className="w-[1px] h-4 bg-zinc-200 dark:bg-zinc-800 mx-0.5" />
+
+          {/* Theme Mode Toggle on the Far Right */}
+          <button
+            onClick={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
+            className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-all cursor-pointer shadow-sm flex-shrink-0"
+            title={themeMode === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {themeMode === "dark" ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-violet-600" />
+            )}
+          </button>
         </div>
       </header>
 

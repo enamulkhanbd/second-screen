@@ -19,7 +19,7 @@ export default function Home() {
   }, [initializeFromStorage]);
 
   return (
-    <main className="flex flex-col h-screen overflow-hidden bg-[#09090d]">
+    <main className="flex flex-col h-screen overflow-hidden bg-slate-100 dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
       {/* Top Header: Logo, Interactive Breadcrumbs, Avatar, Branch Dropdown */}
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
