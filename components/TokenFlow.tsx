@@ -9,6 +9,7 @@ import {
   FlowGraphData,
 } from "@/utils/tokenFlowBuilder";
 import { FlowCanvas } from "@/components/FlowCanvas";
+import { TokenAccessibilityCard } from "@/components/TokenAccessibilityCard";
 import { TokenCategory, CATEGORY_ORDER } from "@/utils/themeHelpers";
 import {
   Folder,
@@ -263,6 +264,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
   onSelectToken,
   onUpdateToken,
 }) => {
+  const { focusTokenInMatrix } = useTokenStore();
   const [val, setVal] = useState(token.rawValue);
 
   React.useEffect(() => {
@@ -473,6 +475,15 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
             )}
           </div>
         </div>
+
+        {/* Accessibility & Contrast Suite */}
+        <TokenAccessibilityCard
+          tokenName={token.name}
+          tokenKey={token.key}
+          resolvedValue={token.resolvedValue}
+          tokenCategory={token.category}
+          onOpenMatrix={() => focusTokenInMatrix(token.key)}
+        />
 
         {/* Upstream Ancestors (Where value comes from) */}
         <div className="space-y-2 pt-2 border-t border-zinc-200 dark:border-zinc-800/80">

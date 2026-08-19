@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   buildThemeMatrix,
@@ -128,6 +128,8 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     loadSampleData,
     duplicateThemeGroup,
     deleteThemeGroup,
+    highlightedTokenKey,
+    setHighlightedTokenKey,
   } = useTokenStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,6 +139,28 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Auto-scroll and highlight target token row if highlightedTokenKey is set
+  useEffect(() => {
+    if (!highlightedTokenKey) return;
+
+    const timer = setTimeout(() => {
+      const sanitizedId = `token-row-${highlightedTokenKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+      const rowEl = document.getElementById(sanitizedId);
+      if (rowEl) {
+        rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 150);
+
+    const clearTimer = setTimeout(() => {
+      setHighlightedTokenKey(null);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clearTimer);
+    };
+  }, [highlightedTokenKey, setHighlightedTokenKey]);
 
   const hasCredentials = Boolean(credentials.owner && credentials.repo && credentials.pat);
   const isTotallyEmpty = Object.keys(rawTokens).length === 0;
@@ -556,11 +580,18 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-900/60 font-mono">
               {displayRows.map((row) => {
                 const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
+                const isHighlighted = highlightedTokenKey === row.tokenKey;
+                const rowId = `token-row-${row.tokenKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
                 return (
                   <tr
                     key={row.tokenKey}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors"
+                    id={rowId}
+                    className={`transition-all duration-500 ${
+                      isHighlighted
+                        ? "bg-violet-100/90 dark:bg-violet-950/70 ring-2 ring-violet-500 shadow-md shadow-violet-500/20"
+                        : "hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                    }`}
                   >
                     {/* Token Key Name + Type Icon */}
                     <td className="py-2.5 px-6 text-zinc-700 dark:text-zinc-300 text-xs font-mono select-text align-middle">

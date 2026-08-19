@@ -42,6 +42,9 @@ interface TokenStoreState {
   activeSet: string;
   activeGroup: string;
   searchQuery: string;
+  highlightedTokenKey: string | null;
+  setHighlightedTokenKey: (key: string | null) => void;
+  focusTokenInMatrix: (tokenKey: string) => void;
 
   // Status & Notifications
   syncStatus: SyncStatus;
@@ -176,6 +179,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
   activeSet: "ALL",
   activeGroup: "all",
   searchQuery: "",
+  highlightedTokenKey: null,
+  setHighlightedTokenKey: (key) => set({ highlightedTokenKey: key }),
+  focusTokenInMatrix: (tokenKey) => {
+    set({
+      viewMode: "matrix",
+      searchQuery: "",
+      highlightedTokenKey: tokenKey,
+    });
+  },
 
   syncStatus: "idle",
   syncError: null,
