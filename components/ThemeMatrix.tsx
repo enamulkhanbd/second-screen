@@ -465,13 +465,13 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               placeholder="Filter tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-[11px] text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none focus:border-zinc-400 dark:focus:border-zinc-700 w-44 font-mono transition-colors"
+              className="pl-8 pr-3 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 outline-none focus:border-zinc-400 dark:focus:border-zinc-600 w-52 font-mono transition-colors"
             />
           </div>
 
           <button
             onClick={() => setShowAddOptionModal(true)}
-            className="flex items-center gap-1 px-3 py-1 bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold rounded-md text-xs hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold rounded-lg text-xs hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
             title={`Add option to ${activeGroup?.name || "Theme"}`}
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -482,29 +482,29 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
       {/* Minimal Token Type Filter & Separation Sub-Bar */}
       {availableCategories.length > 0 && (
-        <div className="h-10 px-6 border-b border-zinc-200 dark:border-zinc-900/80 bg-zinc-50/50 dark:bg-[#0b0b10] flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
+        <div className="h-11 px-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-[#0b0b10] flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
           {/* Left: Minimal Type Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mr-1 flex items-center gap-1">
-              <SlidersHorizontal className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mr-1 flex items-center gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
               <span>Type:</span>
             </span>
 
             {/* All Chips */}
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 selectedCategory === "all"
-                  ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700/80"
-                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/60"
+                  ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/80"
               }`}
             >
               <span>All Types</span>
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-medium ${
                   selectedCategory === "all"
-                    ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
-                    : "bg-zinc-200 dark:bg-zinc-900 text-zinc-500"
+                    ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
+                    : "bg-zinc-200 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
                 }`}
               >
                 {filteredRows.length}
@@ -522,19 +522,19 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                     isSelected
-                      ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700/80"
-                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/60"
+                      ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/80"
                   }`}
                 >
-                  <Icon className={`w-3 h-3 ${isSelected ? config.iconColor : "text-zinc-400 dark:text-zinc-500"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? config.iconColor : "text-zinc-500 dark:text-zinc-400"}`} />
                   <span>{config.label}</span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                    className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-medium ${
                       isSelected
-                        ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
-                        : "bg-zinc-200 dark:bg-zinc-900 text-zinc-500"
+                        ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
+                        : "bg-zinc-200 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
                     }`}
                   >
                     {count}
@@ -543,33 +543,32 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               );
             })}
           </div>
-
         </div>
       )}
 
       {/* Main Table Matrix */}
       <div className="flex-1 overflow-auto bg-white dark:bg-[#09090d] transition-colors">
         {displayRows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center select-none">
-            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">No matching tokens found</p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">Try adjusting your search filter or selected token type.</p>
+          <div className="flex flex-col items-center justify-center py-24 text-center select-none">
+            <p className="text-base font-semibold text-zinc-700 dark:text-zinc-300">No matching tokens found</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">Try adjusting your search filter or selected token type.</p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse text-xs">
             {/* Table Header: TOKEN | OPTION_A ⚙️ | OPTION_B ⚙️ */}
-            <thead className="sticky top-0 z-20 bg-zinc-50/95 dark:bg-[#0d0d11] border-b border-zinc-200 dark:border-zinc-900 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 tracking-wider shadow-sm backdrop-blur-md">
+            <thead className="sticky top-0 z-20 bg-zinc-50/95 dark:bg-[#0d0d11] border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 tracking-wider shadow-sm backdrop-blur-md">
               <tr>
-                <th className="py-3 px-6 w-1/3 font-semibold uppercase text-zinc-400 dark:text-zinc-500">
+                <th className="py-3 px-6 w-1/3 font-bold uppercase text-zinc-500 dark:text-zinc-400">
                   TOKEN
                 </th>
                 {activeGroup?.options.map((option) => (
                   <th
                     key={option.id}
-                    className="py-3 px-6 font-semibold uppercase text-zinc-600 dark:text-zinc-400"
+                    className="py-3 px-6 font-bold uppercase text-zinc-700 dark:text-zinc-300"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{option.name}</span>
-                      <Settings className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
+                      <Settings className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                     </div>
                   </th>
                 ))}
@@ -577,7 +576,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             </thead>
 
             {/* Table Body: Flat list of tokens */}
-            <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-900/60 font-mono">
+            <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80 font-mono">
               {displayRows.map((row) => {
                 const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
                 const isHighlighted = highlightedTokenKey === row.tokenKey;
@@ -590,17 +589,17 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                     className={`transition-all duration-500 ${
                       isHighlighted
                         ? "bg-violet-100/90 dark:bg-violet-950/70 ring-2 ring-violet-500 shadow-md shadow-violet-500/20"
-                        : "hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                        : "hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                     }`}
                   >
                     {/* Token Key Name + Type Icon */}
-                    <td className="py-2.5 px-6 text-zinc-700 dark:text-zinc-300 text-xs font-mono select-text align-middle">
-                      <div className="flex items-center gap-2">
+                    <td className="py-3 px-6 text-zinc-800 dark:text-zinc-200 text-[13px] font-mono select-text align-middle leading-relaxed">
+                      <div className="flex items-center gap-2.5">
                         <span
-                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dotColor}`}
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dotColor}`}
                           title={`Type: ${config.label}`}
                         />
-                        <span className="truncate">{row.tokenKey}</span>
+                        <span className="truncate font-medium">{row.tokenKey}</span>
                       </div>
                     </td>
 
@@ -609,7 +608,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                       const cellData = row.cells[option.name];
 
                       return (
-                        <td key={option.id} className="py-2 px-6 align-middle">
+                        <td key={option.id} className="py-2.5 px-6 align-middle">
                           <MatrixPillCell
                             cellData={cellData}
                             tokenType={row.type}
@@ -774,16 +773,16 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
       <>
         <div
           onClick={() => setShowTypographyModal(true)}
-          className="group inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-[#121217] hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#16161d] transition-all max-w-sm w-full cursor-pointer shadow-sm dark:shadow-none"
+          className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#121217] hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#16161d] transition-all max-w-sm w-full cursor-pointer shadow-sm dark:shadow-none min-h-[34px]"
           title="Click to inspect/edit typography token properties"
         >
           {/* Left: Aa Badge */}
-          <div className="w-4 h-4 rounded flex items-center justify-center bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 text-[10px] font-serif font-bold flex-shrink-0">
+          <div className="w-5 h-5 rounded flex items-center justify-center bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 text-xs font-serif font-bold flex-shrink-0">
             Aa
           </div>
 
           {/* Right: Typography Summary */}
-          <span className="flex-1 font-mono text-xs text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white truncate">
+          <span className="flex-1 font-mono text-[13px] text-zinc-800 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white truncate">
             {summaryText}
           </span>
         </div>
@@ -807,16 +806,16 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
 
   return (
     <div
-      className={`group inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all max-w-sm w-full ${
+      className={`group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-all max-w-sm w-full min-h-[34px] ${
         isEditing
           ? "border-violet-500 bg-violet-50/50 dark:bg-[#171722] ring-1 ring-violet-500 shadow-md shadow-violet-500/10"
-          : "border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-[#121217] hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#16161d] shadow-sm dark:shadow-none"
+          : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#121217] hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#16161d] shadow-sm dark:shadow-none"
       }`}
     >
       {/* Left: Swatch / Type Indicator */}
       {isColor ? (
         <div
-          className="w-4 h-4 rounded-full flex-shrink-0 border border-black/20 dark:border-black/40 overflow-hidden shadow-inner bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] dark:bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
+          className="w-4.5 h-4.5 rounded-full flex-shrink-0 border border-black/20 dark:border-black/50 overflow-hidden shadow-inner bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] dark:bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
           title={`Computed: ${cellData.resolvedValue}`}
         >
           <div
@@ -826,7 +825,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
         </div>
       ) : isBorderRadius ? (
         <div
-          className="w-4 h-4 rounded border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0"
+          className="w-4.5 h-4.5 rounded border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0"
           title={`Border Radius: ${cellData.resolvedValue}`}
         >
           <div
@@ -840,18 +839,18 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
         </div>
       ) : isSpacingOrSizing ? (
         <div
-          className="w-4 h-4 rounded flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex-shrink-0"
+          className="w-4.5 h-4.5 rounded flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex-shrink-0"
           title={`Dimension: ${cellData.resolvedValue}`}
         >
           {tokenCategory === "spacing" ? (
-            <MoveHorizontal className="w-2.5 h-2.5" />
+            <MoveHorizontal className="w-3 h-3" />
           ) : (
-            <Ruler className="w-2.5 h-2.5" />
+            <Ruler className="w-3 h-3" />
           )}
         </div>
       ) : (
         <div
-          className="w-4 h-4 rounded flex items-center justify-center bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-[9px] font-mono flex-shrink-0"
+          className="w-4.5 h-4.5 rounded flex items-center justify-center bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10px] font-mono flex-shrink-0 font-bold"
         >
           #
         </div>
@@ -866,12 +865,12 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
           onChange={(e) => setVal(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent text-xs text-violet-700 dark:text-violet-200 outline-none font-mono min-w-0"
+          className="flex-1 bg-transparent text-[13px] text-violet-700 dark:text-violet-200 outline-none font-mono min-w-0 font-medium"
         />
       ) : (
         <span
           onClick={() => setIsEditing(true)}
-          className="flex-1 font-mono text-xs text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white truncate cursor-text select-text"
+          className="flex-1 font-mono text-[13px] text-zinc-800 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white truncate cursor-text select-text font-medium"
           title={`Raw: ${cellData.rawValue} | Computed: ${cellData.resolvedValue}`}
         >
           {cellData.rawValue}

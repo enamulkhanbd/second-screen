@@ -36,6 +36,10 @@ interface TokenStoreState {
   themeMode: "light" | "dark";
   setThemeMode: (mode: "light" | "dark") => void;
 
+  // Sidebar Tab (tokens or themes)
+  sidebarTab: "tokens" | "themes";
+  setSidebarTab: (tab: "tokens" | "themes") => void;
+
   // View Mode & Filters
   viewMode: "matrix" | "flow";
   setViewMode: (mode: "matrix" | "flow") => void;
@@ -59,6 +63,7 @@ interface TokenStoreState {
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
   updateSingleToken: (path: string[], newValue: string) => void;
+  updateSetJson: (setName: string, newJsonContent: any) => void;
   setActiveSet: (setName: string) => void;
   setActiveGroup: (group: string) => void;
   setSearchQuery: (query: string) => void;
@@ -175,6 +180,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       } catch {}
     }
   },
+
+  sidebarTab: "tokens",
+  setSidebarTab: (tab) => set({ sidebarTab: tab }),
 
   activeSet: "ALL",
   activeGroup: "all",
@@ -337,6 +345,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
   updateSingleToken: (path, newValue) => {
     const { rawTokens, activeSet } = get();
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
+    const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
+    const updatedGroups = extractThemeGroups(updatedRaw);
+
+    set({
+      rawTokens: updatedRaw,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      isDirty: true,
+    });
+  },
+
+  updateSetJson: (setName, newJsonContent) => {
+    const { rawTokens, activeSet } = get();
+    const updatedRaw = {
+      ...rawTokens,
+      [setName]: newJsonContent,
+    };
     const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
     const updatedGroups = extractThemeGroups(updatedRaw);
 

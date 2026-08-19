@@ -465,3 +465,73 @@ export function buildThemeMatrix(
 
   return rows;
 }
+
+export interface SetTreeNode {
+  id: string; // unique identifier (full path)
+  name: string; // label (folder or file name)
+  isFolder: boolean;
+  fullPath: string; // actual set key or folder path
+  children?: SetTreeNode[];
+}
+
+/**
+ * Builds a hierarchical folder tree from flat set names using "/" delimiters.
+ * e.g. ["comp/button", "comp/toggle", "global", "pattern/feature"]
+ */
+export function buildSetFolderTree(setNames: string[]): SetTreeNode[] {
+  const rootNodes: SetTreeNode[] = [];
+  const folderMap = new Map<string, SetTreeNode>();
+
+  // Filter out system files like $themes, $metadata
+  const validSets = setNames
+    .filter((s) => !s.startsWith("$"))
+    .sort((a, b) => a.localeCompare(b));
+
+  for (const setName of validSets) {
+    const parts = setName.split("/").filter(Boolean);
+    if (parts.length === 1) {
+      // Root leaf set (e.g. "global", "semantic")
+      rootNodes.push({
+        id: setName,
+        name: parts[0],
+        isFolder: false,
+        fullPath: setName,
+      });
+    } else {
+      // Nested set in folder(s) (e.g. "comp/button", "pattern/feature")
+      let currentPath = "";
+      let currentParentList = rootNodes;
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isLeaf = i === parts.length - 1;
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+        if (isLeaf) {
+          currentParentList.push({
+            id: currentPath,
+            name: part,
+            isFolder: false,
+            fullPath: setName,
+          });
+        } else {
+          let folderNode = folderMap.get(currentPath);
+          if (!folderNode) {
+            folderNode = {
+              id: currentPath,
+              name: part,
+              isFolder: true,
+              fullPath: currentPath,
+              children: [],
+            };
+            folderMap.set(currentPath, folderNode);
+            currentParentList.push(folderNode);
+          }
+          currentParentList = folderNode.children!;
+        }
+      }
+    }
+  }
+
+  return rootNodes;
+}

@@ -149,21 +149,31 @@ export async function POST(req: NextRequest) {
 
       if (treeRes.ok) {
         const treeData = await treeRes.json();
-        const allBlobs: Array<{ path: string; url: string }> = (treeData.tree || []).filter(
-          (node: any) => node.type === "blob" && node.path.endsWith(".json") && !isIgnored(node.path)
+        // ONLY pull .json files, ignoring non-json and non-token configs
+        const allJsonBlobs: Array<{ path: string; url: string }> = (treeData.tree || []).filter(
+          (node: any) =>
+            node.type === "blob" &&
+            typeof node.path === "string" &&
+            node.path.toLowerCase().endsWith(".json") &&
+            !isIgnored(node.path)
         );
 
-        if (allBlobs.length > 0) {
-          // If cleanPath is specified, only include files located under cleanPath
+        if (allJsonBlobs.length > 0) {
+          // If cleanPath is specified (e.g. "assets/tokens/platforms/web" or "tokens.json"),
+          // strictly scope to files under that path
           const filteredBlobs = cleanPath
-            ? allBlobs.filter((b) => {
+            ? allJsonBlobs.filter((b) => {
                 const normP = b.path.replace(/^\/+/, "").toLowerCase();
                 const normC = cleanPath.toLowerCase();
-                return normP.startsWith(normC) || normP.includes(normC);
+                return (
+                  normP === normC ||
+                  normP.startsWith(`${normC}/`) ||
+                  normP.startsWith(normC)
+                );
               })
-            : allBlobs;
+            : allJsonBlobs;
 
-          const targetBlobs = filteredBlobs.length > 0 ? filteredBlobs : allBlobs;
+          const targetBlobs = filteredBlobs.length > 0 ? filteredBlobs : allJsonBlobs;
           const aggregated: Record<string, any> = {};
           const filesMeta: Record<string, string> = {};
 
@@ -177,7 +187,16 @@ export async function POST(req: NextRequest) {
                   try {
                     const parsed = JSON.parse(decoded);
                     const cleanBlobPath = blob.path.replace(/^\/+/, "");
-                    const relativeSetName = cleanBlobPath.replace(/\.json$/i, "");
+                    const normC = cleanPath.toLowerCase();
+
+                    // Strip base configured path from set key so it doesn't show full repository prefix
+                    let relativeSetName = cleanBlobPath.replace(/\.json$/i, "");
+                    if (normC && cleanBlobPath.toLowerCase().startsWith(`${normC}/`)) {
+                      relativeSetName = cleanBlobPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
+                    } else if (normC && cleanBlobPath.toLowerCase() === normC) {
+                      relativeSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
+                    }
+
                     const baseSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
 
                     if (baseSetName === "$themes" || baseSetName === "$themes.json") {
@@ -186,9 +205,6 @@ export async function POST(req: NextRequest) {
                       aggregated["$metadata"] = parsed;
                     } else {
                       aggregated[relativeSetName] = parsed;
-                      if (!aggregated[baseSetName]) {
-                        aggregated[baseSetName] = parsed;
-                      }
                     }
 
                     filesMeta[relativeSetName] = blob.path;
@@ -291,15 +307,21 @@ export async function POST(req: NextRequest) {
       const data = await response.json();
       const allItems: any[] = Array.isArray(data.value) ? data.value : data ? [data] : [];
 
-      // Filter for valid JSON files across the repository, scoped to cleanPath if set
+      // Filter STRICTLY for valid .json files across the repository, scoped to cleanPath if set
       const allJsonItems = allItems.filter((item) => {
-        if (item.isFolder || !item.path || !item.path.endsWith(".json") || isIgnored(item.path)) {
+        if (
+          item.isFolder ||
+          !item.path ||
+          typeof item.path !== "string" ||
+          !item.path.toLowerCase().endsWith(".json") ||
+          isIgnored(item.path)
+        ) {
           return false;
         }
         if (cleanPath) {
           const normP = item.path.replace(/^\/+/, "").toLowerCase();
           const normC = cleanPath.toLowerCase();
-          return normP.startsWith(normC) || normP.includes(normC);
+          return normP === normC || normP.startsWith(`${normC}/`) || normP.startsWith(normC);
         }
         return true;
       });
@@ -309,7 +331,12 @@ export async function POST(req: NextRequest) {
         allJsonItems.length > 0
           ? allJsonItems
           : allItems.filter(
-              (item) => !item.isFolder && item.path && item.path.endsWith(".json") && !isIgnored(item.path)
+              (item) =>
+                !item.isFolder &&
+                item.path &&
+                typeof item.path === "string" &&
+                item.path.toLowerCase().endsWith(".json") &&
+                !isIgnored(item.path)
             );
 
       if (targetJsonItems.length === 0) {
@@ -326,12 +353,21 @@ export async function POST(req: NextRequest) {
       const filesMeta: Record<string, string> = {};
 
       await Promise.all(
-        allJsonItems.map(async (item) => {
+        targetJsonItems.map(async (item) => {
           const rawText = await fetchAzureItemText(azOrg, azProject, azRepo, branch, item, basicAuth);
           if (rawText) {
             try {
               const cleanItemPath = item.path.replace(/^\/+/, "");
-              const relativeSetName = cleanItemPath.replace(/\.json$/i, "");
+              const normC = cleanPath.toLowerCase();
+
+              // Strip base configured path from set key so it doesn't show full repository prefix
+              let relativeSetName = cleanItemPath.replace(/\.json$/i, "");
+              if (normC && cleanItemPath.toLowerCase().startsWith(`${normC}/`)) {
+                relativeSetName = cleanItemPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
+              } else if (normC && cleanItemPath.toLowerCase() === normC) {
+                relativeSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
+              }
+
               const baseSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
               const parsed = JSON.parse(rawText);
 
@@ -341,10 +377,6 @@ export async function POST(req: NextRequest) {
                 aggregated["$metadata"] = parsed;
               } else {
                 aggregated[relativeSetName] = parsed;
-                // Only populate baseSetName if not already occupied by another file
-                if (!aggregated[baseSetName]) {
-                  aggregated[baseSetName] = parsed;
-                }
               }
 
               filesMeta[relativeSetName] = cleanItemPath;

@@ -5,13 +5,14 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeMatrix } from "@/components/ThemeMatrix";
 import { TokenFlow } from "@/components/TokenFlow";
+import { JsonCodeEditor } from "@/components/JsonCodeEditor";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 
 export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { initializeFromStorage, viewMode } = useTokenStore();
+  const { initializeFromStorage, viewMode, sidebarTab } = useTokenStore();
 
   useEffect(() => {
     // Restore tokens, theme matrix, and credentials securely from client storage on reload
@@ -23,10 +24,12 @@ export default function Home() {
       {/* Top Header: Logo, Interactive Breadcrumbs, Avatar, Branch Dropdown */}
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
-      {/* Main Workspace: Theme Groups Sidebar + Matrix or Flow Graph */}
+      {/* Main Workspace: Theme Groups Sidebar + Matrix, Flow Graph, or JSON Code Editor */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
-        {viewMode === "flow" ? (
+        {sidebarTab === "tokens" ? (
+          <JsonCodeEditor />
+        ) : viewMode === "flow" ? (
           <TokenFlow />
         ) : (
           <ThemeMatrix onOpenSettings={() => setIsSettingsOpen(true)} />
