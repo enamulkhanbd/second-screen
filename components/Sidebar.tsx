@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Droplet,
   Layers,
+  LayoutDashboard,
+  Palette,
 } from "lucide-react";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import { buildSetFolderTree, SetTreeNode } from "@/utils/themeHelpers";
@@ -149,32 +151,132 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
   return (
     <aside className="w-72 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0d0d11] flex flex-col justify-between select-none overflow-hidden font-sans transition-colors">
-      {/* 1. Top Tabs Bar: Tokens & Themes */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-950/40 px-3 pt-2">
+      {/* 1. Primary Vertical Navigation Tabs */}
+      <div className="p-3 space-y-1 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/30">
+        {/* Dashboard Tab */}
+        <button
+          onClick={() => setSidebarTab("dashboard")}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] transition-all cursor-pointer ${
+            sidebarTab === "dashboard"
+              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200/70 dark:border-emerald-800/50 shadow-xs"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-850/60 font-medium border border-transparent"
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <LayoutDashboard
+              className={`w-4 h-4 flex-shrink-0 ${
+                sidebarTab === "dashboard"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-zinc-500 dark:text-zinc-400"
+              }`}
+            />
+            <span className="truncate">Dashboard</span>
+          </div>
+        </button>
+
+        {/* Tokens Tab */}
         <button
           onClick={() => setSidebarTab("tokens")}
-          className={`flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] transition-all cursor-pointer ${
             sidebarTab === "tokens"
-              ? "border-emerald-600 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400 font-bold"
-              : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200/70 dark:border-emerald-800/50 shadow-xs"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-850/60 font-medium border border-transparent"
           }`}
         >
-          Tokens
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Layers
+              className={`w-4 h-4 flex-shrink-0 ${
+                sidebarTab === "tokens"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-zinc-500 dark:text-zinc-400"
+              }`}
+            />
+            <span className="truncate">Tokens</span>
+          </div>
+          {allSetNames.length > 0 && (
+            <span
+              className={`px-2 py-0.5 rounded-md text-xs font-mono font-medium ${
+                sidebarTab === "tokens"
+                  ? "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+              }`}
+            >
+              {allSetNames.length}
+            </span>
+          )}
         </button>
+
+        {/* Themes Tab */}
         <button
           onClick={() => setSidebarTab("themes")}
-          className={`flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] transition-all cursor-pointer ${
             sidebarTab === "themes"
-              ? "border-emerald-600 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400 font-bold"
-              : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200/70 dark:border-emerald-800/50 shadow-xs"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-850/60 font-medium border border-transparent"
           }`}
         >
-          Themes
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Palette
+              className={`w-4 h-4 flex-shrink-0 ${
+                sidebarTab === "themes"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-zinc-500 dark:text-zinc-400"
+              }`}
+            />
+            <span className="truncate">Themes</span>
+          </div>
+          {themeGroups.length > 0 && (
+            <span
+              className={`px-2 py-0.5 rounded-md text-xs font-mono font-medium ${
+                sidebarTab === "themes"
+                  ? "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+              }`}
+            >
+              {themeGroups.length}
+            </span>
+          )}
         </button>
       </div>
 
       {/* 2. Tab Content Area */}
       <div className="flex-1 overflow-y-auto p-3.5 space-y-4">
+        {/* ======================= DASHBOARD TAB ======================= */}
+        {sidebarTab === "dashboard" && (
+          <div className="space-y-4">
+            <div className="px-1 text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+              Overview & Shortcuts
+            </div>
+            <div className="space-y-2">
+              <div
+                onClick={() => setSidebarTab("themes")}
+                className="p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/60 dark:hover:bg-zinc-850 border border-zinc-200/60 dark:border-zinc-800/60 cursor-pointer transition-all text-xs space-y-1"
+              >
+                <div className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Themes Matrix</span>
+                </div>
+                <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
+                  {themeGroups.length} theme groups configured
+                </p>
+              </div>
+
+              <div
+                onClick={() => setSidebarTab("tokens")}
+                className="p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/60 dark:hover:bg-zinc-850 border border-zinc-200/60 dark:border-zinc-800/60 cursor-pointer transition-all text-xs space-y-1"
+              >
+                <div className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Token Sets</span>
+                </div>
+                <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
+                  {allSetNames.length} sets in workspace
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ======================= TOKENS TAB ======================= */}
         {sidebarTab === "tokens" && (
           <div className="space-y-3">

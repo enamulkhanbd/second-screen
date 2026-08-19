@@ -36,9 +36,9 @@ interface TokenStoreState {
   themeMode: "light" | "dark";
   setThemeMode: (mode: "light" | "dark") => void;
 
-  // Sidebar Tab (tokens or themes)
-  sidebarTab: "tokens" | "themes";
-  setSidebarTab: (tab: "tokens" | "themes") => void;
+  // Sidebar Tab (dashboard, tokens, or themes)
+  sidebarTab: "dashboard" | "tokens" | "themes";
+  setSidebarTab: (tab: "dashboard" | "tokens" | "themes") => void;
 
   // View Mode & Filters
   viewMode: "matrix" | "flow";
@@ -181,8 +181,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     }
   },
 
-  sidebarTab: "tokens",
-  setSidebarTab: (tab) => set({ sidebarTab: tab }),
+  sidebarTab: "themes",
+  setSidebarTab: (tab) => {
+    set({ sidebarTab: tab });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_sidebar_tab", tab);
+      } catch {}
+    }
+  },
 
   activeSet: "ALL",
   activeGroup: "all",
@@ -282,11 +289,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         }
       }
 
+      // 5. Restore Active Sidebar Tab (defaults to themes)
+      const savedTab = localStorage.getItem("ts_sidebar_tab") as
+        | "dashboard"
+        | "tokens"
+        | "themes"
+        | null;
+      const initialTab: "dashboard" | "tokens" | "themes" =
+        savedTab && ["dashboard", "tokens", "themes"].includes(savedTab)
+          ? savedTab
+          : "themes";
+
       set({
         credentials: parsedCreds,
         userProfile,
         viewMode: savedViewMode,
         themeMode: initialTheme,
+        sidebarTab: initialTab,
         rawTokens: {},
         resolvedTokens: [],
         themeGroups: [],

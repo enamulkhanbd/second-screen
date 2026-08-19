@@ -44,6 +44,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     // Theme mode
     themeMode,
     setThemeMode,
+    // Active tab and set
+    sidebarTab,
+    setSidebarTab,
+    activeSet,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -227,8 +231,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             </span>
           </div>
 
-          {/* Interactive Breadcrumb Hierarchy (Starts after the name when configured) */}
-          {isConfigured && hasTokens && (
+          {/* Interactive Breadcrumb Hierarchy */}
+          {isConfigured && (
             <>
               <span className="text-zinc-400 dark:text-zinc-700 font-mono text-[11px]">/</span>
               <nav className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
@@ -236,63 +240,95 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   onClick={onOpenSettings}
                   className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer transition-colors font-medium text-zinc-700 dark:text-zinc-300"
                 >
-                  {credentials.repo}: Tokens
+                  {credentials.repo}
                 </span>
-                <span className="text-zinc-300 dark:text-zinc-600">/</span>
-                <span className="text-zinc-500 dark:text-zinc-400">Themes</span>
+
                 <span className="text-zinc-300 dark:text-zinc-600">/</span>
 
-                {/* Active Theme Group Selector */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                    className="flex items-center gap-1 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-violet-600 dark:hover:text-violet-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
-                  >
-                    <span>{activeGroup?.name || "Theme"}</span>
-                    <ChevronDown className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
-                  </button>
+                {sidebarTab === "dashboard" && (
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    Dashboard
+                  </span>
+                )}
 
-                  {/* Theme Group Menu Dropdown */}
-                  {showThemeGroupMenu && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowThemeGroupMenu(false)}
-                      />
-                      <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500 tracking-wider">
-                          Theme Groups
-                        </div>
-                        {themeGroups.map((grp) => (
-                          <button
-                            key={grp.id}
-                            onClick={() => {
-                              setActiveThemeGroup(grp.id);
-                              setShowThemeGroupMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
-                              grp.id === activeGroup?.id
-                                ? "bg-violet-50 dark:bg-violet-600/20 text-violet-700 dark:text-violet-200 font-semibold"
-                                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
-                            }`}
-                          >
-                            <span
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: grp.color }}
-                            />
-                            <span className="truncate">{grp.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                {sidebarTab === "tokens" && (
+                  <>
+                    <button
+                      onClick={() => setSidebarTab("tokens")}
+                      className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer font-medium"
+                    >
+                      Tokens
+                    </button>
+                    <span className="text-zinc-300 dark:text-zinc-600">/</span>
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[140px]">
+                      {activeSet}
+                    </span>
+                  </>
+                )}
+
+                {sidebarTab === "themes" && (
+                  <>
+                    <button
+                      onClick={() => setSidebarTab("themes")}
+                      className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer font-medium"
+                    >
+                      Themes
+                    </button>
+                    <span className="text-zinc-300 dark:text-zinc-600">/</span>
+
+                    {/* Active Theme Group Selector */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
+                        className="flex items-center gap-1 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors py-0.5 px-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                      >
+                        <span>{activeGroup?.name || "Theme"}</span>
+                        <ChevronDown className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
+                      </button>
+
+                      {/* Theme Group Menu Dropdown */}
+                      {showThemeGroupMenu && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowThemeGroupMenu(false)}
+                          />
+                          <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="px-3 py-1 text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500 tracking-wider">
+                              Theme Groups
+                            </div>
+                            {themeGroups.map((grp) => (
+                              <button
+                                key={grp.id}
+                                onClick={() => {
+                                  setActiveThemeGroup(grp.id);
+                                  setShowThemeGroupMenu(false);
+                                }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
+                                  grp.id === activeGroup?.id
+                                    ? "bg-emerald-50 dark:bg-emerald-600/20 text-emerald-700 dark:text-emerald-200 font-semibold"
+                                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
+                                }`}
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: grp.color }}
+                                />
+                                <span className="truncate">{grp.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
               </nav>
             </>
           )}
 
-          {/* View Mode Switcher: Matrix vs Flow */}
-          {hasTokens && (
+          {/* View Mode Switcher: Matrix vs Flow (Shown when in Themes tab) */}
+          {hasTokens && sidebarTab === "themes" && (
             <div className="flex items-center bg-zinc-100 dark:bg-zinc-950 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[11px] font-medium ml-2">
               <button
                 onClick={() => setViewMode("matrix")}
@@ -311,7 +347,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 onClick={() => setViewMode("flow")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "flow"
-                    ? "bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 font-semibold shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 font-semibold shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Visual Token Flow & Dependency Graph"

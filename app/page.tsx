@@ -7,6 +7,7 @@ import { ThemeMatrix } from "@/components/ThemeMatrix";
 import { TokenFlow } from "@/components/TokenFlow";
 import { JsonCodeEditor } from "@/components/JsonCodeEditor";
 import { CredentialsModal } from "@/components/CredentialsModal";
+import { DashboardView } from "@/components/DashboardView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 
@@ -24,10 +25,12 @@ export default function Home() {
       {/* Top Header: Logo, Interactive Breadcrumbs, Avatar, Branch Dropdown */}
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
-      {/* Main Workspace: Theme Groups Sidebar + Matrix, Flow Graph, or JSON Code Editor */}
+      {/* Main Workspace: Theme Groups Sidebar + Matrix, Flow Graph, Dashboard, or JSON Code Editor */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
-        {sidebarTab === "tokens" ? (
+        {sidebarTab === "dashboard" ? (
+          <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "tokens" ? (
           <JsonCodeEditor />
         ) : viewMode === "flow" ? (
           <TokenFlow />
