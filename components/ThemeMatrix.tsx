@@ -815,14 +815,10 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
       {/* Left: Swatch / Type Indicator */}
       {isColor ? (
         <div
-          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex-shrink-0 border border-black/20 dark:border-white/20 overflow-hidden shadow-inner bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] dark:bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
+          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex-shrink-0 border border-black/20 dark:border-white/20 shadow-xs"
+          style={{ backgroundColor: cellData.resolvedValue }}
           title={`Computed: ${cellData.resolvedValue}`}
-        >
-          <div
-            className="w-full h-full"
-            style={{ backgroundColor: cellData.resolvedValue }}
-          />
-        </div>
+        />
       ) : isBorderRadius ? (
         <div
           className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0"

@@ -35,12 +35,10 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
         title={`Click to copy: ${value}`}
         className="group relative flex items-center gap-2 cursor-pointer select-none"
       >
-        <div className="relative w-6 h-6 rounded-md overflow-hidden border border-white/10 shadow-inner flex-shrink-0 bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:8px_8px]">
-          <div
-            className="w-full h-full transition-transform group-hover:scale-110"
-            style={{ backgroundColor: value }}
-          />
-        </div>
+        <div
+          className="relative w-6 h-6 rounded-md border border-black/20 dark:border-white/20 shadow-inner flex-shrink-0 transition-transform group-hover:scale-105"
+          style={{ backgroundColor: value }}
+        />
         <span className="font-mono text-xs text-zinc-300 group-hover:text-white transition-colors truncate max-w-[130px]">
           {value}
         </span>

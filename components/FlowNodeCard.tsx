@@ -153,13 +153,9 @@ export const FlowNodeCard: React.FC<FlowNodeCardProps> = ({
                 {/* Swatch preview */}
                 {token.category === "color" ? (
                   <div
-                    className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-black/20 dark:border-black/50 overflow-hidden shadow-inner bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] dark:bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:4px_4px]"
-                  >
-                    <div
-                      className="w-full h-full"
-                      style={{ backgroundColor: token.resolvedValue }}
-                    />
-                  </div>
+                    className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-black/20 dark:border-white/20 shadow-xs"
+                    style={{ backgroundColor: token.resolvedValue }}
+                  />
                 ) : token.category === "typography" ? (
                   <div className="w-3.5 h-3.5 rounded bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 text-[9px] font-serif font-bold flex items-center justify-center flex-shrink-0">
                     Aa

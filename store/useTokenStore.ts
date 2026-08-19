@@ -43,6 +43,8 @@ interface TokenStoreState {
   // View Mode & Filters
   viewMode: "matrix" | "flow";
   setViewMode: (mode: "matrix" | "flow") => void;
+  tokensViewMode: "preview" | "json";
+  setTokensViewMode: (mode: "preview" | "json") => void;
   activeSet: string;
   activeGroup: string;
   searchQuery: string;
@@ -191,6 +193,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     }
   },
 
+  tokensViewMode: "preview",
+  setTokensViewMode: (mode) => {
+    set({ tokensViewMode: mode });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_tokens_view_mode", mode);
+      } catch {}
+    }
+  },
+
   activeSet: "ALL",
   activeGroup: "all",
   searchQuery: "",
@@ -289,7 +301,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         }
       }
 
-      // 5. Restore Active Sidebar Tab (defaults to themes)
+      // 5. Restore Active Sidebar Tab (defaults to themes) and Tokens View Mode
       const savedTab = localStorage.getItem("ts_sidebar_tab") as
         | "dashboard"
         | "tokens"
@@ -300,12 +312,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
           ? savedTab
           : "themes";
 
+      const savedTokensViewMode =
+        (localStorage.getItem("ts_tokens_view_mode") as "preview" | "json") ||
+        "preview";
+
       set({
         credentials: parsedCreds,
         userProfile,
         viewMode: savedViewMode,
         themeMode: initialTheme,
         sidebarTab: initialTab,
+        tokensViewMode: savedTokensViewMode,
         rawTokens: {},
         resolvedTokens: [],
         themeGroups: [],

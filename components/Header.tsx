@@ -18,6 +18,8 @@ import {
   Workflow,
   Sun,
   Moon,
+  AlignLeft,
+  Braces,
 } from "lucide-react";
 
 interface HeaderProps {
@@ -48,6 +50,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     sidebarTab,
     setSidebarTab,
     activeSet,
+    tokensViewMode,
+    setTokensViewMode,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
