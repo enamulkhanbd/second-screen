@@ -815,7 +815,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
       {/* Left: Swatch / Type Indicator */}
       {isColor ? (
         <div
-          className="w-4.5 h-4.5 rounded-full flex-shrink-0 border border-black/20 dark:border-black/50 overflow-hidden shadow-inner bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] dark:bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
+          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex-shrink-0 border border-black/20 dark:border-white/20 overflow-hidden shadow-inner bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] dark:bg-[conic-gradient(#333_25%,#222_0_50%,#333_0_75%,#222_0)] bg-[length:6px_6px]"
           title={`Computed: ${cellData.resolvedValue}`}
         >
           <div
@@ -825,7 +825,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
         </div>
       ) : isBorderRadius ? (
         <div
-          className="w-4.5 h-4.5 rounded border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0"
+          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0"
           title={`Border Radius: ${cellData.resolvedValue}`}
         >
           <div
@@ -839,7 +839,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
         </div>
       ) : isSpacingOrSizing ? (
         <div
-          className="w-4.5 h-4.5 rounded flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex-shrink-0"
+          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex-shrink-0"
           title={`Dimension: ${cellData.resolvedValue}`}
         >
           {tokenCategory === "spacing" ? (
@@ -850,7 +850,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
         </div>
       ) : (
         <div
-          className="w-4.5 h-4.5 rounded flex items-center justify-center bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10px] font-mono flex-shrink-0 font-bold"
+          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded flex items-center justify-center bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10px] font-mono flex-shrink-0 font-bold"
         >
           #
         </div>
