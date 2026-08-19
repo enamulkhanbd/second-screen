@@ -305,15 +305,15 @@ export function buildThemeMatrix(
 
     if (selectedEntries.length > 0) {
       selectedEntries.forEach(([setName, status]) => {
-        if (status === "enabled" || status === "source") {
-          const matched = findSetInDoc(setName, rawDoc);
-          if (matched) {
+        const matched = findSetInDoc(setName, rawDoc);
+        if (matched) {
+          if (status === "enabled") {
+            // ONLY enabled sets define the token rows shown in the Theme Matrix
             groupSetKeys.add(matched.actualKey);
-            if (status === "enabled") {
-              enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
-            } else {
-              sourceSets.push({ setName: matched.actualKey, setTree: matched.setTree });
-            }
+            enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
+          } else if (status === "source") {
+            // Source sets act strictly in the background for alias/reference lookup
+            sourceSets.push({ setName: matched.actualKey, setTree: matched.setTree });
           }
         }
       });
