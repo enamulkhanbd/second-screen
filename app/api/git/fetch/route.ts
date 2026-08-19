@@ -56,6 +56,8 @@ async function fetchAzureItemText(
         headers: {
           Authorization: `Basic ${basicAuth}`,
           Accept: "application/octet-stream",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
         },
         cache: "no-store",
       });
@@ -72,11 +74,13 @@ async function fetchAzureItemText(
     try {
       const itemUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?path=${encodeURIComponent(
         item.path
-      )}&versionDescriptor.version=${encodeURIComponent(branch)}&$format=octetStream&api-version=7.0`;
+      )}&versionDescriptor.version=${encodeURIComponent(branch)}&versionDescriptor.versionType=branch&$format=octetStream&api-version=7.0`;
       const itemRes = await fetch(itemUrl, {
         method: "GET",
         headers: {
           Authorization: `Basic ${basicAuth}`,
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
         },
         cache: "no-store",
       });
@@ -230,12 +234,14 @@ export async function POST(req: NextRequest) {
       const headers = {
         Authorization: `Basic ${basicAuth}`,
         Accept: "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
       };
 
       // 1. Fetch entire repository items tree
       let itemsUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?scopePath=/&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(
         branch
-      )}&api-version=7.0`;
+      )}&versionDescriptor.versionType=branch&includeContentMetadata=true&api-version=7.0`;
 
       let response = await fetch(itemsUrl, {
         method: "GET",
@@ -248,7 +254,7 @@ export async function POST(req: NextRequest) {
         const specificPath = cleanPath.startsWith("/") ? cleanPath : "/" + cleanPath;
         const fallbackUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?scopePath=${encodeURIComponent(
           specificPath
-        )}&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(branch)}&api-version=7.0`;
+        )}&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(branch)}&versionDescriptor.versionType=branch&includeContentMetadata=true&api-version=7.0`;
 
         response = await fetch(fallbackUrl, {
           method: "GET",
@@ -309,7 +315,8 @@ export async function POST(req: NextRequest) {
                 aggregated["$metadata"] = parsed;
               } else {
                 aggregated[relativeSetName] = parsed;
-                if (relativeSetName !== baseSetName) {
+                // Only populate baseSetName if not already occupied by another file
+                if (!aggregated[baseSetName]) {
                   aggregated[baseSetName] = parsed;
                 }
               }

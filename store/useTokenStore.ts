@@ -51,6 +51,7 @@ interface TokenStoreState {
 
   // Actions
   initializeFromStorage: () => void;
+  fetchLiveTokens: (customCreds?: GitCredentials) => Promise<boolean>;
   setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
@@ -181,11 +182,48 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
   syncMeta: null,
   toasts: [],
 
+  // Live Git Fetcher (Memory-only, 100% fresh)
+  fetchLiveTokens: async (customCreds) => {
+    const creds = customCreds || get().credentials;
+    if (!creds.provider || !creds.owner || !creds.repo || !creds.branch || !creds.pat) {
+      return false;
+    }
+
+    set({ syncStatus: "fetching", syncError: null });
+    try {
+      const res = await fetch("/api/git/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creds),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to fetch live tokens from Git");
+      }
+
+      if (data.userProfile) {
+        get().setUserProfile(data.userProfile);
+      }
+
+      get().setRawTokens(data.tokens, data.syncMeta);
+      set({ syncStatus: "success", syncError: null });
+      return true;
+    } catch (err: any) {
+      set({ syncStatus: "error", syncError: err.message });
+      return false;
+    }
+  },
+
   initializeFromStorage: () => {
     if (typeof window === "undefined") return;
 
     try {
-      // 1. Restore Credentials & PAT
+      // 1. Purge any legacy token cache from localStorage so tokens are ALWAYS fresh in-memory
+      localStorage.removeItem("ts_cached_tokens");
+      localStorage.removeItem("ts_cached_meta");
+
+      // 2. Restore Credentials & PAT
       const savedCreds = localStorage.getItem("ts_second_screen_creds");
       const sessionPat =
         sessionStorage.getItem("ts_second_screen_pat") ||
@@ -199,21 +237,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         parsedCreds = { ...DEFAULT_CREDENTIALS, pat: sessionPat };
       }
 
-      // 2. Restore User Profile & View Mode
+      // 3. Restore User Profile & View Mode
       const savedUser = localStorage.getItem("ts_second_screen_user");
       const userProfile = savedUser ? JSON.parse(savedUser) : null;
       const savedViewMode = (localStorage.getItem("ts_view_mode") as "matrix" | "flow") || "matrix";
 
-      // 3. Restore Theme Mode (light/dark)
+      // 4. Restore Theme Mode (light/dark)
       const savedTheme = localStorage.getItem("ts_theme_mode") as "light" | "dark" | null;
       let initialTheme: "light" | "dark" = "light";
       if (savedTheme) {
         initialTheme = savedTheme;
       } else {
-        // Follow system preference if no user setting
         const prefersDark = typeof window !== "undefined" && window.matchMedia('(prefers-color-scheme: dark)').matches;
         initialTheme = prefersDark ? "dark" : "light";
       }
+
       // Apply the theme class immediately
       if (typeof window !== "undefined") {
         const root = document.documentElement;
@@ -224,75 +262,49 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         }
       }
 
-      // 4. Restore Tokens Document & Theme Groups
-      const cachedTokens = localStorage.getItem("ts_cached_tokens");
-      const cachedMeta = localStorage.getItem("ts_cached_meta");
-      const savedGroupId = localStorage.getItem("ts_active_group_id");
-
-      let rawTokens: RawTokensDocument = {};
-      let resolvedTokens: FlattenedToken[] = [];
-      let themeGroups: ThemeGroup[] = [];
-      let activeThemeGroupId = "";
-      let activeThemeOptionId = "";
-      let syncMeta: SyncMeta | null = null;
-
-      if (cachedTokens) {
-        rawTokens = JSON.parse(cachedTokens);
-        resolvedTokens = flattenAndResolveTokens(rawTokens, "ALL");
-        themeGroups = extractThemeGroups(rawTokens);
-
-        const matchedGroup =
-          themeGroups.find((g) => g.id === savedGroupId) ||
-          themeGroups.find((g) => g.name.toLowerCase() === "theme") ||
-          themeGroups[0];
-
-        activeThemeGroupId = matchedGroup?.id || "";
-        activeThemeOptionId = matchedGroup?.options[0]?.id || "";
-      }
-
-      if (cachedMeta) {
-        syncMeta = JSON.parse(cachedMeta);
-      }
-
       set({
         credentials: parsedCreds,
         userProfile,
         viewMode: savedViewMode,
         themeMode: initialTheme,
-        rawTokens,
-        resolvedTokens,
-        themeGroups,
-        activeThemeGroupId,
-        activeThemeOptionId,
-        syncMeta,
+        rawTokens: {},
+        resolvedTokens: [],
+        themeGroups: [],
+        activeThemeGroupId: "",
+        activeThemeOptionId: "",
+        syncMeta: null,
         syncStatus: "idle",
         syncError: null,
         toasts: [],
       });
+
+      // 5. Automatically fetch fresh live tokens from remote git repository if credentials exist
+      if (
+        parsedCreds.provider &&
+        parsedCreds.owner &&
+        parsedCreds.repo &&
+        parsedCreds.branch &&
+        parsedCreds.pat
+      ) {
+        get().fetchLiveTokens(parsedCreds);
+      }
     } catch {
       // ignore storage parsing error
     }
   },
 
   setRawTokens: (doc, meta) => {
-    const { activeSet } = get();
+    const { activeSet, activeThemeGroupId } = get();
     const resolved = flattenAndResolveTokens(doc, activeSet);
     const groups = extractThemeGroups(doc);
+    const savedGroupId = typeof window !== "undefined" ? localStorage.getItem("ts_active_group_id") : null;
     const defaultGroup =
-      groups.find((g) => g.name.toLowerCase() === "theme") || groups[0];
+      groups.find((g) => g.id === activeThemeGroupId) ||
+      (savedGroupId ? groups.find((g) => g.id === savedGroupId) : null) ||
+      groups.find((g) => g.name.toLowerCase() === "theme") ||
+      groups[0];
 
-    // Cache tokens and metadata to localStorage for instant reload
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("ts_cached_tokens", JSON.stringify(doc));
-        if (meta) {
-          localStorage.setItem("ts_cached_meta", JSON.stringify(meta));
-        }
-        if (defaultGroup?.id) {
-          localStorage.setItem("ts_active_group_id", defaultGroup.id);
-        }
-      } catch {}
-    }
+    // NOTE: Tokens remain strictly in-memory (Zustand) with ZERO local cache persistence
 
     set({
       rawTokens: doc,
@@ -315,13 +327,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
     const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
     const updatedGroups = extractThemeGroups(updatedRaw);
-
-    // Update localStorage cache on token edit
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRaw));
-      } catch {}
-    }
 
     set({
       rawTokens: updatedRaw,
@@ -443,7 +448,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
 
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
         localStorage.setItem("ts_active_group_id", targetGroup.id);
       } catch {}
     }
@@ -515,7 +519,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
 
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
         if (newMatchedGroup) {
           localStorage.setItem("ts_active_group_id", newMatchedGroup.id);
         }
@@ -584,7 +587,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
 
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
         if (newMatchedGroup) {
           localStorage.setItem("ts_active_group_id", newMatchedGroup.id);
         }
@@ -656,7 +658,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
 
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("ts_cached_tokens", JSON.stringify(updatedRawDoc));
         if (remainingGroup) {
           localStorage.setItem("ts_active_group_id", remainingGroup.id);
         }

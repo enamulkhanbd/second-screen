@@ -31,26 +31,67 @@ function normalizeName(name: string): string {
 }
 
 /**
- * Finds a matching token set in rawDoc using flexible matching
+ * Finds all matching token sets in rawDoc using flexible matching (e.g. exact key, suffix, path segments, folder matching)
  */
-function findSetInDoc(setName: string, rawDoc: RawTokensDocument): { setTree: any; actualKey: string } | null {
-  if (rawDoc[setName]) return { setTree: rawDoc[setName], actualKey: setName };
+export function findSetsInDoc(
+  setName: string,
+  rawDoc: RawTokensDocument
+): Array<{ setTree: any; actualKey: string }> {
+  if (!rawDoc || typeof rawDoc !== "object") return [];
+
+  const results: Array<{ setTree: any; actualKey: string }> = [];
+  const visitedKeys = new Set<string>();
+
+  // 1. Direct exact key match
+  if (rawDoc[setName]) {
+    results.push({ setTree: rawDoc[setName], actualKey: setName });
+    visitedKeys.add(setName);
+  }
 
   const norm = normalizeName(setName);
+
   for (const [key, val] of Object.entries(rawDoc)) {
-    if (key.startsWith("$")) continue;
+    if (key.startsWith("$") || visitedKeys.has(key)) continue;
     const normKey = normalizeName(key);
+
     if (
       normKey === norm ||
       normKey.endsWith(`.${norm}`) ||
       norm.endsWith(`.${normKey}`) ||
-      normKey.split(".").pop() === norm.split(".").pop()
+      normKey.includes(`.${norm}.`) ||
+      normKey.startsWith(`${norm}.`) ||
+      normKey.includes(`.${norm}`) ||
+      norm.includes(`.${normKey}`)
     ) {
-      return { setTree: val, actualKey: key };
+      results.push({ setTree: val, actualKey: key });
+      visitedKeys.add(key);
     }
   }
 
-  return null;
+  // 2. Fallback: match by filename (last segment)
+  if (results.length === 0) {
+    const targetLastSeg = norm.split(".").pop();
+    if (targetLastSeg) {
+      for (const [key, val] of Object.entries(rawDoc)) {
+        if (key.startsWith("$") || visitedKeys.has(key)) continue;
+        const normKey = normalizeName(key);
+        if (normKey.split(".").pop() === targetLastSeg) {
+          results.push({ setTree: val, actualKey: key });
+          visitedKeys.add(key);
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+export function findSetInDoc(
+  setName: string,
+  rawDoc: RawTokensDocument
+): { setTree: any; actualKey: string } | null {
+  const matches = findSetsInDoc(setName, rawDoc);
+  return matches.length > 0 ? matches[0] : null;
 }
 
 /**
@@ -305,8 +346,8 @@ export function buildThemeMatrix(
 
     if (selectedEntries.length > 0) {
       selectedEntries.forEach(([setName, status]) => {
-        const matched = findSetInDoc(setName, rawDoc);
-        if (matched) {
+        const matches = findSetsInDoc(setName, rawDoc);
+        matches.forEach((matched) => {
           if (status === "enabled") {
             // ONLY enabled sets define the token rows shown in the Theme Matrix
             groupSetKeys.add(matched.actualKey);
@@ -315,17 +356,18 @@ export function buildThemeMatrix(
             // Source sets act strictly in the background for alias/reference lookup
             sourceSets.push({ setName: matched.actualKey, setTree: matched.setTree });
           }
-        }
+        });
       });
     }
 
     // Fallback: If no sets specified in selectedTokenSets, match option name
     if (enabledSets.length === 0 && sourceSets.length === 0) {
-      const matched = findSetInDoc(option.name, rawDoc) || findSetInDoc(group.name, rawDoc);
-      if (matched) {
+      const matches = findSetsInDoc(option.name, rawDoc);
+      const fallbackMatches = matches.length > 0 ? matches : findSetsInDoc(group.name, rawDoc);
+      fallbackMatches.forEach((matched) => {
         groupSetKeys.add(matched.actualKey);
         enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
-      }
+      });
     }
 
     optionSetsMap.set(option.name, { enabledSets, sourceSets });
