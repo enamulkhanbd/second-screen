@@ -173,22 +173,6 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
           {/* GITHUB FIELDS */}
           {form.provider === "github" ? (
             <>
-              {/* PAT */}
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                  Personal Access Token (PAT)
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                  value={form.pat}
-                  onChange={(e) => setForm({ ...form, pat: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
-                />
-              </div>
-
               {/* Repository */}
               <div>
                 <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
@@ -238,12 +222,28 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. tokens, app-global, or leave blank"
-                    value={form.path}
+                    placeholder="e.g. assets/tokens or tokens.json (optional)"
+                    value={form.path || ""}
                     onChange={(e) => setForm({ ...form, path: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />
                 </div>
+              </div>
+
+              {/* PAT */}
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                  Personal Access Token (PAT)
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  value={form.pat}
+                  onChange={(e) => setForm({ ...form, pat: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
+                />
               </div>
             </>
           ) : (
@@ -315,8 +315,8 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. app-global or tokens"
-                    value={form.path}
+                    placeholder="e.g. assets/tokens/platforms/web (optional)"
+                    value={form.path || ""}
                     onChange={(e) => setForm({ ...form, path: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
                   />

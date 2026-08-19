@@ -132,7 +132,6 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"all" | TokenCategory>("all");
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [isFetching, setIsFetching] = useState(false);
   const [showAddOptionModal, setShowAddOptionModal] = useState(false);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
@@ -186,38 +185,11 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     return CATEGORY_ORDER.filter((cat) => (categoryCounts[cat] || 0) > 0);
   }, [categoryCounts]);
 
-  // Group rows by category
-  const groupedRows = useMemo(() => {
-    const map = new Map<TokenCategory, MatrixRowData[]>();
-    CATEGORY_ORDER.forEach((cat) => map.set(cat, []));
-
-    filteredRows.forEach((row) => {
-      if (selectedCategory === "all" || selectedCategory === row.category) {
-        map.get(row.category)?.push(row);
-      }
-    });
-
-    return map;
+  // Filter matrix rows by selectedCategory chip
+  const displayRows = useMemo(() => {
+    if (selectedCategory === "all") return filteredRows;
+    return filteredRows.filter((r) => r.category === selectedCategory);
   }, [filteredRows, selectedCategory]);
-
-  const toggleCategoryCollapse = (cat: TokenCategory) => {
-    setCollapsedCategories((prev) => ({
-      ...prev,
-      [cat]: !prev[cat],
-    }));
-  };
-
-  const handleCollapseAll = () => {
-    const allCollapsed: Record<string, boolean> = {};
-    availableCategories.forEach((cat) => {
-      allCollapsed[cat] = true;
-    });
-    setCollapsedCategories(allCollapsed);
-  };
-
-  const handleExpandAll = () => {
-    setCollapsedCategories({});
-  };
 
   const handleFetchNow = async () => {
     if (!hasCredentials) {
@@ -548,30 +520,12 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             })}
           </div>
 
-          {/* Right: Expand / Collapse All */}
-          {selectedCategory === "all" && availableCategories.length > 1 && (
-            <div className="flex items-center gap-2 pl-4 border-l border-zinc-200 dark:border-zinc-900 flex-shrink-0">
-              <button
-                onClick={handleExpandAll}
-                className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-              >
-                Expand all
-              </button>
-              <span className="text-zinc-300 dark:text-zinc-700 text-[10px]">•</span>
-              <button
-                onClick={handleCollapseAll}
-                className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-              >
-                Collapse all
-              </button>
-            </div>
-          )}
         </div>
       )}
 
       {/* Main Table Matrix */}
       <div className="flex-1 overflow-auto bg-white dark:bg-[#09090d] transition-colors">
-        {filteredRows.length === 0 ? (
+        {displayRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center select-none">
             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">No matching tokens found</p>
             <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">Try adjusting your search filter or selected token type.</p>
@@ -598,94 +552,45 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               </tr>
             </thead>
 
-            {/* Table Body: Separated by Minimal Token Type Section Headers */}
+            {/* Table Body: Flat list of tokens */}
             <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-900/60 font-mono">
-              {CATEGORY_ORDER.map((cat) => {
-                const catRows = groupedRows.get(cat) || [];
-                if (catRows.length === 0) return null;
-
-                const config = CATEGORY_CONFIG[cat];
-                const Icon = config.icon;
-                const isCollapsed = Boolean(collapsedCategories[cat]);
+              {displayRows.map((row) => {
+                const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
 
                 return (
-                  <React.Fragment key={cat}>
-                    {/* Minimal Category Section Separator Header */}
-                    <tr
-                      onClick={() => toggleCategoryCollapse(cat)}
-                      className="bg-zinc-100/90 dark:bg-[#0e0e15]/95 sticky top-[37px] z-10 border-y border-zinc-200 dark:border-zinc-800/80 cursor-pointer select-none hover:bg-zinc-200/70 dark:hover:bg-zinc-900/60 transition-colors backdrop-blur-md"
-                    >
-                      <td
-                        colSpan={(activeGroup?.options.length || 0) + 1}
-                        className="py-2 px-6"
-                      >
-                        <div className="flex items-center justify-between">
-                          {/* Left: Category Icon, Name, Count */}
-                          <div className="flex items-center gap-2">
-                            <div className={`p-1 rounded border ${config.badgeStyle}`}>
-                              <Icon className="w-3 h-3" />
-                            </div>
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200">
-                              {config.label}
-                            </span>
-                            <span className="text-[10px] text-zinc-500 font-mono font-medium">
-                              ({catRows.length} {catRows.length === 1 ? "token" : "tokens"})
-                            </span>
-                          </div>
+                  <tr
+                    key={row.tokenKey}
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors"
+                  >
+                    {/* Token Key Name + Type Icon */}
+                    <td className="py-2.5 px-6 text-zinc-700 dark:text-zinc-300 text-xs font-mono select-text align-middle">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dotColor}`}
+                          title={`Type: ${config.label}`}
+                        />
+                        <span className="truncate">{row.tokenKey}</span>
+                      </div>
+                    </td>
 
-                          {/* Right: Collapse / Expand Chevron Indicator */}
-                          <div className="flex items-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 text-[10px]">
-                            <span className="text-[10px]">
-                              {isCollapsed ? "Expand" : "Collapse"}
-                            </span>
-                            {isCollapsed ? (
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            ) : (
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
+                    {/* Option Columns */}
+                    {activeGroup?.options.map((option) => {
+                      const cellData = row.cells[option.name];
 
-                    {/* Category Rows */}
-                    {!isCollapsed &&
-                      catRows.map((row) => (
-                        <tr
-                          key={row.tokenKey}
-                          className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors"
-                        >
-                          {/* Token Key Name + Type Icon */}
-                          <td className="py-2.5 px-6 text-zinc-700 dark:text-zinc-300 text-xs font-mono select-text align-middle">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dotColor}`}
-                                title={`Type: ${config.label}`}
-                              />
-                              <span className="truncate">{row.tokenKey}</span>
-                            </div>
-                          </td>
-
-                          {/* Option Columns */}
-                          {activeGroup?.options.map((option) => {
-                            const cellData = row.cells[option.name];
-
-                            return (
-                              <td key={option.id} className="py-2 px-6 align-middle">
-                                <MatrixPillCell
-                                  cellData={cellData}
-                                  tokenType={row.type}
-                                  tokenCategory={row.category}
-                                  tokenKey={row.tokenKey}
-                                  optionName={option.name}
-                                  onUpdate={updateSingleToken}
-                                />
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                  </React.Fragment>
+                      return (
+                        <td key={option.id} className="py-2 px-6 align-middle">
+                          <MatrixPillCell
+                            cellData={cellData}
+                            tokenType={row.type}
+                            tokenCategory={row.category}
+                            tokenKey={row.tokenKey}
+                            optionName={option.name}
+                            onUpdate={updateSingleToken}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
             </tbody>

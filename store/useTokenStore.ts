@@ -83,7 +83,7 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
   project: "",
   repo: "",
   branch: "",
-  path: "tokens.json",
+  path: "",
   pat: "",
 };
 

@@ -12,7 +12,7 @@ export function sanitizeGitCredentials(rawCreds: GitCredentials): GitCredentials
   project = (project || "").trim();
   repo = (repo || "").trim();
   branch = (branch || "main").trim();
-  path = (path || "tokens.json").trim();
+  path = (path || "").trim();
   pat = (pat || "").trim();
 
   // ----------------------------------------------------------------
@@ -108,7 +108,7 @@ export function sanitizeGitCredentials(rawCreds: GitCredentials): GitCredentials
     project: project || owner,
     repo: repo.includes("/") ? repo.split("/")[1] : repo,
     branch: branch || "main",
-    path: path || "tokens.json",
+    path: path || "",
     pat,
   };
 }

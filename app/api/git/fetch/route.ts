@@ -154,11 +154,21 @@ export async function POST(req: NextRequest) {
         );
 
         if (allBlobs.length > 0) {
+          // If cleanPath is specified, only include files located under cleanPath
+          const filteredBlobs = cleanPath
+            ? allBlobs.filter((b) => {
+                const normP = b.path.replace(/^\/+/, "").toLowerCase();
+                const normC = cleanPath.toLowerCase();
+                return normP.startsWith(normC) || normP.includes(normC);
+              })
+            : allBlobs;
+
+          const targetBlobs = filteredBlobs.length > 0 ? filteredBlobs : allBlobs;
           const aggregated: Record<string, any> = {};
           const filesMeta: Record<string, string> = {};
 
           await Promise.all(
-            allBlobs.map(async (blob) => {
+            targetBlobs.map(async (blob) => {
               const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
               if (blobRes.ok) {
                 const bData = await blobRes.json();
@@ -176,7 +186,7 @@ export async function POST(req: NextRequest) {
                       aggregated["$metadata"] = parsed;
                     } else {
                       aggregated[relativeSetName] = parsed;
-                      if (relativeSetName !== baseSetName) {
+                      if (!aggregated[baseSetName]) {
                         aggregated[baseSetName] = parsed;
                       }
                     }
@@ -238,10 +248,11 @@ export async function POST(req: NextRequest) {
         Pragma: "no-cache",
       };
 
-      // 1. Fetch entire repository items tree
-      let itemsUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?scopePath=/&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(
-        branch
-      )}&versionDescriptor.versionType=branch&includeContentMetadata=true&api-version=7.0`;
+      // 1. Fetch repository items tree (prioritize cleanPath if provided)
+      const specificPath = cleanPath ? (cleanPath.startsWith("/") ? cleanPath : "/" + cleanPath) : "/";
+      const itemsUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?scopePath=${encodeURIComponent(
+        specificPath
+      )}&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(branch)}&versionDescriptor.versionType=branch&includeContentMetadata=true&api-version=7.0`;
 
       let response = await fetch(itemsUrl, {
         method: "GET",
@@ -249,12 +260,11 @@ export async function POST(req: NextRequest) {
         cache: "no-store",
       });
 
-      // Fallback to specific scopePath if root query fails
-      if (!response.ok && cleanPath) {
-        const specificPath = cleanPath.startsWith("/") ? cleanPath : "/" + cleanPath;
-        const fallbackUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?scopePath=${encodeURIComponent(
-          specificPath
-        )}&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(branch)}&versionDescriptor.versionType=branch&includeContentMetadata=true&api-version=7.0`;
+      // Fallback to root query if scoped query failed
+      if (!response.ok && specificPath !== "/") {
+        const fallbackUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?scopePath=/&recursionLevel=Full&versionDescriptor.version=${encodeURIComponent(
+          branch
+        )}&versionDescriptor.versionType=branch&includeContentMetadata=true&api-version=7.0`;
 
         response = await fetch(fallbackUrl, {
           method: "GET",
@@ -281,12 +291,28 @@ export async function POST(req: NextRequest) {
       const data = await response.json();
       const allItems: any[] = Array.isArray(data.value) ? data.value : data ? [data] : [];
 
-      // Filter for valid JSON files across the repository
-      const allJsonItems = allItems.filter(
-        (item) => !item.isFolder && item.path && item.path.endsWith(".json") && !isIgnored(item.path)
-      );
+      // Filter for valid JSON files across the repository, scoped to cleanPath if set
+      const allJsonItems = allItems.filter((item) => {
+        if (item.isFolder || !item.path || !item.path.endsWith(".json") || isIgnored(item.path)) {
+          return false;
+        }
+        if (cleanPath) {
+          const normP = item.path.replace(/^\/+/, "").toLowerCase();
+          const normC = cleanPath.toLowerCase();
+          return normP.startsWith(normC) || normP.includes(normC);
+        }
+        return true;
+      });
 
-      if (allJsonItems.length === 0) {
+      // If strict filter yielded 0 items, fallback to all valid json items
+      const targetJsonItems =
+        allJsonItems.length > 0
+          ? allJsonItems
+          : allItems.filter(
+              (item) => !item.isFolder && item.path && item.path.endsWith(".json") && !isIgnored(item.path)
+            );
+
+      if (targetJsonItems.length === 0) {
         return NextResponse.json(
           {
             error: `Connected to repository '${repo}@${branch}', but no .json token files were found.`,

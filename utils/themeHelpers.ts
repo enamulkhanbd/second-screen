@@ -358,10 +358,8 @@ export function buildThemeMatrix(
           }
         });
       });
-    }
-
-    // Fallback: If no sets specified in selectedTokenSets, match option name
-    if (enabledSets.length === 0 && sourceSets.length === 0) {
+    } else {
+      // Fallback only if NO selectedTokenSets was configured at all in $themes.json
       const matches = findSetsInDoc(option.name, rawDoc);
       const fallbackMatches = matches.length > 0 ? matches : findSetsInDoc(group.name, rawDoc);
       fallbackMatches.forEach((matched) => {
@@ -373,25 +371,14 @@ export function buildThemeMatrix(
     optionSetsMap.set(option.name, { enabledSets, sourceSets });
   });
 
-  // If no specific sets matched for the group, look for sets containing the group name
+  // If no enabled sets were specified for this group, matrix is empty (do not scan source sets)
   if (groupSetKeys.size === 0) {
-    const groupNorm = normalizeName(group.name);
-    for (const [setName, setTree] of Object.entries(rawDoc)) {
-      if (setName.startsWith("$")) continue;
-      const setNorm = normalizeName(setName);
-      if (setNorm.includes(groupNorm) || groupNorm.includes(setNorm)) {
-        groupSetKeys.add(setName);
-      }
-    }
+    return [];
   }
 
-  // If still empty (e.g. general multi-set), include all sets
-  const setsToScanKeys =
-    groupSetKeys.size > 0
-      ? Array.from(groupSetKeys)
-      : Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
+  const setsToScanKeys = Array.from(groupSetKeys);
 
-  // 2. Gather unique token keys ONLY from the sets belonging to this Theme Group
+  // 2. Gather unique token keys ONLY from the enabled sets belonging to this Theme Group
   const groupTokensMap = new Map<
     string,
     { type: TokenType; group: string; pathSegments: string[] }
@@ -425,7 +412,7 @@ export function buildThemeMatrix(
     collectKeys(setTree, []);
   });
 
-  // 3. For each token, populate cells for each option in this group
+  // 3. For each token, populate cells for each option in this group from its enabled sets
   const rows: MatrixRowData[] = [];
 
   groupTokensMap.forEach(({ type, group: tokenGroup, pathSegments }, tokenKey) => {
@@ -436,7 +423,7 @@ export function buildThemeMatrix(
       let foundLeaf: any = undefined;
       let foundSetName: string = "";
 
-      // 1. Search in option's directly enabled sets
+      // Search exclusively in the option's enabled token sets
       if (sets?.enabledSets) {
         for (const { setName, setTree } of sets.enabledSets) {
           const node = findNodeByPath(setTree, pathSegments);
@@ -448,32 +435,9 @@ export function buildThemeMatrix(
         }
       }
 
-      // 2. Search in option's source sets
-      if (!foundLeaf && sets?.sourceSets) {
-        for (const { setName, setTree } of sets.sourceSets) {
-          const node = findNodeByPath(setTree, pathSegments);
-          if (isTokenLeaf(node)) {
-            foundLeaf = node;
-            foundSetName = setName;
-            break;
-          }
-        }
-      }
-
-      // 3. If the token is defined in any set belonging to this group, use that
-      if (!foundLeaf) {
-        for (const setName of setsToScanKeys) {
-          const node = findNodeByPath(rawDoc[setName], pathSegments);
-          if (isTokenLeaf(node)) {
-            foundLeaf = node;
-            foundSetName = setName;
-            break;
-          }
-        }
-      }
-
       if (foundLeaf) {
         const rawValue = getLeafValue(foundLeaf);
+        // Alias resolution uses rawDoc (which includes all source sets in the background)
         const resolvedValue = resolveTokenAlias(rawValue, rawDoc, foundSetName);
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
 
