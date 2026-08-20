@@ -121,11 +121,42 @@ export function scanTokenHealth(
 
       if (isTokenLeaf(node)) {
         totalScanned++;
-        const rawVal = getLeafValue(node);
+        const valNode = node.value !== undefined ? node.value : node.$value;
 
-        if (typeof rawVal === "string" && /\{([^}]+)\}/.test(rawVal)) {
-          totalAliased++;
-          const matches = rawVal.match(/\{([^}]+)\}/g) || [];
+        // Extract list of individual string values to scan
+        const stringsToScan: string[] = [];
+        if (typeof valNode === "object" && valNode !== null) {
+          for (const subVal of Object.values(valNode)) {
+            if (typeof subVal === "string") stringsToScan.push(subVal);
+          }
+        } else {
+          const rawStr = getLeafValue(node);
+          if (rawStr.startsWith("{") && rawStr.endsWith("}") && rawStr.includes(":")) {
+            try {
+              const parsed = JSON.parse(rawStr);
+              if (typeof parsed === "object" && parsed !== null) {
+                for (const subVal of Object.values(parsed)) {
+                  if (typeof subVal === "string") stringsToScan.push(subVal);
+                }
+              } else {
+                stringsToScan.push(rawStr);
+              }
+            } catch {
+              stringsToScan.push(rawStr);
+            }
+          } else {
+            stringsToScan.push(rawStr);
+          }
+        }
+
+        let isTokenAliased = false;
+
+        stringsToScan.forEach((str) => {
+          // 1. Check {alias.path}
+          const matches = str.match(/\{([^}]+)\}/g) || [];
+          if (matches.length > 0) {
+            isTokenAliased = true;
+          }
 
           matches.forEach((match) => {
             const aliasPath = match.replace(/[{}]/g, "").trim();
@@ -141,12 +172,16 @@ export function scanTokenHealth(
                 severity: "error",
                 tokenKey: path.join("."),
                 setName,
-                value: rawVal,
+                value: str,
                 message: `Unresolved alias ${match} referenced in "${setName}"`,
                 suggestedFix: `Check if token "${aliasPath}" exists or was renamed.`,
               });
             }
           });
+        });
+
+        if (isTokenAliased) {
+          totalAliased++;
         }
         return;
       }
