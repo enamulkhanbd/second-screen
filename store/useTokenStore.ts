@@ -985,3 +985,27 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     });
   },
 }));
+
+// Automatic reactive synchronization with Second Screen Cloud API
+if (typeof window !== "undefined") {
+  let syncTimer: any = null;
+  useTokenStore.subscribe((state, prevState) => {
+    if (
+      state.rawTokens &&
+      typeof state.rawTokens === "object" &&
+      state.rawTokens !== prevState.rawTokens
+    ) {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        fetch("/api/v1/tokens", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-client": "second-screen",
+          },
+          body: JSON.stringify({ rawTokens: state.rawTokens }),
+        }).catch(() => {});
+      }, 250);
+    }
+  });
+}
