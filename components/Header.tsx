@@ -206,31 +206,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     }
   };
 
-  const getInitials = (name?: string) => {
-    if (!name) return "TS";
-    return name
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
     <>
       <header className="h-12 border-b border-zinc-200 dark:border-zinc-900 bg-white dark:bg-[#0d0d11] px-4 flex items-center justify-between text-xs select-none relative z-30 transition-colors">
         {/* Left: App Logo & System Name */}
         <div className="flex items-center gap-3">
-          {/* Second Screen Logo & Brand */}
+          {/* Second Screen Logo & Brand -> Redirects to Dashboard */}
           <div
-            onClick={onOpenSettings}
+            onClick={() => setSidebarTab("dashboard")}
             className="flex items-center gap-2 cursor-pointer group"
-            title="Second Screen"
+            title="Dashboard (Home)"
           >
-            <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm">
+            <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
               <Layers className="w-3 h-3 text-white" />
             </div>
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs tracking-tight">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
               Second Screen
             </span>
           </div>
@@ -495,24 +485,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                       </div>
                     </div>
                   </>
-                )}
-              </div>
-
-              {/* 4. Avatar Profile */}
-              <div
-                onClick={onOpenSettings}
-                className="w-6 h-6 rounded-full overflow-hidden border border-zinc-300 dark:border-zinc-700/80 cursor-pointer bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm hover:scale-105 transition-transform"
-                title={credentials.owner ? `Connected as: ${credentials.owner}` : "Configure Git Profile"}
-              >
-                {userProfile?.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={userProfile.avatarUrl}
-                    alt={userProfile.displayName || "Avatar"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{getInitials(credentials.owner || "TS")}</span>
                 )}
               </div>
             </>

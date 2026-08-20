@@ -183,7 +183,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     }
   },
 
-  sidebarTab: "themes",
+  sidebarTab: "dashboard",
   setSidebarTab: (tab) => {
     set({ sidebarTab: tab });
     if (typeof window !== "undefined") {
@@ -310,7 +310,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       const initialTab: "dashboard" | "tokens" | "themes" =
         savedTab && ["dashboard", "tokens", "themes"].includes(savedTab)
           ? savedTab
-          : "themes";
+          : "dashboard";
 
       const savedTokensViewMode =
         (localStorage.getItem("ts_tokens_view_mode") as "preview" | "json") ||
