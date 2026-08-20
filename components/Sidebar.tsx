@@ -18,8 +18,10 @@ import {
   Eye,
   SlidersHorizontal,
   FolderPlus,
+  Package,
 } from "lucide-react";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
+import { AddSetModal } from "@/components/AddSetModal";
 import { buildSetFolderTree, SetTreeNode } from "@/utils/themeHelpers";
 
 interface SidebarProps {
@@ -39,9 +41,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     activeSet,
     setActiveSet,
     credentials,
+    releases,
   } = useTokenStore();
 
   const [addModalGroupId, setAddModalGroupId] = useState<string | null>(null);
+  const [isAddSetOpen, setIsAddSetOpen] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [searchFilter, setSearchFilter] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -221,11 +225,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                 {themeGroups.length}
               </span>
             </button>
+
+            {/* Tab: Releases */}
+            <button
+              onClick={() => setSidebarTab("releases")}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+                sidebarTab === "releases"
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Package className="w-4 h-4 flex-shrink-0" />
+                <span>Releases</span>
+              </div>
+              {releases.length > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
+                    sidebarTab === "releases"
+                      ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
+                      : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
+                  }`}
+                >
+                  {releases.length}
+                </span>
+              )}
+            </button>
           </nav>
         </div>
 
-        {/* Bottom: Project Settings */}
-        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800/80">
+        {/* Bottom: Project Settings & Web App Version */}
+        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800/80 space-y-1">
           <button
             onClick={onOpenSettings}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
@@ -233,6 +263,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             <Settings className="w-4 h-4 text-zinc-400" />
             <span>Project settings</span>
           </button>
+
+          <div className="px-3 py-1 flex items-center justify-between text-[10px] text-zinc-400 dark:text-zinc-600 font-mono select-none">
+            <span>Second Screen</span>
+            <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 font-semibold text-zinc-500 dark:text-zinc-400">
+              v0.1.0-beta
+            </span>
+          </div>
         </div>
       </aside>
 
@@ -260,6 +297,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
               >
                 <Search className="w-3.5 h-3.5" />
               </button>
+
+              {sidebarTab === "tokens" && (
+                <button
+                  onClick={() => setIsAddSetOpen(true)}
+                  className="p-1 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="Add New Token Set"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {sidebarTab === "themes" && (
                 <button
@@ -395,6 +442,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           isOpen={Boolean(addModalGroupId)}
           defaultGroupId={addModalGroupId}
           onClose={() => setAddModalGroupId(null)}
+        />
+      )}
+
+      {/* Add Token Set Modal */}
+      {isAddSetOpen && (
+        <AddSetModal
+          isOpen={isAddSetOpen}
+          onClose={() => setIsAddSetOpen(false)}
         />
       )}
     </div>

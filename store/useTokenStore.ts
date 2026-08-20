@@ -9,9 +9,18 @@ import {
   ThemeGroup,
   UserProfile,
 } from "@/types/tokens";
-import { flattenAndResolveTokens, setTokenAtKeyPath } from "@/utils/transformTokens";
+import {
+  flattenAndResolveTokens,
+  setTokenAtKeyPath,
+  createTokenAtKeyPath,
+  deleteTokenAtKeyPath,
+  createEmptyTokenSet,
+  deleteTokenSet,
+} from "@/utils/transformTokens";
+import { ReleasePackage } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
+import { STARTER_TEMPLATES } from "@/data/starterTemplates";
 
 interface TokenStoreState {
   // Git Credentials
@@ -36,9 +45,16 @@ interface TokenStoreState {
   themeMode: "light" | "dark";
   setThemeMode: (mode: "light" | "dark") => void;
 
-  // Sidebar Tab (dashboard, tokens, or themes)
-  sidebarTab: "dashboard" | "tokens" | "themes";
-  setSidebarTab: (tab: "dashboard" | "tokens" | "themes") => void;
+  // Sidebar Tab (dashboard, tokens, themes, or releases)
+  sidebarTab: "dashboard" | "tokens" | "themes" | "releases";
+  setSidebarTab: (tab: "dashboard" | "tokens" | "themes" | "releases") => void;
+
+  // Releases
+  releases: ReleasePackage[];
+  activeReleaseId: string | null;
+  createRelease: (pkg: ReleasePackage) => void;
+  deleteRelease: (id: string) => void;
+  setActiveReleaseId: (id: string | null) => void;
 
   // View Mode & Filters
   viewMode: "matrix" | "flow";
@@ -83,8 +99,18 @@ interface TokenStoreState {
   }) => void;
   updateThemeGroup: (groupId: string, newName: string, newColor?: string) => void;
   duplicateThemeGroup: (groupId: string) => void;
-  deleteThemeGroup: (groupId: string) => void;
+    deleteThemeGroup: (groupId: string) => void;
   loadSampleData: () => void;
+  loadStarterTemplate: (templateId: string) => void;
+  addNewToken: (
+    setName: string,
+    tokenPath: string[],
+    tokenData: { value: any; type: string; description?: string }
+  ) => void;
+  deleteToken: (setName: string, tokenPath: string[]) => void;
+  duplicateToken: (setName: string, tokenPath: string[], newName: string) => void;
+  addNewSet: (setName: string) => void;
+  deleteSet: (setName: string) => void;
 }
 
 const DEFAULT_CREDENTIALS: GitCredentials = {
@@ -192,6 +218,34 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       } catch {}
     }
   },
+
+  // Releases State
+  releases: [],
+  activeReleaseId: null,
+  createRelease: (pkg) =>
+    set((state) => {
+      const updated = [pkg, ...state.releases];
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_releases_history", JSON.stringify(updated));
+        } catch {}
+      }
+      return { releases: updated, activeReleaseId: pkg.id };
+    }),
+  deleteRelease: (id) =>
+    set((state) => {
+      const updated = state.releases.filter((r) => r.id !== id);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_releases_history", JSON.stringify(updated));
+        } catch {}
+      }
+      return {
+        releases: updated,
+        activeReleaseId: state.activeReleaseId === id ? (updated[0]?.id || null) : state.activeReleaseId,
+      };
+    }),
+  setActiveReleaseId: (id) => set({ activeReleaseId: id }),
 
   tokensViewMode: "preview",
   setTokensViewMode: (mode) => {
@@ -301,20 +355,28 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         }
       }
 
-      // 5. Restore Active Sidebar Tab (defaults to themes) and Tokens View Mode
+      // 5. Restore Active Sidebar Tab and Tokens View Mode
       const savedTab = localStorage.getItem("ts_sidebar_tab") as
         | "dashboard"
         | "tokens"
         | "themes"
+        | "releases"
         | null;
-      const initialTab: "dashboard" | "tokens" | "themes" =
-        savedTab && ["dashboard", "tokens", "themes"].includes(savedTab)
+      const initialTab: "dashboard" | "tokens" | "themes" | "releases" =
+        savedTab && ["dashboard", "tokens", "themes", "releases"].includes(savedTab)
           ? savedTab
           : "dashboard";
 
       const savedTokensViewMode =
         (localStorage.getItem("ts_tokens_view_mode") as "preview" | "json") ||
         "preview";
+
+      // 6. Restore Releases History
+      let savedReleases: ReleasePackage[] = [];
+      try {
+        const rawRel = localStorage.getItem("ts_releases_history");
+        if (rawRel) savedReleases = JSON.parse(rawRel);
+      } catch {}
 
       set({
         credentials: parsedCreds,
@@ -323,6 +385,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         themeMode: initialTheme,
         sidebarTab: initialTab,
         tokensViewMode: savedTokensViewMode,
+        releases: savedReleases,
+        activeReleaseId: savedReleases[0]?.id || null,
         rawTokens: {},
         resolvedTokens: [],
         themeGroups: [],
@@ -360,7 +424,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       groups.find((g) => g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // NOTE: Tokens remain strictly in-memory (Zustand) with ZERO local cache persistence
+    // Automatically synchronize loaded tokens with Second Screen Cloud API
+    if (typeof window !== "undefined" && doc && typeof doc === "object") {
+      fetch("/api/v1/tokens", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-client": "second-screen",
+        },
+        body: JSON.stringify({ rawTokens: doc }),
+      }).catch(() => {});
+    }
 
     set({
       rawTokens: doc,
@@ -773,6 +847,141 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       type: "info",
       title: "Sample Theme Matrix Loaded",
       message: "Loaded Tokens Studio multi-theme matrix with Dark & Light modes.",
+    });
+  },
+
+  loadStarterTemplate: (templateId: string) => {
+    const template = STARTER_TEMPLATES.find((t) => t.id === templateId) || STARTER_TEMPLATES[0];
+    const doc = template.tokensDoc;
+    const resolved = flattenAndResolveTokens(doc, "ALL");
+    const groups = extractThemeGroups(doc);
+
+    set({
+      rawTokens: doc,
+      resolvedTokens: resolved,
+      themeGroups: groups,
+      activeThemeGroupId: groups[0]?.id || "",
+      activeThemeOptionId: groups[0]?.options[0]?.id || "",
+      activeSet: "ALL",
+      activeGroup: "all",
+      isDirty: false,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Template Loaded",
+      message: `Loaded "${template.name}" with ${resolved.length} tokens.`,
+    });
+  },
+
+  addNewToken: (setName, tokenPath, tokenData) => {
+    const { rawTokens, activeSet } = get();
+    const fullPath = [setName, ...tokenPath];
+    const updatedRawDoc = createTokenAtKeyPath(rawTokens, fullPath, tokenData);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Token Created",
+      message: `Created "${tokenPath.join(".")}" in ${setName}.`,
+    });
+  },
+
+  deleteToken: (setName, tokenPath) => {
+    const { rawTokens, activeSet } = get();
+    const fullPath = [setName, ...tokenPath];
+    const updatedRawDoc = deleteTokenAtKeyPath(rawTokens, fullPath);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "info",
+      title: "Token Deleted",
+      message: `Deleted "${tokenPath.join(".")}".`,
+    });
+  },
+
+  duplicateToken: (setName, tokenPath, newName) => {
+    const { rawTokens, activeSet, resolvedTokens } = get();
+    const existingName = tokenPath.join(".");
+    const existing = resolvedTokens.find((t) => t.setName === setName && t.name === existingName);
+    if (!existing) return;
+
+    const newPath = newName.split(".");
+    const fullPath = [setName, ...newPath];
+    const updatedRawDoc = createTokenAtKeyPath(rawTokens, fullPath, {
+      value: existing.rawValue,
+      type: existing.type,
+      description: existing.description ? `${existing.description} (Copy)` : undefined,
+    });
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Token Duplicated",
+      message: `Created "${newName}".`,
+    });
+  },
+
+  addNewSet: (setName) => {
+    const { rawTokens, activeSet } = get();
+    const cleanName = setName.trim();
+    if (!cleanName || rawTokens[cleanName]) return;
+
+    const updatedRawDoc = createEmptyTokenSet(rawTokens, cleanName);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      activeSet: cleanName,
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Set Created",
+      message: `Created token set "${cleanName}".`,
+    });
+  },
+
+  deleteSet: (setName) => {
+    const { rawTokens, activeSet } = get();
+    const updatedRawDoc = deleteTokenSet(rawTokens, setName);
+    const remainingSets = Object.keys(updatedRawDoc).filter((k) => !k.startsWith("$"));
+    const newActiveSet = activeSet === setName ? (remainingSets[0] || "ALL") : activeSet;
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      activeSet: newActiveSet,
+      isDirty: true,
+    });
+
+    get().addToast({
+      type: "info",
+      title: "Set Deleted",
+      message: `Deleted token set "${setName}".`,
     });
   },
 }));

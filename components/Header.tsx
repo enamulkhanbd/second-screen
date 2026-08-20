@@ -245,6 +245,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   </span>
                 )}
 
+                {sidebarTab === "releases" && (
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    Releases
+                  </span>
+                )}
+
                 {sidebarTab === "tokens" && (
                   <>
                     <button

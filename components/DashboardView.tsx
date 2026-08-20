@@ -21,12 +21,14 @@ import {
   TrendingUp,
   FileJson,
   Info,
+  Sparkles,
 } from "lucide-react";
 import {
   scanTokenHealth,
   auditSystemAccessibility,
   computeThemeCoverage,
 } from "@/utils/dashboardHelpers";
+import { OnboardingModal } from "@/components/OnboardingModal";
 
 interface DashboardViewProps {
   onOpenSettings?: () => void;
@@ -47,6 +49,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
   } = useTokenStore();
 
   const [selectedIssueTab, setSelectedIssueTab] = useState<"all" | "errors" | "warnings">("all");
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const setNames = useMemo(
     () => Object.keys(rawTokens).filter((k) => !k.startsWith("$")),
@@ -127,6 +130,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
               className={`w-3.5 h-3.5 ${syncStatus === "fetching" ? "animate-spin text-emerald-500" : ""}`}
             />
             <span>Refresh</span>
+          </button>
+
+          <button
+            onClick={() => setIsOnboardingOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900/50 shadow-xs transition-all cursor-pointer"
+            title="Start from template or import"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+            <span>Templates & Import</span>
           </button>
 
           <button
@@ -657,6 +669,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
           </div>
         </div>
       </div>
+      {/* Onboarding & Starter Templates Modal */}
+      {isOnboardingOpen && (
+        <OnboardingModal
+          isOpen={isOnboardingOpen}
+          onClose={() => setIsOnboardingOpen(false)}
+          onOpenSettings={onOpenSettings || (() => {})}
+        />
+      )}
     </div>
   );
 };

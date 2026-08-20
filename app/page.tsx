@@ -8,6 +8,7 @@ import { TokenFlow } from "@/components/TokenFlow";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { DashboardView } from "@/components/DashboardView";
+import { ReleasesWorkspace } from "@/components/ReleasesWorkspace";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 
@@ -25,13 +26,15 @@ export default function Home() {
       {/* Top Header: Logo, Interactive Breadcrumbs, Avatar, Branch Dropdown */}
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
-      {/* Main Workspace: Theme Groups Sidebar + Matrix, Flow Graph, Dashboard, or Tokens Workspace (Preview/JSON) */}
+      {/* Main Workspace: Theme Groups Sidebar + Matrix, Flow Graph, Dashboard, Tokens Workspace, or Releases */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
         {sidebarTab === "dashboard" ? (
           <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "tokens" ? (
           <TokensWorkspace onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "releases" ? (
+          <ReleasesWorkspace />
         ) : viewMode === "flow" ? (
           <TokenFlow />
         ) : (

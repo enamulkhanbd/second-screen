@@ -1,0 +1,16 @@
+{
+  "name": "Second Screen — Design Tokens",
+  "id": "second-screen-tokens-studio",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "capabilities": [],
+  "enableProposedApi": false,
+  "documentAccess": "dynamic-page",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "devAllowedDomains": ["*"],
+    "reasoning": "Synchronize design tokens, theme collections, and variables bi-directionally with the Second Screen Cloud API server."
+  }
+}

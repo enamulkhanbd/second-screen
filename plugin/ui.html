@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Second Screen — Design Tokens</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 11px;
+      color: #1e293b;
+      background-color: #ffffff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+    /* Dark mode support in Figma */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #121218;
+        color: #f1f5f9;
+      }
+    }
+    /* Header */
+    .header {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: rgba(248, 250, 252, 0.8);
+    }
+    @media (prefers-color-scheme: dark) {
+      .header {
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+        background-color: rgba(24, 24, 32, 0.8);
+      }
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 12px;
+      box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+    }
+    .logo-text {
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: -0.2px;
+    }
+    .version-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background-color: rgba(124, 58, 237, 0.1);
+      color: #7c3aed;
+    }
+    @media (prefers-color-scheme: dark) {
+      .version-badge {
+        background-color: rgba(124, 58, 237, 0.25);
+        color: #c4b5fd;
+      }
+    }
+    /* Tabs */
+    .tabs {
+      display: flex;
+      padding: 6px 12px;
+      gap: 4px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      .tabs {
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+      }
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover {
+      background-color: rgba(0, 0, 0, 0.04);
+      color: #1e293b;
+    }
+    .tab-btn.active {
+      background-color: #1e293b;
+      color: white;
+    }
+    @media (prefers-color-scheme: dark) {
+      .tab-btn {
+        color: #94a3b8;
+      }
+      .tab-btn:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+        color: #f1f5f9;
+      }
+      .tab-btn.active {
+        background-color: #f1f5f9;
+        color: #0f172a;
+      }
+    }
+    /* Main Content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .label {
+      font-size: 11px;
+      font-weight: 600;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 11px;
+      font-family: inherit;
+      background-color: #ffffff;
+      color: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    @media (prefers-color-scheme: dark) {
+      input[type="text"], input[type="password"] {
+        border-color: #334155;
+        background-color: #1e293b;
+      }
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: #7c3aed;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white;
+      box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+    }
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: inherit;
+    }
+    @media (prefers-color-scheme: dark) {
+      .btn-secondary {
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+    }
+    .btn-secondary:hover {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+    /* Card / Info */
+    .info-card {
+      padding: 12px;
+      border-radius: 8px;
+      background-color: rgba(124, 58, 237, 0.05);
+      border: 1px solid rgba(124, 58, 237, 0.15);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    /* Console Logs */
+    .console-box {
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      background-color: #0f172a;
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 10px;
+      height: 110px;
+      overflow-y: auto;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .log-line {
+      word-break: break-all;
+    }
+    .log-error {
+      color: #f87171;
+    }
+    .log-success {
+      color: #4ade80;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-container">
+      <div class="logo-icon">S</div>
+      <div>
+        <span class="logo-text">Second Screen</span>
+      </div>
+    </div>
+    <span class="version-badge">v0.1.0</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('pull')">Pull to Figma</button>
+    <button class="tab-btn" onclick="switchTab('push')">Push to Cloud</button>
+    <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+  </div>
+
+  <!-- Content: PULL -->
+  <div id="tab-pull" class="content">
+    <div class="info-card">
+      Synchronize design tokens from <strong>Second Screen Cloud</strong> directly into native <strong>Figma Variables & Styles</strong>.
+    </div>
+
+    <div class="input-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="check-variables" checked />
+        <span>Create & update Figma Variables (Colors, Dimensions)</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="check-styles" checked />
+        <span>Create Paint Styles & Text Styles</span>
+      </label>
+    </div>
+
+    <button class="btn btn-primary" onclick="pullTokens()">
+      <span>⬇️ Pull Tokens to Figma</span>
+    </button>
+  </div>
+
+  <!-- Content: PUSH -->
+  <div id="tab-push" class="content" style="display: none;">
+    <div class="info-card">
+      Inspect local Figma Variables & Paint Styles and push them to <strong>Second Screen Cloud</strong>.
+    </div>
+
+    <button class="btn btn-primary" onclick="exportFigmaTokens()">
+      <span>⬆️ Scan & Push Figma Variables</span>
+    </button>
+  </div>
+
+  <!-- Content: SETTINGS -->
+  <div id="tab-settings" class="content" style="display: none;">
+    <div class="input-group">
+      <label class="label">Server URL</label>
+      <input type="text" id="input-server-url" placeholder="http://localhost:3000" />
+    </div>
+
+    <div class="input-group">
+      <label class="label">Personal Access Token (PAT)</label>
+      <input type="password" id="input-pat" placeholder="sec_pat_live_..." />
+    </div>
+
+    <button class="btn btn-secondary" onclick="saveSettings()">Save Configuration</button>
+  </div>
+
+  <!-- Console Log Window -->
+  <div class="console-box" id="console-logs">
+    <div class="log-line">Ready. Connected to Figma API.</div>
+  </div>
+
+  <script>
+    let activeConfig = {
+      serverUrl: "http://localhost:3000",
+      pat: "",
+    };
+
+    function log(text, type = "normal") {
+      const box = document.getElementById("console-logs");
+      const line = document.createElement("div");
+      line.className = "log-line" + (type === "error" ? " log-error" : type === "success" ? " log-success" : "");
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach((btn, idx) => {
+        btn.classList.remove("active");
+      });
+      document.querySelectorAll(".content").forEach((el) => {
+        el.style.display = "none";
+      });
+
+      if (tabId === "pull") {
+        document.querySelectorAll(".tab-btn")[0].classList.add("active");
+        document.getElementById("tab-pull").style.display = "flex";
+      } else if (tabId === "push") {
+        document.querySelectorAll(".tab-btn")[1].classList.add("active");
+        document.getElementById("tab-push").style.display = "flex";
+      } else {
+        document.querySelectorAll(".tab-btn")[2].classList.add("active");
+        document.getElementById("tab-settings").style.display = "flex";
+      }
+    }
+
+    // On Load: Request saved config from Figma clientStorage
+    parent.postMessage({ pluginMessage: { type: "GET_SAVED_CONFIG" } }, "*");
+
+    window.onmessage = async (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === "SAVED_CONFIG") {
+        activeConfig = msg.payload;
+        document.getElementById("input-server-url").value = activeConfig.serverUrl || "http://localhost:3000";
+        document.getElementById("input-pat").value = activeConfig.pat || "";
+      }
+
+      if (msg.type === "LOG") {
+        log(msg.payload);
+      }
+
+      if (msg.type === "ERROR") {
+        log(msg.payload, "error");
+      }
+
+      if (msg.type === "PULL_SUCCESS") {
+        log(`✓ Created ${msg.payload.variablesCount} variables & ${msg.payload.stylesCount} styles!`, "success");
+      }
+
+      if (msg.type === "EXPORTED_TOKENS") {
+        log("Pushing scanned tokens to Second Screen Cloud...", "normal");
+        try {
+          const url = (activeConfig.serverUrl || "http://localhost:3000").replace(/\/+$/, "") + "/api/v1/tokens";
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(activeConfig.pat ? { Authorization: `Bearer ${activeConfig.pat}` } : {}),
+            },
+            body: JSON.stringify({ rawTokens: msg.payload.rawTokens }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            log(`✓ Successfully pushed ${data.tokenCount} tokens to Cloud!`, "success");
+          } else {
+            log(`Push failed: ${data.error}`, "error");
+          }
+        } catch (err) {
+          log(`Network error: ${err.message}`, "error");
+        }
+      }
+    };
+
+    function saveSettings() {
+      const serverUrl = document.getElementById("input-server-url").value.trim();
+      const pat = document.getElementById("input-pat").value.trim();
+      activeConfig = { serverUrl, pat };
+
+      parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: activeConfig } }, "*");
+      log("Saved credentials to Figma client storage.");
+    }
+
+    async function pullTokens() {
+      log("Connecting to Second Screen Cloud API...");
+      const serverUrl = (document.getElementById("input-server-url").value || activeConfig.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
+      const pat = document.getElementById("input-pat").value || activeConfig.pat;
+
+      try {
+        const res = await fetch(`${serverUrl}/api/v1/tokens`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(pat ? { Authorization: `Bearer ${pat}` } : {}),
+          },
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || "Failed to fetch tokens");
+        }
+
+        log(`Received ${data.resolvedTokens.length} tokens. Injecting into Figma document...`, "normal");
+
+        parent.postMessage(
+          {
+            pluginMessage: {
+              type: "PULL_TOKENS_TO_FIGMA",
+              payload: {
+                rawTokens: data.rawTokens,
+                resolvedTokens: data.resolvedTokens,
+                themeGroups: data.themeGroups,
+                options: {
+                  createVariables: document.getElementById("check-variables").checked,
+                  createStyles: document.getElementById("check-styles").checked,
+                },
+              },
+            },
+          },
+          "*"
+        );
+      } catch (err) {
+        log(`Failed to fetch from Cloud API: ${err.message}`, "error");
+      }
+    }
+
+    function exportFigmaTokens() {
+      log("Starting Figma document inspection...");
+      parent.postMessage({ pluginMessage: { type: "EXPORT_FIGMA_TO_TOKENS" } }, "*");
+    }
+  </script>
+</body>
+</html>

@@ -383,3 +383,115 @@ export function setTokenAtKeyPath(
 
   return clone;
 }
+
+/**
+ * Creates a new token leaf at the given key path.
+ */
+export function createTokenAtKeyPath(
+  doc: RawTokensDocument,
+  fullPath: string[],
+  tokenLeaf: { value: any; type: string; description?: string }
+): RawTokensDocument {
+  if (fullPath.length === 0) return doc;
+
+  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  let current: any = clone;
+
+  for (let i = 0; i < fullPath.length - 1; i++) {
+    const segment = fullPath[i];
+    if (!current[segment] || typeof current[segment] !== "object") {
+      current[segment] = {};
+    }
+    current = current[segment];
+  }
+
+  const lastSegment = fullPath[fullPath.length - 1];
+  current[lastSegment] = {
+    value: tokenLeaf.value,
+    type: tokenLeaf.type,
+    ...(tokenLeaf.description ? { description: tokenLeaf.description } : {}),
+  };
+
+  return clone;
+}
+
+/**
+ * Immutably deletes a token leaf at the given key path.
+ */
+export function deleteTokenAtKeyPath(
+  doc: RawTokensDocument,
+  fullPath: string[]
+): RawTokensDocument {
+  if (fullPath.length === 0) return doc;
+
+  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  let current: any = clone;
+
+  for (let i = 0; i < fullPath.length - 1; i++) {
+    const segment = fullPath[i];
+    if (!current[segment] || typeof current[segment] !== "object") {
+      return clone;
+    }
+    current = current[segment];
+  }
+
+  const lastSegment = fullPath[fullPath.length - 1];
+  delete current[lastSegment];
+
+  return clone;
+}
+
+/**
+ * Creates a new empty token set in the document.
+ */
+export function createEmptyTokenSet(
+  doc: RawTokensDocument,
+  setName: string
+): RawTokensDocument {
+  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  if (!clone[setName]) {
+    clone[setName] = {};
+  }
+
+  // Update $metadata.tokenSetOrder if present
+  const metaKey = clone["$metadata.json"] ? "$metadata.json" : "$metadata";
+  if (clone[metaKey] && Array.isArray((clone[metaKey] as any).tokenSetOrder)) {
+    const order = (clone[metaKey] as any).tokenSetOrder;
+    if (!order.includes(setName)) {
+      order.push(setName);
+    }
+  }
+
+  return clone;
+}
+
+/**
+ * Deletes a token set from the document and cleans up references.
+ */
+export function deleteTokenSet(
+  doc: RawTokensDocument,
+  setName: string
+): RawTokensDocument {
+  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  delete clone[setName];
+
+  // Clean from $metadata.tokenSetOrder
+  const metaKey = clone["$metadata.json"] ? "$metadata.json" : "$metadata";
+  if (clone[metaKey] && Array.isArray((clone[metaKey] as any).tokenSetOrder)) {
+    (clone[metaKey] as any).tokenSetOrder = (clone[metaKey] as any).tokenSetOrder.filter(
+      (s: string) => s !== setName
+    );
+  }
+
+  // Clean from $themes.json
+  const themesKey = clone["$themes.json"] ? "$themes.json" : "$themes";
+  if (Array.isArray(clone[themesKey])) {
+    (clone[themesKey] as any).forEach((theme: any) => {
+      if (theme.selectedTokenSets && theme.selectedTokenSets[setName]) {
+        delete theme.selectedTokenSets[setName];
+      }
+    });
+  }
+
+  return clone;
+}

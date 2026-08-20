@@ -29,7 +29,11 @@ import {
   MoreHorizontal,
   Edit2,
   Copy,
+  Plus,
+  CopyPlus,
+  Trash2,
 } from "lucide-react";
+import { AddTokenModal } from "@/components/AddTokenModal";
 
 interface TokensWorkspaceProps {
   onOpenSettings?: () => void;
@@ -42,6 +46,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     activeSet,
     updateSingleToken,
     updateSetJson,
+    duplicateToken,
+    deleteToken,
     syncMeta,
     addToast,
     tokensViewMode,
@@ -59,6 +65,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
+  const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
 
   // Filter tokens strictly for the active set (or all sets if 'ALL')
   const displayedTokens = useMemo(() => {
@@ -99,7 +107,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   const [code, setCode] = useState<string>("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
 
   useEffect(() => {
     if (currentSetKey && rawTokens[currentSetKey] !== undefined) {
@@ -202,7 +209,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
 
   const lineCount = useMemo(() => code.split("\n").length, [code]);
   const relativeFileName = `${currentSetKey}.json`;
-  const repoFilePath = syncMeta?.files?.[currentSetKey] || relativeFileName;
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0c0c10] font-sans">
@@ -240,17 +246,27 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         </div>
 
         {/* Right: Actions + Switcher aligned on the right */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {tokensViewMode === "preview" ? (
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search tokens..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-emerald-500 w-44 transition-all"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-emerald-500 w-44 transition-all"
+                />
+              </div>
+
+              <button
+                onClick={() => setIsAddTokenOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Token</span>
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -379,6 +395,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                         token={token}
                         onUpdate={updateSingleToken}
                         onEdit={() => setEditingToken(token)}
+                        onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
+                        onDelete={() => deleteToken(token.setName, token.name.split("."))}
                       />
                     ))}
                   </tbody>
@@ -462,6 +480,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         onClose={() => setEditingToken(null)}
         onSave={updateSingleToken}
       />
+
+      {/* Add Token Modal */}
+      {isAddTokenOpen && (
+        <AddTokenModal
+          isOpen={isAddTokenOpen}
+          onClose={() => setIsAddTokenOpen(false)}
+          defaultSetName={activeSet !== "ALL" ? activeSet : undefined}
+        />
+      )}
     </div>
   );
 };
@@ -470,12 +497,16 @@ interface TokenPreviewRowProps {
   token: FlattenedToken;
   onUpdate: (path: string[], newValue: any) => void;
   onEdit: () => void;
+  onDuplicate: (newName: string) => void;
+  onDelete: () => void;
 }
 
 const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
   token,
   onUpdate,
   onEdit,
+  onDuplicate,
+  onDelete,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -566,6 +597,33 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
                 >
                   <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
                   <span className="font-semibold">Edit token</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
+                    if (newName && newName.trim()) {
+                      onDuplicate(newName.trim());
+                    }
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+                >
+                  <CopyPlus className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Duplicate token</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (confirm(`Delete token "${token.name}" from set "${token.setName}"?`)) {
+                      onDelete();
+                    }
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete token</span>
                 </button>
 
                 <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800/80 my-1" />

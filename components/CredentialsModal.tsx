@@ -15,7 +15,11 @@ import {
   RefreshCw,
   HelpCircle,
   ShieldCheck,
+  Globe,
+  Layers,
 } from "lucide-react";
+import { ApiKeysManager } from "@/components/ApiKeysManager";
+import { PluginDistributionModal } from "@/components/PluginDistributionModal";
 
 interface CredentialsModalProps {
   isOpen: boolean;
@@ -24,6 +28,7 @@ interface CredentialsModalProps {
 
 export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onClose }) => {
   const { credentials, setCredentials, setRawTokens, setSyncStatus, addToast } = useTokenStore();
+  const [modalTab, setModalTab] = useState<"git" | "apikeys" | "plugin">("git");
   const [form, setForm] = useState<GitCredentials>({ ...credentials });
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -113,17 +118,17 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-none">
-      <div className="w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 flex flex-col">
+      <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20">
-              <FolderGit2 className="w-5 h-5" />
+              {modalTab === "git" ? <FolderGit2 className="w-5 h-5" /> : <Globe className="w-5 h-5" />}
             </div>
             <div>
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Git Provider Sync Configuration</h2>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Project Settings & Sync</h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Connect your repository to load and synchronize design tokens
+                Configure Git repositories and Second Screen Cloud API access
               </p>
             </div>
           </div>
@@ -135,8 +140,48 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSaveAndFetch} className="p-6 space-y-4">
+        {/* Tab Switcher */}
+        <div className="px-6 pt-3 pb-1 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2 bg-zinc-50/50 dark:bg-zinc-950/20">
+          <button
+            onClick={() => setModalTab("git")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              modalTab === "git"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs"
+                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800"
+            }`}
+          >
+            <FolderGit2 className="w-3.5 h-3.5" />
+            <span>Git Provider Sync</span>
+          </button>
+
+          <button
+            onClick={() => setModalTab("apikeys")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              modalTab === "apikeys"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs"
+                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800"
+            }`}
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>Cloud API Keys (PAT)</span>
+          </button>
+
+          <button
+            onClick={() => setModalTab("plugin")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              modalTab === "plugin"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs"
+                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800"
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Figma Plugin</span>
+          </button>
+        </div>
+
+        {/* Tab 1: Git Provider Settings */}
+        {modalTab === "git" ? (
+          <form onSubmit={handleSaveAndFetch} className="p-6 space-y-4 overflow-y-auto flex-1">
           {/* Provider Tabs */}
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-2">
@@ -379,6 +424,15 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
             </button>
           </div>
         </form>
+        ) : modalTab === "apikeys" ? (
+          <div className="p-6 overflow-y-auto flex-1">
+            <ApiKeysManager />
+          </div>
+        ) : (
+          <div className="p-6 overflow-y-auto flex-1">
+            <PluginDistributionModal />
+          </div>
+        )}
       </div>
     </div>
   );
