@@ -1,27 +1,16 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { FlattenedToken, TokenType } from "@/types/tokens";
+import { FlattenedToken } from "@/types/tokens";
 import {
-  Type,
-  Palette,
-  Square,
-  MoveHorizontal,
-  Layers,
   Check,
   Copy,
   Link2,
-  ChevronDown,
-  ChevronRight,
-  Edit3,
-  Sparkles,
 } from "lucide-react";
 import { calculateContrastRatio } from "@/utils/accessibility";
 import { evaluateTokenMath } from "@/utils/transformTokens";
+import { Badge } from "@/components/ui/badge";
 
-/**
- * Safely parse a JSON string or return an object
- */
 export function safeParseObject(val: any): Record<string, any> | null {
   if (!val) return null;
   if (typeof val === "object") return val;
@@ -36,38 +25,12 @@ export function safeParseObject(val: any): Record<string, any> | null {
   return null;
 }
 
-/**
- * Capitalizes a token path nicely for the specimen preview
- * e.g. "title.xl.semibold" -> "Title XL Semibold"
- */
-function formatSpecimenName(name: string): string {
-  if (!name) return "Sample Text";
-  return name
-    .split(".")
-    .map((part) => {
-      if (part.toLowerCase() === "xl") return "XL";
-      if (part.toLowerCase() === "lg") return "LG";
-      if (part.toLowerCase() === "md") return "MD";
-      if (part.toLowerCase() === "sm") return "SM";
-      if (part.toLowerCase() === "xs") return "XS";
-      if (part.toLowerCase() === "2xl") return "2XL";
-      if (part.toLowerCase() === "3xl") return "3XL";
-      if (part.toLowerCase() === "4xl") return "4XL";
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join(" ");
-}
-
-/**
- * Renders the Raw Value column with flexible, generous space for composite tokens and aliases.
- */
 export const TokenRawValueCell: React.FC<{
   token: FlattenedToken;
   onUpdate: (path: string[], newValue: string | Record<string, any>) => void;
 }> = ({ token, onUpdate }) => {
   const [localVal, setLocalVal] = useState(token.rawValue);
   const [isSaved, setIsSaved] = useState(false);
-  const [isEditingComposite, setIsEditingComposite] = useState(false);
 
   React.useEffect(() => {
     setLocalVal(token.rawValue);
@@ -76,7 +39,6 @@ export const TokenRawValueCell: React.FC<{
   const rawObj = useMemo(() => safeParseObject(token.rawValue), [token.rawValue]);
   const isTypographyComposite = token.type === "typography" && rawObj !== null;
 
-  // Handle single string value input change
   const handleStringChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value;
     setLocalVal(newVal);
@@ -85,23 +47,12 @@ export const TokenRawValueCell: React.FC<{
     setTimeout(() => setIsSaved(false), 1200);
   };
 
-  // Handle sub-property update for composite typography
-  const handleSubPropChange = (propKey: string, propVal: string) => {
-    if (!rawObj) return;
-    const updated = { ...rawObj, [propKey]: propVal };
-    setLocalVal(JSON.stringify(updated));
-    onUpdate(token.path, updated);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 1200);
-  };
-
-  // If it is a composite Typography token, render clean structured object text (no chips)
   if (isTypographyComposite && rawObj) {
     const entries = Object.entries(rawObj);
 
     return (
-      <div className="font-mono text-[11px] leading-relaxed text-zinc-700 dark:text-zinc-300 py-1">
-        <div className="text-zinc-400 dark:text-zinc-500">{"{"}</div>
+      <div className="font-mono text-[11px] leading-relaxed text-foreground py-1">
+        <div className="text-muted-foreground">{"{"}</div>
         <div className="pl-3 space-y-0.5">
           {entries.map(([key, val], idx) => {
             const isLast = idx === entries.length - 1;
@@ -110,12 +61,12 @@ export const TokenRawValueCell: React.FC<{
 
             return (
               <div key={key} className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-zinc-500 dark:text-zinc-400">{key}:</span>
+                <span className="text-muted-foreground">{key}:</span>
                 <span
                   className={
                     isAlias
-                      ? "text-emerald-600 dark:text-emerald-400 font-semibold"
-                      : "text-zinc-800 dark:text-zinc-200"
+                      ? "text-primary font-semibold"
+                      : "text-foreground"
                   }
                 >
                   {strVal}
@@ -125,12 +76,11 @@ export const TokenRawValueCell: React.FC<{
             );
           })}
         </div>
-        <div className="text-zinc-400 dark:text-zinc-500">{"}"}</div>
+        <div className="text-muted-foreground">{"}"}</div>
       </div>
     );
   }
 
-  // Primitive value input (color, spacing, single string, etc.)
   return (
     <div className="flex items-center gap-2 w-full">
       <div className="relative flex-1">
@@ -139,16 +89,16 @@ export const TokenRawValueCell: React.FC<{
           value={localVal}
           onChange={handleStringChange}
           placeholder="e.g. #3b82f6 or {colors.brand.500}"
-          className={`w-full font-mono text-xs px-3.5 py-2 rounded-xl border transition-all outline-none ${
+          className={`w-full font-mono text-xs px-3 py-1.5 rounded-md border transition-all outline-none ${
             token.isAlias
-              ? "border-emerald-500/40 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 dark:focus:border-zinc-600"
+              ? "border-primary/40 text-primary bg-primary/5 focus:border-primary focus:ring-1 focus:ring-primary"
+              : "border-input bg-transparent text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring"
           }`}
         />
         {token.isAlias && (
           <span
             title={`Resolves to: ${token.resolvedValue}`}
-            className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono pointer-events-none font-semibold"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] text-primary font-mono pointer-events-none font-semibold"
           >
             <Link2 className="w-3.5 h-3.5" />
             alias
@@ -164,10 +114,6 @@ export const TokenRawValueCell: React.FC<{
   );
 };
 
-/**
- * Visual Preview Cell that renders real live typography specimens, solid color swatches,
- * border radius boxes, elevation shadows, and spacing dimensions.
- */
 export const TokenVisualPreviewCell: React.FC<{
   token: FlattenedToken;
 }> = ({ token }) => {
@@ -192,7 +138,7 @@ export const TokenVisualPreviewCell: React.FC<{
     }
   };
 
-  // 1. TYPOGRAPHY COMPOSITE (Font Name - Font Weight - Font Size - Line Height)
+  // 1. TYPOGRAPHY COMPOSITE
   if (token.type === "typography" && resolvedObj) {
     const rawFamily = resolvedObj.fontFamily || "inherit";
     const family = rawFamily.replace(/[{}]/g, "");
@@ -200,7 +146,6 @@ export const TokenVisualPreviewCell: React.FC<{
     const rawSize = String(resolvedObj.fontSize || "16");
     const rawLineHeight = String(resolvedObj.lineHeight || "normal");
 
-    // Evaluate any nested math expressions
     const size = evaluateTokenMath(rawSize);
     const lineHeight = evaluateTokenMath(rawLineHeight);
 
@@ -208,23 +153,23 @@ export const TokenVisualPreviewCell: React.FC<{
     const cleanLineHeight = lineHeight.replace(/px/g, "");
 
     return (
-      <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-700 dark:text-zinc-300">
-        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{family}</span>
-        <span className="text-zinc-400">-</span>
+      <div className="flex items-center gap-1.5 text-xs font-mono text-foreground">
+        <span className="font-semibold text-foreground">{family}</span>
+        <span className="text-muted-foreground">-</span>
         <span>{weight}</span>
-        <span className="text-zinc-400">-</span>
+        <span className="text-muted-foreground">-</span>
         <span>{cleanSize}</span>
-        <span className="text-zinc-400">-</span>
+        <span className="text-muted-foreground">-</span>
         <span>{cleanLineHeight}</span>
       </div>
     );
   }
 
-  // 2. SINGLE FONT PROPERTY (fontFamilies, fontWeights, fontSizes)
+  // 2. SINGLE FONT PROPERTY
   if (token.type === "typography") {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+        <span className="text-sm font-semibold text-foreground">
           {token.resolvedValue}
         </span>
       </div>
@@ -247,18 +192,18 @@ export const TokenVisualPreviewCell: React.FC<{
           className="w-7 h-7 rounded-lg border border-black/15 dark:border-white/20 shadow-xs flex-shrink-0 transition-transform group-hover:scale-105"
           style={{ backgroundColor: token.resolvedValue }}
         />
-        <span className="font-mono text-xs text-zinc-800 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white transition-colors truncate">
+        <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate">
           {token.resolvedValue}
         </span>
 
         {bestRatio >= 4.5 && (
-          <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800/80 text-[11px] font-mono text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60 font-semibold">
+          <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5">
             {bestRatio}:1
-          </span>
+          </Badge>
         )}
 
         <button
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-zinc-400 hover:text-zinc-800 dark:hover:text-white rounded-md"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-foreground rounded-md"
           tabIndex={-1}
         >
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -272,11 +217,11 @@ export const TokenVisualPreviewCell: React.FC<{
     return (
       <div className="flex items-center gap-3">
         <div
-          className="w-7 h-7 border-2 border-violet-500/70 bg-violet-500/10 flex-shrink-0"
+          className="w-7 h-7 border-2 border-primary/70 bg-primary/10 flex-shrink-0"
           style={{ borderRadius: token.resolvedValue || "0px" }}
           title={`Radius: ${token.resolvedValue}`}
         />
-        <span className="font-mono text-xs text-zinc-800 dark:text-zinc-200 truncate">
+        <span className="font-mono text-xs text-foreground truncate">
           {token.resolvedValue}
         </span>
       </div>
@@ -290,16 +235,16 @@ export const TokenVisualPreviewCell: React.FC<{
 
     return (
       <div className="flex items-center gap-3">
-        <div className="w-7 h-7 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700/60 flex-shrink-0">
+        <div className="w-7 h-7 flex items-center justify-center bg-muted rounded-lg border border-border flex-shrink-0">
           <div
-            className="bg-blue-500 rounded-xs"
+            className="bg-primary rounded-xs"
             style={{
               width: `${clampedPx}px`,
               height: `${clampedPx}px`,
             }}
           />
         </div>
-        <span className="font-mono text-xs text-zinc-800 dark:text-zinc-200 truncate">
+        <span className="font-mono text-xs text-foreground truncate">
           {token.resolvedValue}
         </span>
       </div>
@@ -311,11 +256,11 @@ export const TokenVisualPreviewCell: React.FC<{
     return (
       <div className="flex items-center gap-3">
         <div
-          className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 flex-shrink-0"
+          className="w-7 h-7 rounded-lg bg-card border border-border flex-shrink-0"
           style={{ boxShadow: token.resolvedValue }}
           title={`Shadow: ${token.resolvedValue}`}
         />
-        <span className="font-mono text-xs text-zinc-800 dark:text-zinc-200 truncate">
+        <span className="font-mono text-xs text-foreground truncate">
           {token.resolvedValue}
         </span>
       </div>
@@ -324,7 +269,7 @@ export const TokenVisualPreviewCell: React.FC<{
 
   // Default fallback
   return (
-    <div className="flex items-center gap-2 font-mono text-xs text-zinc-800 dark:text-zinc-200 truncate">
+    <div className="flex items-center gap-2 font-mono text-xs text-foreground truncate">
       <span>{token.resolvedValue}</span>
     </div>
   );

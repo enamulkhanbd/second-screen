@@ -10,11 +10,12 @@ import {
   Users,
   Check,
   Sparkles,
-  FolderGit2,
-  Settings,
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface OrgSwitcherProps {
   onOpenAuth: () => void;
@@ -70,13 +71,15 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
 
   if (!currentUser) {
     return (
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={onOpenAuth}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/60 font-semibold text-xs transition-all cursor-pointer shadow-xs"
+        className="gap-1.5 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/60 font-semibold shadow-xs"
       >
         <Sparkles className="w-3.5 h-3.5" />
         <span>Sign In / Workspace</span>
-      </button>
+      </Button>
     );
   }
 
@@ -85,36 +88,36 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
       {/* Trigger Pill */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer shadow-xs"
+        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-secondary/80 border border-border hover:bg-secondary text-foreground transition-all cursor-pointer shadow-xs text-xs font-medium"
       >
         {/* Org Icon */}
-        <div className="w-5 h-5 rounded-md bg-violet-600/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center font-bold text-[10px]">
+        <div className="w-5 h-5 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
           {currentOrg?.name?.[0]?.toUpperCase() || "O"}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <span className="truncate max-w-[100px] text-zinc-900 dark:text-white">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="truncate max-w-[100px] text-foreground">
             {currentOrg?.name || "Personal Workspace"}
           </span>
-          <span className="text-zinc-400 font-normal">/</span>
-          <span className="truncate max-w-[120px] text-emerald-600 dark:text-emerald-400 font-medium">
+          <span className="text-muted-foreground font-normal">/</span>
+          <span className="truncate max-w-[120px] text-primary font-medium">
             {currentProject?.name || "Default Project"}
           </span>
         </div>
 
-        <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-72 bg-white dark:bg-[#111116] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+        <div className="absolute left-0 mt-2 w-72 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
           {/* Organizations Section */}
-          <div className="p-2 border-b border-zinc-100 dark:border-zinc-800/80">
-            <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+          <div className="p-2 border-b border-border/80">
+            <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
               <span>Organizations</span>
               <button
                 onClick={() => setShowCreateOrg(!showCreateOrg)}
-                className="text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-0.5"
+                className="text-primary hover:underline flex items-center gap-0.5"
               >
                 <Plus className="w-3 h-3" />
                 <span>New Org</span>
@@ -123,21 +126,22 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
 
             {showCreateOrg && (
               <form onSubmit={handleCreateOrg} className="mb-2 flex gap-1.5">
-                <input
+                <Input
                   type="text"
                   required
                   placeholder="Org Name..."
                   value={newOrgName}
                   onChange={(e) => setNewOrgName(e.target.value)}
-                  className="flex-1 px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 outline-none"
+                  className="h-8 text-xs flex-1"
                   autoFocus
                 />
-                <button
+                <Button
                   type="submit"
-                  className="px-2.5 py-1 bg-violet-600 text-white rounded-lg text-xs font-semibold"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
                 >
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -150,14 +154,14 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                     onClick={() => {
                       setCurrentOrg(org);
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
                       isSelected
-                        ? "bg-violet-50 dark:bg-violet-600/20 text-violet-700 dark:text-violet-300 font-semibold"
-                        : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-foreground hover:bg-muted"
                     }`}
                   >
                     <span className="truncate">{org.name}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
                   </button>
                 );
               })}
@@ -169,9 +173,9 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                   setShowManageOrg(true);
                   setIsOpen(false);
                 }}
-                className="mt-1.5 w-full flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+                className="mt-1.5 w-full flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Users className="w-3 h-3 text-violet-500" />
+                <Users className="w-3 h-3 text-primary" />
                 <span>Manage Members & Roles ({currentOrg.members?.length || 1})</span>
               </button>
             )}
@@ -179,14 +183,14 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
 
           {/* Projects Section */}
           <div className="p-2">
-            <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+            <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
               <span>Projects ({orgProjects.length})</span>
               <button
                 onClick={() => {
                   setShowCreateProj(true);
                   setIsOpen(false);
                 }}
-                className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5"
+                className="text-primary hover:underline flex items-center gap-0.5"
               >
                 <Plus className="w-3 h-3" />
                 <span>New Project</span>
@@ -203,17 +207,17 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                       setCurrentProject(proj);
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
                       isSelected
-                        ? "bg-emerald-50 dark:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 font-semibold"
-                        : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-foreground hover:bg-muted"
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <Layers className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                      <Layers className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                       <span className="truncate">{proj.name}</span>
                     </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                   </button>
                 );
               })}

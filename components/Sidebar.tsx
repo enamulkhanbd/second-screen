@@ -14,15 +14,14 @@ import {
   Layers,
   Palette,
   Settings,
-  Sparkles,
-  Eye,
-  SlidersHorizontal,
-  FolderPlus,
   Package,
 } from "lucide-react";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import { AddSetModal } from "@/components/AddSetModal";
 import { buildSetFolderTree, SetTreeNode } from "@/utils/themeHelpers";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -40,7 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     setSidebarTab,
     activeSet,
     setActiveSet,
-    credentials,
     releases,
   } = useTokenStore();
 
@@ -67,7 +65,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     }));
   };
 
-  // Helper to count enabled sets for each theme option
   const getEnabledSetCount = (option: any) => {
     if (!option?.selectedTokenSets) return 0;
     return Object.values(option.selectedTokenSets).filter(
@@ -75,12 +72,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     ).length;
   };
 
-  // Recursive Tree Node Renderer matching the reference visual style
   const renderTreeNode = (node: SetTreeNode, depth: number = 0) => {
     if (node.isFolder) {
       const isCollapsed = Boolean(collapsedFolders[node.id]);
 
-      // If search filter is active, check if any child matches
       if (searchFilter) {
         const matchesName = node.name.toLowerCase().includes(searchFilter.toLowerCase());
         const hasMatchingChild = node.children?.some((c) =>
@@ -93,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         <div key={node.id} className="space-y-0.5">
           <div
             onClick={() => toggleFolder(node.id)}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-800 dark:text-zinc-200 cursor-pointer font-semibold text-xs transition-colors group select-none"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-muted/80 text-foreground cursor-pointer font-semibold text-xs transition-colors group select-none"
             style={{ paddingLeft: `${Math.max(depth * 14 + 6, 6)}px` }}
           >
             <button
@@ -101,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                 e.stopPropagation();
                 toggleFolder(node.id);
               }}
-              className="p-0.5 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200"
+              className="p-0.5 text-muted-foreground group-hover:text-foreground"
             >
               {isCollapsed ? (
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -111,12 +106,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             </button>
 
             {isCollapsed ? (
-              <Folder className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+              <Folder className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             ) : (
-              <FolderOpen className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400 flex-shrink-0" />
+              <FolderOpen className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             )}
 
-            <span className="truncate text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+            <span className="truncate text-xs font-semibold text-foreground">
               {node.name}
             </span>
           </div>
@@ -141,16 +136,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       <button
         key={node.id}
         onClick={() => setActiveSet(node.fullPath)}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all cursor-pointer select-none text-left ${
+        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all cursor-pointer select-none text-left ${
           isSelected
-            ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 font-medium"
+            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+            : "text-foreground hover:bg-muted font-medium"
         }`}
         style={{ paddingLeft: `${Math.max(depth * 14 + 18, 18)}px` }}
       >
         <File
           className={`w-3.5 h-3.5 flex-shrink-0 stroke-[1.5] ${
-            isSelected ? "text-white dark:text-zinc-900" : "text-zinc-400"
+            isSelected ? "text-primary-foreground" : "text-muted-foreground"
           }`}
         />
         <span className="truncate">{node.name}</span>
@@ -159,19 +154,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   };
 
   return (
-    <div className="flex h-full border-r border-zinc-200 dark:border-zinc-800/80 font-sans select-none flex-shrink-0">
+    <div className="flex h-full border-r border-border font-sans select-none flex-shrink-0">
       {/* 1. PRIMARY LEFT NAVIGATION RAIL */}
-      <aside className="w-52 bg-white dark:bg-[#0c0c10] border-r border-zinc-200 dark:border-zinc-800/80 flex flex-col justify-between p-3 select-none flex-shrink-0">
+      <aside className="w-52 bg-background border-r border-border flex flex-col justify-between p-3 select-none flex-shrink-0">
         <div className="space-y-3">
           {/* Primary Navigation Tabs */}
           <nav className="space-y-1">
             {/* Tab: Dashboard */}
             <button
               onClick={() => setSidebarTab("dashboard")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "dashboard"
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 font-medium"
+                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
               }`}
             >
               <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
@@ -181,10 +176,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             {/* Tab: Tokens */}
             <button
               onClick={() => setSidebarTab("tokens")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "tokens"
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 font-medium"
+                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -194,8 +189,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
               <span
                 className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
                   sidebarTab === "tokens"
-                    ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
-                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
                 {allSetNames.length}
@@ -205,10 +200,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             {/* Tab: Themes */}
             <button
               onClick={() => setSidebarTab("themes")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "themes"
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 font-medium"
+                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -218,8 +213,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
               <span
                 className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
                   sidebarTab === "themes"
-                    ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
-                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
                 {themeGroups.length}
@@ -229,10 +224,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             {/* Tab: Releases */}
             <button
               onClick={() => setSidebarTab("releases")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "releases"
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 font-medium"
+                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -243,8 +238,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                 <span
                   className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
                     sidebarTab === "releases"
-                      ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
-                      : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500"
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {releases.length}
@@ -255,82 +250,88 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         </div>
 
         {/* Bottom: Project Settings & Web App Version */}
-        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800/80 space-y-1">
-          <button
+        <div className="pt-3 border-t border-border space-y-1">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
+            className="w-full justify-start gap-2.5 text-xs text-muted-foreground hover:text-foreground h-8 font-medium"
           >
-            <Settings className="w-4 h-4 text-zinc-400" />
+            <Settings className="w-4 h-4 text-muted-foreground" />
             <span>Project settings</span>
-          </button>
+          </Button>
 
-          <div className="px-3 py-1 flex items-center justify-between text-[10px] text-zinc-400 dark:text-zinc-600 font-mono select-none">
+          <div className="px-3 py-1 flex items-center justify-between text-[10px] text-muted-foreground font-mono select-none">
             <span>Second Screen</span>
-            <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 font-semibold text-zinc-500 dark:text-zinc-400">
+            <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
               v0.1.0-beta
-            </span>
+            </Badge>
           </div>
         </div>
       </aside>
 
       {/* 2. SECONDARY CONTEXTUAL DRAWER (Only for Tokens and Themes) */}
       {(sidebarTab === "tokens" || sidebarTab === "themes") && (
-        <aside className="w-60 bg-zinc-50/70 dark:bg-[#09090d] flex flex-col flex-shrink-0 overflow-hidden select-none animate-in fade-in duration-150">
+        <aside className="w-60 bg-muted/20 flex flex-col flex-shrink-0 overflow-hidden select-none animate-in fade-in duration-150">
           {/* Header depending on active tab */}
-          <div className="h-12 border-b border-zinc-200 dark:border-zinc-800/80 px-4 flex items-center justify-between bg-zinc-50/90 dark:bg-[#0b0b10] flex-shrink-0">
+          <div className="h-12 border-b border-border px-4 flex items-center justify-between bg-muted/40 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-zinc-900 dark:text-white">
+              <span className="text-xs font-bold text-foreground">
                 {sidebarTab === "tokens" ? "Sets" : "Theme Groups"}
               </span>
-              <span className="px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[10px] font-mono font-semibold">
+              <Badge variant="secondary" className="text-[10px] font-mono font-semibold px-1.5 py-0">
                 {sidebarTab === "tokens" ? allSetNames.length : themeGroups.length}
-              </span>
+              </Badge>
             </div>
 
             <div className="flex items-center gap-1">
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => setShowSearch(!showSearch)}
-                className={`p-1 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer ${
-                  showSearch ? "bg-zinc-200/60 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" : ""
-                }`}
+                className={`h-7 w-7 ${showSearch ? "bg-muted text-foreground" : "text-muted-foreground"}`}
                 title="Search"
               >
                 <Search className="w-3.5 h-3.5" />
-              </button>
+              </Button>
 
               {sidebarTab === "tokens" && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => setIsAddSetOpen(true)}
-                  className="p-1 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
                   title="Add New Token Set"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               )}
 
               {sidebarTab === "themes" && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => setAddModalGroupId(themeGroups[0]?.id || "new")}
-                  className="p-1 rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
                   title="Add Theme Option"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               )}
             </div>
           </div>
 
           {/* Search Filter Bar (if open) */}
           {showSearch && (
-            <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-950/40">
+            <div className="px-3 py-2 border-b border-border bg-background">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <input
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input
                   type="text"
                   placeholder="Filter..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  className="w-full pl-8 pr-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-emerald-500"
+                  className="h-7 pl-8 text-xs"
                   autoFocus
                 />
               </div>
@@ -345,10 +346,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                 {/* Option to select ALL Sets */}
                 <button
                   onClick={() => setActiveSet("ALL")}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer text-left mb-1 ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer text-left mb-1 ${
                     activeSet === "ALL"
-                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-                      : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 font-medium"
+                      ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                      : "text-foreground hover:bg-muted font-medium"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -372,20 +373,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                   <div key={group.id} className="space-y-1">
                     <button
                       onClick={() => setActiveThemeGroup(group.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors text-left ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors text-left ${
                         activeThemeGroupId === group.id
-                          ? "bg-zinc-200/80 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/40 dark:hover:bg-zinc-800/40"
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-muted"
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
                         <span
                           className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: group.color || "#10b981" }}
+                          style={{ backgroundColor: group.color || "#7c3aed" }}
                         />
                         <span className="truncate">{group.name}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-400">
+                      <span className="text-[10px] font-mono text-muted-foreground">
                         {group.options.length}
                       </span>
                     </button>
@@ -403,10 +404,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                               setActiveThemeGroup(group.id);
                               setActiveThemeOption(option.id);
                             }}
-                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-all cursor-pointer text-left ${
+                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-all cursor-pointer text-left ${
                               isOptionActive
-                                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs"
-                                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 font-medium"
+                                ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
                             }`}
                           >
                             <div className="flex items-center gap-2 truncate">
@@ -418,7 +419,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                             </div>
                             <span
                               className={`text-[10px] font-mono ${
-                                isOptionActive ? "opacity-90" : "text-zinc-400"
+                                isOptionActive ? "opacity-90" : "text-muted-foreground"
                               }`}
                             >
                               {enabledCount} sets
@@ -431,7 +432,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                 ))}
               </div>
             )}
-
           </div>
         </aside>
       )}

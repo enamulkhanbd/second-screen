@@ -45,8 +45,26 @@ import {
   AlertTriangle,
   MoreHorizontal,
   Edit2,
-  CopyPlus,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface ThemeMatrixProps {
   onOpenSettings?: () => void;
@@ -65,58 +83,58 @@ const CATEGORY_CONFIG: Record<
   color: {
     label: "Color",
     icon: Palette,
-    badgeStyle: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-    iconColor: "text-amber-400",
-    dotColor: "bg-amber-400",
+    badgeStyle: "bg-amber-500/10 border-amber-500/20 text-amber-500",
+    iconColor: "text-amber-500",
+    dotColor: "bg-amber-500",
   },
   typography: {
     label: "Typography",
     icon: Type,
-    badgeStyle: "bg-violet-500/10 border-violet-500/20 text-violet-400",
-    iconColor: "text-violet-400",
-    dotColor: "bg-violet-400",
+    badgeStyle: "bg-violet-500/10 border-violet-500/20 text-violet-500",
+    iconColor: "text-violet-500",
+    dotColor: "bg-violet-500",
   },
   spacing: {
     label: "Spacing",
     icon: MoveHorizontal,
-    badgeStyle: "bg-blue-500/10 border-blue-500/20 text-blue-400",
-    iconColor: "text-blue-400",
-    dotColor: "bg-blue-400",
+    badgeStyle: "bg-blue-500/10 border-blue-500/20 text-blue-500",
+    iconColor: "text-blue-500",
+    dotColor: "bg-blue-500",
   },
   sizing: {
     label: "Sizing",
     icon: Ruler,
-    badgeStyle: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-    iconColor: "text-emerald-400",
-    dotColor: "bg-emerald-400",
+    badgeStyle: "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
+    iconColor: "text-emerald-500",
+    dotColor: "bg-emerald-500",
   },
   borderRadius: {
     label: "Border & Radius",
     icon: Square,
-    badgeStyle: "bg-rose-500/10 border-rose-500/20 text-rose-400",
-    iconColor: "text-rose-400",
-    dotColor: "bg-rose-400",
+    badgeStyle: "bg-rose-500/10 border-rose-500/20 text-rose-500",
+    iconColor: "text-rose-500",
+    dotColor: "bg-rose-500",
   },
   boxShadow: {
     label: "Shadow",
     icon: Layers,
-    badgeStyle: "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
-    iconColor: "text-cyan-400",
-    dotColor: "bg-cyan-400",
+    badgeStyle: "bg-cyan-500/10 border-cyan-500/20 text-cyan-500",
+    iconColor: "text-cyan-500",
+    dotColor: "bg-cyan-500",
   },
   opacity: {
     label: "Opacity",
     icon: Eye,
-    badgeStyle: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
-    iconColor: "text-yellow-400",
-    dotColor: "bg-yellow-400",
+    badgeStyle: "bg-yellow-500/10 border-yellow-500/20 text-yellow-500",
+    iconColor: "text-yellow-500",
+    dotColor: "bg-yellow-500",
   },
   other: {
     label: "Other",
     icon: Tag,
-    badgeStyle: "bg-zinc-500/10 border-zinc-500/20 text-zinc-400",
-    iconColor: "text-zinc-400",
-    dotColor: "bg-zinc-400",
+    badgeStyle: "bg-muted text-muted-foreground",
+    iconColor: "text-muted-foreground",
+    dotColor: "bg-muted-foreground",
   },
 };
 
@@ -139,40 +157,30 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   } = useTokenStore();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"all" | TokenCategory>("all");
-  const [isFetching, setIsFetching] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [showAddOptionModal, setShowAddOptionModal] = useState(false);
-  const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
+  const [isPulling, setIsPulling] = useState(false);
 
-  // Auto-scroll and highlight target token row if highlightedTokenKey is set
+  // Auto-scroll and flash row if highlightedTokenKey changes
   useEffect(() => {
     if (!highlightedTokenKey) return;
 
+    const rowId = `token-row-${highlightedTokenKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    const el = document.getElementById(rowId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
     const timer = setTimeout(() => {
-      const sanitizedId = `token-row-${highlightedTokenKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-      const rowEl = document.getElementById(sanitizedId);
-      if (rowEl) {
-        rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 150);
-
-    const clearTimer = setTimeout(() => {
       setHighlightedTokenKey(null);
-    }, 5000);
+    }, 2500);
 
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(clearTimer);
-    };
+    return () => clearTimeout(timer);
   }, [highlightedTokenKey, setHighlightedTokenKey]);
 
-  const hasCredentials = Boolean(credentials.owner && credentials.repo && credentials.pat);
-  const isTotallyEmpty = Object.keys(rawTokens).length === 0;
-
-  // Active theme group (e.g. Theme, Semantic, Components, Brands, Typography, Mode)
   const activeGroup = useMemo(() => {
     return (
       themeGroups.find((g) => g.id === activeThemeGroupId) ||
@@ -181,54 +189,55 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     );
   }, [themeGroups, activeThemeGroupId]);
 
-  // Build matrix rows for active theme group
-  const allMatrixRows = useMemo(() => {
+  const matrixRows = useMemo(() => {
     if (!activeGroup) return [];
     return buildThemeMatrix(rawTokens, activeGroup);
   }, [rawTokens, activeGroup]);
 
-  // Filter matrix rows based on search query
-  const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return allMatrixRows;
-
-    const q = searchQuery.toLowerCase();
-    return allMatrixRows.filter((r) => {
-      const matchKey = r.tokenKey.toLowerCase().includes(q);
-      const matchType = r.type.toLowerCase().includes(q) || r.category.toLowerCase().includes(q);
-      const matchCell = Object.values(r.cells).some((c) =>
-        c?.rawValue.toLowerCase().includes(q) || c?.resolvedValue.toLowerCase().includes(q)
-      );
-      return matchKey || matchType || matchCell;
-    });
-  }, [allMatrixRows, searchQuery]);
-
-  // Compute category count breakdown
+  // Compute token category counts
   const categoryCounts = useMemo(() => {
-    const counts: Partial<Record<TokenCategory, number>> = {};
-    filteredRows.forEach((row) => {
-      counts[row.category] = (counts[row.category] || 0) + 1;
+    const counts: Record<string, number> = {};
+    matrixRows.forEach((r) => {
+      counts[r.category] = (counts[r.category] || 0) + 1;
     });
     return counts;
-  }, [filteredRows]);
+  }, [matrixRows]);
 
-  // Categories that actually exist in the current filtered set
   const availableCategories = useMemo(() => {
-    return CATEGORY_ORDER.filter((cat) => (categoryCounts[cat] || 0) > 0);
+    return CATEGORY_ORDER.filter((c) => Boolean(categoryCounts[c]));
   }, [categoryCounts]);
 
-  // Filter matrix rows by selectedCategory chip
-  const displayRows = useMemo(() => {
-    if (selectedCategory === "all") return filteredRows;
-    return filteredRows.filter((r) => r.category === selectedCategory);
-  }, [filteredRows, selectedCategory]);
+  const filteredRows = useMemo(() => {
+    let list = matrixRows;
+    if (selectedCategory !== "all") {
+      list = list.filter((r) => r.category === selectedCategory);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.tokenKey.toLowerCase().includes(q) ||
+          Object.values(r.cells).some(
+            (c) =>
+              c?.rawValue?.toLowerCase().includes(q) ||
+              c?.resolvedValue?.toLowerCase().includes(q)
+          )
+      );
+    }
+    return list;
+  }, [matrixRows, selectedCategory, searchQuery]);
 
-  const handleFetchNow = async () => {
-    if (!hasCredentials) {
+  const displayRows = filteredRows;
+  const isConfigured = Boolean(credentials.repo && credentials.owner);
+  const hasTokens = Object.keys(rawTokens).length > 0;
+
+  const handleSyncPull = async () => {
+    if (!credentials.pat) {
       if (onOpenSettings) onOpenSettings();
       return;
     }
 
-    setIsFetching(true);
+    setIsPulling(true);
     setSyncStatus("fetching");
 
     try {
@@ -247,271 +256,216 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       setSyncStatus("success");
       addToast({
         type: "success",
-        title: "Tokens Synced Successfully",
-        message: `Fetched tokens from ${credentials.provider === "github" ? "GitHub" : "Azure DevOps"} (${credentials.repo}@${credentials.branch}).`,
+        title: "Tokens Synced from Git",
+        message: `Updated tokens from branch ${credentials.branch || "main"}.`,
       });
     } catch (err: any) {
       setSyncStatus("error", err.message);
       addToast({
         type: "error",
-        title: "Git Sync Failed",
+        title: "Git Pull Failed",
         message: err.message,
       });
     } finally {
-      setIsFetching(false);
+      setIsPulling(false);
     }
   };
 
-  // Empty Application State
-  if (isTotallyEmpty) {
+  // Empty state if no tokens loaded
+  if (!hasTokens) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-zinc-50 dark:bg-[#09090d] text-center select-none transition-colors">
-        {hasCredentials ? (
-          <div className="max-w-md w-full bg-white dark:bg-[#121217] border border-zinc-200 dark:border-zinc-800/80 p-8 rounded-2xl shadow-xl dark:shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-600/20 border border-violet-200 dark:border-violet-500/30 flex items-center justify-center text-violet-600 dark:text-violet-400 mb-4">
-              <FolderGit2 className="w-6 h-6" />
-            </div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  credentials.provider === "github" ? "bg-violet-500 dark:bg-violet-400" : "bg-blue-500 dark:bg-blue-400"
-                }`}
-              />
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-                {credentials.provider === "github" ? "GitHub" : "Azure DevOps"} Connected
-              </span>
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Ready to Sync Theme Matrix</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed font-mono">
-              {credentials.owner}/{credentials.repo} @ {credentials.branch}
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center gap-3 mt-6 w-full">
-              <button
-                onClick={handleFetchNow}
-                disabled={isFetching}
-                className="w-full flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-violet-600/25 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
-                {isFetching ? "Syncing..." : "Fetch Tokens Now"}
-              </button>
-              {onOpenSettings && (
-                <button
-                  onClick={onOpenSettings}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white rounded-xl text-xs font-medium border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
-                >
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </button>
-              )}
-            </div>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-background">
+        <div className="max-w-md w-full bg-card border border-border rounded-2xl p-8 shadow-xl space-y-6 text-foreground">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+            <FolderGit2 className="w-8 h-8" />
           </div>
-        ) : (
-          <div className="max-w-md w-full bg-white dark:bg-[#121217] border border-zinc-200 dark:border-zinc-800/80 p-8 rounded-2xl shadow-xl dark:shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-600/20 border border-violet-200 dark:border-violet-500/30 flex items-center justify-center text-violet-600 dark:text-violet-400 mb-4">
-              <FolderGit2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Tokens Studio Second Screen</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
-              Connect to your Git repository to load themes, or load the built-in demo theme matrix.
-            </p>
 
-            <div className="flex flex-col gap-3 mt-6 w-full">
-              {onOpenSettings && (
-                <button
-                  onClick={onOpenSettings}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-violet-600/25 transition-all cursor-pointer"
-                >
-                  <FolderGit2 className="w-4 h-4" />
-                  Configure Git Repository
-                </button>
-              )}
-              <button
-                onClick={loadSampleData}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-4 text-xs font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700/60"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                Load Sample Demo Theme Matrix
-              </button>
-            </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold tracking-tight">No Tokens Loaded</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Connect to your Git repository (GitHub / Azure DevOps) or load sample data to explore multi-theme token matrix.
+            </p>
           </div>
-        )}
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            {isConfigured ? (
+              <Button
+                onClick={handleSyncPull}
+                disabled={isPulling}
+                className="gap-2 text-xs"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isPulling ? "animate-spin" : ""}`} />
+                <span>Pull from Git</span>
+              </Button>
+            ) : (
+              <Button
+                onClick={onOpenSettings}
+                className="gap-2 text-xs"
+              >
+                <FolderGit2 className="w-3.5 h-3.5" />
+                <span>Connect Repository</span>
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={loadSampleData}
+              className="gap-2 text-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Load Sample Data</span>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#09090d] overflow-hidden text-xs transition-colors">
-      {/* Top Header Bar of Matrix: 📁 Theme 🟠 ⋮ | Filter + Search + Add option */}
-      <div className="h-12 border-b border-zinc-200 dark:border-zinc-900 bg-zinc-50/80 dark:bg-[#0d0d11] px-6 flex items-center justify-between flex-shrink-0 select-none transition-colors">
-        {/* Left: Group Title & Badge & Actions Menu */}
-        <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200 relative">
-          <Folder className="w-4 h-4 text-zinc-400 dark:text-zinc-400" />
-          <span className="font-semibold text-sm">{activeGroup?.name || "Theme"}</span>
+    <div className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden select-none">
+      {/* Top Controls Sub-Header Bar */}
+      <div className="h-12 px-6 border-b border-border bg-muted/20 flex items-center justify-between flex-shrink-0 transition-colors">
+        {/* Left: Active Theme Group Badge & Actions */}
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm text-foreground">{activeGroup?.name || "Theme"}</span>
           <span
-            className="w-2.5 h-2.5 rounded-full ml-0.5"
-            style={{ backgroundColor: activeGroup?.color || "#f97316" }}
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: activeGroup?.color || "#7c3aed" }}
           />
-          <button
-            onClick={() => setShowGroupMenu(!showGroupMenu)}
-            className={`p-1 rounded ml-1 transition-colors ${
-              showGroupMenu
-                ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-            }`}
-            title="Theme Group Actions"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
 
-          {/* Group Actions Popover Menu */}
-          {showGroupMenu && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setShowGroupMenu(false)}
-              />
-              <div className="absolute left-0 top-full mt-2 w-56 bg-white dark:bg-[#121217] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl py-1.5 z-40 text-xs animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: activeGroup?.color || "#f97316" }}
-                    />
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-xs truncate">
-                      {activeGroup?.name}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
-                    {activeGroup?.options.length} options
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                title="Theme Group Actions"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <div className="px-2.5 py-1.5 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: activeGroup?.color || "#7c3aed" }}
+                  />
+                  <span className="font-semibold text-xs text-foreground truncate">
+                    {activeGroup?.name}
                   </span>
                 </div>
-
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      setShowGroupMenu(false);
-                      setShowAddOptionModal(true);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors text-left"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                    <span>Add theme option</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowGroupMenu(false);
-                      setShowEditGroupModal(true);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors text-left"
-                  >
-                    <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span>Rename & edit color</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowGroupMenu(false);
-                      if (activeGroup) duplicateThemeGroup(activeGroup.id);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors text-left"
-                  >
-                    <Copy className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Duplicate theme group</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowGroupMenu(false);
-                      if (activeGroup) {
-                        const jsonStr = JSON.stringify(activeGroup, null, 2);
-                        navigator.clipboard.writeText(jsonStr);
-                        addToast({
-                          type: "success",
-                          title: "Theme Group JSON Copied",
-                          message: `Copied "${activeGroup.name}" definition to clipboard.`,
-                        });
-                      }
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors text-left"
-                  >
-                    <Download className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    <span>Copy group JSON</span>
-                  </button>
-                </div>
-
-                <div className="pt-1 border-t border-zinc-200 dark:border-zinc-800/80">
-                  <button
-                    onClick={() => {
-                      setShowGroupMenu(false);
-                      setShowDeleteConfirm(true);
-                    }}
-                    disabled={themeGroups.length <= 1}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 transition-colors text-left ${
-                      themeGroups.length <= 1
-                        ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
-                        : "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                    }`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete theme group</span>
-                  </button>
-                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {activeGroup?.options.length} options
+                </span>
               </div>
-            </>
-          )}
+
+              <DropdownMenuItem
+                onClick={() => setShowAddOptionModal(true)}
+                className="gap-2 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-primary" />
+                <span>Add theme option</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setShowEditGroupModal(true)}
+                className="gap-2 text-xs"
+              >
+                <Pencil className="w-3.5 h-3.5 text-blue-500" />
+                <span>Rename & edit color</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => activeGroup && duplicateThemeGroup(activeGroup.id)}
+                className="gap-2 text-xs"
+              >
+                <Copy className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Duplicate theme group</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => {
+                  if (activeGroup) {
+                    const jsonStr = JSON.stringify(activeGroup, null, 2);
+                    navigator.clipboard.writeText(jsonStr);
+                    addToast({
+                      type: "success",
+                      title: "Theme Group JSON Copied",
+                      message: `Copied "${activeGroup.name}" definition to clipboard.`,
+                    });
+                  }
+                }}
+                className="gap-2 text-xs"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-500" />
+                <span>Copy group JSON</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={themeGroups.length <= 1}
+                className="gap-2 text-xs text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete theme group</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Right: Search Filter & + Add option Button */}
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Input
               type="text"
               placeholder="Filter tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 outline-none focus:border-zinc-400 dark:focus:border-zinc-600 w-52 font-mono transition-colors"
+              className="pl-8 h-8 text-xs font-mono w-52"
             />
           </div>
 
-          <button
+          <Button
+            size="sm"
             onClick={() => setShowAddOptionModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold rounded-lg text-xs hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-sm cursor-pointer"
+            className="gap-1.5 h-8 text-xs font-semibold"
             title={`Add option to ${activeGroup?.name || "Theme"}`}
           >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Add option</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Minimal Token Type Filter & Separation Sub-Bar */}
       {availableCategories.length > 0 && (
-        <div className="h-11 px-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-[#0b0b10] flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
+        <div className="h-11 px-6 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
           {/* Left: Minimal Type Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mr-1 flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Type:</span>
             </span>
 
             {/* All Chips */}
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 selectedCategory === "all"
-                  ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/80"
+                  ? "bg-background text-foreground font-semibold shadow-xs border border-border"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
               <span>All Types</span>
               <span
-                className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-medium ${
+                className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
                   selectedCategory === "all"
-                    ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
-                    : "bg-zinc-200 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
+                    ? "bg-muted text-foreground"
+                    : "bg-muted/80 text-muted-foreground"
                 }`}
               >
                 {filteredRows.length}
@@ -529,19 +483,19 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                     isSelected
-                      ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/80"
+                      ? "bg-background text-foreground font-semibold shadow-xs border border-border"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isSelected ? config.iconColor : "text-zinc-500 dark:text-zinc-400"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? config.iconColor : "text-muted-foreground"}`} />
                   <span>{config.label}</span>
                   <span
-                    className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-medium ${
+                    className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
                       isSelected
-                        ? "bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
-                        : "bg-zinc-200 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
+                        ? "bg-muted text-foreground"
+                        : "bg-muted/80 text-muted-foreground"
                     }`}
                   >
                     {count}
@@ -554,28 +508,28 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       )}
 
       {/* Main Table Matrix */}
-      <div className="flex-1 overflow-auto bg-white dark:bg-[#09090d] transition-colors">
+      <div className="flex-1 overflow-auto bg-background transition-colors">
         {displayRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center select-none">
-            <p className="text-base font-semibold text-zinc-700 dark:text-zinc-300">No matching tokens found</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">Try adjusting your search filter or selected token type.</p>
+            <p className="text-base font-semibold text-foreground">No matching tokens found</p>
+            <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search filter or selected token type.</p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse text-xs">
-            {/* Table Header: TOKEN | OPTION_A ⚙️ | OPTION_B ⚙️ | (ACTIONS) */}
-            <thead className="sticky top-0 z-20 bg-zinc-50/95 dark:bg-[#0d0d11] border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 tracking-wider shadow-sm backdrop-blur-md">
+            {/* Table Header: TOKEN | OPTION_A | OPTION_B | (ACTIONS) */}
+            <thead className="sticky top-0 z-20 bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider shadow-xs backdrop-blur-md">
               <tr>
-                <th className="py-3 px-6 w-1/3 font-bold uppercase text-zinc-500 dark:text-zinc-400">
+                <th className="py-3 px-6 w-1/3 font-bold uppercase text-muted-foreground">
                   TOKEN
                 </th>
                 {activeGroup?.options.map((option) => (
                   <th
                     key={option.id}
-                    className="py-3 px-6 font-bold uppercase text-zinc-700 dark:text-zinc-300"
+                    className="py-3 px-6 font-bold uppercase text-foreground"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{option.name}</span>
-                      <Settings className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <Settings className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>
                   </th>
                 ))}
@@ -584,7 +538,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             </thead>
 
             {/* Table Body: Flat list of tokens */}
-            <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80 font-mono">
+            <tbody className="divide-y divide-border font-mono">
               {displayRows.map((row) => {
                 const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
                 const isHighlighted = highlightedTokenKey === row.tokenKey;
@@ -594,14 +548,14 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                   <tr
                     key={row.tokenKey}
                     id={rowId}
-                    className={`transition-all duration-500 group ${
+                    className={`transition-all duration-300 group ${
                       isHighlighted
-                        ? "bg-violet-100/90 dark:bg-violet-950/70 ring-2 ring-violet-500 shadow-md shadow-violet-500/20"
-                        : "hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+                        ? "bg-primary/15 ring-1 ring-primary shadow-xs"
+                        : "hover:bg-muted/40"
                     }`}
                   >
                     {/* Token Key Name + Type Icon */}
-                    <td className="py-3 px-6 text-zinc-800 dark:text-zinc-200 text-[13px] font-mono select-text align-middle leading-relaxed">
+                    <td className="py-3 px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed">
                       <div className="flex items-center gap-2.5">
                         <span
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dotColor}`}
@@ -673,47 +627,48 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       )}
 
       {/* Delete Group Confirmation Modal */}
-      {showDeleteConfirm && activeGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-none">
-          <div className="w-full max-w-sm bg-white dark:bg-[#121217] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-zinc-900 dark:text-zinc-100 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-600/20 border border-red-200 dark:border-red-500/30 flex items-center justify-center text-red-600 dark:text-red-400 flex-shrink-0">
-                <AlertTriangle className="w-5 h-5" />
+      {activeGroup && (
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader className="gap-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <DialogTitle>Delete Theme Group</DialogTitle>
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Delete Theme Group</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Are you sure you want to delete <span className="font-semibold text-zinc-800 dark:text-zinc-200">"{activeGroup.name}"</span>?
-                </p>
-              </div>
-            </div>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">
+                  "{activeGroup.name}"
+                </span>
+                ? This will remove all {activeGroup.options.length} options configured for this group.
+              </DialogDescription>
+            </DialogHeader>
 
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed bg-zinc-50 dark:bg-zinc-950/60 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800/60">
-              This will remove all {activeGroup.options.length} options configured for this group from your theme matrix.
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
+            <DialogFooter className="pt-2">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-3.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
+                size="sm"
                 onClick={() => {
                   deleteThemeGroup(activeGroup.id);
                   setShowDeleteConfirm(false);
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-600/25 transition-all cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Group</span>
-              </button>
-            </div>
-          </div>
-        </div>
+                Delete Group
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -733,54 +688,34 @@ const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
   onDelete,
 }) => {
   const { resolvedTokens, addToast } = useTokenStore();
-  const [open, setOpen] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);
-  const menuRef = React.useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
 
   const targetToken: FlattenedToken = useMemo(() => {
-    const match = resolvedTokens.find(
-      (t) => t.name === row.tokenKey || t.path.slice(1).join(".") === row.tokenKey
-    );
-    if (match) return match;
+    const existing = resolvedTokens.find((t) => t.name === row.tokenKey);
+    if (existing) return existing;
 
     const firstCell = Object.values(row.cells)[0];
-    const setName = firstCell?.tokenPath?.[0] || activeGroup?.options?.[0]?.selectedTokenSets?.[0] || "core";
-
+    const setName = firstCell?.tokenPath?.[0] || "global";
+    const path = row.tokenKey.split(".");
     return {
-      id: row.tokenKey,
+      id: `${setName}.${row.tokenKey}`,
       name: row.tokenKey,
-      path: firstCell?.tokenPath || [setName, ...row.tokenKey.split(".")],
+      path: [setName, ...path],
+      group: path[0] || "other",
+      setName,
+      type: row.type as any,
       rawValue: firstCell?.rawValue || "",
       resolvedValue: firstCell?.resolvedValue || "",
-      type: row.type as any,
-      category: row.category,
-      group: row.tokenKey.split(".")[0] || "general",
-      setName,
-      isAlias: false,
+      isAlias: Boolean(firstCell?.rawValue?.startsWith("{")),
     };
-  }, [resolvedTokens, row, activeGroup]);
+  }, [resolvedTokens, row]);
 
-  const handleCopy = (text: string, type: string) => {
+  const handleCopy = (text: string, type: "name" | "css") => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedType(type);
       setTimeout(() => {
         setCopiedType(null);
-        setOpen(false);
       }, 800);
       addToast({
         type: "info",
@@ -793,72 +728,63 @@ const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
   const cssVarName = `var(--${row.tokenKey.replace(/\./g, "-")})`;
 
   return (
-    <div ref={menuRef} className="relative flex-shrink-0">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(!open);
-        }}
-        className={`p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer flex items-center justify-center ${
-          open ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : ""
-        }`}
-        title="Token Actions (Edit, Copy, Delete)"
-      >
-        <MoreHorizontal className="w-4 h-4" />
-      </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          title="Token Actions (Edit, Copy, Delete)"
+        >
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem
+          onClick={() => onEdit(targetToken)}
+          className="gap-2 text-xs"
+        >
+          <Edit2 className="w-3.5 h-3.5 text-primary" />
+          <span className="font-semibold">Edit token</span>
+        </DropdownMenuItem>
 
-      {open && (
-        <div className="absolute right-0 top-6 w-48 bg-white dark:bg-[#121218] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50 py-1 font-sans text-xs text-left animate-in fade-in zoom-in-95 duration-100">
-          <button
-            onClick={() => {
-              setOpen(false);
-              onEdit(targetToken);
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
-          >
-            <Edit2 className="w-3.5 h-3.5 text-violet-500" />
-            <span className="font-semibold">Edit token</span>
-          </button>
+        <DropdownMenuItem
+          onClick={() => handleCopy(row.tokenKey, "name")}
+          className="gap-2 text-xs font-mono justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <Copy className="w-3 h-3 text-muted-foreground" />
+            <span>Copy Name</span>
+          </div>
+          {copiedType === "name" && <Check className="w-3 h-3 text-emerald-500" />}
+        </DropdownMenuItem>
 
-          <button
-            onClick={() => handleCopy(row.tokenKey, "name")}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer font-mono text-[11px]"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="w-3 h-3 text-zinc-400" />
-              <span>Copy Name</span>
-            </div>
-            {copiedType === "name" && <Check className="w-3 h-3 text-emerald-500" />}
-          </button>
+        <DropdownMenuItem
+          onClick={() => handleCopy(cssVarName, "css")}
+          className="gap-2 text-xs font-mono justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <Copy className="w-3 h-3 text-muted-foreground" />
+            <span>Copy CSS Var</span>
+          </div>
+          {copiedType === "css" && <Check className="w-3 h-3 text-emerald-500" />}
+        </DropdownMenuItem>
 
-          <button
-            onClick={() => handleCopy(cssVarName, "css")}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer font-mono text-[11px]"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="w-3 h-3 text-zinc-400" />
-              <span>Copy CSS Var</span>
-            </div>
-            {copiedType === "css" && <Check className="w-3 h-3 text-emerald-500" />}
-          </button>
+        <DropdownMenuSeparator />
 
-          <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800/80 my-1" />
-
-          <button
-            onClick={() => {
-              setOpen(false);
-              if (confirm(`Delete token "${row.tokenKey}"?`)) {
-                onDelete(targetToken);
-              }
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete token</span>
-          </button>
-        </div>
-      )}
-    </div>
+        <DropdownMenuItem
+          onClick={() => {
+            if (confirm(`Delete token "${row.tokenKey}"?`)) {
+              onDelete(targetToken);
+            }
+          }}
+          className="gap-2 text-xs text-destructive focus:text-destructive"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>Delete token</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -890,7 +816,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
 
   if (!cellData) {
     return (
-      <div className="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono italic px-3 py-1">
+      <div className="text-muted-foreground text-[11px] font-mono italic px-3 py-1">
         -
       </div>
     );
@@ -930,7 +856,6 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
     }
   };
 
-  // If composite typography token, render typography pill with popover inspector
   if (isCompositeTypography) {
     let typoObj: Record<string, string> = {};
     try {
@@ -949,16 +874,16 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
       <>
         <div
           onClick={() => setShowTypographyModal(true)}
-          className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#121217] hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#16161d] transition-all max-w-sm w-full cursor-pointer shadow-sm dark:shadow-none min-h-[34px]"
+          className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-accent/40 transition-all max-w-sm w-full cursor-pointer shadow-xs min-h-[34px]"
           title="Click to inspect/edit typography token properties"
         >
           {/* Left: Aa Badge */}
-          <div className="w-5 h-5 rounded flex items-center justify-center bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 text-xs font-serif font-bold flex-shrink-0">
+          <div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10 text-primary border border-primary/20 text-xs font-serif font-bold flex-shrink-0">
             Aa
           </div>
 
           {/* Right: Typography Summary */}
-          <span className="flex-1 font-mono text-[13px] text-zinc-800 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white truncate">
+          <span className="flex-1 font-mono text-[13px] text-foreground group-hover:text-primary truncate">
             {summaryText}
           </span>
         </div>
@@ -984,8 +909,8 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
     <div
       className={`group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-all max-w-sm w-full min-h-[34px] ${
         isEditing
-          ? "border-violet-500 bg-violet-50/50 dark:bg-[#171722] ring-1 ring-violet-500 shadow-md shadow-violet-500/10"
-          : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#121217] hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#16161d] shadow-sm dark:shadow-none"
+          ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+          : "border-border bg-card hover:bg-accent/40 shadow-xs"
       }`}
     >
       {/* Left: Swatch / Type Indicator */}
@@ -1022,7 +947,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
         </div>
       ) : (
         <div
-          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded flex items-center justify-center bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10px] font-mono flex-shrink-0 font-bold"
+          className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded flex items-center justify-center bg-muted border border-border text-muted-foreground text-[10px] font-mono flex-shrink-0 font-bold"
         >
           #
         </div>
@@ -1037,12 +962,12 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
           onChange={(e) => setVal(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent text-[13px] text-violet-700 dark:text-violet-200 outline-none font-mono min-w-0 font-medium"
+          className="flex-1 bg-transparent text-[13px] text-primary outline-none font-mono min-w-0 font-medium"
         />
       ) : (
         <span
           onClick={() => setIsEditing(true)}
-          className="flex-1 font-mono text-[13px] text-zinc-800 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white truncate cursor-text select-text font-medium"
+          className="flex-1 font-mono text-[13px] text-foreground group-hover:text-primary truncate cursor-text select-text font-medium"
           title={`Raw: ${cellData.rawValue} | Computed: ${cellData.resolvedValue}`}
         >
           {cellData.rawValue}
@@ -1090,62 +1015,58 @@ const TypographyModal: React.FC<TypographyModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50">
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/40">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-600/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <Type className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white font-mono">{tokenKey}</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Typography composite token for {optionName}</p>
+              <DialogTitle className="font-mono text-sm">{tokenKey}</DialogTitle>
+              <DialogDescription className="text-xs">
+                Typography composite token for {optionName}
+              </DialogDescription>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Form Body */}
         <div className="p-6 space-y-3 overflow-y-auto flex-1 font-mono text-xs">
           {fields.map(({ key, label, placeholder }) => (
             <div key={key} className="grid grid-cols-3 items-center gap-3">
-              <label className="text-zinc-600 dark:text-zinc-400 font-sans text-xs">{label}</label>
-              <input
+              <Label className="font-sans text-xs">{label}</Label>
+              <Input
                 type="text"
                 value={form[key] || ""}
                 placeholder={placeholder}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                className="col-span-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none transition-all"
+                className="col-span-2 text-xs"
               />
             </div>
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-          <button
+        <DialogFooter className="px-6 py-3 border-t border-border bg-muted/40">
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            size="sm"
             onClick={() => onSave(form)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-violet-600/30 transition-all cursor-pointer"
+            className="gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
             Save Typography
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

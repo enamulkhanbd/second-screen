@@ -2,7 +2,18 @@
 
 import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { X, FolderPlus, Plus, ArrowRight } from "lucide-react";
+import { FolderPlus, Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface AddSetModalProps {
   isOpen: boolean;
@@ -10,10 +21,8 @@ interface AddSetModalProps {
 }
 
 export const AddSetModal: React.FC<AddSetModalProps> = ({ isOpen, onClose }) => {
-  const { addNewSet, rawTokens } = useTokenStore();
+  const { addNewSet, rawTokens, addToast } = useTokenStore();
   const [setName, setSetName] = useState("");
-
-  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,77 +30,77 @@ export const AddSetModal: React.FC<AddSetModalProps> = ({ isOpen, onClose }) => 
     if (!clean) return;
 
     if (rawTokens[clean]) {
-      alert(`Token set "${clean}" already exists.`);
+      addToast({
+        type: "error",
+        title: "Set Exists",
+        message: `Token set "${clean}" already exists.`,
+      });
       return;
     }
 
     addNewSet(clean);
+    addToast({
+      type: "success",
+      title: "Set Created",
+      message: `Created token set "${clean}".`,
+    });
+    setSetName("");
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-md bg-white dark:bg-[#111116] border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden font-sans text-zinc-900 dark:text-zinc-100">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/40">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-violet-600/10 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
-              <FolderPlus className="w-5 h-5" />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="gap-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <FolderPlus className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight">Create Token Set</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Add a new set or folder to your design system
-              </p>
-            </div>
+            <DialogTitle>Create Token Set</DialogTitle>
           </div>
+          <DialogDescription>
+            Add a new token set or folder to your design system
+          </DialogDescription>
+        </DialogHeader>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              Set Path / Name
-            </label>
-            <input
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="set-path">Set Path / Name</Label>
+            <Input
+              id="set-path"
               type="text"
               value={setName}
               onChange={(e) => setSetName(e.target.value)}
               placeholder="e.g. components/button or themes/brand-b"
-              className="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 font-mono text-xs focus:border-violet-500 focus:outline-none"
+              className="font-mono text-xs"
               required
               autoFocus
             />
-            <p className="text-[10px] text-zinc-400 mt-1.5 leading-relaxed">
-              Use forward slash <code className="font-mono">/</code> to organize sets into folders (e.g. <code className="font-mono">components/card</code>).
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Use forward slash <code className="font-mono bg-muted px-1 rounded">/</code> to organize sets into folders (e.g. <code className="font-mono bg-muted px-1 rounded">components/card</code>).
             </p>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-200 dark:border-zinc-800">
-            <button
+          <DialogFooter className="pt-2">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 shadow-md shadow-violet-600/20 transition-all cursor-pointer"
+              size="sm"
+              className="gap-1.5"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Create Set</span>
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -8,14 +8,20 @@ import {
   Copy,
   Check,
   ShieldCheck,
-  AlertCircle,
-  ExternalLink,
-  Code2,
   Terminal,
-  Clock,
-  Sparkles,
 } from "lucide-react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ApiKeyItem {
   id: string;
@@ -132,52 +138,54 @@ export const ApiKeysManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 font-sans text-xs text-zinc-800 dark:text-zinc-200">
+    <div className="space-y-6 font-sans text-xs text-foreground">
       {/* Header Info */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Key className="w-4 h-4 text-violet-500" />
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Key className="w-4 h-4 text-primary" />
             <span>Personal Access Tokens (PATs)</span>
           </h3>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-0.5 text-[11px]">
+          <p className="text-muted-foreground mt-0.5 text-[11px]">
             Use PATs to authenticate the Second Screen private Figma plugin, CLI scripts, and CI/CD pipelines.
           </p>
         </div>
 
-        <button
+        <Button
+          size="sm"
           onClick={() => {
             setCreatedSecret(null);
             setIsCreating(true);
           }}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold shadow-sm transition-all cursor-pointer"
+          className="gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Generate New Key</span>
-        </button>
+        </Button>
       </div>
 
       {/* Secret Reveal Modal / Card */}
       {createdSecret && (
-        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/80 space-y-3 animate-in fade-in duration-200">
-          <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+            <ShieldCheck className="w-4 h-4" />
             <span>Personal Access Token Created!</span>
           </div>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+          <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/90">
             Please copy this key now. For your security, you will not be able to see it again.
           </p>
 
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="text"
               readOnly
               value={createdSecret}
-              className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-zinc-950 border border-emerald-300 dark:border-emerald-700 font-mono text-xs text-emerald-900 dark:text-emerald-200 select-all font-semibold"
+              className="flex-1 font-mono text-xs select-all font-semibold"
             />
-            <button
+            <Button
+              size="sm"
               onClick={() => handleCopy(createdSecret, "new-secret")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-xs cursor-pointer"
+              className="gap-1.5"
             >
               {copiedKey === "new-secret" ? (
                 <>
@@ -190,112 +198,106 @@ export const ApiKeysManager: React.FC = () => {
                   <span>Copy Key</span>
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Create Key Dialog */}
+      {/* Create Key Form */}
       {isCreating && !createdSecret && (
         <form
           onSubmit={handleCreateKey}
-          className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 space-y-4 animate-in fade-in duration-150"
+          className="p-4 rounded-xl bg-muted/40 border border-border space-y-4 animate-in fade-in duration-150"
         >
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-2">
-            <span className="font-bold text-zinc-900 dark:text-white">New Personal Access Token</span>
-            <button
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <span className="font-bold text-foreground">New Personal Access Token</span>
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setIsCreating(false)}
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
             >
               Cancel
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                Token Name
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="key-name">Token Name</Label>
+              <Input
+                id="key-name"
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
                 placeholder="e.g. My Figma Plugin Key"
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-xs focus:border-violet-500 focus:outline-none"
+                className="text-xs"
                 required
                 autoFocus
               />
             </div>
 
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                Expiration
-              </label>
-              <select
-                value={expiresInDays}
-                onChange={(e) => setExpiresInDays(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-xs focus:border-violet-500 focus:outline-none cursor-pointer"
-              >
-                <option value="30">30 days</option>
-                <option value="60">60 days</option>
-                <option value="90">90 days (Recommended)</option>
-                <option value="never">No expiration</option>
-              </select>
+            <div className="space-y-1.5">
+              <Label>Expiration</Label>
+              <Select value={expiresInDays} onValueChange={setExpiresInDays}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="60">60 days</SelectItem>
+                  <SelectItem value="90">90 days (Recommended)</SelectItem>
+                  <SelectItem value="never">No expiration</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              Permissions / Scopes
-            </label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
+          <div className="space-y-1.5">
+            <Label>Permissions / Scopes</Label>
+            <div className="flex items-center gap-4 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs">
                 <input
                   type="checkbox"
                   checked={scopeRead}
                   onChange={(e) => setScopeRead(e.target.checked)}
-                  className="rounded text-violet-600 focus:ring-violet-500"
+                  className="rounded text-primary focus:ring-ring"
                 />
                 <span>read:tokens (Pull tokens & themes)</span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer text-xs">
                 <input
                   type="checkbox"
                   checked={scopeWrite}
                   onChange={(e) => setScopeWrite(e.target.checked)}
-                  className="rounded text-violet-600 focus:ring-violet-500"
+                  className="rounded text-primary focus:ring-ring"
                 />
                 <span>write:tokens (Push updates)</span>
               </label>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold shadow-xs transition-all cursor-pointer"
-            >
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button type="submit" size="sm">
               Generate Token
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {/* Keys Table */}
-      <div className="border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-[#0c0c10]">
+      <div className="border border-border rounded-xl overflow-hidden bg-card">
         {keys.length === 0 ? (
-          <div className="py-8 text-center text-zinc-500">
+          <div className="py-8 text-center text-muted-foreground">
             <Key className="w-6 h-6 mx-auto mb-2 opacity-40" />
-            <p className="font-semibold text-xs text-zinc-700 dark:text-zinc-300">No API Keys Generated</p>
-            <p className="text-[11px] text-zinc-400 mt-0.5">
+            <p className="font-semibold text-xs text-foreground">No API Keys Generated</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               Create your first Personal Access Token to connect external tools.
             </p>
           </div>
         ) : (
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+            <thead className="bg-muted/60 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
               <tr>
                 <th className="py-2.5 px-4">Name & Key Prefix</th>
                 <th className="py-2.5 px-4">Scopes</th>
@@ -304,41 +306,40 @@ export const ApiKeysManager: React.FC = () => {
                 <th className="py-2.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono text-[11px]">
+            <tbody className="divide-y divide-border font-mono text-[11px]">
               {keys.map((k) => (
-                <tr key={k.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
+                <tr key={k.id} className="hover:bg-muted/40 transition-colors">
                   <td className="py-3 px-4">
-                    <div className="font-sans font-bold text-xs text-zinc-900 dark:text-zinc-100">
+                    <div className="font-sans font-bold text-xs text-foreground">
                       {k.name}
                     </div>
-                    <div className="text-zinc-400 text-[10px] mt-0.5 font-mono">{k.keyPrefix}</div>
+                    <div className="text-muted-foreground text-[10px] mt-0.5 font-mono">{k.keyPrefix}</div>
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1 font-sans">
                       {k.scopes.map((s) => (
-                        <span
-                          key={s}
-                          className="px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 text-[10px] font-semibold"
-                        >
+                        <Badge key={s} variant="violet" className="text-[10px] py-0 px-1.5 font-sans">
                           {s}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-zinc-500 font-sans">
+                  <td className="py-3 px-4 text-muted-foreground font-sans">
                     {new Date(k.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="py-3 px-4 text-zinc-500 font-sans">
+                  <td className="py-3 px-4 text-muted-foreground font-sans">
                     {k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : "Never"}
                   </td>
                   <td className="py-3 px-4 text-right font-sans">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => handleDeleteKey(k.id, k.name)}
-                      className="p-1 text-zinc-400 hover:text-rose-500 rounded transition-colors"
+                      className="text-muted-foreground hover:text-destructive h-7 w-7"
                       title="Revoke Token"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -348,16 +349,16 @@ export const ApiKeysManager: React.FC = () => {
       </div>
 
       {/* Quickstart API Documentation Snippet */}
-      <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-100 space-y-2">
-        <div className="flex items-center gap-2 text-xs font-bold text-zinc-200">
-          <Terminal className="w-3.5 h-3.5 text-violet-400" />
+      <div className="p-4 rounded-xl bg-card border border-border space-y-2">
+        <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+          <Terminal className="w-3.5 h-3.5 text-primary" />
           <span>Figma Plugin & CLI Quickstart</span>
         </div>
-        <p className="text-[11px] text-zinc-400">
+        <p className="text-[11px] text-muted-foreground">
           Authenticate HTTP requests with your PAT using the Bearer token authorization header:
         </p>
 
-        <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 font-mono text-[11px] text-emerald-400 overflow-x-auto select-all">
+        <div className="bg-muted p-3 rounded-lg border border-border font-mono text-[11px] text-foreground overflow-x-auto select-all">
           curl -X GET &quot;http://localhost:3000/api/v1/tokens&quot; \<br />
           &nbsp;&nbsp;-H &quot;Authorization: Bearer sec_pat_live_...&quot;
         </div>

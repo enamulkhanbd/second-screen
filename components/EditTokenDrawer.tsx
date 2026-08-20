@@ -1,24 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { FlattenedToken, TokenType } from "@/types/tokens";
+import React, { useState, useEffect } from "react";
+import { FlattenedToken } from "@/types/tokens";
 import {
   X,
   Save,
-  RotateCcw,
-  Type,
-  Palette,
-  Square,
-  MoveHorizontal,
-  Layers,
-  Sparkles,
-  Link2,
   Check,
-  Eye,
 } from "lucide-react";
 import { safeParseObject } from "@/components/TokenValueFormatter";
 import { evaluateTokenMath } from "@/utils/transformTokens";
 import { TokenAliasInput } from "@/components/TokenAliasInput";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 interface EditTokenDrawerProps {
   token: FlattenedToken | null;
@@ -74,7 +68,6 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
 
   const handleSave = () => {
     if (isTypography) {
-      // Build clean composite object
       const obj: Record<string, any> = {};
       if (typographyFields.fontFamily) obj.fontFamily = typographyFields.fontFamily;
       if (typographyFields.fontWeight) obj.fontWeight = typographyFields.fontWeight;
@@ -97,7 +90,6 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
     }, 600);
   };
 
-  // Compute live preview values
   const previewFamily = typographyFields.fontFamily.replace(/[{}]/g, "") || "Inter";
   const previewSize = evaluateTokenMath(typographyFields.fontSize || "16px");
   const previewLineHeight = evaluateTokenMath(typographyFields.lineHeight || "normal");
@@ -108,42 +100,43 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
       />
 
       {/* Slide-Over Drawer Container */}
-      <div className="relative w-full max-w-md bg-white dark:bg-[#0e0e13] border-l border-zinc-200 dark:border-zinc-800/80 shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-250 font-sans">
+      <div className="relative w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-200 text-foreground font-sans">
         {/* Drawer Header */}
-        <div className="h-16 px-6 border-b border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between bg-zinc-50/80 dark:bg-[#0b0b0f] flex-shrink-0">
+        <div className="h-16 px-6 border-b border-border flex items-center justify-between bg-muted/40 flex-shrink-0">
           <div className="min-w-0 pr-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-zinc-900 dark:text-white truncate">
+              <span className="text-sm font-bold truncate">
                 Edit Token
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono border border-emerald-200 dark:border-emerald-800/60 font-semibold uppercase">
+              <Badge variant="violet" className="text-[10px] font-mono uppercase">
                 {token.type}
-              </span>
+              </Badge>
             </div>
-            <div className="text-xs font-mono text-zinc-500 truncate mt-0.5">
+            <div className="text-xs font-mono text-muted-foreground truncate mt-0.5">
               {token.name}
             </div>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Drawer Form Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
           {/* Live Preview Specimen Box */}
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               <span>Live Preview</span>
-              <span className="font-mono text-[10px] text-zinc-500">{token.setName}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{token.setName}</span>
             </div>
 
             {isTypography ? (
@@ -156,29 +149,29 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                     lineHeight: previewLineHeight,
                     letterSpacing: typographyFields.letterSpacing || "normal",
                   }}
-                  className="text-zinc-900 dark:text-white font-medium truncate py-1 leading-tight"
+                  className="text-foreground font-medium truncate py-1 leading-tight"
                 >
                   The quick brown fox jumps
                 </div>
-                <div className="text-[11px] font-mono text-zinc-400">
+                <div className="text-[11px] font-mono text-muted-foreground">
                   {previewFamily} • {previewWeight} • {previewSize} / {previewLineHeight}
                 </div>
               </div>
             ) : token.type === "color" ? (
               <div className="flex items-center gap-3 pt-1">
                 <div
-                  className="w-10 h-10 rounded-xl border border-black/15 dark:border-white/20 shadow-inner"
+                  className="w-10 h-10 rounded-lg border border-border shadow-inner"
                   style={{ backgroundColor: rawValue }}
                 />
                 <div>
-                  <div className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
+                  <div className="font-mono font-bold text-sm text-foreground">
                     {rawValue}
                   </div>
-                  <div className="text-[11px] text-zinc-400">Solid Color Swatch</div>
+                  <div className="text-[11px] text-muted-foreground">Solid Color Swatch</div>
                 </div>
               </div>
             ) : (
-              <div className="font-mono text-zinc-800 dark:text-zinc-200 py-1">
+              <div className="font-mono text-foreground py-1">
                 {rawValue}
               </div>
             )}
@@ -187,10 +180,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
           {/* Form Fields: Typography Composite Fields */}
           {isTypography ? (
             <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                  Font Family
-                </label>
+              <div className="space-y-1">
+                <Label>Font Family</Label>
                 <TokenAliasInput
                   value={typographyFields.fontFamily}
                   onChange={(val) =>
@@ -202,10 +193,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Font Weight
-                  </label>
+                <div className="space-y-1">
+                  <Label>Font Weight</Label>
                   <TokenAliasInput
                     value={typographyFields.fontWeight}
                     onChange={(val) =>
@@ -216,14 +205,12 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Font Size
-                  </label>
+                <div className="space-y-1">
+                  <Label>Font Size</Label>
                   <TokenAliasInput
                     value={typographyFields.fontSize}
-                    onChange={(val) =>
-                      setTypographyFields((p) => ({ ...p, fontSize: val }))
+                    onChange={(e) =>
+                      setTypographyFields((p) => ({ ...p, fontSize: e }))
                     }
                     categoryFilter={["fontSizes", "fontSize", "size", "dimension"]}
                     placeholder="e.g. 32px or {font-sizes.32}"
@@ -232,10 +219,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Line Height
-                  </label>
+                <div className="space-y-1">
+                  <Label>Line Height</Label>
                   <TokenAliasInput
                     value={typographyFields.lineHeight}
                     onChange={(val) =>
@@ -246,10 +231,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Letter Spacing
-                  </label>
+                <div className="space-y-1">
+                  <Label>Letter Spacing</Label>
                   <TokenAliasInput
                     value={typographyFields.letterSpacing}
                     onChange={(val) =>
@@ -262,11 +245,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
               </div>
             </div>
           ) : (
-            /* Primitive Value input */
-            <div>
-              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                Token Value
-              </label>
+            <div className="space-y-1">
+              <Label>Token Value</Label>
               <TokenAliasInput
                 value={rawValue}
                 onChange={(val) => setRawValue(val)}
@@ -277,36 +257,36 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
           )}
 
           {/* Description field */}
-          <div>
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-              Description (Optional)
-            </label>
+          <div className="space-y-1">
+            <Label>Description (Optional)</Label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add notes about usage, design intent, or responsive behavior..."
-              className="w-full text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 resize-none font-sans"
+              className="w-full text-xs p-2.5 rounded-md border border-input bg-transparent text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none font-sans"
             />
           </div>
         </div>
 
         {/* Drawer Footer Action Bar */}
-        <div className="h-16 px-6 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between bg-zinc-50/80 dark:bg-[#0b0b0f] flex-shrink-0">
-          <button
+        <div className="h-16 px-6 border-t border-border flex items-center justify-between bg-muted/40 flex-shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer"
           >
             Cancel
-          </button>
+          </Button>
 
-          <button
+          <Button
+            size="sm"
             onClick={handleSave}
-            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400 rounded-xl transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+            className="gap-2"
           >
             {savedSuccess ? (
               <>
-                <Check className="w-4 h-4" />
+                <Check className="w-4 h-4 text-emerald-300" />
                 <span>Saved!</span>
               </>
             ) : (
@@ -315,7 +295,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 <span>Save Changes</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { FlattenedToken } from "@/types/tokens";
-import { Link2, Sparkles, Check } from "lucide-react";
+import { Link2, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface TokenAliasInputProps {
   value: string;
@@ -132,7 +133,6 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
   };
 
   const selectSuggestion = (token: FlattenedToken) => {
-    // If the input already has a partial "{alias...", replace the brace portion
     const lastOpenBrace = value.lastIndexOf("{");
     if (lastOpenBrace !== -1) {
       const before = value.slice(0, lastOpenBrace);
@@ -166,14 +166,14 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
           placeholder={placeholder}
           className={
             className ||
-            `w-full font-mono text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all ${
-              isAlias ? "text-emerald-600 dark:text-emerald-400 font-semibold" : ""
+            `w-full font-mono text-xs px-3 py-2 rounded-md border border-input bg-transparent text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors ${
+              isAlias ? "text-primary font-semibold" : ""
             }`
           }
         />
 
         {isAlias && (
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono pointer-events-none">
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-primary font-mono pointer-events-none">
             <Link2 className="w-3 h-3" />
           </div>
         )}
@@ -181,10 +181,10 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
 
       {/* Suggestion Dropdown */}
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full mt-1.5 w-full min-w-[280px] max-w-sm bg-white dark:bg-[#121218] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-          <div className="px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/60 flex items-center justify-between text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+        <div className="absolute left-0 top-full mt-1.5 w-full min-w-[280px] max-w-sm bg-popover text-popover-foreground border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 divide-y divide-border">
+          <div className="px-3 py-1.5 bg-muted/60 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-emerald-500" />
+              <Sparkles className="w-3 h-3 text-primary" />
               <span>Token Suggestions</span>
             </span>
             <span>{suggestions.length} matching</span>
@@ -203,24 +203,24 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
                     isSelected
-                      ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200"
-                      : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-foreground hover:bg-muted"
                   }`}
                 >
                   <div className="min-w-0 flex-1 pr-2">
                     <div className="font-mono text-xs font-semibold truncate flex items-center gap-1.5">
-                      <span className="text-emerald-600 dark:text-emerald-400">
+                      <span className="text-primary">
                         {formattedName}
                       </span>
                     </div>
-                    <div className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate mt-0.5 font-sans">
+                    <div className="text-[11px] text-muted-foreground truncate mt-0.5 font-sans">
                       {token.resolvedValue || token.rawValue}
                     </div>
                   </div>
 
-                  <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-mono flex-shrink-0">
+                  <Badge variant="outline" className="text-[10px] font-mono flex-shrink-0">
                     {token.type}
-                  </span>
+                  </Badge>
                 </button>
               );
             })}
