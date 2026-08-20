@@ -20,7 +20,10 @@ import {
   Moon,
   AlignLeft,
   Braces,
+  User,
 } from "lucide-react";
+import { OrgSwitcher } from "@/components/OrgSwitcher";
+import { AuthModal } from "@/components/AuthModal";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -52,10 +55,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     activeSet,
     tokensViewMode,
     setTokensViewMode,
+    currentUser,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [showThemeGroupMenu, setShowThemeGroupMenu] = useState(false);
   const [commitMessage, setCommitMessage] = useState("");
@@ -250,10 +255,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
               <Layers className="w-3 h-3 text-white" />
             </div>
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors hidden md:inline">
               Second Screen
             </span>
           </div>
+
+          <div className="w-[1px] h-4 bg-zinc-200 dark:bg-zinc-800 mx-0.5" />
+
+          {/* Multi-Tenant Organization & Project Switcher */}
+          <OrgSwitcher onOpenAuth={() => setIsAuthOpen(true)} />
 
           {/* Interactive Breadcrumb Hierarchy */}
           {isConfigured && (
@@ -356,15 +366,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               </nav>
             </>
           )}
+        </div>
+
+        {/* Right: Conditional Controls + Dark/Light Theme Switcher on Far Right */}
+        <div className="flex items-center gap-2">
+          {/* Dirty changes indicator tag */}
+          {isDirty && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/50 mr-1 animate-pulse">
+              unsaved changes
+            </span>
+          )}
 
           {/* View Mode Switcher: Matrix vs Flow (Shown when in Themes tab) */}
           {hasTokens && sidebarTab === "themes" && (
-            <div className="flex items-center bg-zinc-100 dark:bg-zinc-950 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[11px] font-medium ml-2">
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-950 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[11px] font-medium">
               <button
                 onClick={() => setViewMode("matrix")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "matrix"
-                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-xs ring-1 ring-zinc-200 dark:ring-zinc-700"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Theme Matrix Comparison Grid"
@@ -377,7 +397,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 onClick={() => setViewMode("flow")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "flow"
-                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 font-semibold shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-700"
+                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 font-semibold shadow-xs ring-1 ring-zinc-200 dark:ring-zinc-700"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Visual Token Flow & Dependency Graph"
@@ -387,16 +407,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Right: Conditional Controls + Dark/Light Theme Switcher on Far Right */}
-        <div className="flex items-center gap-2">
-          {/* Dirty changes indicator tag */}
-          {isDirty && (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/50 mr-1 animate-pulse">
-              unsaved changes
-            </span>
-          )}
 
           {isConfigured ? (
             <>
@@ -404,7 +414,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               <button
                 onClick={handleCloudSync}
                 disabled={isPulling}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
                 title="Pull changes pushed from Figma Plugin"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ${isPulling ? "animate-spin" : ""}`} />
@@ -419,7 +429,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 title="Pull latest tokens from current branch"
               >
                 <DownloadCloud className={`w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 ${isPulling ? "animate-bounce" : ""}`} />
-                <span>{isPulling ? "Pulling..." : "Git Pull"}</span>
+                <span>Git Pull</span>
               </button>
 
               {/* 2. Push Button */}
@@ -560,8 +570,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               <Moon className="w-3.5 h-3.5 text-violet-600" />
             )}
           </button>
+
+          {/* User Account / Profile Button */}
+          <button
+            onClick={() => setIsAuthOpen(true)}
+            className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-200 transition-all cursor-pointer shadow-sm flex-shrink-0"
+            title={currentUser ? `Signed in as ${currentUser.displayName || currentUser.email}` : "Sign In / Profile"}
+          >
+            {currentUser ? (
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 text-white font-bold text-[10px] flex items-center justify-center shadow-xs">
+                {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email[0].toUpperCase()}
+              </div>
+            ) : (
+              <User className="w-3.5 h-3.5 text-zinc-500" />
+            )}
+          </button>
         </div>
       </header>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
       {/* Push Direct Commit Modal */}
       {showPushModal && (

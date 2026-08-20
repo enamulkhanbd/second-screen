@@ -38,7 +38,12 @@ export async function GET(req: NextRequest) {
       return jsonWithCors({ success: false, error: auth.error }, { status: 401 });
     }
 
-    const storedDoc = getStoredTokens() || SAMPLE_TOKENS_DATA;
+    const searchParams = req.nextUrl.searchParams;
+    const orgId = searchParams.get("orgId");
+    const projectId = searchParams.get("projectId");
+
+    let storedDoc = getStoredTokens() || SAMPLE_TOKENS_DATA;
+
     const resolvedTokens = flattenAndResolveTokens(storedDoc, "ALL");
     const themeGroups = extractThemeGroups(storedDoc);
 
@@ -51,6 +56,8 @@ export async function GET(req: NextRequest) {
     return jsonWithCors({
       success: true,
       authenticatedAs: auth.record?.name,
+      orgId: orgId || undefined,
+      projectId: projectId || undefined,
       version: "1.0.0",
       rawTokens: storedDoc,
       resolvedTokens,

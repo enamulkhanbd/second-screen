@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { safeParseObject } from "@/components/TokenValueFormatter";
 import { evaluateTokenMath } from "@/utils/transformTokens";
+import { TokenAliasInput } from "@/components/TokenAliasInput";
 
 interface EditTokenDrawerProps {
   token: FlattenedToken | null;
@@ -190,14 +191,13 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
                   Font Family
                 </label>
-                <input
-                  type="text"
+                <TokenAliasInput
                   value={typographyFields.fontFamily}
-                  onChange={(e) =>
-                    setTypographyFields((p) => ({ ...p, fontFamily: e.target.value }))
+                  onChange={(val) =>
+                    setTypographyFields((p) => ({ ...p, fontFamily: val }))
                   }
+                  categoryFilter={["fontFamilies", "font", "family"]}
                   placeholder="e.g. {font-families.primary} or 'Inter', sans-serif"
-                  className="w-full font-mono text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
 
@@ -206,14 +206,13 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
                     Font Weight
                   </label>
-                  <input
-                    type="text"
+                  <TokenAliasInput
                     value={typographyFields.fontWeight}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, fontWeight: e.target.value }))
+                    onChange={(val) =>
+                      setTypographyFields((p) => ({ ...p, fontWeight: val }))
                     }
+                    categoryFilter={["fontWeights", "weight"]}
                     placeholder="e.g. 500 or {font-weights.medium}"
-                    className="w-full font-mono text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -221,14 +220,13 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
                     Font Size
                   </label>
-                  <input
-                    type="text"
+                  <TokenAliasInput
                     value={typographyFields.fontSize}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, fontSize: e.target.value }))
+                    onChange={(val) =>
+                      setTypographyFields((p) => ({ ...p, fontSize: val }))
                     }
+                    categoryFilter={["fontSizes", "fontSize", "size", "dimension"]}
                     placeholder="e.g. 32px or {font-sizes.32}"
-                    className="w-full font-mono text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               </div>
@@ -238,14 +236,13 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
                     Line Height
                   </label>
-                  <input
-                    type="text"
+                  <TokenAliasInput
                     value={typographyFields.lineHeight}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, lineHeight: e.target.value }))
+                    onChange={(val) =>
+                      setTypographyFields((p) => ({ ...p, lineHeight: val }))
                     }
+                    categoryFilter={["lineHeights", "lineHeight", "dimension"]}
                     placeholder="e.g. 40px or roundTo(...)"
-                    className="w-full font-mono text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -253,14 +250,13 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
                     Letter Spacing
                   </label>
-                  <input
-                    type="text"
+                  <TokenAliasInput
                     value={typographyFields.letterSpacing}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, letterSpacing: e.target.value }))
+                    onChange={(val) =>
+                      setTypographyFields((p) => ({ ...p, letterSpacing: val }))
                     }
+                    categoryFilter={["letterSpacing", "tracking", "dimension"]}
                     placeholder="e.g. -0.02em or 0"
-                    className="w-full font-mono text-xs px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               </div>
@@ -271,12 +267,11 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
               <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
                 Token Value
               </label>
-              <input
-                type="text"
+              <TokenAliasInput
                 value={rawValue}
-                onChange={(e) => setRawValue(e.target.value)}
+                onChange={(val) => setRawValue(val)}
+                categoryFilter={token.type}
                 placeholder="e.g. #3b82f6 or {colors.brand.500}"
-                className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           )}

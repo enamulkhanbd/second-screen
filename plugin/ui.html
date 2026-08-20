@@ -311,7 +311,17 @@
       <input type="password" id="input-pat" placeholder="sec_pat_live_..." />
     </div>
 
-    <button class="btn btn-secondary" onclick="saveSettings()">Save Configuration</button>
+    <div class="input-group">
+      <label class="label">Active Organization</label>
+      <select id="select-org" onchange="handleOrgSelectChange()"></select>
+    </div>
+
+    <div class="input-group">
+      <label class="label">Active Project</label>
+      <select id="select-project"></select>
+    </div>
+
+    <button class="btn btn-secondary" onclick="saveSettings()">Save Configuration & Fetch Workspaces</button>
   </div>
 
   <!-- Console Log Window -->
@@ -323,7 +333,10 @@
     let activeConfig = {
       serverUrl: "http://localhost:3000",
       pat: "",
+      orgId: "",
+      projectId: "",
     };
+    let userWorkspaces = [];
 
     function log(text, type = "normal") {
       const box = document.getElementById("console-logs");
@@ -354,6 +367,73 @@
       }
     }
 
+    async function fetchWorkspaces(serverUrl, pat) {
+      try {
+        const cleanUrl = serverUrl.replace(/\/+$/, "");
+        const res = await fetch(`${cleanUrl}/api/v1/user/orgs`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(pat ? { Authorization: `Bearer ${pat}` } : {}),
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.organizations)) {
+            userWorkspaces = data.organizations;
+            populateOrgSelect();
+            log(`Loaded ${userWorkspaces.length} workspace organizations.`);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch workspaces:", e);
+      }
+    }
+
+    function populateOrgSelect() {
+      const orgSelect = document.getElementById("select-org");
+      orgSelect.innerHTML = "";
+      if (userWorkspaces.length === 0) {
+        orgSelect.innerHTML = "<option value=''>Default Workspace</option>";
+        populateProjectSelect([]);
+        return;
+      }
+
+      userWorkspaces.forEach((org) => {
+        const opt = document.createElement("option");
+        opt.value = org.id;
+        opt.textContent = `${org.name} (${org.role || "member"})`;
+        if (opt.value === activeConfig.orgId) opt.selected = true;
+        orgSelect.appendChild(opt);
+      });
+
+      const selectedOrgId = orgSelect.value || (userWorkspaces[0] ? userWorkspaces[0].id : "");
+      const selectedOrg = userWorkspaces.find((o) => o.id === selectedOrgId);
+      populateProjectSelect(selectedOrg ? selectedOrg.projects : []);
+    }
+
+    function handleOrgSelectChange() {
+      const orgSelect = document.getElementById("select-org");
+      const selectedOrg = userWorkspaces.find((o) => o.id === orgSelect.value);
+      populateProjectSelect(selectedOrg ? selectedOrg.projects : []);
+    }
+
+    function populateProjectSelect(projects) {
+      const projSelect = document.getElementById("select-project");
+      projSelect.innerHTML = "";
+      if (!projects || projects.length === 0) {
+        projSelect.innerHTML = "<option value=''>Default Project</option>";
+        return;
+      }
+
+      projects.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        if (p.id === activeConfig.projectId) opt.selected = true;
+        projSelect.appendChild(opt);
+      });
+    }
+
     // On Load: Request saved config from Figma clientStorage
     parent.postMessage({ pluginMessage: { type: "GET_SAVED_CONFIG" } }, "*");
 
@@ -363,8 +443,12 @@
 
       if (msg.type === "SAVED_CONFIG") {
         activeConfig = msg.payload;
-        document.getElementById("input-server-url").value = activeConfig.serverUrl || "http://localhost:3000";
+        const sUrl = activeConfig.serverUrl || "http://localhost:3000";
+        document.getElementById("input-server-url").value = sUrl;
         document.getElementById("input-pat").value = activeConfig.pat || "";
+        if (activeConfig.pat) {
+          fetchWorkspaces(sUrl, activeConfig.pat);
+        }
       }
 
       if (msg.type === "LOG") {
@@ -380,9 +464,12 @@
       }
 
       if (msg.type === "EXPORTED_TOKENS") {
+        const orgId = document.getElementById("select-org").value || activeConfig.orgId;
+        const projId = document.getElementById("select-project").value || activeConfig.projectId;
         log("Pushing scanned tokens to Second Screen Cloud...", "normal");
         try {
-          const url = (activeConfig.serverUrl || "http://localhost:3000").replace(/\/+$/, "") + "/api/v1/tokens";
+          const query = orgId && projId ? `?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projId)}` : "";
+          const url = (activeConfig.serverUrl || "http://localhost:3000").replace(/\/+$/, "") + `/api/v1/tokens${query}`;
           const res = await fetch(url, {
             method: "POST",
             headers: {
@@ -406,19 +493,27 @@
     function saveSettings() {
       const serverUrl = document.getElementById("input-server-url").value.trim();
       const pat = document.getElementById("input-pat").value.trim();
-      activeConfig = { serverUrl, pat };
+      const orgId = document.getElementById("select-org").value;
+      const projectId = document.getElementById("select-project").value;
+      activeConfig = { serverUrl, pat, orgId, projectId };
 
       parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: activeConfig } }, "*");
       log("Saved credentials to Figma client storage.");
+      if (pat) {
+        fetchWorkspaces(serverUrl, pat);
+      }
     }
 
     async function pullTokens() {
       log("Connecting to Second Screen Cloud API...");
       const serverUrl = (document.getElementById("input-server-url").value || activeConfig.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
       const pat = document.getElementById("input-pat").value || activeConfig.pat;
+      const orgId = document.getElementById("select-org")?.value || activeConfig.orgId;
+      const projId = document.getElementById("select-project")?.value || activeConfig.projectId;
 
       try {
-        const res = await fetch(`${serverUrl}/api/v1/tokens`, {
+        const query = orgId && projId ? `?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projId)}` : "";
+        const res = await fetch(`${serverUrl}/api/v1/tokens${query}`, {
           headers: {
             "Content-Type": "application/json",
             ...(pat ? { Authorization: `Bearer ${pat}` } : {}),
@@ -455,7 +550,7 @@
           "*"
         );
       } catch (err) {
-        log(`Failed to fetch from Cloud API: ${err.message}`, "error");
+        log(`Pull failed: ${err.message}`, "error");
       }
     }
 

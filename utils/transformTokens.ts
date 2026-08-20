@@ -243,10 +243,14 @@ export function evaluateTokenMath(
 }
 
 /**
- * Formats a typography composite token (raw or resolved) into a clean readable string
- * e.g. "Inter · 16px / 24px (400)" or "{font-families.primary} · {font-sizes.base}"
+ * Formats a typography composite token (raw or resolved) into a clean readable string with fully resolved values
+ * e.g. "Inter, Arial - Medium - 48 - 60"
  */
-export function formatTypographySummary(val: string | Record<string, any>): string {
+export function formatTypographySummary(
+  val: string | Record<string, any>,
+  rawDoc?: RawTokensDocument,
+  currentSet?: string
+): string {
   let obj: Record<string, any> = {};
   if (typeof val === "object" && val !== null) {
     obj = val;
@@ -260,18 +264,29 @@ export function formatTypographySummary(val: string | Record<string, any>): stri
     return String(val ?? "");
   }
 
-  const family = obj.fontFamily ? String(obj.fontFamily).replace(/^\{|\}$/g, "") : "";
-  const size = obj.fontSize ? String(obj.fontSize).replace(/^\{|\}$/g, "") : "";
-  const weight = obj.fontWeight ? String(obj.fontWeight).replace(/^\{|\}$/g, "") : "";
-  const lineHeight = obj.lineHeight ? String(obj.lineHeight).replace(/^\{|\}$/g, "") : "";
+  // Helper to resolve alias to concrete value
+  const resolveProp = (propVal: any): string => {
+    if (!propVal && propVal !== 0) return "";
+    let str = String(propVal).trim();
+    if (rawDoc && str.includes("{")) {
+      str = resolveTokenAlias(str, rawDoc, currentSet);
+    }
+    // Clean up braces, quotes
+    return str.replace(/^\{|\}$/g, "").replace(/^["']|["']$/g, "").trim();
+  };
+
+  const family = resolveProp(obj.fontFamily || obj.fontFamilies);
+  const weight = resolveProp(obj.fontWeight || obj.fontWeights);
+  const size = resolveProp(obj.fontSize || obj.fontSizes).replace(/px$/i, "");
+  const lineHeight = resolveProp(obj.lineHeight || obj.lineHeights).replace(/px$/i, "");
 
   const parts: string[] = [];
   if (family) parts.push(family);
-  if (size && lineHeight) parts.push(`${size} / ${lineHeight}`);
-  else if (size) parts.push(size);
-  if (weight) parts.push(`(${weight})`);
+  if (weight) parts.push(weight);
+  if (size) parts.push(size);
+  if (lineHeight) parts.push(lineHeight);
 
-  return parts.length > 0 ? parts.join(" · ") : JSON.stringify(obj);
+  return parts.length > 0 ? parts.join(" - ") : JSON.stringify(obj);
 }
 
 /**

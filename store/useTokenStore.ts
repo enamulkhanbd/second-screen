@@ -21,8 +21,30 @@ import { ReleasePackage } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 import { STARTER_TEMPLATES } from "@/data/starterTemplates";
+import { Organization, Project, OrganizationMember } from "@/types/tenant";
+import {
+  getUserOrganizations,
+  getOrgProjects,
+  createOrganization,
+  createProject,
+  saveProjectTokens,
+  saveProjectGitConfig,
+} from "@/services/organizationService";
 
 interface TokenStoreState {
+  // Multi-Tenant Identity & Scope
+  currentUser: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null;
+  userOrgs: Organization[];
+  currentOrg: Organization | null;
+  orgProjects: Project[];
+  currentProject: Project | null;
+  setCurrentUser: (user: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null) => void;
+  setCurrentOrg: (org: Organization | null) => void;
+  setCurrentProject: (project: Project | null) => void;
+  loadTenantData: (uid: string) => Promise<void>;
+  createOrgAction: (name: string) => Promise<Organization | null>;
+  createProjectAction: (name: string, description?: string) => Promise<Project | null>;
+
   // Git Credentials
   credentials: GitCredentials;
   setCredentials: (creds: Partial<GitCredentials>, rememberPat?: boolean) => void;
@@ -124,6 +146,136 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
 };
 
 export const useTokenStore = create<TokenStoreState>((set, get) => ({
+  currentUser: null,
+  userOrgs: [],
+  currentOrg: null,
+  orgProjects: [],
+  currentProject: null,
+
+  setCurrentUser: (user) => {
+    set({ currentUser: user });
+    if (user?.uid) {
+      get().loadTenantData(user.uid);
+    }
+  },
+
+  setCurrentOrg: async (org) => {
+    set({ currentOrg: org });
+    if (org) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_active_org_id", org.id);
+        } catch {}
+      }
+      const projects = await getOrgProjects(org.id);
+      set({ orgProjects: projects });
+      if (projects.length > 0) {
+        get().setCurrentProject(projects[0]);
+      } else {
+        set({ currentProject: null });
+      }
+    }
+  },
+
+  setCurrentProject: (proj) => {
+    set({ currentProject: proj });
+    if (proj) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_active_project_id", proj.id);
+        } catch {}
+      }
+      // Load project tokens and git config
+      if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
+        get().setRawTokens(proj.rawTokens);
+      }
+      if (proj.themeGroups && proj.themeGroups.length > 0) {
+        set({
+          themeGroups: proj.themeGroups,
+          activeThemeGroupId: proj.themeGroups[0].id,
+          activeThemeOptionId: proj.themeGroups[0].options[0]?.id || "",
+        });
+      }
+      if (proj.gitConfig) {
+        get().setCredentials(proj.gitConfig);
+      }
+    }
+  },
+
+  loadTenantData: async (uid) => {
+    try {
+      const orgs = await getUserOrganizations(uid);
+      set({ userOrgs: orgs });
+
+      let activeOrg = orgs[0] || null;
+      const savedOrgId = typeof window !== "undefined" ? localStorage.getItem("ts_active_org_id") : null;
+      if (savedOrgId) {
+        const found = orgs.find((o) => o.id === savedOrgId);
+        if (found) activeOrg = found;
+      }
+
+      set({ currentOrg: activeOrg });
+
+      if (activeOrg) {
+        const projects = await getOrgProjects(activeOrg.id);
+        set({ orgProjects: projects });
+
+        let activeProj = projects[0] || null;
+        const savedProjId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
+        if (savedProjId) {
+          const found = projects.find((p) => p.id === savedProjId);
+          if (found) activeProj = found;
+        }
+
+        if (activeProj) {
+          get().setCurrentProject(activeProj);
+        }
+      }
+    } catch (e) {
+      console.warn("Error loading tenant data:", e);
+    }
+  },
+
+  createOrgAction: async (name) => {
+    const { currentUser } = get();
+    if (!currentUser) return null;
+    try {
+      const newOrg = await createOrganization(name, {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        displayName: currentUser.displayName,
+      });
+      const orgs = [...get().userOrgs, newOrg];
+      set({ userOrgs: orgs });
+      get().setCurrentOrg(newOrg);
+      return newOrg;
+    } catch (e) {
+      console.warn("Failed creating org:", e);
+      return null;
+    }
+  },
+
+  createProjectAction: async (name, description) => {
+    const { currentOrg, currentUser } = get();
+    if (!currentOrg) return null;
+    try {
+      const newProj = await createProject(
+        currentOrg.id,
+        name,
+        description,
+        get().rawTokens,
+        currentUser?.displayName
+      );
+      const projs = [...get().orgProjects, newProj];
+      set({ orgProjects: projs });
+      get().setCurrentProject(newProj);
+      return newProj;
+    } catch (e) {
+      console.warn("Failed creating project:", e);
+      return null;
+    }
+  },
+
   credentials: DEFAULT_CREDENTIALS,
   userProfile: null,
   setUserProfile: (profile) => {

@@ -14,6 +14,8 @@ import {
 import { formatTypographySummary } from "@/utils/transformTokens";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
+import { EditTokenDrawer } from "@/components/EditTokenDrawer";
+import { FlattenedToken } from "@/types/tokens";
 import {
   Folder,
   MoreVertical,
@@ -41,6 +43,9 @@ import {
   Trash2,
   Download,
   AlertTriangle,
+  MoreHorizontal,
+  Edit2,
+  CopyPlus,
 } from "lucide-react";
 
 interface ThemeMatrixProps {
@@ -128,6 +133,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     loadSampleData,
     duplicateThemeGroup,
     deleteThemeGroup,
+    deleteToken,
     highlightedTokenKey,
     setHighlightedTokenKey,
   } = useTokenStore();
@@ -139,6 +145,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
 
   // Auto-scroll and highlight target token row if highlightedTokenKey is set
   useEffect(() => {
@@ -555,7 +562,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           </div>
         ) : (
           <table className="w-full text-left border-collapse text-xs">
-            {/* Table Header: TOKEN | OPTION_A ⚙️ | OPTION_B ⚙️ */}
+            {/* Table Header: TOKEN | OPTION_A ⚙️ | OPTION_B ⚙️ | (ACTIONS) */}
             <thead className="sticky top-0 z-20 bg-zinc-50/95 dark:bg-[#0d0d11] border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 tracking-wider shadow-sm backdrop-blur-md">
               <tr>
                 <th className="py-3 px-6 w-1/3 font-bold uppercase text-zinc-500 dark:text-zinc-400">
@@ -572,6 +579,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                     </div>
                   </th>
                 ))}
+                <th className="py-3 px-4 w-12 text-right"></th>
               </tr>
             </thead>
 
@@ -586,7 +594,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                   <tr
                     key={row.tokenKey}
                     id={rowId}
-                    className={`transition-all duration-500 ${
+                    className={`transition-all duration-500 group ${
                       isHighlighted
                         ? "bg-violet-100/90 dark:bg-violet-950/70 ring-2 ring-violet-500 shadow-md shadow-violet-500/20"
                         : "hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
@@ -620,6 +628,18 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                         </td>
                       );
                     })}
+
+                    {/* Far Right Action Menu Column */}
+                    <td className="py-2.5 px-4 text-right align-middle w-12">
+                      <div className="flex items-center justify-end">
+                        <MatrixRowActionMenu
+                          row={row}
+                          activeGroup={activeGroup}
+                          onEdit={(token) => setEditingToken(token)}
+                          onDelete={(token) => deleteToken(token.setName, token.name.split("."))}
+                        />
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -627,6 +647,14 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           </table>
         )}
       </div>
+
+      {/* Edit Token Slide-Over Drawer */}
+      <EditTokenDrawer
+        token={editingToken}
+        isOpen={Boolean(editingToken)}
+        onClose={() => setEditingToken(null)}
+        onSave={updateSingleToken}
+      />
 
       {/* Add Theme Option Modal */}
       <AddThemeOptionModal
@@ -691,6 +719,149 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   );
 };
 
+interface MatrixRowActionMenuProps {
+  row: MatrixRowData;
+  activeGroup: any;
+  onEdit: (token: FlattenedToken) => void;
+  onDelete: (token: FlattenedToken) => void;
+}
+
+const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
+  row,
+  activeGroup,
+  onEdit,
+  onDelete,
+}) => {
+  const { resolvedTokens, addToast } = useTokenStore();
+  const [open, setOpen] = useState(false);
+  const [copiedType, setCopiedType] = useState<string | null>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  const targetToken: FlattenedToken = useMemo(() => {
+    const match = resolvedTokens.find(
+      (t) => t.name === row.tokenKey || t.path.slice(1).join(".") === row.tokenKey
+    );
+    if (match) return match;
+
+    const firstCell = Object.values(row.cells)[0];
+    const setName = firstCell?.tokenPath?.[0] || activeGroup?.options?.[0]?.selectedTokenSets?.[0] || "core";
+
+    return {
+      id: row.tokenKey,
+      name: row.tokenKey,
+      path: firstCell?.tokenPath || [setName, ...row.tokenKey.split(".")],
+      rawValue: firstCell?.rawValue || "",
+      resolvedValue: firstCell?.resolvedValue || "",
+      type: row.type as any,
+      category: row.category,
+      group: row.tokenKey.split(".")[0] || "general",
+      setName,
+      isAlias: false,
+    };
+  }, [resolvedTokens, row, activeGroup]);
+
+  const handleCopy = (text: string, type: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedType(type);
+      setTimeout(() => {
+        setCopiedType(null);
+        setOpen(false);
+      }, 800);
+      addToast({
+        type: "info",
+        title: "Copied to Clipboard",
+        message: text,
+      });
+    }
+  };
+
+  const cssVarName = `var(--${row.tokenKey.replace(/\./g, "-")})`;
+
+  return (
+    <div ref={menuRef} className="relative flex-shrink-0">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        className={`p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer flex items-center justify-center ${
+          open ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : ""
+        }`}
+        title="Token Actions (Edit, Copy, Delete)"
+      >
+        <MoreHorizontal className="w-4 h-4" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-6 w-48 bg-white dark:bg-[#121218] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-50 py-1 font-sans text-xs text-left animate-in fade-in zoom-in-95 duration-100">
+          <button
+            onClick={() => {
+              setOpen(false);
+              onEdit(targetToken);
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+          >
+            <Edit2 className="w-3.5 h-3.5 text-violet-500" />
+            <span className="font-semibold">Edit token</span>
+          </button>
+
+          <button
+            onClick={() => handleCopy(row.tokenKey, "name")}
+            className="w-full flex items-center justify-between px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer font-mono text-[11px]"
+          >
+            <div className="flex items-center gap-2">
+              <Copy className="w-3 h-3 text-zinc-400" />
+              <span>Copy Name</span>
+            </div>
+            {copiedType === "name" && <Check className="w-3 h-3 text-emerald-500" />}
+          </button>
+
+          <button
+            onClick={() => handleCopy(cssVarName, "css")}
+            className="w-full flex items-center justify-between px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer font-mono text-[11px]"
+          >
+            <div className="flex items-center gap-2">
+              <Copy className="w-3 h-3 text-zinc-400" />
+              <span>Copy CSS Var</span>
+            </div>
+            {copiedType === "css" && <Check className="w-3 h-3 text-emerald-500" />}
+          </button>
+
+          <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800/80 my-1" />
+
+          <button
+            onClick={() => {
+              setOpen(false);
+              if (confirm(`Delete token "${row.tokenKey}"?`)) {
+                onDelete(targetToken);
+              }
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete token</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface MatrixPillCellProps {
   cellData?: MatrixCellData;
   tokenType: string;
@@ -708,6 +879,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
   optionName,
   onUpdate,
 }) => {
+  const { rawTokens } = useTokenStore();
   const [isEditing, setIsEditing] = useState(false);
   const [val, setVal] = useState(cellData?.rawValue || "");
   const [showTypographyModal, setShowTypographyModal] = useState(false);
@@ -767,7 +939,11 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
       typoObj = {};
     }
 
-    const summaryText = formatTypographySummary(cellData.rawValue);
+    const summaryText = formatTypographySummary(
+      cellData.rawValue,
+      rawTokens,
+      cellData.tokenPath?.[0]
+    );
 
     return (
       <>
