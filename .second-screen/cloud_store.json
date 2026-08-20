@@ -114,812 +114,1321 @@
         "$figmaVariableReferences": {}
       }
     ],
-    "brand/justgo": {
-      "primary": {
-        "50": {
-          "$type": "color",
-          "$value": "#e8f5e9",
-          "$description": "Green 50 - Lightest tint for success backgrounds"
+    "alias/spacing": {
+      "padding": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - No padding"
         },
-        "100": {
-          "$type": "color",
-          "$value": "#c8e6c9",
-          "$description": "Green 100 - Very light green surface fill"
+        "3xs": {
+          "$type": "dimension",
+          "$value": "{unites.x2}",
+          "$description": "2px padding"
         },
-        "200": {
-          "$type": "color",
-          "$value": "#a5d6a7",
-          "$description": "Green 200 - Light green container fill"
+        "2xs": {
+          "$type": "dimension",
+          "$value": "{unites.x4}",
+          "$description": "4px padding"
         },
-        "300": {
-          "$type": "color",
-          "$value": "#81c784",
-          "$description": "Green 300 - Subtle green border and indicator"
+        "xs": {
+          "$type": "dimension",
+          "$value": "{unites.x8}",
+          "$description": "8px padding"
         },
-        "400": {
-          "$type": "color",
-          "$value": "#66bb69",
-          "$description": "Green 400 - Medium green indicator"
+        "sm": {
+          "$type": "dimension",
+          "$value": "{unites.x12}",
+          "$description": "12px padding"
         },
-        "500": {
-          "$type": "color",
-          "$value": "#4caf4f",
-          "$description": "Green 500 - Base primary green success hue"
+        "md": {
+          "$type": "dimension",
+          "$value": "{unites.x16}",
+          "$description": "16px base padding"
         },
-        "600": {
-          "$type": "color",
-          "$value": "#43a046",
-          "$description": "Green 600 - Interactive hover green"
+        "lg": {
+          "$type": "dimension",
+          "$value": "{unites.x24}",
+          "$description": "24px padding"
         },
-        "700": {
-          "$type": "color",
-          "$value": "#388e3b",
-          "$description": "Green 700 - Dark green for accessible text and icons"
+        "xl": {
+          "$type": "dimension",
+          "$value": "{unites.x32}",
+          "$description": "32px padding"
         },
-        "800": {
-          "$type": "color",
-          "$value": "#2e7d31",
-          "$description": "Green 800 - Deep green for high contrast text"
+        "2xl": {
+          "$type": "dimension",
+          "$value": "{unites.x48}",
+          "$description": "48px padding"
         },
-        "900": {
-          "$type": "color",
-          "$value": "#1b5e1f",
-          "$description": "Green 900 - Darkest green tone"
+        "3xl": {
+          "$type": "dimension",
+          "$value": "{unites.x64}",
+          "$description": "64px padding"
+        },
+        "4xl": {
+          "$type": "dimension",
+          "$value": "{unites.x96}",
+          "$description": "96px padding"
+        }
+      },
+      "radius": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - Sharp corners"
+        },
+        "xs": {
+          "$type": "dimension",
+          "$value": "{unites.x2}",
+          "$description": "2px - Micro radius"
+        },
+        "sm": {
+          "$type": "dimension",
+          "$value": "{unites.x4}",
+          "$description": "4px - Small component radius"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{unites.x6}",
+          "$description": "6px - Default base radius"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{unites.x8}",
+          "$description": "8px - Card and container radius"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{unites.x12}",
+          "$description": "12px - Sheet and floating panel radius"
+        },
+        "2xl": {
+          "$type": "dimension",
+          "$value": "{unites.x16}",
+          "$description": "16px - Large modal radius"
+        },
+        "3xl": {
+          "$type": "dimension",
+          "$value": "{unites.x24}",
+          "$description": "24px - Hero container radius"
+        },
+        "full": {
+          "$type": "dimension",
+          "$value": "{unites.x999}",
+          "$description": "999px - Pill / circular radius"
+        }
+      },
+      "border": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - No border"
+        },
+        "sm": {
+          "$type": "dimension",
+          "$value": "{unites.x1}",
+          "$description": "1px - Default standard border"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{unites.x2}",
+          "$description": "2px - Focus and active indicator border"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{unites.x4}",
+          "$description": "4px - Callout and progress border"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{unites.x8}",
+          "$description": "8px - Heavy accent border"
         }
       }
     },
     "dimension/component": {},
-    "alias/typography": {
-      "font-weight": {
-        "normal": {
-          "$type": "fontWeights",
-          "$value": "Regular",
-          "$description": "Normal font weight (400) for standard body copy"
-        },
-        "medium": {
-          "$type": "fontWeights",
-          "$value": "Medium",
-          "$description": "Medium font weight (500) for emphasized text and UI elements"
-        },
-        "semibold": {
-          "$type": "fontWeights",
-          "$value": "Semi Bold",
-          "$description": "Semi-bold font weight (600) for headings and prominent labels"
-        }
-      },
-      "line-height": {
-        "tight": {
-          "$type": "lineHeights",
-          "$value": "1.25",
-          "$description": "Tight (1.25) line height ratio for headings and single-line elements"
-        },
-        "normal": {
-          "$type": "lineHeights",
-          "$value": "1.5",
-          "$description": "Normal (1.5) line height ratio for readable multi-line body text"
-        }
-      },
-      "letter-spacing": {
-        "normal": {
-          "$type": "letterSpacing",
-          "$value": "0%",
-          "$description": "Normal letter spacing tracking (0%)"
-        },
-        "wide": {
-          "$type": "letterSpacing",
-          "$value": "2%",
-          "$description": "Wide letter spacing tracking (2%)"
-        }
-      },
-      "font-size": {
-        "heading": {
-          "h1": {
-            "$type": "fontSizes",
-            "$value": "48",
-            "$description": "Heading 1 font size (48px)"
+    "mode/dark/component": {
+      "button": {
+        "bg": {
+          "disabled": {
+            "$type": "color",
+            "$value": "{neutral.700}",
+            "$description": "Disabled button background color (Dark mode)"
           },
-          "h2": {
-            "$type": "fontSizes",
-            "$value": "40",
-            "$description": "Heading 2 font size (40px)"
+          "filled": {
+            "complementary": {
+              "default": {
+                "$type": "color",
+                "$value": "{complementary.900}",
+                "$description": "Filled complementary button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{complementary.900}",
+                "$description": "Filled complementary button pressed background color (Dark mode)"
+              }
+            },
+            "error": {
+              "default": {
+                "$type": "color",
+                "$value": "{error.500}",
+                "$description": "Filled error button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{error.700}",
+                "$description": "Filled error button pressed background color (Dark mode)"
+              }
+            },
+            "info": {
+              "default": {
+                "$type": "color",
+                "$value": "{info.500}",
+                "$description": "Filled info button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{info.700}",
+                "$description": "Filled info button pressed background color (Dark mode)"
+              }
+            },
+            "primary": {
+              "default": {
+                "$type": "color",
+                "$value": "{primary.500}",
+                "$description": "Filled primary button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{primary.700}",
+                "$description": "Filled primary button pressed background color (Dark mode)"
+              }
+            },
+            "secondary": {
+              "default": {
+                "$type": "color",
+                "$value": "{base.white}",
+                "$description": "Filled secondary button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.100}",
+                "$description": "Filled secondary button pressed background color (Dark mode)"
+              }
+            },
+            "success": {
+              "default": {
+                "$type": "color",
+                "$value": "{success.700}",
+                "$description": "Filled success button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{success.900}",
+                "$description": "Filled success button pressed background color (Dark mode)"
+              }
+            },
+            "warning": {
+              "default": {
+                "$type": "color",
+                "$value": "{warning.700}",
+                "$description": "Filled warning button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{warning.900}",
+                "$description": "Filled warning button pressed background color (Dark mode)"
+              }
+            }
           },
-          "h3": {
-            "$type": "fontSizes",
-            "$value": "36",
-            "$description": "Heading 3 font size (36px)"
+          "outline": {
+            "complementary": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline complementary button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline complementary button pressed background color (Dark mode)"
+              }
+            },
+            "error": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline error button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline error button pressed background color (Dark mode)"
+              }
+            },
+            "info": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline info button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline info button pressed background color (Dark mode)"
+              }
+            },
+            "primary": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline primary button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline primary button pressed background color (Dark mode)"
+              }
+            },
+            "secondary": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline secondary button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline secondary button pressed background color (Dark mode)"
+              }
+            },
+            "success": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline success button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline success button pressed background color (Dark mode)"
+              }
+            },
+            "warning": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.700}",
+                "$description": "Outline warning button default background color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.900}",
+                "$description": "Outline warning button pressed background color (Dark mode)"
+              }
+            }
           },
-          "h4": {
-            "$type": "fontSizes",
-            "$value": "32",
-            "$description": "Heading 4 font size (32px)"
-          },
-          "h5": {
-            "$type": "fontSizes",
-            "$value": "28",
-            "$description": "Heading 5 font size (28px)"
-          },
-          "h6": {
-            "$type": "fontSizes",
-            "$value": "24",
-            "$description": "Heading 6 font size (24px)"
+          "transparent": {
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Transparent ghost button pressed background fill (Dark mode)"
+            }
           }
         },
-        "title": {
-          "xl": {
-            "$type": "fontSizes",
-            "$value": "20",
-            "$description": "Title XL font size (20px)"
+        "border": {
+          "disabled": {
+            "$type": "color",
+            "$value": "{neutral.600}",
+            "$description": "Disabled button border color (Dark mode)"
           },
-          "lg": {
-            "$type": "fontSizes",
-            "$value": "18",
-            "$description": "Title LG font size (18px)"
-          },
-          "md": {
-            "$type": "fontSizes",
-            "$value": "16",
-            "$description": "Title MD font size (16px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Title SM font size (14px)"
+          "outline": {
+            "complementary": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline complementary button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline complementary button pressed border color (Dark mode)"
+              }
+            },
+            "disabled": {
+              "$type": "color",
+              "$value": "{neutral.600}",
+              "$description": "Disabled outline button border color (Dark mode)"
+            },
+            "error": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline error button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline error button pressed border color (Dark mode)"
+              }
+            },
+            "info": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline info button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline info button pressed border color (Dark mode)"
+              }
+            },
+            "primary": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline primary button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline primary button pressed border color (Dark mode)"
+              }
+            },
+            "secondary": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline secondary button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline secondary button pressed border color (Dark mode)"
+              }
+            },
+            "success": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline success button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline success button pressed border color (Dark mode)"
+              }
+            },
+            "warning": {
+              "default": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline warning button default border color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.600}",
+                "$description": "Outline warning button pressed border color (Dark mode)"
+              }
+            }
           }
         },
-        "subtitle": {
-          "md": {
-            "$type": "fontSizes",
-            "$value": "16",
-            "$description": "Subtitle MD font size (16px)"
+        "content": {
+          "icon": {
+            "disabled": {
+              "$type": "color",
+              "$value": "{neutral.400}",
+              "$description": "Disabled button icon color (Dark mode)"
+            },
+            "filled": {
+              "complementary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled complementary button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled complementary button pressed icon color (Dark mode)"
+                }
+              },
+              "error": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled error button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled error button pressed icon color (Dark mode)"
+                }
+              },
+              "info": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled info button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled info button pressed icon color (Dark mode)"
+                }
+              },
+              "primary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled primary button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled primary button pressed icon color (Dark mode)"
+                }
+              },
+              "secondary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled secondary button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled secondary button pressed icon color (Dark mode)"
+                }
+              },
+              "success": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled success button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled success button pressed icon color (Dark mode)"
+                }
+              },
+              "warning": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled warning button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled warning button pressed icon color (Dark mode)"
+                }
+              }
+            },
+            "outline": {
+              "complementary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline complementary button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline complementary button pressed icon color (Dark mode)"
+                }
+              },
+              "disabled": {
+                "$type": "color",
+                "$value": "{neutral.400}",
+                "$description": "Disabled outline button icon color (Dark mode)"
+              },
+              "error": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{error.500}",
+                  "$description": "Outline error button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{error.700}",
+                  "$description": "Outline error button pressed icon color (Dark mode)"
+                }
+              },
+              "info": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{info.500}",
+                  "$description": "Outline info button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{info.700}",
+                  "$description": "Outline info button pressed icon color (Dark mode)"
+                }
+              },
+              "primary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{primary.500}",
+                  "$description": "Outline primary button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{primary.700}",
+                  "$description": "Outline primary button pressed icon color (Dark mode)"
+                }
+              },
+              "secondary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline secondary button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline secondary button pressed icon color (Dark mode)"
+                }
+              },
+              "success": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{success.700}",
+                  "$description": "Outline success button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{success.900}",
+                  "$description": "Outline success button pressed icon color (Dark mode)"
+                }
+              },
+              "warning": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline warning button default icon color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline warning button pressed icon color (Dark mode)"
+                }
+              }
+            },
+            "transparent": {
+              "default": {
+                "$type": "color",
+                "$value": "{base.white}",
+                "$description": "Transparent ghost button default icon color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.100}",
+                "$description": "Transparent ghost button pressed icon color (Dark mode)"
+              }
+            }
           },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Subtitle SM font size (14px)"
-          }
-        },
-        "body": {
-          "lg": {
-            "$type": "fontSizes",
-            "$value": "18",
-            "$description": "Body LG font size (18px)"
-          },
-          "md": {
-            "$type": "fontSizes",
-            "$value": "16",
-            "$description": "Body MD font size (16px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Body SM font size (14px)"
-          }
-        },
-        "caption": {
-          "md": {
-            "$type": "fontSizes",
-            "$value": "13",
-            "$description": "Caption MD font size (13px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "12",
-            "$description": "Caption SM font size (12px)"
-          }
-        },
-        "overline": {
-          "md": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Overline MD font size (14px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "13",
-            "$description": "Overline SM font size (13px)"
+          "text": {
+            "disabled": {
+              "$type": "color",
+              "$value": "{neutral.400}",
+              "$description": "Disabled button text color (Dark mode)"
+            },
+            "filled": {
+              "complementary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled complementary button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled complementary button pressed text color (Dark mode)"
+                }
+              },
+              "error": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled error button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled error button pressed text color (Dark mode)"
+                }
+              },
+              "info": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled info button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled info button pressed text color (Dark mode)"
+                }
+              },
+              "primary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled primary button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled primary button pressed text color (Dark mode)"
+                }
+              },
+              "secondary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled secondary button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled secondary button pressed text color (Dark mode)"
+                }
+              },
+              "success": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled success button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Filled success button pressed text color (Dark mode)"
+                }
+              },
+              "warning": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled warning button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{neutral.800}",
+                  "$description": "Filled warning button pressed text color (Dark mode)"
+                }
+              }
+            },
+            "outline": {
+              "complementary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline complementary button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline complementary button pressed text color (Dark mode)"
+                }
+              },
+              "disabled": {
+                "$type": "color",
+                "$value": "{neutral.400}",
+                "$description": "Disabled outline button text color (Dark mode)"
+              },
+              "error": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{error.500}",
+                  "$description": "Outline error button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{error.700}",
+                  "$description": "Outline error button pressed text color (Dark mode)"
+                }
+              },
+              "info": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{info.500}",
+                  "$description": "Outline info button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{info.700}",
+                  "$description": "Outline info button pressed text color (Dark mode)"
+                }
+              },
+              "primary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{primary.500}",
+                  "$description": "Outline primary button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{primary.700}",
+                  "$description": "Outline primary button pressed text color (Dark mode)"
+                }
+              },
+              "secondary": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline secondary button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline secondary button pressed text color (Dark mode)"
+                }
+              },
+              "success": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{success.700}",
+                  "$description": "Outline success button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{success.900}",
+                  "$description": "Outline success button pressed text color (Dark mode)"
+                }
+              },
+              "warning": {
+                "default": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline warning button default text color (Dark mode)"
+                },
+                "pressed": {
+                  "$type": "color",
+                  "$value": "{base.white}",
+                  "$description": "Outline warning button pressed text color (Dark mode)"
+                }
+              }
+            },
+            "transparent": {
+              "default": {
+                "$type": "color",
+                "$value": "{base.white}",
+                "$description": "Transparent ghost button default text color (Dark mode)"
+              },
+              "pressed": {
+                "$type": "color",
+                "$value": "{neutral.100}",
+                "$description": "Transparent ghost button pressed text color (Dark mode)"
+              }
+            }
           }
         }
       }
     },
-    "foundation/seed-color": {
-      "base": {
-        "white": {
-          "$type": "color",
-          "$value": "#ffffff",
-          "$description": "Pure absolute white (#ffffff)"
-        },
-        "black": {
-          "$type": "color",
-          "$value": "#000000",
-          "$description": "Pure absolute black (#000000)"
-        }
-      },
-      "gray": {
+    "alias/color-palette": {
+      "neutral": {
         "50": {
           "$type": "color",
-          "$value": "#fafafa",
-          "$description": "Gray 50 - Lightest tint for subtle backgrounds"
+          "$value": "{gray.50}",
+          "$description": "Gray 50"
         },
         "100": {
           "$type": "color",
-          "$value": "#f7f7f7",
-          "$description": "Gray 100 - Very light background surface"
+          "$value": "{gray.100}",
+          "$description": "Gray 100"
         },
         "200": {
           "$type": "color",
-          "$value": "#eeeeee",
-          "$description": "Gray 200 - Light surface container fill"
+          "$value": "{gray.200}",
+          "$description": "Gray 200"
         },
         "300": {
           "$type": "color",
-          "$value": "#e0e0e0",
-          "$description": "Gray 300 - Subtle border and divider"
+          "$value": "{gray.300}",
+          "$description": "Gray 300"
         },
         "400": {
           "$type": "color",
-          "$value": "#bdbdbd",
-          "$description": "Gray 400 - Medium border and placeholder text"
+          "$value": "{gray.400}",
+          "$description": "Gray 400"
         },
         "500": {
           "$type": "color",
-          "$value": "#9e9e9e",
-          "$description": "Gray 500 - Base mid-tone neutral"
+          "$value": "{gray.500}",
+          "$description": "Gray 500"
         },
         "600": {
           "$type": "color",
-          "$value": "#757575",
-          "$description": "Gray 600 - Secondary text and strong border"
+          "$value": "{gray.600}",
+          "$description": "Gray 600"
         },
         "700": {
           "$type": "color",
-          "$value": "#616161",
-          "$description": "Gray 700 - Dark text and interactive elements"
+          "$value": "{gray.700}",
+          "$description": "Gray 700"
         },
         "800": {
           "$type": "color",
-          "$value": "#424242",
-          "$description": "Gray 800 - High contrast text"
+          "$value": "{gray.800}",
+          "$description": "Gray 800"
         },
         "900": {
           "$type": "color",
-          "$value": "#212121",
-          "$description": "Gray 900 - Deepest neutral for highest contrast text"
+          "$value": "{gray.900}",
+          "$description": "Gray 900"
         }
       },
-      "slate": {
+      "secondary": {
         "50": {
           "$type": "color",
-          "$value": "#eceff1",
-          "$description": "Slate 50 - Lightest cool-gray tint for backgrounds"
+          "$value": "{slate.50}",
+          "$description": "Slate 50"
         },
         "100": {
           "$type": "color",
-          "$value": "#cfd8dc",
-          "$description": "Slate 100 - Light cool-gray surface"
+          "$value": "{slate.100}",
+          "$description": "Slate 100"
         },
         "200": {
           "$type": "color",
-          "$value": "#b0bec5",
-          "$description": "Slate 200 - Subtle cool-gray container fill"
+          "$value": "{slate.200}",
+          "$description": "Slate 200"
         },
         "300": {
           "$type": "color",
-          "$value": "#90a4ae",
-          "$description": "Slate 300 - Soft cool-gray border"
+          "$value": "{slate.300}",
+          "$description": "Slate 300"
         },
         "400": {
           "$type": "color",
-          "$value": "#78909c",
-          "$description": "Slate 400 - Medium cool-gray border and accents"
+          "$value": "{slate.400}",
+          "$description": "Slate 400"
         },
         "500": {
           "$type": "color",
-          "$value": "#607d8b",
-          "$description": "Slate 500 - Base slate blue-gray hue"
+          "$value": "{slate.500}",
+          "$description": "Slate 500"
         },
         "600": {
           "$type": "color",
-          "$value": "#546e7a",
-          "$description": "Slate 600 - Medium dark slate for UI elements"
+          "$value": "{slate.600}",
+          "$description": "Slate 600"
         },
         "700": {
           "$type": "color",
-          "$value": "#455a64",
-          "$description": "Slate 700 - Dark slate for high contrast UI"
+          "$value": "{slate.700}",
+          "$description": "Slate 700"
         },
         "800": {
           "$type": "color",
-          "$value": "#37474f",
-          "$description": "Slate 800 - Very dark slate for text and headings"
+          "$value": "{slate.800}",
+          "$description": "Slate 800"
         },
         "900": {
           "$type": "color",
-          "$value": "#263238",
-          "$description": "Slate 900 - Deepest dark slate tone"
+          "$value": "{slate.900}",
+          "$description": "Slate 900"
         }
       },
-      "blue": {
+      "info": {
         "50": {
           "$type": "color",
-          "$value": "#e3f2fd",
-          "$description": "Blue 50 - Lightest tint for info backgrounds"
+          "$value": "{blue.50}",
+          "$description": "Blue 50"
         },
         "100": {
           "$type": "color",
-          "$value": "#bbdefb",
-          "$description": "Blue 100 - Very light blue surface fill"
+          "$value": "{blue.100}",
+          "$description": "Blue 100"
         },
         "200": {
           "$type": "color",
-          "$value": "#90c9f9",
-          "$description": "Blue 200 - Light blue container fill"
+          "$value": "{blue.200}",
+          "$description": "Blue 200"
         },
         "300": {
           "$type": "color",
-          "$value": "#63b4f6",
-          "$description": "Blue 300 - Subtle blue border and highlight"
+          "$value": "{blue.300}",
+          "$description": "Blue 300"
         },
         "400": {
           "$type": "color",
-          "$value": "#42a4f5",
-          "$description": "Blue 400 - Medium blue for decorative elements"
+          "$value": "{blue.400}",
+          "$description": "Blue 400"
         },
         "500": {
           "$type": "color",
-          "$value": "#2194f3",
-          "$description": "Blue 500 - Base primary blue hue"
+          "$value": "{blue.500}",
+          "$description": "Blue 500"
         },
         "600": {
           "$type": "color",
-          "$value": "#1f87e5",
-          "$description": "Blue 600 - Interactive hover blue"
+          "$value": "{blue.600}",
+          "$description": "Blue 600"
         },
         "700": {
           "$type": "color",
-          "$value": "#1a75d2",
-          "$description": "Blue 700 - Dark interactive blue"
+          "$value": "{blue.700}",
+          "$description": "Blue 700"
         },
         "800": {
           "$type": "color",
-          "$value": "#1764c0",
-          "$description": "Blue 800 - Deep blue for accessible text"
+          "$value": "{blue.800}",
+          "$description": "Blue 800"
         },
         "900": {
           "$type": "color",
-          "$value": "#1045a1",
-          "$description": "Blue 900 - Darkest blue for high contrast"
+          "$value": "{blue.900}",
+          "$description": "Blue 900"
         }
       },
-      "yellow": {
+      "warning": {
         "50": {
           "$type": "color",
-          "$value": "#fffde7",
-          "$description": "Yellow 50 - Lightest tint for warning backgrounds"
+          "$value": "{yellow.50}",
+          "$description": "Yellow 50"
         },
         "100": {
           "$type": "color",
-          "$value": "#fff9c4",
-          "$description": "Yellow 100 - Very light warning surface fill"
+          "$value": "{yellow.100}",
+          "$description": "Yellow 100"
         },
         "200": {
           "$type": "color",
-          "$value": "#fff59d",
-          "$description": "Yellow 200 - Light yellow container fill"
+          "$value": "{yellow.200}",
+          "$description": "Yellow 200"
         },
         "300": {
           "$type": "color",
-          "$value": "#fef075",
-          "$description": "Yellow 300 - Subtle warning border"
+          "$value": "{yellow.300}",
+          "$description": "Yellow 300"
         },
         "400": {
           "$type": "color",
-          "$value": "#fceb55",
-          "$description": "Yellow 400 - Medium yellow warning accent"
+          "$value": "{yellow.400}",
+          "$description": "Yellow 400"
         },
         "500": {
           "$type": "color",
-          "$value": "#fae635",
-          "$description": "Yellow 500 - Base primary yellow warning hue"
+          "$value": "{yellow.500}",
+          "$description": "Yellow 500"
         },
         "600": {
           "$type": "color",
-          "$value": "#fdd835",
-          "$description": "Yellow 600 - Darker yellow warning indicator"
+          "$value": "{yellow.600}",
+          "$description": "Yellow 600"
         },
         "700": {
           "$type": "color",
-          "$value": "#fbc02d",
-          "$description": "Yellow 700 - Dark amber yellow for icons"
+          "$value": "{yellow.700}",
+          "$description": "Yellow 700"
         },
         "800": {
           "$type": "color",
-          "$value": "#f9a825",
-          "$description": "Yellow 800 - Deep yellow-amber for accessible text"
+          "$value": "{yellow.800}",
+          "$description": "Yellow 800"
         },
         "900": {
           "$type": "color",
-          "$value": "#f57f17",
-          "$description": "Yellow 900 - Deepest amber tone"
+          "$value": "{yellow.900}",
+          "$description": "Yellow 900"
         }
       },
-      "red": {
+      "error": {
         "50": {
           "$type": "color",
-          "$value": "#ffebee",
-          "$description": "Red 50 - Lightest tint for error backgrounds"
+          "$value": "{red.50}",
+          "$description": "Red 50"
         },
         "100": {
           "$type": "color",
-          "$value": "#ffcdd2",
-          "$description": "Red 100 - Very light error surface fill"
+          "$value": "{red.100}",
+          "$description": "Red 100"
         },
         "200": {
           "$type": "color",
-          "$value": "#ef9a9a",
-          "$description": "Red 200 - Light red container fill"
+          "$value": "{red.200}",
+          "$description": "Red 200"
         },
         "300": {
           "$type": "color",
-          "$value": "#e57373",
-          "$description": "Red 300 - Subtle error border"
+          "$value": "{red.300}",
+          "$description": "Red 300"
         },
         "400": {
           "$type": "color",
-          "$value": "#ef5350",
-          "$description": "Red 400 - Medium red alert accent"
+          "$value": "{red.400}",
+          "$description": "Red 400"
         },
         "500": {
           "$type": "color",
-          "$value": "#f44236",
-          "$description": "Red 500 - Base primary red error hue"
+          "$value": "{red.500}",
+          "$description": "Red 500"
         },
         "600": {
           "$type": "color",
-          "$value": "#e53835",
-          "$description": "Red 600 - Interactive hover red"
+          "$value": "{red.600}",
+          "$description": "Red 600"
         },
         "700": {
           "$type": "color",
-          "$value": "#d32e2f",
-          "$description": "Red 700 - Dark red for accessible text and icons"
+          "$value": "{red.700}",
+          "$description": "Red 700"
         },
         "800": {
           "$type": "color",
-          "$value": "#c62728",
-          "$description": "Red 800 - Deep red for high contrast alert text"
+          "$value": "{red.800}",
+          "$description": "Red 800"
         },
         "900": {
           "$type": "color",
-          "$value": "#b71b1c",
-          "$description": "Red 900 - Darkest red tone"
+          "$value": "{red.900}",
+          "$description": "Red 900"
         }
       },
-      "green": {
+      "success": {
         "50": {
           "$type": "color",
-          "$value": "#e8f5e9",
+          "$value": "{green.50}",
           "$description": "Green 50 - Lightest tint for success backgrounds"
         },
         "100": {
           "$type": "color",
-          "$value": "#c8e6c9",
+          "$value": "{green.100}",
           "$description": "Green 100 - Very light green surface fill"
         },
         "200": {
           "$type": "color",
-          "$value": "#a5d6a7",
+          "$value": "{green.200}",
           "$description": "Green 200 - Light green container fill"
         },
         "300": {
           "$type": "color",
-          "$value": "#81c784",
+          "$value": "{green.300}",
           "$description": "Green 300 - Subtle green border and indicator"
         },
         "400": {
           "$type": "color",
-          "$value": "#66bb69",
+          "$value": "{green.400}",
           "$description": "Green 400 - Medium green indicator"
         },
         "500": {
           "$type": "color",
-          "$value": "#4caf4f",
+          "$value": "{green.500}",
           "$description": "Green 500 - Base primary green success hue"
         },
         "600": {
           "$type": "color",
-          "$value": "#43a046",
+          "$value": "{green.600}",
           "$description": "Green 600 - Interactive hover green"
         },
         "700": {
           "$type": "color",
-          "$value": "#388e3b",
+          "$value": "{green.700}",
           "$description": "Green 700 - Dark green for accessible text and icons"
         },
         "800": {
           "$type": "color",
-          "$value": "#2e7d31",
+          "$value": "{green.800}",
           "$description": "Green 800 - Deep green for high contrast text"
         },
         "900": {
           "$type": "color",
-          "$value": "#1b5e1f",
+          "$value": "{green.900}",
           "$description": "Green 900 - Darkest green tone"
         }
       },
-      "violet": {
+      "complementary": {
         "50": {
           "$type": "color",
-          "$value": "#f3e5f5",
-          "$description": "Violet 50 - Lightest tint for purple backgrounds"
+          "$value": "{violet.50}",
+          "$description": "Violet 50"
         },
         "100": {
           "$type": "color",
-          "$value": "#e1bee7",
-          "$description": "Violet 100 - Very light violet surface fill"
+          "$value": "{violet.100}",
+          "$description": "Violet 100"
         },
         "200": {
           "$type": "color",
-          "$value": "#ce93d8",
-          "$description": "Violet 200 - Light violet container fill"
+          "$value": "{violet.200}",
+          "$description": "Violet 200"
         },
         "300": {
           "$type": "color",
-          "$value": "#ba68c8",
-          "$description": "Violet 300 - Subtle violet border"
+          "$value": "{violet.300}",
+          "$description": "Violet 300"
         },
         "400": {
           "$type": "color",
-          "$value": "#ab47bc",
-          "$description": "Violet 400 - Medium violet accent"
+          "$value": "{violet.400}",
+          "$description": "Violet 400"
         },
         "500": {
           "$type": "color",
-          "$value": "#9c27b0",
-          "$description": "Violet 500 - Base primary violet hue"
+          "$value": "{violet.500}",
+          "$description": "Violet 500"
         },
         "600": {
           "$type": "color",
-          "$value": "#8e24aa",
-          "$description": "Violet 600 - Interactive hover violet"
+          "$value": "{violet.600}",
+          "$description": "Violet 600"
         },
         "700": {
           "$type": "color",
-          "$value": "#7b1fa2",
-          "$description": "Violet 700 - Dark violet for accessible UI elements"
+          "$value": "{violet.700}",
+          "$description": "Violet 700"
         },
         "800": {
           "$type": "color",
-          "$value": "#6a1b9a",
-          "$description": "Violet 800 - Deep violet for high contrast text"
+          "$value": "{violet.800}",
+          "$description": "Violet 800"
         },
         "900": {
           "$type": "color",
-          "$value": "#4a148c",
-          "$description": "Violet 900 - Deepest violet tone"
+          "$value": "{violet.900}",
+          "$description": "Violet 900"
         }
       }
     },
-    "foundation/spacing-unite": {
-      "unites": {
-        "x0": {
+    "dimension/global": {
+      "padding": {
+        "none": {
           "$type": "dimension",
-          "$value": "0px"
+          "$value": "{unites.x0}",
+          "$description": "0px - No padding"
         },
-        "x1": {
+        "3xs": {
           "$type": "dimension",
-          "$value": "1px"
+          "$value": "{unites.x2}",
+          "$description": "2px padding"
         },
-        "x2": {
+        "2xs": {
           "$type": "dimension",
-          "$value": "2px"
+          "$value": "{unites.x4}",
+          "$description": "4px padding"
         },
-        "x3": {
+        "xs": {
           "$type": "dimension",
-          "$value": "3px"
+          "$value": "{unites.x8}",
+          "$description": "8px padding"
         },
-        "x4": {
+        "sm": {
           "$type": "dimension",
-          "$value": "4px"
+          "$value": "{unites.x12}",
+          "$description": "12px padding"
         },
-        "x6": {
+        "md": {
           "$type": "dimension",
-          "$value": "6px"
+          "$value": "{unites.x16}",
+          "$description": "16px base padding"
         },
-        "x8": {
+        "lg": {
           "$type": "dimension",
-          "$value": "8px"
+          "$value": "{unites.x24}",
+          "$description": "24px padding"
         },
-        "x10": {
+        "xl": {
           "$type": "dimension",
-          "$value": "10px"
+          "$value": "{unites.x32}",
+          "$description": "32px padding"
         },
-        "x12": {
+        "2xl": {
           "$type": "dimension",
-          "$value": "12px"
+          "$value": "{unites.x48}",
+          "$description": "48px padding"
         },
-        "x14": {
+        "3xl": {
           "$type": "dimension",
-          "$value": "14px"
+          "$value": "{unites.x64}",
+          "$description": "64px padding"
         },
-        "x16": {
+        "4xl": {
           "$type": "dimension",
-          "$value": "16px"
+          "$value": "{unites.x96}",
+          "$description": "96px padding"
+        }
+      },
+      "radius": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - Sharp corners"
         },
-        "x18": {
+        "xs": {
           "$type": "dimension",
-          "$value": "18px"
+          "$value": "{unites.x2}",
+          "$description": "2px - Micro radius"
         },
-        "x20": {
+        "sm": {
           "$type": "dimension",
-          "$value": "20px"
+          "$value": "{unites.x4}",
+          "$description": "4px - Small component radius"
         },
-        "x22": {
+        "md": {
           "$type": "dimension",
-          "$value": "22px"
+          "$value": "{unites.x6}",
+          "$description": "6px - Default base radius"
         },
-        "x24": {
+        "lg": {
           "$type": "dimension",
-          "$value": "24px"
+          "$value": "{unites.x8}",
+          "$description": "8px - Card and container radius"
         },
-        "x26": {
+        "xl": {
           "$type": "dimension",
-          "$value": "26px"
+          "$value": "{unites.x12}",
+          "$description": "12px - Sheet and floating panel radius"
         },
-        "x28": {
+        "2xl": {
           "$type": "dimension",
-          "$value": "28px"
+          "$value": "{unites.x16}",
+          "$description": "16px - Large modal radius"
         },
-        "x30": {
+        "3xl": {
           "$type": "dimension",
-          "$value": "30px"
+          "$value": "{unites.x24}",
+          "$description": "24px - Hero container radius"
         },
-        "x32": {
+        "full": {
           "$type": "dimension",
-          "$value": "32px"
+          "$value": "{unites.x999}",
+          "$description": "999px - Pill / circular radius"
+        }
+      },
+      "border": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - No border"
         },
-        "x34": {
+        "sm": {
           "$type": "dimension",
-          "$value": "34px"
+          "$value": "{unites.x1}",
+          "$description": "1px - Default standard border"
         },
-        "x36": {
+        "md": {
           "$type": "dimension",
-          "$value": "36px"
+          "$value": "{unites.x2}",
+          "$description": "2px - Focus and active indicator border"
         },
-        "x38": {
+        "lg": {
           "$type": "dimension",
-          "$value": "38px"
+          "$value": "{unites.x4}",
+          "$description": "4px - Callout and progress border"
         },
-        "x40": {
+        "xl": {
           "$type": "dimension",
-          "$value": "40px"
-        },
-        "x42": {
-          "$type": "dimension",
-          "$value": "42px"
-        },
-        "x44": {
-          "$type": "dimension",
-          "$value": "44px"
-        },
-        "x46": {
-          "$type": "dimension",
-          "$value": "46px"
-        },
-        "x48": {
-          "$type": "dimension",
-          "$value": "48px"
-        },
-        "x50": {
-          "$type": "dimension",
-          "$value": "50px"
-        },
-        "x52": {
-          "$type": "dimension",
-          "$value": "52px"
-        },
-        "x54": {
-          "$type": "dimension",
-          "$value": "54px"
-        },
-        "x56": {
-          "$type": "dimension",
-          "$value": "56px"
-        },
-        "x58": {
-          "$type": "dimension",
-          "$value": "58px"
-        },
-        "x60": {
-          "$type": "dimension",
-          "$value": "60px"
-        },
-        "x62": {
-          "$type": "dimension",
-          "$value": "62px"
-        },
-        "x64": {
-          "$type": "dimension",
-          "$value": "64px"
-        },
-        "x66": {
-          "$type": "dimension",
-          "$value": "66px"
-        },
-        "x68": {
-          "$type": "dimension",
-          "$value": "68px"
-        },
-        "x70": {
-          "$type": "dimension",
-          "$value": "70px"
-        },
-        "x72": {
-          "$type": "dimension",
-          "$value": "72px"
-        },
-        "x74": {
-          "$type": "dimension",
-          "$value": "74px"
-        },
-        "x76": {
-          "$type": "dimension",
-          "$value": "76px"
-        },
-        "x78": {
-          "$type": "dimension",
-          "$value": "78px"
-        },
-        "x80": {
-          "$type": "dimension",
-          "$value": "80px"
-        },
-        "x82": {
-          "$type": "dimension",
-          "$value": "82px"
-        },
-        "x84": {
-          "$type": "dimension",
-          "$value": "84px"
-        },
-        "x86": {
-          "$type": "dimension",
-          "$value": "86px"
-        },
-        "x88": {
-          "$type": "dimension",
-          "$value": "88px"
-        },
-        "x90": {
-          "$type": "dimension",
-          "$value": "90px"
-        },
-        "x92": {
-          "$type": "dimension",
-          "$value": "92px"
-        },
-        "x94": {
-          "$type": "dimension",
-          "$value": "94px"
-        },
-        "x96": {
-          "$type": "dimension",
-          "$value": "96px"
-        },
-        "x98": {
-          "$type": "dimension",
-          "$value": "98px"
-        },
-        "x100": {
-          "$type": "dimension",
-          "$value": "100px"
-        },
-        "x999": {
-          "$type": "dimension",
-          "$value": "999px"
+          "$value": "{unites.x8}",
+          "$description": "8px - Heavy accent border"
         }
       }
     },
-    "mode/dark/global": {},
     "mode/light/component": {
       "button": {
         "bg": {
@@ -1602,6 +2111,768 @@
         }
       }
     },
+    "foundation/font-families": {
+      "font-families": {
+        "primary": {
+          "$type": "fontFamilies",
+          "$value": "Inter, Arial",
+          "$description": "Primary sans-serif font stack"
+        }
+      }
+    },
+    "foundation/seed-color": {
+      "base": {
+        "white": {
+          "$type": "color",
+          "$value": "#ffffff",
+          "$description": "Pure absolute white (#ffffff)"
+        },
+        "black": {
+          "$type": "color",
+          "$value": "#000000",
+          "$description": "Pure absolute black (#000000)"
+        }
+      },
+      "gray": {
+        "50": {
+          "$type": "color",
+          "$value": "#fafafa",
+          "$description": "Gray 50 - Lightest tint for subtle backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#f7f7f7",
+          "$description": "Gray 100 - Very light background surface"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#eeeeee",
+          "$description": "Gray 200 - Light surface container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#e0e0e0",
+          "$description": "Gray 300 - Subtle border and divider"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#bdbdbd",
+          "$description": "Gray 400 - Medium border and placeholder text"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#9e9e9e",
+          "$description": "Gray 500 - Base mid-tone neutral"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#757575",
+          "$description": "Gray 600 - Secondary text and strong border"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#616161",
+          "$description": "Gray 700 - Dark text and interactive elements"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#424242",
+          "$description": "Gray 800 - High contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#212121",
+          "$description": "Gray 900 - Deepest neutral for highest contrast text"
+        }
+      },
+      "slate": {
+        "50": {
+          "$type": "color",
+          "$value": "#eceff1",
+          "$description": "Slate 50 - Lightest cool-gray tint for backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#cfd8dc",
+          "$description": "Slate 100 - Light cool-gray surface"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#b0bec5",
+          "$description": "Slate 200 - Subtle cool-gray container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#90a4ae",
+          "$description": "Slate 300 - Soft cool-gray border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#78909c",
+          "$description": "Slate 400 - Medium cool-gray border and accents"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#607d8b",
+          "$description": "Slate 500 - Base slate blue-gray hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#546e7a",
+          "$description": "Slate 600 - Medium dark slate for UI elements"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#455a64",
+          "$description": "Slate 700 - Dark slate for high contrast UI"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#37474f",
+          "$description": "Slate 800 - Very dark slate for text and headings"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#263238",
+          "$description": "Slate 900 - Deepest dark slate tone"
+        }
+      },
+      "blue": {
+        "50": {
+          "$type": "color",
+          "$value": "#e3f2fd",
+          "$description": "Blue 50 - Lightest tint for info backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#bbdefb",
+          "$description": "Blue 100 - Very light blue surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#90c9f9",
+          "$description": "Blue 200 - Light blue container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#63b4f6",
+          "$description": "Blue 300 - Subtle blue border and highlight"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#42a4f5",
+          "$description": "Blue 400 - Medium blue for decorative elements"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#2194f3",
+          "$description": "Blue 500 - Base primary blue hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#1f87e5",
+          "$description": "Blue 600 - Interactive hover blue"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#1a75d2",
+          "$description": "Blue 700 - Dark interactive blue"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#1764c0",
+          "$description": "Blue 800 - Deep blue for accessible text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#1045a1",
+          "$description": "Blue 900 - Darkest blue for high contrast"
+        }
+      },
+      "yellow": {
+        "50": {
+          "$type": "color",
+          "$value": "#fffde7",
+          "$description": "Yellow 50 - Lightest tint for warning backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#fff9c4",
+          "$description": "Yellow 100 - Very light warning surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#fff59d",
+          "$description": "Yellow 200 - Light yellow container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#fef075",
+          "$description": "Yellow 300 - Subtle warning border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#fceb55",
+          "$description": "Yellow 400 - Medium yellow warning accent"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#fae635",
+          "$description": "Yellow 500 - Base primary yellow warning hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#fdd835",
+          "$description": "Yellow 600 - Darker yellow warning indicator"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#fbc02d",
+          "$description": "Yellow 700 - Dark amber yellow for icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#f9a825",
+          "$description": "Yellow 800 - Deep yellow-amber for accessible text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#f57f17",
+          "$description": "Yellow 900 - Deepest amber tone"
+        }
+      },
+      "red": {
+        "50": {
+          "$type": "color",
+          "$value": "#ffebee",
+          "$description": "Red 50 - Lightest tint for error backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#ffcdd2",
+          "$description": "Red 100 - Very light error surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#ef9a9a",
+          "$description": "Red 200 - Light red container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#e57373",
+          "$description": "Red 300 - Subtle error border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#ef5350",
+          "$description": "Red 400 - Medium red alert accent"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#f44236",
+          "$description": "Red 500 - Base primary red error hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#e53835",
+          "$description": "Red 600 - Interactive hover red"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#d32e2f",
+          "$description": "Red 700 - Dark red for accessible text and icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#c62728",
+          "$description": "Red 800 - Deep red for high contrast alert text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#b71b1c",
+          "$description": "Red 900 - Darkest red tone"
+        }
+      },
+      "green": {
+        "50": {
+          "$type": "color",
+          "$value": "#e8f5e9",
+          "$description": "Green 50 - Lightest tint for success backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#c8e6c9",
+          "$description": "Green 100 - Very light green surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#a5d6a7",
+          "$description": "Green 200 - Light green container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#81c784",
+          "$description": "Green 300 - Subtle green border and indicator"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#66bb69",
+          "$description": "Green 400 - Medium green indicator"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#4caf4f",
+          "$description": "Green 500 - Base primary green success hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#43a046",
+          "$description": "Green 600 - Interactive hover green"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#388e3b",
+          "$description": "Green 700 - Dark green for accessible text and icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#2e7d31",
+          "$description": "Green 800 - Deep green for high contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#1b5e1f",
+          "$description": "Green 900 - Darkest green tone"
+        }
+      },
+      "violet": {
+        "50": {
+          "$type": "color",
+          "$value": "#f3e5f5",
+          "$description": "Violet 50 - Lightest tint for purple backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#e1bee7",
+          "$description": "Violet 100 - Very light violet surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#ce93d8",
+          "$description": "Violet 200 - Light violet container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#ba68c8",
+          "$description": "Violet 300 - Subtle violet border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#ab47bc",
+          "$description": "Violet 400 - Medium violet accent"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#9c27b0",
+          "$description": "Violet 500 - Base primary violet hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#8e24aa",
+          "$description": "Violet 600 - Interactive hover violet"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#7b1fa2",
+          "$description": "Violet 700 - Dark violet for accessible UI elements"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#6a1b9a",
+          "$description": "Violet 800 - Deep violet for high contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#4a148c",
+          "$description": "Violet 900 - Deepest violet tone"
+        }
+      }
+    },
+    "foundation/spacing-unite": {
+      "unites": {
+        "x0": {
+          "$type": "dimension",
+          "$value": "0px"
+        },
+        "x1": {
+          "$type": "dimension",
+          "$value": "1px"
+        },
+        "x2": {
+          "$type": "dimension",
+          "$value": "2px"
+        },
+        "x3": {
+          "$type": "dimension",
+          "$value": "3px"
+        },
+        "x4": {
+          "$type": "dimension",
+          "$value": "4px"
+        },
+        "x6": {
+          "$type": "dimension",
+          "$value": "6px"
+        },
+        "x8": {
+          "$type": "dimension",
+          "$value": "8px"
+        },
+        "x10": {
+          "$type": "dimension",
+          "$value": "10px"
+        },
+        "x12": {
+          "$type": "dimension",
+          "$value": "12px"
+        },
+        "x14": {
+          "$type": "dimension",
+          "$value": "14px"
+        },
+        "x16": {
+          "$type": "dimension",
+          "$value": "16px"
+        },
+        "x18": {
+          "$type": "dimension",
+          "$value": "18px"
+        },
+        "x20": {
+          "$type": "dimension",
+          "$value": "20px"
+        },
+        "x22": {
+          "$type": "dimension",
+          "$value": "22px"
+        },
+        "x24": {
+          "$type": "dimension",
+          "$value": "24px"
+        },
+        "x26": {
+          "$type": "dimension",
+          "$value": "26px"
+        },
+        "x28": {
+          "$type": "dimension",
+          "$value": "28px"
+        },
+        "x30": {
+          "$type": "dimension",
+          "$value": "30px"
+        },
+        "x32": {
+          "$type": "dimension",
+          "$value": "32px"
+        },
+        "x34": {
+          "$type": "dimension",
+          "$value": "34px"
+        },
+        "x36": {
+          "$type": "dimension",
+          "$value": "36px"
+        },
+        "x38": {
+          "$type": "dimension",
+          "$value": "38px"
+        },
+        "x40": {
+          "$type": "dimension",
+          "$value": "40px"
+        },
+        "x42": {
+          "$type": "dimension",
+          "$value": "42px"
+        },
+        "x44": {
+          "$type": "dimension",
+          "$value": "44px"
+        },
+        "x46": {
+          "$type": "dimension",
+          "$value": "46px"
+        },
+        "x48": {
+          "$type": "dimension",
+          "$value": "48px"
+        },
+        "x50": {
+          "$type": "dimension",
+          "$value": "50px"
+        },
+        "x52": {
+          "$type": "dimension",
+          "$value": "52px"
+        },
+        "x54": {
+          "$type": "dimension",
+          "$value": "54px"
+        },
+        "x56": {
+          "$type": "dimension",
+          "$value": "56px"
+        },
+        "x58": {
+          "$type": "dimension",
+          "$value": "58px"
+        },
+        "x60": {
+          "$type": "dimension",
+          "$value": "60px"
+        },
+        "x62": {
+          "$type": "dimension",
+          "$value": "62px"
+        },
+        "x64": {
+          "$type": "dimension",
+          "$value": "64px"
+        },
+        "x66": {
+          "$type": "dimension",
+          "$value": "66px"
+        },
+        "x68": {
+          "$type": "dimension",
+          "$value": "68px"
+        },
+        "x70": {
+          "$type": "dimension",
+          "$value": "70px"
+        },
+        "x72": {
+          "$type": "dimension",
+          "$value": "72px"
+        },
+        "x74": {
+          "$type": "dimension",
+          "$value": "74px"
+        },
+        "x76": {
+          "$type": "dimension",
+          "$value": "76px"
+        },
+        "x78": {
+          "$type": "dimension",
+          "$value": "78px"
+        },
+        "x80": {
+          "$type": "dimension",
+          "$value": "80px"
+        },
+        "x82": {
+          "$type": "dimension",
+          "$value": "82px"
+        },
+        "x84": {
+          "$type": "dimension",
+          "$value": "84px"
+        },
+        "x86": {
+          "$type": "dimension",
+          "$value": "86px"
+        },
+        "x88": {
+          "$type": "dimension",
+          "$value": "88px"
+        },
+        "x90": {
+          "$type": "dimension",
+          "$value": "90px"
+        },
+        "x92": {
+          "$type": "dimension",
+          "$value": "92px"
+        },
+        "x94": {
+          "$type": "dimension",
+          "$value": "94px"
+        },
+        "x96": {
+          "$type": "dimension",
+          "$value": "96px"
+        },
+        "x98": {
+          "$type": "dimension",
+          "$value": "98px"
+        },
+        "x100": {
+          "$type": "dimension",
+          "$value": "100px"
+        },
+        "x999": {
+          "$type": "dimension",
+          "$value": "999px"
+        }
+      }
+    },
+    "mode/dark/global": {},
+    "typography/component": {},
+    "alias/typography": {
+      "font-weight": {
+        "normal": {
+          "$type": "fontWeights",
+          "$value": "Regular",
+          "$description": "Normal font weight (400) for standard body copy"
+        },
+        "medium": {
+          "$type": "fontWeights",
+          "$value": "Medium",
+          "$description": "Medium font weight (500) for emphasized text and UI elements"
+        },
+        "semibold": {
+          "$type": "fontWeights",
+          "$value": "Semi Bold",
+          "$description": "Semi-bold font weight (600) for headings and prominent labels"
+        }
+      },
+      "line-height": {
+        "tight": {
+          "$type": "lineHeights",
+          "$value": "1.25",
+          "$description": "Tight (1.25) line height ratio for headings and single-line elements"
+        },
+        "normal": {
+          "$type": "lineHeights",
+          "$value": "1.5",
+          "$description": "Normal (1.5) line height ratio for readable multi-line body text"
+        }
+      },
+      "letter-spacing": {
+        "normal": {
+          "$type": "letterSpacing",
+          "$value": "0%",
+          "$description": "Normal letter spacing tracking (0%)"
+        },
+        "wide": {
+          "$type": "letterSpacing",
+          "$value": "2%",
+          "$description": "Wide letter spacing tracking (2%)"
+        }
+      },
+      "font-size": {
+        "heading": {
+          "h1": {
+            "$type": "fontSizes",
+            "$value": "48",
+            "$description": "Heading 1 font size (48px)"
+          },
+          "h2": {
+            "$type": "fontSizes",
+            "$value": "40",
+            "$description": "Heading 2 font size (40px)"
+          },
+          "h3": {
+            "$type": "fontSizes",
+            "$value": "36",
+            "$description": "Heading 3 font size (36px)"
+          },
+          "h4": {
+            "$type": "fontSizes",
+            "$value": "32",
+            "$description": "Heading 4 font size (32px)"
+          },
+          "h5": {
+            "$type": "fontSizes",
+            "$value": "28",
+            "$description": "Heading 5 font size (28px)"
+          },
+          "h6": {
+            "$type": "fontSizes",
+            "$value": "24",
+            "$description": "Heading 6 font size (24px)"
+          }
+        },
+        "title": {
+          "xl": {
+            "$type": "fontSizes",
+            "$value": "20",
+            "$description": "Title XL font size (20px)"
+          },
+          "lg": {
+            "$type": "fontSizes",
+            "$value": "18",
+            "$description": "Title LG font size (18px)"
+          },
+          "md": {
+            "$type": "fontSizes",
+            "$value": "16",
+            "$description": "Title MD font size (16px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Title SM font size (14px)"
+          }
+        },
+        "subtitle": {
+          "md": {
+            "$type": "fontSizes",
+            "$value": "16",
+            "$description": "Subtitle MD font size (16px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Subtitle SM font size (14px)"
+          }
+        },
+        "body": {
+          "lg": {
+            "$type": "fontSizes",
+            "$value": "18",
+            "$description": "Body LG font size (18px)"
+          },
+          "md": {
+            "$type": "fontSizes",
+            "$value": "16",
+            "$description": "Body MD font size (16px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Body SM font size (14px)"
+          }
+        },
+        "caption": {
+          "md": {
+            "$type": "fontSizes",
+            "$value": "13",
+            "$description": "Caption MD font size (13px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "12",
+            "$description": "Caption SM font size (12px)"
+          }
+        },
+        "overline": {
+          "md": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Overline MD font size (14px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "13",
+            "$description": "Overline SM font size (13px)"
+          }
+        }
+      }
+    },
+    "mode/light/global": {},
     "typography/global": {
       "heading": {
         "h1": {
@@ -2002,1331 +3273,60 @@
         }
       }
     },
-    "mode/light/global": {},
-    "alias/spacing": {
-      "padding": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - No padding"
-        },
-        "3xs": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px padding"
-        },
-        "2xs": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px padding"
-        },
-        "xs": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px padding"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x12}",
-          "$description": "12px padding"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x16}",
-          "$description": "16px base padding"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x24}",
-          "$description": "24px padding"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x32}",
-          "$description": "32px padding"
-        },
-        "2xl": {
-          "$type": "dimension",
-          "$value": "{unites.x48}",
-          "$description": "48px padding"
-        },
-        "3xl": {
-          "$type": "dimension",
-          "$value": "{unites.x64}",
-          "$description": "64px padding"
-        },
-        "4xl": {
-          "$type": "dimension",
-          "$value": "{unites.x96}",
-          "$description": "96px padding"
-        }
-      },
-      "radius": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - Sharp corners"
-        },
-        "xs": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px - Micro radius"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px - Small component radius"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x6}",
-          "$description": "6px - Default base radius"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px - Card and container radius"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x12}",
-          "$description": "12px - Sheet and floating panel radius"
-        },
-        "2xl": {
-          "$type": "dimension",
-          "$value": "{unites.x16}",
-          "$description": "16px - Large modal radius"
-        },
-        "3xl": {
-          "$type": "dimension",
-          "$value": "{unites.x24}",
-          "$description": "24px - Hero container radius"
-        },
-        "full": {
-          "$type": "dimension",
-          "$value": "{unites.x999}",
-          "$description": "999px - Pill / circular radius"
-        }
-      },
-      "border": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - No border"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x1}",
-          "$description": "1px - Default standard border"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px - Focus and active indicator border"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px - Callout and progress border"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px - Heavy accent border"
-        }
-      }
-    },
-    "foundation/font-families": {
-      "font-families": {
-        "primary": {
-          "$type": "fontFamilies",
-          "$value": "Inter, Arial",
-          "$description": "Primary sans-serif font stack"
-        }
-      }
-    },
-    "alias/color-palette": {
-      "neutral": {
+    "brand/justgo": {
+      "primary": {
         "50": {
           "$type": "color",
-          "$value": "{gray.50}",
-          "$description": "Gray 50"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "{gray.100}",
-          "$description": "Gray 100"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "{gray.200}",
-          "$description": "Gray 200"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "{gray.300}",
-          "$description": "Gray 300"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "{gray.400}",
-          "$description": "Gray 400"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{gray.500}",
-          "$description": "Gray 500"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "{gray.600}",
-          "$description": "Gray 600"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{gray.700}",
-          "$description": "Gray 700"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "{gray.800}",
-          "$description": "Gray 800"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "{gray.900}",
-          "$description": "Gray 900"
-        }
-      },
-      "secondary": {
-        "50": {
-          "$type": "color",
-          "$value": "{slate.50}",
-          "$description": "Slate 50"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "{slate.100}",
-          "$description": "Slate 100"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "{slate.200}",
-          "$description": "Slate 200"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "{slate.300}",
-          "$description": "Slate 300"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "{slate.400}",
-          "$description": "Slate 400"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{slate.500}",
-          "$description": "Slate 500"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "{slate.600}",
-          "$description": "Slate 600"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{slate.700}",
-          "$description": "Slate 700"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "{slate.800}",
-          "$description": "Slate 800"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "{slate.900}",
-          "$description": "Slate 900"
-        }
-      },
-      "info": {
-        "50": {
-          "$type": "color",
-          "$value": "{blue.50}",
-          "$description": "Blue 50"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "{blue.100}",
-          "$description": "Blue 100"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "{blue.200}",
-          "$description": "Blue 200"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "{blue.300}",
-          "$description": "Blue 300"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "{blue.400}",
-          "$description": "Blue 400"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{blue.500}",
-          "$description": "Blue 500"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "{blue.600}",
-          "$description": "Blue 600"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{blue.700}",
-          "$description": "Blue 700"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "{blue.800}",
-          "$description": "Blue 800"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "{blue.900}",
-          "$description": "Blue 900"
-        }
-      },
-      "warning": {
-        "50": {
-          "$type": "color",
-          "$value": "{yellow.50}",
-          "$description": "Yellow 50"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "{yellow.100}",
-          "$description": "Yellow 100"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "{yellow.200}",
-          "$description": "Yellow 200"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "{yellow.300}",
-          "$description": "Yellow 300"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "{yellow.400}",
-          "$description": "Yellow 400"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{yellow.500}",
-          "$description": "Yellow 500"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "{yellow.600}",
-          "$description": "Yellow 600"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{yellow.700}",
-          "$description": "Yellow 700"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "{yellow.800}",
-          "$description": "Yellow 800"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "{yellow.900}",
-          "$description": "Yellow 900"
-        }
-      },
-      "error": {
-        "50": {
-          "$type": "color",
-          "$value": "{red.50}",
-          "$description": "Red 50"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "{red.100}",
-          "$description": "Red 100"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "{red.200}",
-          "$description": "Red 200"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "{red.300}",
-          "$description": "Red 300"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "{red.400}",
-          "$description": "Red 400"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{red.500}",
-          "$description": "Red 500"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "{red.600}",
-          "$description": "Red 600"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{red.700}",
-          "$description": "Red 700"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "{red.800}",
-          "$description": "Red 800"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "{red.900}",
-          "$description": "Red 900"
-        }
-      },
-      "success": {
-        "50": {
-          "$type": "color",
-          "$value": "{green.50}",
+          "$value": "#e8f5e9",
           "$description": "Green 50 - Lightest tint for success backgrounds"
         },
         "100": {
           "$type": "color",
-          "$value": "{green.100}",
+          "$value": "#c8e6c9",
           "$description": "Green 100 - Very light green surface fill"
         },
         "200": {
           "$type": "color",
-          "$value": "{green.200}",
+          "$value": "#a5d6a7",
           "$description": "Green 200 - Light green container fill"
         },
         "300": {
           "$type": "color",
-          "$value": "{green.300}",
+          "$value": "#81c784",
           "$description": "Green 300 - Subtle green border and indicator"
         },
         "400": {
           "$type": "color",
-          "$value": "{green.400}",
+          "$value": "#66bb69",
           "$description": "Green 400 - Medium green indicator"
         },
         "500": {
           "$type": "color",
-          "$value": "{green.500}",
+          "$value": "#4caf4f",
           "$description": "Green 500 - Base primary green success hue"
         },
         "600": {
           "$type": "color",
-          "$value": "{green.600}",
+          "$value": "#43a046",
           "$description": "Green 600 - Interactive hover green"
         },
         "700": {
           "$type": "color",
-          "$value": "{green.700}",
+          "$value": "#388e3b",
           "$description": "Green 700 - Dark green for accessible text and icons"
         },
         "800": {
           "$type": "color",
-          "$value": "{green.800}",
+          "$value": "#2e7d31",
           "$description": "Green 800 - Deep green for high contrast text"
         },
         "900": {
           "$type": "color",
-          "$value": "{green.900}",
+          "$value": "#1b5e1f",
           "$description": "Green 900 - Darkest green tone"
-        }
-      },
-      "complementary": {
-        "50": {
-          "$type": "color",
-          "$value": "{violet.50}",
-          "$description": "Violet 50"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "{violet.100}",
-          "$description": "Violet 100"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "{violet.200}",
-          "$description": "Violet 200"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "{violet.300}",
-          "$description": "Violet 300"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "{violet.400}",
-          "$description": "Violet 400"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{violet.500}",
-          "$description": "Violet 500"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "{violet.600}",
-          "$description": "Violet 600"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{violet.700}",
-          "$description": "Violet 700"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "{violet.800}",
-          "$description": "Violet 800"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "{violet.900}",
-          "$description": "Violet 900"
-        }
-      }
-    },
-    "dimension/global": {
-      "padding": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - No padding"
-        },
-        "3xs": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px padding"
-        },
-        "2xs": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px padding"
-        },
-        "xs": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px padding"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x12}",
-          "$description": "12px padding"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x16}",
-          "$description": "16px base padding"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x24}",
-          "$description": "24px padding"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x32}",
-          "$description": "32px padding"
-        },
-        "2xl": {
-          "$type": "dimension",
-          "$value": "{unites.x48}",
-          "$description": "48px padding"
-        },
-        "3xl": {
-          "$type": "dimension",
-          "$value": "{unites.x64}",
-          "$description": "64px padding"
-        },
-        "4xl": {
-          "$type": "dimension",
-          "$value": "{unites.x96}",
-          "$description": "96px padding"
-        }
-      },
-      "radius": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - Sharp corners"
-        },
-        "xs": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px - Micro radius"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px - Small component radius"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x6}",
-          "$description": "6px - Default base radius"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px - Card and container radius"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x12}",
-          "$description": "12px - Sheet and floating panel radius"
-        },
-        "2xl": {
-          "$type": "dimension",
-          "$value": "{unites.x16}",
-          "$description": "16px - Large modal radius"
-        },
-        "3xl": {
-          "$type": "dimension",
-          "$value": "{unites.x24}",
-          "$description": "24px - Hero container radius"
-        },
-        "full": {
-          "$type": "dimension",
-          "$value": "{unites.x999}",
-          "$description": "999px - Pill / circular radius"
-        }
-      },
-      "border": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - No border"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x1}",
-          "$description": "1px - Default standard border"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px - Focus and active indicator border"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px - Callout and progress border"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px - Heavy accent border"
-        }
-      }
-    },
-    "typography/component": {},
-    "mode/dark/component": {
-      "button": {
-        "bg": {
-          "disabled": {
-            "$type": "color",
-            "$value": "{neutral.700}",
-            "$description": "Disabled button background color (Dark mode)"
-          },
-          "filled": {
-            "complementary": {
-              "default": {
-                "$type": "color",
-                "$value": "{complementary.900}",
-                "$description": "Filled complementary button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{complementary.900}",
-                "$description": "Filled complementary button pressed background color (Dark mode)"
-              }
-            },
-            "error": {
-              "default": {
-                "$type": "color",
-                "$value": "{error.500}",
-                "$description": "Filled error button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{error.700}",
-                "$description": "Filled error button pressed background color (Dark mode)"
-              }
-            },
-            "info": {
-              "default": {
-                "$type": "color",
-                "$value": "{info.500}",
-                "$description": "Filled info button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{info.700}",
-                "$description": "Filled info button pressed background color (Dark mode)"
-              }
-            },
-            "primary": {
-              "default": {
-                "$type": "color",
-                "$value": "{primary.500}",
-                "$description": "Filled primary button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{primary.700}",
-                "$description": "Filled primary button pressed background color (Dark mode)"
-              }
-            },
-            "secondary": {
-              "default": {
-                "$type": "color",
-                "$value": "{base.white}",
-                "$description": "Filled secondary button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.100}",
-                "$description": "Filled secondary button pressed background color (Dark mode)"
-              }
-            },
-            "success": {
-              "default": {
-                "$type": "color",
-                "$value": "{success.700}",
-                "$description": "Filled success button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{success.900}",
-                "$description": "Filled success button pressed background color (Dark mode)"
-              }
-            },
-            "warning": {
-              "default": {
-                "$type": "color",
-                "$value": "{warning.700}",
-                "$description": "Filled warning button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{warning.900}",
-                "$description": "Filled warning button pressed background color (Dark mode)"
-              }
-            }
-          },
-          "outline": {
-            "complementary": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline complementary button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline complementary button pressed background color (Dark mode)"
-              }
-            },
-            "error": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline error button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline error button pressed background color (Dark mode)"
-              }
-            },
-            "info": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline info button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline info button pressed background color (Dark mode)"
-              }
-            },
-            "primary": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline primary button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline primary button pressed background color (Dark mode)"
-              }
-            },
-            "secondary": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline secondary button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline secondary button pressed background color (Dark mode)"
-              }
-            },
-            "success": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline success button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline success button pressed background color (Dark mode)"
-              }
-            },
-            "warning": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.700}",
-                "$description": "Outline warning button default background color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.900}",
-                "$description": "Outline warning button pressed background color (Dark mode)"
-              }
-            }
-          },
-          "transparent": {
-            "pressed": {
-              "$type": "color",
-              "$value": "{neutral.800}",
-              "$description": "Transparent ghost button pressed background fill (Dark mode)"
-            }
-          }
-        },
-        "border": {
-          "disabled": {
-            "$type": "color",
-            "$value": "{neutral.600}",
-            "$description": "Disabled button border color (Dark mode)"
-          },
-          "outline": {
-            "complementary": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline complementary button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline complementary button pressed border color (Dark mode)"
-              }
-            },
-            "disabled": {
-              "$type": "color",
-              "$value": "{neutral.600}",
-              "$description": "Disabled outline button border color (Dark mode)"
-            },
-            "error": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline error button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline error button pressed border color (Dark mode)"
-              }
-            },
-            "info": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline info button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline info button pressed border color (Dark mode)"
-              }
-            },
-            "primary": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline primary button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline primary button pressed border color (Dark mode)"
-              }
-            },
-            "secondary": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline secondary button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline secondary button pressed border color (Dark mode)"
-              }
-            },
-            "success": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline success button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline success button pressed border color (Dark mode)"
-              }
-            },
-            "warning": {
-              "default": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline warning button default border color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.600}",
-                "$description": "Outline warning button pressed border color (Dark mode)"
-              }
-            }
-          }
-        },
-        "content": {
-          "icon": {
-            "disabled": {
-              "$type": "color",
-              "$value": "{neutral.400}",
-              "$description": "Disabled button icon color (Dark mode)"
-            },
-            "filled": {
-              "complementary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled complementary button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled complementary button pressed icon color (Dark mode)"
-                }
-              },
-              "error": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled error button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled error button pressed icon color (Dark mode)"
-                }
-              },
-              "info": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled info button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled info button pressed icon color (Dark mode)"
-                }
-              },
-              "primary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled primary button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled primary button pressed icon color (Dark mode)"
-                }
-              },
-              "secondary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled secondary button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled secondary button pressed icon color (Dark mode)"
-                }
-              },
-              "success": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled success button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled success button pressed icon color (Dark mode)"
-                }
-              },
-              "warning": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled warning button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled warning button pressed icon color (Dark mode)"
-                }
-              }
-            },
-            "outline": {
-              "complementary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline complementary button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline complementary button pressed icon color (Dark mode)"
-                }
-              },
-              "disabled": {
-                "$type": "color",
-                "$value": "{neutral.400}",
-                "$description": "Disabled outline button icon color (Dark mode)"
-              },
-              "error": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{error.500}",
-                  "$description": "Outline error button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{error.700}",
-                  "$description": "Outline error button pressed icon color (Dark mode)"
-                }
-              },
-              "info": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{info.500}",
-                  "$description": "Outline info button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{info.700}",
-                  "$description": "Outline info button pressed icon color (Dark mode)"
-                }
-              },
-              "primary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{primary.500}",
-                  "$description": "Outline primary button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{primary.700}",
-                  "$description": "Outline primary button pressed icon color (Dark mode)"
-                }
-              },
-              "secondary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline secondary button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline secondary button pressed icon color (Dark mode)"
-                }
-              },
-              "success": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{success.700}",
-                  "$description": "Outline success button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{success.900}",
-                  "$description": "Outline success button pressed icon color (Dark mode)"
-                }
-              },
-              "warning": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline warning button default icon color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline warning button pressed icon color (Dark mode)"
-                }
-              }
-            },
-            "transparent": {
-              "default": {
-                "$type": "color",
-                "$value": "{base.white}",
-                "$description": "Transparent ghost button default icon color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.100}",
-                "$description": "Transparent ghost button pressed icon color (Dark mode)"
-              }
-            }
-          },
-          "text": {
-            "disabled": {
-              "$type": "color",
-              "$value": "{neutral.400}",
-              "$description": "Disabled button text color (Dark mode)"
-            },
-            "filled": {
-              "complementary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled complementary button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled complementary button pressed text color (Dark mode)"
-                }
-              },
-              "error": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled error button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled error button pressed text color (Dark mode)"
-                }
-              },
-              "info": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled info button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled info button pressed text color (Dark mode)"
-                }
-              },
-              "primary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled primary button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled primary button pressed text color (Dark mode)"
-                }
-              },
-              "secondary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled secondary button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled secondary button pressed text color (Dark mode)"
-                }
-              },
-              "success": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled success button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Filled success button pressed text color (Dark mode)"
-                }
-              },
-              "warning": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled warning button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{neutral.800}",
-                  "$description": "Filled warning button pressed text color (Dark mode)"
-                }
-              }
-            },
-            "outline": {
-              "complementary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline complementary button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline complementary button pressed text color (Dark mode)"
-                }
-              },
-              "disabled": {
-                "$type": "color",
-                "$value": "{neutral.400}",
-                "$description": "Disabled outline button text color (Dark mode)"
-              },
-              "error": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{error.500}",
-                  "$description": "Outline error button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{error.700}",
-                  "$description": "Outline error button pressed text color (Dark mode)"
-                }
-              },
-              "info": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{info.500}",
-                  "$description": "Outline info button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{info.700}",
-                  "$description": "Outline info button pressed text color (Dark mode)"
-                }
-              },
-              "primary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{primary.500}",
-                  "$description": "Outline primary button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{primary.700}",
-                  "$description": "Outline primary button pressed text color (Dark mode)"
-                }
-              },
-              "secondary": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline secondary button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline secondary button pressed text color (Dark mode)"
-                }
-              },
-              "success": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{success.700}",
-                  "$description": "Outline success button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{success.900}",
-                  "$description": "Outline success button pressed text color (Dark mode)"
-                }
-              },
-              "warning": {
-                "default": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline warning button default text color (Dark mode)"
-                },
-                "pressed": {
-                  "$type": "color",
-                  "$value": "{base.white}",
-                  "$description": "Outline warning button pressed text color (Dark mode)"
-                }
-              }
-            },
-            "transparent": {
-              "default": {
-                "$type": "color",
-                "$value": "{base.white}",
-                "$description": "Transparent ghost button default text color (Dark mode)"
-              },
-              "pressed": {
-                "$type": "color",
-                "$value": "{neutral.100}",
-                "$description": "Transparent ghost button pressed text color (Dark mode)"
-              }
-            }
-          }
         }
       }
     }
   },
-  "updatedAt": "2026-08-20T18:00:25.033Z"
+  "updatedAt": "2026-08-20T18:11:22.297Z"
 }

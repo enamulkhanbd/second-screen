@@ -18,17 +18,84 @@ import { extractThemeGroups } from "@/utils/themeHelpers";
 
 const LOCAL_ORGS_KEY = "ts_local_organizations";
 const LOCAL_PROJECTS_KEY = "ts_local_projects";
+const DEFAULT_ORGS: Organization[] = [
+  {
+    id: "org_acme",
+    name: "Acme Corp",
+    slug: "acme-corp",
+    ownerUid: "usr_default",
+    members: [
+      {
+        uid: "usr_default",
+        email: "designer@acme.com",
+        displayName: "Lead Designer",
+        role: "owner",
+        joinedAt: new Date().toISOString(),
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "org_personal",
+    name: "Personal Workspace",
+    slug: "personal",
+    ownerUid: "usr_default",
+    members: [
+      {
+        uid: "usr_default",
+        email: "me@tokens.studio",
+        displayName: "Personal",
+        role: "owner",
+        joinedAt: new Date().toISOString(),
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+const DEFAULT_PROJECTS: Project[] = [
+  {
+    id: "proj_ds",
+    orgId: "org_acme",
+    name: "Design System",
+    slug: "design-system",
+    description: "Core design tokens and typography matrix",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "proj_mobile",
+    orgId: "org_acme",
+    name: "Mobile App",
+    slug: "mobile-app",
+    description: "iOS and Android application tokens",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "proj_beta",
+    orgId: "org_personal",
+    name: "Tokens Beta",
+    slug: "tokens-beta",
+    description: "Personal design tokens repository",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 /**
  * Reads local fallback organizations
  */
 function getLocalOrgs(): Organization[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return DEFAULT_ORGS;
   try {
     const raw = localStorage.getItem(LOCAL_ORGS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return parsed && parsed.length > 0 ? parsed : DEFAULT_ORGS;
   } catch {
-    return [];
+    return DEFAULT_ORGS;
   }
 }
 
@@ -43,12 +110,13 @@ function saveLocalOrgs(orgs: Organization[]) {
  * Reads local fallback projects
  */
 function getLocalProjects(): Project[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return DEFAULT_PROJECTS;
   try {
     const raw = localStorage.getItem(LOCAL_PROJECTS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return parsed && parsed.length > 0 ? parsed : DEFAULT_PROJECTS;
   } catch {
-    return [];
+    return DEFAULT_PROJECTS;
   }
 }
 
