@@ -22,6 +22,7 @@ import {
   FileJson,
   Info,
   Sparkles,
+  FolderGit2,
 } from "lucide-react";
 import {
   scanTokenHealth,
@@ -101,6 +102,115 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
     setActiveSet(setName);
     setSidebarTab("tokens");
   };
+
+  // If no tokens or sync provider is connected, render the Welcome & Setup Wizard
+  if (totalTokens === 0) {
+    return (
+      <div className="flex-1 h-full overflow-y-auto bg-slate-50/50 dark:bg-[#09090d] p-6 lg:p-12 flex flex-col justify-center max-w-5xl mx-auto space-y-8 font-sans select-none">
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800/80 text-violet-700 dark:text-violet-300 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Welcome to Second Screen</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+            Connect your design system
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto leading-relaxed">
+            Configure your Git sync provider, initialize from a starter design system template, or connect our companion Figma plugin to get started.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Card 1: Connect Git Provider */}
+          <div
+            onClick={onOpenSettings}
+            className="group relative p-6 rounded-2xl bg-white dark:bg-[#111116] border border-zinc-200 dark:border-zinc-800/80 hover:border-violet-500/60 shadow-sm hover:shadow-xl hover:shadow-violet-500/5 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-6"
+          >
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800/60 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover:scale-105 transition-transform">
+                <FolderGit2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                  1. Connect Git Provider
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  Sync tokens directly with <strong>Azure DevOps</strong> or <strong>GitHub</strong> branches and auto-discover token folders.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400">
+              <span>Configure Provider</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Card 2: Starter Templates & Import */}
+          <div
+            onClick={() => setIsOnboardingOpen(true)}
+            className="group relative p-6 rounded-2xl bg-white dark:bg-[#111116] border border-zinc-200 dark:border-zinc-800/80 hover:border-emerald-500/60 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-6"
+          >
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  2. Starter Templates
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  Choose from <strong>Design System Starter</strong>, <strong>Multi-Brand Themes</strong>, or <strong>Tailwind Primitives</strong>.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <span>Choose Template</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Card 3: Figma Plugin Sync */}
+          <div
+            onClick={onOpenSettings}
+            className="group relative p-6 rounded-2xl bg-white dark:bg-[#111116] border border-zinc-200 dark:border-zinc-800/80 hover:border-blue-500/60 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-6"
+          >
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+                <LayoutDashboard className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  3. Figma Plugin (PAT)
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  Generate a Personal Access Token to pull native Figma Variables & push changes bi-directionally.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+              <span>Plugin Settings</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={() => useTokenStore.getState().loadSampleData()}
+            className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 underline underline-offset-4 cursor-pointer"
+          >
+            Or explore with sample tokens data
+          </button>
+        </div>
+
+        <OnboardingModal
+          isOpen={isOnboardingOpen}
+          onClose={() => setIsOnboardingOpen(false)}
+          onOpenSettings={onOpenSettings || (() => {})}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 h-full overflow-y-auto bg-slate-50/50 dark:bg-[#09090d] p-6 lg:p-8 space-y-8 font-sans select-none">

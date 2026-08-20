@@ -99,7 +99,7 @@ interface TokenStoreState {
   }) => void;
   updateThemeGroup: (groupId: string, newName: string, newColor?: string) => void;
   duplicateThemeGroup: (groupId: string) => void;
-    deleteThemeGroup: (groupId: string) => void;
+  deleteThemeGroup: (groupId: string) => void;
   loadSampleData: () => void;
   loadStarterTemplate: (templateId: string) => void;
   addNewToken: (
@@ -131,7 +131,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     if (typeof window !== "undefined" && profile) {
       try {
         localStorage.setItem("ts_second_screen_user", JSON.stringify(profile));
-      } catch {}
+      } catch { }
     }
   },
 
@@ -173,7 +173,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_active_group_id", groupId);
-      } catch {}
+      } catch { }
     }
   },
 
@@ -187,7 +187,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_view_mode", mode);
-      } catch {}
+      } catch { }
     }
   },
 
@@ -205,7 +205,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         } else {
           root.classList.remove("dark");
         }
-      } catch {}
+      } catch { }
     }
   },
 
@@ -215,7 +215,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_sidebar_tab", tab);
-      } catch {}
+      } catch { }
     }
   },
 
@@ -228,7 +228,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("ts_releases_history", JSON.stringify(updated));
-        } catch {}
+        } catch { }
       }
       return { releases: updated, activeReleaseId: pkg.id };
     }),
@@ -238,7 +238,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("ts_releases_history", JSON.stringify(updated));
-        } catch {}
+        } catch { }
       }
       return {
         releases: updated,
@@ -253,7 +253,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_tokens_view_mode", mode);
-      } catch {}
+      } catch { }
     }
   },
 
@@ -376,7 +376,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       try {
         const rawRel = localStorage.getItem("ts_releases_history");
         if (rawRel) savedReleases = JSON.parse(rawRel);
-      } catch {}
+      } catch { }
 
       set({
         credentials: parsedCreds,
@@ -433,7 +433,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
           "x-internal-client": "second-screen",
         },
         body: JSON.stringify({ rawTokens: doc }),
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     set({
@@ -596,7 +596,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_active_group_id", targetGroup.id);
-      } catch {}
+      } catch { }
     }
 
     set({
@@ -669,7 +669,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         if (newMatchedGroup) {
           localStorage.setItem("ts_active_group_id", newMatchedGroup.id);
         }
-      } catch {}
+      } catch { }
     }
 
     set({
@@ -737,7 +737,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         if (newMatchedGroup) {
           localStorage.setItem("ts_active_group_id", newMatchedGroup.id);
         }
-      } catch {}
+      } catch { }
     }
 
     set({
@@ -808,7 +808,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         if (remainingGroup) {
           localStorage.setItem("ts_active_group_id", remainingGroup.id);
         }
-      } catch {}
+      } catch { }
     }
 
     set({
@@ -1004,7 +1004,7 @@ if (typeof window !== "undefined") {
             "x-internal-client": "second-screen",
           },
           body: JSON.stringify({ rawTokens: state.rawTokens }),
-        }).catch(() => {});
+        }).catch(() => { });
       }, 250);
     }
   });

@@ -156,6 +156,36 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     }
   };
 
+  const handleCloudSync = async () => {
+    setIsPulling(true);
+    setSyncStatus("fetching");
+    try {
+      const res = await fetch("/api/v1/tokens", {
+        headers: { "x-internal-client": "second-screen" },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch from Cloud API");
+      }
+      setRawTokens(data.rawTokens);
+      setSyncStatus("success");
+      addToast({
+        type: "success",
+        title: "Synced from Figma / Cloud",
+        message: `Loaded ${data.resolvedTokens?.length || 0} tokens synchronized from Figma!`,
+      });
+    } catch (err: any) {
+      setSyncStatus("error", err.message);
+      addToast({
+        type: "error",
+        title: "Cloud Sync Failed",
+        message: err.message,
+      });
+    } finally {
+      setIsPulling(false);
+    }
+  };
+
   const handlePull = () => handlePullForBranch(credentials.branch || "main");
 
   const handleDirectPush = async () => {
@@ -370,6 +400,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
           {isConfigured ? (
             <>
+              {/* Sync from Figma Cloud Button */}
+              <button
+                onClick={handleCloudSync}
+                disabled={isPulling}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer font-medium text-[11px] disabled:opacity-50"
+                title="Pull changes pushed from Figma Plugin"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ${isPulling ? "animate-spin" : ""}`} />
+                <span>Sync Figma</span>
+              </button>
+
               {/* 1. Pull Button */}
               <button
                 onClick={handlePull}
@@ -378,7 +419,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 title="Pull latest tokens from current branch"
               >
                 <DownloadCloud className={`w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 ${isPulling ? "animate-bounce" : ""}`} />
-                <span>{isPulling ? "Pulling..." : "Pull"}</span>
+                <span>{isPulling ? "Pulling..." : "Git Pull"}</span>
               </button>
 
               {/* 2. Push Button */}

@@ -515,33 +515,46 @@ figma.ui.onmessage = async function (msg) {
         var variables = await figma.variables.getLocalVariablesAsync();
 
         for (var col of collections) {
-          var setName = col.name.replace(/\s*\/\s*/g, "/");
-          if (!rawTokensDoc[setName]) rawTokensDoc[setName] = {};
-
-          var mId = col.defaultModeId;
           var colVars = variables.filter(function (v) { return v.variableCollectionId === col.id; });
 
-          for (var v of colVars) {
-            var val = v.valuesByMode[mId];
-            var pathParts = v.name.split("/");
+          for (var mode of col.modes) {
+            var setName = col.modes.length > 1
+              ? mode.name.toLowerCase()
+              : col.name.replace(/\s*\/\s*/g, "/");
 
-            var cur = rawTokensDoc[setName];
-            for (var i = 0; i < pathParts.length - 1; i++) {
-              if (!cur[pathParts[i]]) cur[pathParts[i]] = {};
-              cur = cur[pathParts[i]];
-            }
+            if (!rawTokensDoc[setName]) rawTokensDoc[setName] = {};
 
-            var leafName = pathParts[pathParts.length - 1];
+            for (var v of colVars) {
+              var val = v.valuesByMode[mode.modeId];
+              if (val === undefined) continue;
 
-            if (v.resolvedType === "COLOR" && typeof val === "object" && val !== null) {
-              var r = Math.round(val.r * 255).toString(16).padStart(2, "0");
-              var g = Math.round(val.g * 255).toString(16).padStart(2, "0");
-              var b = Math.round(val.b * 255).toString(16).padStart(2, "0");
-              cur[leafName] = { value: "#" + r + g + b, type: "color" };
-            } else if (v.resolvedType === "FLOAT") {
-              cur[leafName] = { value: val + "px", type: "dimension" };
-            } else {
-              cur[leafName] = { value: String(val), type: "other" };
+              var pathParts = v.name.split("/");
+              var cur = rawTokensDoc[setName];
+              for (var i = 0; i < pathParts.length - 1; i++) {
+                if (!cur[pathParts[i]]) cur[pathParts[i]] = {};
+                cur = cur[pathParts[i]];
+              }
+
+              var leafName = pathParts[pathParts.length - 1];
+
+              if (val && typeof val === "object" && val.type === "VARIABLE_ALIAS" && val.id) {
+                var targetVar = variables.find(function (tv) { return tv.id === val.id; });
+                if (targetVar) {
+                  cur[leafName] = {
+                    value: "{" + targetVar.name.replace(/\//g, ".") + "}",
+                    type: v.resolvedType === "COLOR" ? "color" : v.resolvedType === "FLOAT" ? "dimension" : "other",
+                  };
+                }
+              } else if (v.resolvedType === "COLOR" && typeof val === "object" && val !== null) {
+                var r = Math.round(val.r * 255).toString(16).padStart(2, "0");
+                var g = Math.round(val.g * 255).toString(16).padStart(2, "0");
+                var b = Math.round(val.b * 255).toString(16).padStart(2, "0");
+                cur[leafName] = { value: "#" + r + g + b, type: "color" };
+              } else if (v.resolvedType === "FLOAT") {
+                cur[leafName] = { value: val + "px", type: "dimension" };
+              } else {
+                cur[leafName] = { value: String(val), type: "other" };
+              }
             }
           }
         }

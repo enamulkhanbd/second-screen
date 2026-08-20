@@ -87,9 +87,24 @@ export async function POST(req: NextRequest) {
     }
 
     const rawDoc = body.rawTokens || body;
-    saveStoredTokens(rawDoc);
+    const currentDoc = getStoredTokens() || {};
+    
+    // Merge incoming tokens onto stored doc preserving $themes and $metadata
+    const mergedDoc: Record<string, any> = {
+      ...currentDoc,
+      ...rawDoc,
+    };
 
-    const resolved = flattenAndResolveTokens(rawDoc, "ALL");
+    if (!mergedDoc["$themes"] && !mergedDoc["$themes.json"] && (currentDoc["$themes"] || currentDoc["$themes.json"])) {
+      mergedDoc["$themes"] = currentDoc["$themes"] || currentDoc["$themes.json"];
+    }
+    if (!mergedDoc["$metadata"] && !mergedDoc["$metadata.json"] && (currentDoc["$metadata"] || currentDoc["$metadata.json"])) {
+      mergedDoc["$metadata"] = currentDoc["$metadata"] || currentDoc["$metadata.json"];
+    }
+
+    saveStoredTokens(mergedDoc);
+
+    const resolved = flattenAndResolveTokens(mergedDoc, "ALL");
 
     return jsonWithCors({
       success: true,
