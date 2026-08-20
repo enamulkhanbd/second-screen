@@ -3,6 +3,11 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ColorSwatch } from "@/components/ColorSwatch";
+import {
+  TokenRawValueCell,
+  TokenVisualPreviewCell,
+} from "@/components/TokenValueFormatter";
+import { EditTokenDrawer } from "@/components/EditTokenDrawer";
 import { FlattenedToken, TokenType } from "@/types/tokens";
 import {
   FileCode,
@@ -21,6 +26,9 @@ import {
   SlidersHorizontal,
   AlignLeft,
   Braces,
+  MoreHorizontal,
+  Edit2,
+  Copy,
 } from "lucide-react";
 
 interface TokensWorkspaceProps {
@@ -91,6 +99,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   const [code, setCode] = useState<string>("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
 
   useEffect(() => {
     if (currentSetKey && rawTokens[currentSetKey] !== undefined) {
@@ -353,25 +362,28 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 </p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="sticky top-0 z-10 bg-zinc-100/90 dark:bg-zinc-900/90 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3 px-5 w-1/4">Token Name</th>
-                    <th className="py-3 px-5 w-1/3">Raw Value (Editable)</th>
-                    <th className="py-3 px-5 w-1/4">Visual Preview</th>
-                    <th className="py-3 px-5 text-right">Set / Type</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-800/60 font-mono">
-                  {displayedTokens.map((token) => (
-                    <TokenPreviewRow
-                      key={token.id}
-                      token={token}
-                      onUpdate={updateSingleToken}
-                    />
-                  ))}
-                </tbody>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[960px] text-left border-collapse text-xs">
+                  <thead className="sticky top-0 z-10 bg-zinc-100/90 dark:bg-zinc-900/90 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3 px-5 w-64 min-w-[200px]">Token Name</th>
+                      <th className="py-3 px-5 min-w-[360px]">Raw Value / Properties</th>
+                      <th className="py-3 px-5 min-w-[280px]">Visual Preview</th>
+                      <th className="py-3 px-5 w-44 min-w-[130px] text-right">Set / Type</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-800/60 font-mono">
+                    {displayedTokens.map((token) => (
+                      <TokenPreviewRow
+                        key={token.id}
+                        token={token}
+                        onUpdate={updateSingleToken}
+                        onEdit={() => setEditingToken(token)}
+                      />
+                    ))}
+                  </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>
@@ -442,35 +454,65 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           </div>
         </div>
       )}
+
+      {/* Edit Token Slide-Over Right Drawer */}
+      <EditTokenDrawer
+        token={editingToken}
+        isOpen={Boolean(editingToken)}
+        onClose={() => setEditingToken(null)}
+        onSave={updateSingleToken}
+      />
     </div>
   );
 };
 
 interface TokenPreviewRowProps {
   token: FlattenedToken;
-  onUpdate: (path: string[], newValue: string) => void;
+  onUpdate: (path: string[], newValue: any) => void;
+  onEdit: () => void;
 }
 
-const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({ token, onUpdate }) => {
-  const [localVal, setLocalVal] = React.useState(token.rawValue);
-  const [isSaved, setIsSaved] = React.useState(false);
+const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
+  token,
+  onUpdate,
+  onEdit,
+}) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copiedType, setCopiedType] = useState<string | null>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    setLocalVal(token.rawValue);
-  }, [token.rawValue]);
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVal = e.target.value;
-    setLocalVal(newVal);
-    onUpdate(token.path, newVal);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 1200);
+  const handleCopy = (text: string, type: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedType(type);
+      setTimeout(() => {
+        setCopiedType(null);
+        setMenuOpen(false);
+      }, 900);
+    }
   };
+
+  const cssVarName = `var(--${token.name.replace(/\./g, "-")})`;
 
   return (
     <tr className="hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40 transition-colors group">
       {/* Token Name & Description */}
-      <td className="py-3 px-5 align-middle">
+      <td className="py-3 px-5 align-middle w-64 min-w-[200px]">
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white transition-colors">
             {token.name}
@@ -483,60 +525,79 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({ token, onUpdate }) =>
         </div>
       </td>
 
-      {/* Raw Value Input (Editable, Preserves Aliases) */}
-      <td className="py-2.5 px-5 align-middle">
-        <div className="flex items-center gap-2 max-w-md">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={localVal}
-              onChange={handleChange}
-              placeholder="e.g. #3b82f6 or {colors.brand.500}"
-              className={`w-full font-mono text-xs px-3 py-1.5 rounded-lg border transition-all outline-none ${
-                token.isAlias
-                  ? "border-emerald-500/40 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 dark:focus:border-zinc-600"
-              }`}
-            />
-            {token.isAlias && (
-              <span
-                title={`Resolves to: ${token.resolvedValue}`}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono pointer-events-none font-semibold"
-              >
-                <Link2 className="w-3 h-3" />
-                alias
-              </span>
-            )}
-          </div>
-          {isSaved && (
-            <span
-              className="text-emerald-500 flex items-center text-[10px]"
-              title="Saved to state"
-            >
-              <Check className="w-3.5 h-3.5" />
-            </span>
-          )}
-        </div>
+      {/* Raw Value / Structured Composite Properties */}
+      <td className="py-2.5 px-5 align-middle min-w-[360px]">
+        <TokenRawValueCell token={token} onUpdate={onUpdate} />
       </td>
 
-      {/* Visual Swatch / Preview */}
-      <td className="py-2.5 px-5 align-middle">
-        <ColorSwatch
-          value={token.resolvedValue}
-          type={token.type}
-          name={token.name}
-        />
+      {/* Rich Visual Specimen / Swatch Preview */}
+      <td className="py-2.5 px-5 align-middle min-w-[280px]">
+        <TokenVisualPreviewCell token={token} />
       </td>
 
-      {/* Set & Type Badges */}
-      <td className="py-2.5 px-5 align-middle text-right">
-        <div className="flex items-center justify-end gap-1.5">
+      {/* Set, Type Badges & 3-Dots Context Menu */}
+      <td className="py-2.5 px-5 align-middle text-right w-48 min-w-[150px]">
+        <div className="flex items-center justify-end gap-2 relative">
           <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/60 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 font-medium">
             {token.setName}
           </span>
           <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono border border-emerald-200 dark:border-emerald-800/50 font-medium">
             {token.type}
           </span>
+
+          {/* 3-Dots Action Button & Dropdown */}
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-800 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="More actions"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 top-8 w-48 bg-white dark:bg-[#121218] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-30 py-1 font-sans text-xs text-left animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="font-semibold">Edit token</span>
+                </button>
+
+                <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800/80 my-1" />
+
+                <button
+                  onClick={() => handleCopy(cssVarName, "css")}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer font-mono text-[11px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-3 h-3 text-zinc-400" />
+                    <span>Copy CSS Var</span>
+                  </div>
+                  {copiedType === "css" && (
+                    <Check className="w-3 h-3 text-emerald-500" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => handleCopy(token.resolvedValue, "resolved")}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 hover:text-zinc-900 dark:hover:text-white cursor-pointer font-mono text-[11px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-3 h-3 text-zinc-400" />
+                    <span>Copy Value</span>
+                  </div>
+                  {copiedType === "resolved" && (
+                    <Check className="w-3 h-3 text-emerald-500" />
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </td>
     </tr>
