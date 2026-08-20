@@ -38,14 +38,15 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   onSelectToken,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
 
-  // Viewport transformation state
-  const [pan, setPan] = useState({ x: 40, y: 40 });
+  // Viewport transformation state - default: 100% zoom (1.0)
+  const [pan, setPan] = useState({ x: 60, y: 60 });
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Custom node positions (allows user to drag nodes around)
+  // Custom node positions
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [nodeDragStart, setNodeDragStart] = useState({
@@ -55,26 +56,38 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
     initialY: 0,
   });
 
+  // Track latest pan and zoom in refs for high-fps event handlers
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
+  panRef.current = pan;
+  zoomRef.current = zoom;
+
   // Sync node positions on graphData change
   useEffect(() => {
     setNodePositions((prev) => {
       const updated: Record<string, { x: number; y: number }> = {};
       graphData.nodes.forEach((n) => {
-        // Keep existing user position if available, else use auto position
         updated[n.id] = prev[n.id] || { x: n.x, y: n.y };
       });
       return updated;
     });
   }, [graphData.nodes]);
 
+  // Initial Load: Center view with 100% zoom (1.0)
+  useEffect(() => {
+    if (graphData.nodes.length > 0) {
+      setZoom(1);
+      setPan({ x: 60, y: 60 });
+    }
+  }, [graphData.nodes.length === 0]);
+
   // Handle Pan Drag (Canvas Background)
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only pan if clicking canvas background, not on node cards
     if ((e.target as HTMLElement).closest(".flow-node-card") || e.button !== 0) {
       return;
     }
     setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    setDragStart({ x: e.clientX - panRef.current.x, y: e.clientY - panRef.current.y });
   };
 
   // Start Node Drag
@@ -96,85 +109,96 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      // 1. Moving a Node Card
-      if (draggingNodeId) {
-        const deltaX = (e.clientX - nodeDragStart.mouseX) / zoom;
-        const deltaY = (e.clientY - nodeDragStart.mouseY) / zoom;
-        setNodePositions((prev) => ({
-          ...prev,
-          [draggingNodeId]: {
-            x: Math.round(nodeDragStart.initialX + deltaX),
-            y: Math.round(nodeDragStart.initialY + deltaY),
-          },
-        }));
-        return;
-      }
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-      // 2. Panning the Canvas
-      if (isDragging) {
-        setPan({
-          x: e.clientX - dragStart.x,
-          y: e.clientY - dragStart.y,
-        });
-      }
+      rafRef.current = requestAnimationFrame(() => {
+        // 1. Moving a Node Card
+        if (draggingNodeId) {
+          const deltaX = (e.clientX - nodeDragStart.mouseX) / zoomRef.current;
+          const deltaY = (e.clientY - nodeDragStart.mouseY) / zoomRef.current;
+          setNodePositions((prev) => ({
+            ...prev,
+            [draggingNodeId]: {
+              x: Math.round(nodeDragStart.initialX + deltaX),
+              y: Math.round(nodeDragStart.initialY + deltaY),
+            },
+          }));
+          return;
+        }
+
+        // 2. Panning the Canvas
+        if (isDragging) {
+          setPan({
+            x: Math.round(e.clientX - dragStart.x),
+            y: Math.round(e.clientY - dragStart.y),
+          });
+        }
+      });
     },
-    [draggingNodeId, nodeDragStart, zoom, isDragging, dragStart]
+    [draggingNodeId, nodeDragStart, isDragging, dragStart]
   );
 
   const handleMouseUp = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setIsDragging(false);
     setDraggingNodeId(null);
   }, []);
 
   useEffect(() => {
     if (isDragging || draggingNodeId) {
-      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mousemove", handleMouseMove, { passive: true });
       window.addEventListener("mouseup", handleMouseUp);
     }
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [isDragging, draggingNodeId, handleMouseMove, handleMouseUp]);
 
-  // Handle Zoom with mouse wheel
+  // Smooth Zoom with mouse wheel (damped exponential step)
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = 1.1;
-    let newZoom = e.deltaY < 0 ? zoom * zoomFactor : zoom / zoomFactor;
-    newZoom = Math.min(Math.max(newZoom, 0.2), 2.5);
+    const currentZoom = zoomRef.current;
+    const currentPan = panRef.current;
+
+    // Damped zoom factor for ultra-smooth scrolling on both wheel and trackpad
+    const zoomFactor = Math.exp(-e.deltaY * 0.0018);
+    let newZoom = currentZoom * zoomFactor;
+    newZoom = Math.min(Math.max(newZoom, 0.25), 2.5);
 
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Zoom centered at mouse position
-      const newPanX = mouseX - (mouseX - pan.x) * (newZoom / zoom);
-      const newPanY = mouseY - (mouseY - pan.y) * (newZoom / zoom);
+      // Zoom centered at cursor
+      const newPanX = mouseX - (mouseX - currentPan.x) * (newZoom / currentZoom);
+      const newPanY = mouseY - (mouseY - currentPan.y) * (newZoom / currentZoom);
 
       setZoom(newZoom);
-      setPan({ x: newPanX, y: newPanY });
+      setPan({ x: Math.round(newPanX), y: Math.round(newPanY) });
     } else {
       setZoom(newZoom);
     }
   };
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z * 1.2, 2.5));
-  const handleZoomOut = () => setZoom((z) => Math.max(z / 1.2, 0.2));
+  const handleZoomIn = () => setZoom((z) => Math.min(z * 1.15, 2.5));
+  const handleZoomOut = () => setZoom((z) => Math.max(z / 1.15, 0.25));
   const handleReset = () => {
-    setPan({ x: 40, y: 40 });
+    setPan({ x: 60, y: 60 });
     setZoom(1);
   };
 
-  // Reset to auto-arranged layout
+  // Reset to auto-arranged layout at 100% zoom
   const handleAutoArrange = () => {
     const fresh: Record<string, { x: number; y: number }> = {};
     graphData.nodes.forEach((n) => {
       fresh[n.id] = { x: n.x, y: n.y };
     });
     setNodePositions(fresh);
-    handleFitView();
+    setPan({ x: 60, y: 60 });
+    setZoom(1);
   };
 
   const handleFitView = useCallback(() => {
@@ -199,21 +223,14 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
 
     const scaleX = rect.width / graphWidth;
     const scaleY = rect.height / graphHeight;
-    const fitZoom = Math.min(Math.max(Math.min(scaleX, scaleY) * 0.88, 0.22), 1.15);
+    const fitZoom = Math.min(Math.max(Math.min(scaleX, scaleY) * 0.9, 0.25), 1.2);
 
     const fitPanX = (rect.width - (maxX - minX) * fitZoom) / 2 - minX * fitZoom;
     const fitPanY = (rect.height - (maxY - minY) * fitZoom) / 2 - minY * fitZoom;
 
     setZoom(fitZoom);
-    setPan({ x: fitPanX, y: fitPanY });
+    setPan({ x: Math.round(fitPanX), y: Math.round(fitPanY) });
   }, [graphData.nodes, nodePositions]);
-
-  // Auto-fit on initial graph load
-  useEffect(() => {
-    if (graphData.nodes.length > 0) {
-      handleFitView();
-    }
-  }, [graphData.nodes.length, handleFitView]);
 
   // Dynamically calculate bezier curve paths based on live node positions
   const dynamicEdges = useMemo(() => {
@@ -272,7 +289,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       ref={containerRef}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
-      className={`relative w-full h-full bg-slate-100 dark:bg-[#08080c] overflow-hidden select-none transition-colors ${
+      className={`relative w-full h-full bg-slate-100 dark:bg-[#08080c] overflow-hidden select-none ${
         draggingNodeId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
       }`}
     >
@@ -293,11 +310,12 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         <rect width="100%" height="100%" fill="url(#flow-grid)" />
       </svg>
 
-      {/* Main Canvas World Space */}
+      {/* Main Canvas World Space with GPU hardware acceleration */}
       <div
         style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
           transformOrigin: "0 0",
+          willChange: isDragging || draggingNodeId ? "transform" : "auto",
         }}
         className="absolute top-0 left-0 w-full h-full pointer-events-auto"
       >
@@ -389,7 +407,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       </div>
 
       {/* Floating Canvas Controls (Bottom Left) */}
-      <div className="absolute left-6 bottom-6 flex items-center gap-1.5 p-1 bg-white/90 dark:bg-[#121218]/90 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl dark:shadow-2xl backdrop-blur-md z-20 transition-colors">
+      <div className="absolute left-6 bottom-6 flex items-center gap-1.5 p-1 bg-white/90 dark:bg-[#121218]/90 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl dark:shadow-2xl backdrop-blur-md z-20">
         <button
           onClick={handleZoomIn}
           className="p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
@@ -415,18 +433,18 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         <button
           onClick={handleAutoArrange}
           className="p-2 text-zinc-600 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-violet-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-          title="Auto-Arrange Layout"
+          title="Auto-Arrange Layout (100% Zoom)"
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
         <button
           onClick={handleReset}
           className="p-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-          title="Reset View"
+          title="Reset to 100% Zoom"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
-        <span className="px-2 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+        <span className="px-2 font-mono text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
           {Math.round(zoom * 100)}%
         </span>
       </div>

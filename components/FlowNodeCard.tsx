@@ -71,7 +71,7 @@ export const FlowNodeCard: React.FC<FlowNodeCardProps> = ({
   return (
     <div
       style={{
-        transform: `translate(${posX}px, ${posY}px)`,
+        transform: `translate3d(${posX}px, ${posY}px, 0)`,
         width: `${node.width}px`,
       }}
       className="absolute top-0 left-0 bg-white/95 dark:bg-[#121218]/95 border border-zinc-200 dark:border-zinc-800/90 rounded-2xl shadow-xl dark:shadow-2xl backdrop-blur-md overflow-hidden select-none transition-shadow hover:border-zinc-300 dark:hover:border-zinc-700 z-10"
