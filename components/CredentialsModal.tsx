@@ -226,7 +226,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                 <input
                   type="text"
                   required
-                  placeholder="owner/repository (e.g. acme/design-tokens or justgo/planet)"
+                  placeholder="owner/repository (e.g. organization/design-tokens)"
                   value={
                     form.owner && form.repo && !form.repo.includes("/")
                       ? `${form.owner}/${form.repo}`
@@ -267,7 +267,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. assets/tokens or tokens.json (optional)"
+                    placeholder="e.g. tokens or tokens.json (optional)"
                     value={form.path || ""}
                     onChange={(e) => setForm({ ...form, path: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
@@ -303,7 +303,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   <input
                     type="text"
                     required
-                    placeholder="e.g. azolvedevops"
+                    placeholder="e.g. your-organization"
                     value={form.owner}
                     onChange={(e) => setForm({ ...form, owner: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
@@ -315,7 +315,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. JustGo"
+                    placeholder="e.g. your-project (optional)"
                     value={form.project || ""}
                     onChange={(e) => setForm({ ...form, project: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
@@ -331,7 +331,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                 <input
                   type="text"
                   required
-                  placeholder="e.g. planet"
+                  placeholder="e.g. design-tokens"
                   value={form.repo}
                   onChange={(e) => setForm({ ...form, repo: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"
@@ -360,7 +360,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. assets/tokens/platforms/web (optional)"
+                    placeholder="e.g. tokens or tokens/design-tokens.json (optional)"
                     value={form.path || ""}
                     onChange={(e) => setForm({ ...form, path: e.target.value })}
                     className="w-full px-3.5 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none transition-all font-mono"

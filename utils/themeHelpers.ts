@@ -196,7 +196,7 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
 
   // Brands Group
   const brandSets = setNames.filter(
-    (s) => s.toLowerCase().includes("brand") || s.toLowerCase().includes("justgo")
+    (s) => s.toLowerCase().includes("brand")
   );
   if (brandSets.length > 0) {
     groups.push({
