@@ -100,3 +100,105 @@ export interface ToastMessage {
   message?: string;
   timestamp: number;
 }
+
+// -------------------------------------------------------------
+// MULTI-PLATFORM & DISTRIBUTION TARGET TYPES
+// -------------------------------------------------------------
+export type PlatformFormatId =
+  | "css"
+  | "tailwind"
+  | "react"
+  | "flutter"
+  | "swift"
+  | "android"
+  | "tokens_json"
+  | "config_json";
+
+export interface TargetPlatformFormat {
+  formatId: PlatformFormatId;
+  targetPath: string; // e.g. "apps/web/styles/tokens.css" or "lib/tokens/tokens.dart"
+  enabled: boolean;
+}
+
+export interface DistributionTarget {
+  id: string;
+  name: string; // e.g. "Web App (GitHub)", "Mobile Flutter App (Azure)"
+  provider: GitProvider;
+  owner: string;
+  project?: string; // for azure
+  repo: string;
+  branch: string;
+  pat?: string; // optional override, otherwise falls back to global credentials
+  publishMode: "commit" | "pull_request";
+  formats: TargetPlatformFormat[];
+  lastPublishedAt?: string;
+  lastPublishStatus?: "success" | "error";
+  lastPublishMessage?: string;
+}
+
+export interface TargetPublishResult {
+  targetId: string;
+  targetName: string;
+  provider: GitProvider;
+  repo: string;
+  branch: string;
+  status: "success" | "error";
+  message: string;
+  pullRequestUrl?: string;
+  pullRequestNumber?: number;
+  commitHash?: string;
+  filesCount?: number;
+}
+
+export interface CompilerConfig {
+  nameTransform: "kebab" | "camel" | "snake" | "pascal" | "constant";
+  prefix: string; // e.g. "ds-", "app-", or ""
+  dimensionUnit: "px" | "rem";
+  rootFontSize: number; // default 16
+  flutterClassName: string; // default "AppColors"
+  swiftStructName: string; // default "DesignTokens"
+  outputReferences: boolean; // default true (outputs var(--...) for aliases)
+  customConfigJson?: string; // raw Style Dictionary config.json overrides
+}
+
+export const DEFAULT_COMPILER_CONFIG: CompilerConfig = {
+  nameTransform: "kebab",
+  prefix: "",
+  dimensionUnit: "px",
+  rootFontSize: 16,
+  flutterClassName: "AppColors",
+  swiftStructName: "DesignTokens",
+  outputReferences: true,
+};
+
+export interface ReleasePackage {
+  id: string;
+  version: string;
+  title: string;
+  notes: string;
+  createdAt: string;
+  tokenCount: number;
+  themesCount: number;
+  targetSystems: string[];
+  publishResults?: TargetPublishResult[];
+  compilerConfig?: CompilerConfig;
+  cssVariables: {
+    root: string;
+    themes: Record<string, string>;
+    allCombined: string;
+  };
+  styleDictionary: {
+    configJson: string;
+    tokensJson: string;
+    css: string;
+    scss: string;
+    esmJs: string;
+    dts: string;
+    tailwindConfig: string;
+    reactTs: string;
+    flutterDart: string;
+    iosSwift: string;
+    androidColorsXml: string;
+    androidDimensXml: string;
+  };
+}

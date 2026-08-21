@@ -5,14 +5,15 @@ import { useTokenStore } from "@/store/useTokenStore";
 import {
   compileCssVariables,
   compileStyleDictionary,
-  ReleasePackage,
 } from "@/utils/releaseCompiler";
+import { ReleasePackage } from "@/types/tokens";
 import {
   Package,
   CheckCircle2,
-  FileCode2,
   Layers,
   ArrowRight,
+  FolderGit2,
+  Sparkles,
 } from "lucide-react";
 import {
   Dialog,
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 interface CreateReleaseModalProps {
   isOpen: boolean;
@@ -40,24 +42,25 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
     resolvedTokens,
     themeGroups,
     rawTokens,
-    credentials,
     releases,
+    distributionTargets,
+    compilerConfig,
     createRelease,
+    publishReleaseToTargets,
     addToast,
   } = useTokenStore();
 
   const latestRelease = releases[0];
   const defaultVersion = latestRelease
     ? bumpSemVer(latestRelease.version, "patch")
-    : "v0.1.0";
+    : "v1.0.0";
 
   const [version, setVersion] = useState(defaultVersion);
   const [title, setTitle] = useState("Design Tokens Production Release");
   const [notes, setNotes] = useState(
-    "Automated production build including CSS Variables, Style Dictionary transforms, and multi-theme definitions."
+    "Automated production build including Tailwind CSS, CSS Variables, React TypeScript, Flutter Dart, and iOS/Android assets."
   );
-  const [includeCss, setIncludeCss] = useState(true);
-  const [includeStyleDict, setIncludeStyleDict] = useState(true);
+  const [publishImmediately, setPublishImmediately] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
 
   function bumpSemVer(ver: string, type: "major" | "minor" | "patch"): string {
@@ -86,14 +89,19 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
 
     try {
       // 1. Compile CSS Variables
-      const cssVars = compileCssVariables(resolvedTokens, themeGroups, rawTokens);
+      const cssVars = compileCssVariables(resolvedTokens, themeGroups, compilerConfig);
 
-      // 2. Compile Style Dictionary Multi-Platform Artifacts
-      const styleDict = compileStyleDictionary(resolvedTokens, themeGroups);
+      // 2. Compile Multi-Platform Style Dictionary, Flutter Dart, React TS
+      const styleDict = compileStyleDictionary(resolvedTokens, themeGroups, compilerConfig);
 
-      const targetSystems: string[] = [];
-      if (includeCss) targetSystems.push("CSS Variables (:root & Themes)");
-      if (includeStyleDict) targetSystems.push("Style Dictionary (Web, Tailwind, iOS, Android)");
+      const targetSystems = [
+        "Tailwind CSS",
+        "CSS Variables (:root & Themes)",
+        "React / TypeScript",
+        "Flutter (Dart)",
+        "iOS (Swift)",
+        "Android (XML)",
+      ];
 
       const newRelease: ReleasePackage = {
         id: `rel-${Date.now()}`,
@@ -101,21 +109,35 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
         title: title.trim() || `Release ${version}`,
         notes: notes.trim(),
         createdAt: new Date().toISOString(),
-        commitHash: credentials.branch ? `git@${credentials.branch}` : undefined,
-        branch: credentials.branch || undefined,
         tokenCount: resolvedTokens.length,
         themesCount: themeGroups.reduce((acc, g) => acc + g.options.length, 0),
         targetSystems,
+        compilerConfig,
         cssVariables: cssVars,
         styleDictionary: styleDict,
       };
 
       createRelease(newRelease);
 
+      if (publishImmediately && distributionTargets.length > 0) {
+        addToast({
+          type: "info",
+          title: "Distributing to Target Repositories...",
+          message: `Publishing ${newRelease.version} to ${distributionTargets.length} destinations.`,
+        });
+        publishReleaseToTargets(newRelease.id).catch((err) => {
+          addToast({
+            type: "error",
+            title: "Distribution Error",
+            message: err.message,
+          });
+        });
+      }
+
       addToast({
         type: "success",
         title: "Release Created Successfully",
-        message: `Version ${newRelease.version} compiled with ${resolvedTokens.length} tokens.`,
+        message: `Version ${newRelease.version} compiled with ${resolvedTokens.length} tokens across all platforms.`,
       });
 
       onClose();
@@ -132,124 +154,162 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden font-sans">
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/40">
+        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
               <Package className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle>Create New Release</DialogTitle>
-              <DialogDescription className="text-xs">
-                Package design tokens into production CSS variables & Style Dictionary builds
+              <DialogTitle className="text-base font-bold">Create Multi-Platform Release</DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">
+                Compile active tokens into Tailwind, CSS, React, Flutter, Swift, and Android formats.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Form Body */}
-        <form onSubmit={handlePublish} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-          {/* Version and SemVer Helper */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="rel-ver">Semantic Version</Label>
-              <div className="flex items-center gap-1.5">
-                {(["patch", "minor", "major"] as const).map((type) => (
-                  <button
+        {/* Body */}
+        <form onSubmit={handlePublish} className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {/* Version & SemVer Bumps */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Semantic Version</Label>
+                <div className="flex items-center gap-1">
+                  <Button
                     type="button"
-                    key={type}
-                    onClick={() => setVersion(bumpSemVer(version, type))}
-                    className="px-2 py-0.5 rounded bg-muted hover:bg-accent text-[10px] font-mono font-medium text-foreground transition-colors"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() =>
+                      setVersion(bumpSemVer(latestRelease?.version || "v0.0.0", "patch"))
+                    }
                   >
-                    +{type}
-                  </button>
-                ))}
+                    +Patch
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() =>
+                      setVersion(bumpSemVer(latestRelease?.version || "v0.0.0", "minor"))
+                    }
+                  >
+                    +Minor
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() =>
+                      setVersion(bumpSemVer(latestRelease?.version || "v0.0.0", "major"))
+                    }
+                  >
+                    +Major
+                  </Button>
+                </div>
+              </div>
+              <Input
+                type="text"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                placeholder="v1.0.0"
+                className="h-8 text-xs font-mono font-bold"
+                required
+              />
+            </div>
+
+            {/* Title */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Release Title</Label>
+              <Input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Q3 Brand Refresh & Multi-Theme Update"
+                className="h-8 text-xs"
+                required
+              />
+            </div>
+
+            {/* Notes / Changelog */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Release Notes / Changelog</Label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Describe key token changes, color updates, or typography shifts..."
+                className="w-full h-20 p-2.5 rounded-md border border-input bg-background text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none font-sans"
+              />
+            </div>
+
+            {/* Platform Summary Pill List */}
+            <div className="space-y-2 p-3 bg-muted/40 rounded-lg border border-border">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>Compiled Platforms Included</span>
+                </span>
+                <Badge variant="outline" className="text-[10px]">
+                  {resolvedTokens.length} Tokens
+                </Badge>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant="secondary" className="text-[10px]">⚡ Tailwind CSS</Badge>
+                <Badge variant="secondary" className="text-[10px]">🎨 CSS Variables</Badge>
+                <Badge variant="secondary" className="text-[10px]">⚛️ React (TS)</Badge>
+                <Badge variant="secondary" className="text-[10px]">💙 Flutter (Dart)</Badge>
+                <Badge variant="secondary" className="text-[10px]">🍏 iOS Swift</Badge>
+                <Badge variant="secondary" className="text-[10px]">🤖 Android XML</Badge>
               </div>
             </div>
-            <Input
-              id="rel-ver"
-              type="text"
-              required
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder="v1.0.0"
-              className="font-mono text-xs"
-            />
-          </div>
 
-          {/* Release Title */}
-          <div className="space-y-1.5">
-            <Label htmlFor="rel-title">Release Title</Label>
-            <Input
-              id="rel-title"
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Q3 Brand Refresh, Design Tokens v1.2"
-              className="text-xs"
-            />
-          </div>
-
-          {/* Release Notes */}
-          <div className="space-y-1.5">
-            <Label htmlFor="rel-notes">Release Notes / Changelog</Label>
-            <textarea
-              id="rel-notes"
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Summary of changes, new tokens, modified themes..."
-              className="w-full p-2.5 rounded-md border border-input bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring leading-relaxed"
-            />
-          </div>
-
-          {/* Compile Scope */}
-          <div className="space-y-2 pt-2 border-t border-border">
-            <Label>Compilation Targets</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Immediate Distribution Toggle */}
+            {distributionTargets.length > 0 && (
               <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-                <div className="flex items-center gap-2">
-                  <FileCode2 className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-semibold text-foreground">CSS Variables</div>
-                    <div className="text-[10px] text-muted-foreground">:root & theme classes</div>
-                  </div>
+                <div>
+                  <Label className="text-xs font-semibold">Distribute to Repositories Immediately</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Push compiled code to {distributionTargets.length} configured Git destinations upon creation.
+                  </p>
                 </div>
-                <Switch checked={includeCss} onCheckedChange={setIncludeCss} />
+                <Switch
+                  checked={publishImmediately}
+                  onCheckedChange={setPublishImmediately}
+                />
               </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-emerald-500" />
-                  <div>
-                    <div className="font-semibold text-foreground">Style Dictionary</div>
-                    <div className="text-[10px] text-muted-foreground">Web, iOS, Android tokens</div>
-                  </div>
-                </div>
-                <Switch checked={includeStyleDict} onCheckedChange={setIncludeStyleDict} />
-              </div>
-            </div>
+            )}
           </div>
 
-          <DialogFooter className="pt-2 border-t border-border">
+          {/* Footer */}
+          <DialogFooter className="px-6 py-3 border-t border-border bg-muted/30 flex items-center justify-between">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
+              className="text-xs"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               size="sm"
-              disabled={isCompiling || !version.trim()}
-              className="gap-1.5"
+              disabled={isCompiling}
+              className="gap-1.5 text-xs font-bold"
             >
-              <span>{isCompiling ? "Compiling..." : "Build & Publish"}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              {isCompiling ? (
+                <span>Compiling Package...</span>
+              ) : (
+                <>
+                  <span>Create Release Package</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

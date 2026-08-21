@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const resolved = flattenAndResolveTokens(storedDoc, "ALL");
     const themeGroups = extractThemeGroups(storedDoc);
 
-    const cssVars = compileCssVariables(resolved, themeGroups, storedDoc);
+    const cssVars = compileCssVariables(resolved, themeGroups);
     const styleDict = compileStyleDictionary(resolved, themeGroups);
 
     return NextResponse.json({

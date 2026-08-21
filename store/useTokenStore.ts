@@ -8,6 +8,11 @@ import {
   SyncMeta,
   ThemeGroup,
   UserProfile,
+  DistributionTarget,
+  TargetPublishResult,
+  ReleasePackage,
+  CompilerConfig,
+  DEFAULT_COMPILER_CONFIG,
 } from "@/types/tokens";
 import {
   flattenAndResolveTokens,
@@ -17,7 +22,10 @@ import {
   createEmptyTokenSet,
   deleteTokenSet,
 } from "@/utils/transformTokens";
-import { ReleasePackage } from "@/utils/releaseCompiler";
+import {
+  compileCssVariables,
+  compileStyleDictionary,
+} from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 import { STARTER_TEMPLATES } from "@/data/starterTemplates";
@@ -71,12 +79,19 @@ interface TokenStoreState {
   sidebarTab: "dashboard" | "tokens" | "themes" | "releases";
   setSidebarTab: (tab: "dashboard" | "tokens" | "themes" | "releases") => void;
 
-  // Releases
+  // Releases, Compilers & Distribution Targets
   releases: ReleasePackage[];
   activeReleaseId: string | null;
+  distributionTargets: DistributionTarget[];
+  compilerConfig: CompilerConfig;
   createRelease: (pkg: ReleasePackage) => void;
   deleteRelease: (id: string) => void;
   setActiveReleaseId: (id: string | null) => void;
+  addDistributionTarget: (target: DistributionTarget) => void;
+  updateDistributionTarget: (id: string, target: Partial<DistributionTarget>) => void;
+  deleteDistributionTarget: (id: string) => void;
+  updateCompilerConfig: (config: Partial<CompilerConfig>) => void;
+  publishReleaseToTargets: (releaseId: string, targetIds?: string[]) => Promise<TargetPublishResult[]>;
 
   // View Mode & Filters
   viewMode: "matrix" | "flow";
@@ -371,9 +386,38 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     }
   },
 
-  // Releases State
+  // Releases & Distribution Targets State
   releases: [],
   activeReleaseId: null,
+  distributionTargets: [
+    {
+      id: "target-web-app",
+      name: "Web App (Tailwind & CSS)",
+      provider: "github",
+      owner: "",
+      repo: "web-frontend",
+      branch: "main",
+      publishMode: "commit",
+      formats: [
+        { formatId: "css", targetPath: "apps/web/styles/tokens.css", enabled: true },
+        { formatId: "tailwind", targetPath: "apps/web/tailwind.tokens.js", enabled: true },
+        { formatId: "react", targetPath: "packages/tokens/src/index.ts", enabled: true },
+      ],
+    },
+    {
+      id: "target-flutter-app",
+      name: "Mobile Flutter App",
+      provider: "azure",
+      owner: "",
+      project: "",
+      repo: "flutter-mobile",
+      branch: "develop",
+      publishMode: "pull_request",
+      formats: [
+        { formatId: "flutter", targetPath: "lib/tokens/tokens.dart", enabled: true },
+      ],
+    },
+  ],
   createRelease: (pkg) =>
     set((state) => {
       const updated = [pkg, ...state.releases];
@@ -398,6 +442,132 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       };
     }),
   setActiveReleaseId: (id) => set({ activeReleaseId: id }),
+
+  addDistributionTarget: (target) =>
+    set((state) => {
+      const updated = [...state.distributionTargets, target];
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_distribution_targets", JSON.stringify(updated));
+        } catch { }
+      }
+      return { distributionTargets: updated };
+    }),
+
+  updateDistributionTarget: (id, target) =>
+    set((state) => {
+      const updated = state.distributionTargets.map((t) => (t.id === id ? { ...t, ...target } : t));
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_distribution_targets", JSON.stringify(updated));
+        } catch { }
+      }
+      return { distributionTargets: updated };
+    }),
+
+  compilerConfig: DEFAULT_COMPILER_CONFIG,
+
+  updateCompilerConfig: (newCfg) =>
+    set((state) => {
+      const updatedConfig = { ...state.compilerConfig, ...newCfg };
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_compiler_config", JSON.stringify(updatedConfig));
+        } catch { }
+      }
+
+      // Recompile releases in real-time if resolved tokens exist
+      const { resolvedTokens, themeGroups } = state;
+      let updatedReleases = state.releases;
+      if (resolvedTokens.length > 0 && state.releases.length > 0) {
+        updatedReleases = state.releases.map((rel) => {
+          const cssVars = compileCssVariables(resolvedTokens, themeGroups, updatedConfig);
+          const styleDict = compileStyleDictionary(resolvedTokens, themeGroups, updatedConfig);
+          return {
+            ...rel,
+            compilerConfig: updatedConfig,
+            cssVariables: cssVars,
+            styleDictionary: styleDict,
+          };
+        });
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("ts_releases_history", JSON.stringify(updatedReleases));
+          } catch { }
+        }
+      }
+
+      return {
+        compilerConfig: updatedConfig,
+        releases: updatedReleases,
+      };
+    }),
+
+  deleteDistributionTarget: (id) =>
+    set((state) => {
+      const updated = state.distributionTargets.filter((t) => t.id !== id);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_distribution_targets", JSON.stringify(updated));
+        } catch { }
+      }
+      return { distributionTargets: updated };
+    }),
+
+  publishReleaseToTargets: async (releaseId, targetIds) => {
+    const { releases, distributionTargets, credentials } = get();
+    const release = releases.find((r) => r.id === releaseId) || releases[0];
+    if (!release) {
+      throw new Error("Release not found");
+    }
+
+    const selectedTargets = targetIds && targetIds.length > 0
+      ? distributionTargets.filter((t) => targetIds.includes(t.id))
+      : distributionTargets;
+
+    if (selectedTargets.length === 0) {
+      throw new Error("No target destinations selected for publishing.");
+    }
+
+    try {
+      const res = await fetch("/api/v1/releases/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targets: selectedTargets,
+          release,
+          defaultPat: credentials.pat,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || `Publish failed (${res.status})`);
+      }
+
+      const results: TargetPublishResult[] = data.results || [];
+      const updatedReleases = releases.map((r) => {
+        if (r.id === release.id) {
+          return {
+            ...r,
+            publishResults: results,
+          };
+        }
+        return r;
+      });
+
+      set({ releases: updatedReleases });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_releases_history", JSON.stringify(updatedReleases));
+        } catch { }
+      }
+
+      return results;
+    } catch (err: any) {
+      throw err;
+    }
+  },
 
   tokensViewMode: "preview",
   setTokensViewMode: (mode) => {
@@ -523,11 +693,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         (localStorage.getItem("ts_tokens_view_mode") as "preview" | "json") ||
         "preview";
 
-      // 6. Restore Releases History
+      // 6. Restore Releases History & Distribution Targets
       let savedReleases: ReleasePackage[] = [];
       try {
         const rawRel = localStorage.getItem("ts_releases_history");
         if (rawRel) savedReleases = JSON.parse(rawRel);
+      } catch { }
+
+      let savedTargets = get().distributionTargets;
+      try {
+        const rawTargets = localStorage.getItem("ts_distribution_targets");
+        if (rawTargets) savedTargets = JSON.parse(rawTargets);
+      } catch { }
+
+      let savedConfig = DEFAULT_COMPILER_CONFIG;
+      try {
+        const rawCfg = localStorage.getItem("ts_compiler_config");
+        if (rawCfg) savedConfig = { ...DEFAULT_COMPILER_CONFIG, ...JSON.parse(rawCfg) };
       } catch { }
 
       set({
@@ -539,6 +721,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         tokensViewMode: savedTokensViewMode,
         releases: savedReleases,
         activeReleaseId: savedReleases[0]?.id || null,
+        distributionTargets: savedTargets,
+        compilerConfig: savedConfig,
         rawTokens: {},
         resolvedTokens: [],
         themeGroups: [],
