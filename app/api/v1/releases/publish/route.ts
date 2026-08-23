@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
             const headers = {
               Authorization: `Bearer ${pat}`,
               Accept: "application/vnd.github.v3+json",
-              "User-Agent": "SecondScreen-TokensStudio",
+              "User-Agent": "TokensPlatform-Cloud/1.0",
               "Content-Type": "application/json",
             };
 

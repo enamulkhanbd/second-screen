@@ -47,7 +47,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
     setRawTokens,
     setSyncStatus,
     addToast,
-    loadSampleData,
   } = useTokenStore();
 
   const [isFetching, setIsFetching] = useState(false);
@@ -184,15 +183,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
                 <span>Connect Repository</span>
               </Button>
             )}
-
-            <Button
-              variant="outline"
-              onClick={loadSampleData}
-              className="gap-2 text-xs"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span>Load Sample Data</span>
-            </Button>
           </div>
         </div>
       </div>

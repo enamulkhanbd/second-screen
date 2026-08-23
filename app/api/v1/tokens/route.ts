@@ -3,7 +3,6 @@ import { validateApiKey } from "@/utils/patAuth";
 import { getStoredApiKeys, getStoredTokens, saveStoredTokens } from "@/utils/cloudStorage";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
-import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +41,7 @@ export async function GET(req: NextRequest) {
     const orgId = searchParams.get("orgId");
     const projectId = searchParams.get("projectId");
 
-    let storedDoc = getStoredTokens() || SAMPLE_TOKENS_DATA;
+    let storedDoc = getStoredTokens() || { global: {} };
 
     const resolvedTokens = flattenAndResolveTokens(storedDoc, "ALL");
     const themeGroups = extractThemeGroups(storedDoc);
@@ -76,10 +75,11 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const isInternal = req.headers.get("x-internal-client") === "second-screen";
+    const clientHeader = req.headers.get("x-internal-client");
+    const isInternal = clientHeader === "tokens-platform" || clientHeader === "second-screen";
     const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
       ? authenticateRequest(req, "write:tokens")
-      : { isValid: true, record: { name: "Web App" } };
+      : { isValid: true, record: { name: "Tokens Platform Web App" } };
 
     if (!auth.isValid) {
       return jsonWithCors({ success: false, error: auth.error }, { status: 401 });

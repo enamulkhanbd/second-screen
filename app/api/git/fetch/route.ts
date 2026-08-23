@@ -130,7 +130,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    // Path traversal defense
+    const cleanPath = path.replace(/\.\./g, "").replace(/^\/+|\/+$/g, "");
 
     // -------------------------------------------------------------
     // GITHUB FETCH HANDLER
@@ -139,14 +140,18 @@ export async function POST(req: NextRequest) {
       const headers = {
         Authorization: `Bearer ${pat}`,
         Accept: "application/vnd.github.v3+json",
-        "User-Agent": "TokensStudio-SecondScreen-Viewer",
+        "User-Agent": "TokensPlatform-Cloud/1.0",
       };
 
       const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
         repo
       )}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
 
-      const treeRes = await fetch(treeUrl, { headers, cache: "no-store" });
+      const treeRes = await fetch(treeUrl, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+      });
 
       if (treeRes.ok) {
         const treeData = await treeRes.json();

@@ -4,7 +4,6 @@ import { getStoredApiKeys, getStoredTokens } from "@/utils/cloudStorage";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { compileCssVariables, compileStyleDictionary } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
-import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +23,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
     }
 
-    const storedDoc = getStoredTokens() || SAMPLE_TOKENS_DATA;
+    const storedDoc = getStoredTokens() || { global: {} };
     const resolved = flattenAndResolveTokens(storedDoc, "ALL");
     const themeGroups = extractThemeGroups(storedDoc);
 

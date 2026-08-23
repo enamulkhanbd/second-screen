@@ -19,79 +19,15 @@ import {
   UserRole,
 } from "@/types/tenant";
 import { RawTokensDocument, ThemeGroup, GitCredentials } from "@/types/tokens";
-import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
 const LOCAL_ORGS_KEY = "ts_local_organizations";
 const LOCAL_PROJECTS_KEY = "ts_local_projects";
 const LOCAL_INVITATIONS_KEY = "ts_local_invitations";
 
-const DEFAULT_ORGS: Organization[] = [
-  {
-    id: "org_acme",
-    name: "Acme Corp",
-    slug: "acme-corp",
-    ownerUid: "usr_default",
-    members: [
-      {
-        uid: "usr_default",
-        email: "designer@acme.com",
-        displayName: "Lead Designer",
-        role: "owner",
-        joinedAt: new Date().toISOString(),
-      },
-    ],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "org_personal",
-    name: "Personal Workspace",
-    slug: "personal",
-    ownerUid: "usr_default",
-    members: [
-      {
-        uid: "usr_default",
-        email: "me@tokens.studio",
-        displayName: "Personal",
-        role: "owner",
-        joinedAt: new Date().toISOString(),
-      },
-    ],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const DEFAULT_ORGS: Organization[] = [];
 
-const DEFAULT_PROJECTS: Project[] = [
-  {
-    id: "proj_ds",
-    orgId: "org_acme",
-    name: "Design System",
-    slug: "design-system",
-    description: "Core design tokens and typography matrix",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_mobile",
-    orgId: "org_acme",
-    name: "Mobile App",
-    slug: "mobile-app",
-    description: "iOS and Android application tokens",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_beta",
-    orgId: "org_personal",
-    name: "Tokens Beta",
-    slug: "tokens-beta",
-    description: "Personal design tokens repository",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const DEFAULT_PROJECTS: Project[] = [];
 
 /**
  * Reads local fallback organizations
@@ -189,8 +125,7 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
   return local.filter(
     (o) =>
       o.ownerUid === uid ||
-      o.members?.some((m) => m.uid === uid || (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())) ||
-      o.ownerUid === "usr_default"
+      o.members?.some((m) => m.uid === uid || (userEmail && m.email.toLowerCase() === userEmail.toLowerCase()))
   );
 }
 
@@ -543,7 +478,7 @@ export async function createProject(
 ): Promise<Project> {
   const projId = `proj_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : SAMPLE_TOKENS_DATA;
+  const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : { global: {} };
   const themeGroups = extractThemeGroups(rawTokens);
 
   const newProject: Project = {

@@ -20,22 +20,38 @@ import { useTokenStore } from "@/store/useTokenStore";
 
 export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { initializeFromStorage, viewMode, sidebarTab } = useTokenStore();
+  const {
+    initializeFromStorage,
+    viewMode,
+    sidebarTab,
+    credentials,
+    rawTokens,
+    currentUser,
+  } = useTokenStore();
 
   useEffect(() => {
     // Restore tokens, theme matrix, and credentials securely from client storage on reload
     initializeFromStorage();
   }, [initializeFromStorage]);
 
+  const hasTokens = Object.keys(rawTokens).length > 0;
+  const isGitConnected = Boolean(credentials.owner && credentials.repo);
+  const isConfigured = Boolean(hasTokens || isGitConnected || currentUser);
+
   return (
-    <main className="flex flex-col h-screen overflow-hidden bg-slate-100 dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
-      {/* Top Header: Logo, Interactive Breadcrumbs, Avatar, Branch Dropdown */}
+    <main className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
+      {/* Top Header: Logo, Clean Status, Theme Switcher & Auth */}
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
-        {sidebarTab === "dashboard" ? (
+        {/* Render Sidebar ONLY when user is configured / logged in / has tokens */}
+        {isConfigured && <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />}
+
+        {!isConfigured ? (
+          /* Full-screen clean Onboarding Hub when unconfigured / empty */
+          <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "dashboard" ? (
           <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "documentation" ? (
           <DocumentationView />

@@ -35,11 +35,37 @@ interface CredentialsModalProps {
 }
 
 export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onClose }) => {
-  const { credentials, setCredentials, setRawTokens, setSyncStatus, addToast } = useTokenStore();
+  const { credentials, setCredentials, clearCredentials, setRawTokens, setSyncStatus, addToast } = useTokenStore();
   const [modalTab, setModalTab] = useState<"git" | "apikeys" | "plugin">("git");
   const [form, setForm] = useState<GitCredentials>({ ...credentials });
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setForm({ ...credentials });
+      setStatusMessage(null);
+    }
+  }, [isOpen, credentials]);
+
+  const handleDisconnect = () => {
+    clearCredentials();
+    setForm({
+      provider: "github",
+      owner: "",
+      project: "",
+      repo: "",
+      branch: "main",
+      path: "",
+      pat: "",
+    });
+    addToast({
+      type: "info",
+      title: "Repository Disconnected",
+      message: "Cleared Git credentials and tokens from active workspace.",
+    });
+    onClose();
+  };
 
   const handleProviderChange = (provider: GitProvider) => {
     setForm((prev) => ({
@@ -339,24 +365,40 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
               )}
 
               {/* Footer Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onClose}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={loading}
-                  className="gap-1.5"
-                >
-                  {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{loading ? "Connecting & Syncing..." : "Save & Sync Tokens"}</span>
-                </Button>
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
+                <div>
+                  {(credentials.repo || credentials.owner) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      Disconnect Repository
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onClose}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={loading}
+                    className="gap-1.5"
+                  >
+                    {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{loading ? "Connecting & Syncing..." : "Save & Sync Tokens"}</span>
+                  </Button>
+                </div>
               </div>
             </form>
           )}

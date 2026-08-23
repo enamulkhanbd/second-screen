@@ -35,9 +35,18 @@ import { Badge } from "@/components/ui/badge";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  title?: string;
+  subtitle?: string;
+  onSuccess?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  onSuccess,
+}) => {
   const { currentUser, setCurrentUser, addToast } = useTokenStore();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -65,7 +74,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           });
           addToast({
             type: "success",
-            title: "Welcome to Second Screen!",
+            title: "Welcome to Tokens Platform!",
             message: `Account created successfully for ${email}.`,
           });
         } else {
@@ -96,6 +105,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         });
       }
       onClose();
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.message || "Authentication failed");
     } finally {
@@ -117,6 +127,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         message: "Logged in as Design Lead.",
       });
       onClose();
+      if (onSuccess) onSuccess();
       return;
     }
 
@@ -136,6 +147,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         message: `Welcome ${cred.user.displayName || cred.user.email}!`,
       });
       onClose();
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.message || "Google sign in failed");
     } finally {
@@ -204,16 +216,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <div>
                   <div className="flex items-center gap-2">
                     <DialogTitle className="text-base">
-                      {isSignUp ? "Create Workspace Account" : "Sign In to Tokens Platform"}
+                      {title || (isSignUp ? "Create Workspace Account" : "Sign In to Tokens Platform")}
                     </DialogTitle>
                     <Badge variant="success" className="text-[10px] py-0 font-semibold">
                       100% Free
                     </Badge>
                   </div>
                   <DialogDescription className="text-xs">
-                    {isSignUp
+                    {subtitle || (isSignUp
                       ? "Get started with multi-tenant design token management — no credit card needed"
-                      : "Access your cloud organizations and token repositories"}
+                      : "Access your cloud organizations and token repositories")}
                   </DialogDescription>
                 </div>
               </div>

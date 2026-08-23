@@ -430,7 +430,7 @@ export function generateCssVariables(
   const lines: string[] = [];
   lines.push(`/**`);
   lines.push(` * Design Tokens - Generated CSS Variables`);
-  lines.push(` * Tokens Studio Second Screen`);
+  lines.push(` * Tokens Platform`);
   lines.push(` */`);
   lines.push(``);
   lines.push(`:root {`);

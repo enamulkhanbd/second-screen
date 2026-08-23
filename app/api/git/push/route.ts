@@ -31,10 +31,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    // Path traversal defense
+    const cleanPath = path.replace(/\.\./g, "").replace(/^\/+|\/+$/g, "");
     const finalCommitMessage =
       commitMessage ||
-      `chore(tokens): update design tokens via Tokens Studio second-screen [${new Date().toISOString()}]`;
+      `chore(tokens): update design tokens via Tokens Platform [${new Date().toISOString()}]`;
 
     // -------------------------------------------------------------
     // GITHUB DIRECT COMMIT HANDLER
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       const headers = {
         Authorization: `Bearer ${pat}`,
         Accept: "application/vnd.github.v3+json",
-        "User-Agent": "TokensStudio-SecondScreen-Viewer",
+        "User-Agent": "TokensPlatform-Cloud/1.0",
         "Content-Type": "application/json",
       };
 

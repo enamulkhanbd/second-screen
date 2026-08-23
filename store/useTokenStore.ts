@@ -27,8 +27,6 @@ import {
   compileStyleDictionary,
 } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
-import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
-import { STARTER_TEMPLATES } from "@/data/starterTemplates";
 import {
   Organization,
   Project,
@@ -176,6 +174,7 @@ interface TokenStoreState {
   setActiveGroup: (group: string) => void;
   setSearchQuery: (query: string) => void;
   setSyncStatus: (status: SyncStatus, error?: string | null) => void;
+  clearCredentials: () => void;
   addToast: (toast: Omit<ToastMessage, "id" | "timestamp">) => void;
   removeToast: (id: string) => void;
   resetDirtyState: () => void;
@@ -190,8 +189,6 @@ interface TokenStoreState {
   updateThemeGroup: (groupId: string, newName: string, newColor?: string) => void;
   duplicateThemeGroup: (groupId: string) => void;
   deleteThemeGroup: (groupId: string) => void;
-  loadSampleData: () => void;
-  loadStarterTemplate: (templateId: string) => void;
   addNewToken: (
     setName: string,
     tokenPath: string[],
@@ -201,6 +198,7 @@ interface TokenStoreState {
   duplicateToken: (setName: string, tokenPath: string[], newName: string) => void;
   addNewSet: (setName: string) => void;
   deleteSet: (setName: string) => void;
+  initializeBlankWorkspace: () => void;
 }
 
 const DEFAULT_CREDENTIALS: GitCredentials = {
@@ -482,13 +480,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       if (typeof window !== "undefined") {
         try {
           const { pat, ...safeCreds } = updated;
-          localStorage.setItem("ts_second_screen_creds", JSON.stringify(safeCreds));
+          localStorage.setItem("ts_tokens_platform_creds", JSON.stringify(safeCreds));
 
           // Save PAT in sessionStorage (secure tab lifecycle) and localStorage if requested
           if (updated.pat) {
-            sessionStorage.setItem("ts_second_screen_pat", updated.pat);
+            sessionStorage.setItem("ts_tokens_platform_pat", updated.pat);
             if (rememberPat) {
-              localStorage.setItem("ts_second_screen_pat_enc", updated.pat);
+              localStorage.setItem("ts_tokens_platform_pat_enc", updated.pat);
             }
           }
         } catch {
@@ -497,6 +495,31 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       }
       return { credentials: updated };
     }),
+
+  clearCredentials: () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("ts_tokens_platform_creds");
+        localStorage.removeItem("ts_tokens_platform_pat_enc");
+        sessionStorage.removeItem("ts_tokens_platform_pat");
+        localStorage.removeItem("ts_second_screen_creds");
+        localStorage.removeItem("ts_second_screen_pat_enc");
+        sessionStorage.removeItem("ts_second_screen_pat");
+      } catch { }
+    }
+    set({
+      credentials: DEFAULT_CREDENTIALS,
+      rawTokens: {},
+      resolvedTokens: [],
+      themeGroups: [],
+      activeThemeGroupId: "",
+      activeThemeOptionId: "",
+      syncMeta: null,
+      syncStatus: "idle",
+      syncError: null,
+      isDirty: false,
+    });
+  },
 
   rawTokens: {},
   resolvedTokens: [],
@@ -813,8 +836,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       localStorage.removeItem("ts_cached_meta");
 
       // 2. Restore Credentials & PAT
-      const savedCreds = localStorage.getItem("ts_second_screen_creds");
+      const savedCreds =
+        localStorage.getItem("ts_tokens_platform_creds") ||
+        localStorage.getItem("ts_second_screen_creds");
       const sessionPat =
+        sessionStorage.getItem("ts_tokens_platform_pat") ||
+        localStorage.getItem("ts_tokens_platform_pat_enc") ||
         sessionStorage.getItem("ts_second_screen_pat") ||
         localStorage.getItem("ts_second_screen_pat_enc") ||
         "";
@@ -827,7 +854,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       }
 
       // 3. Restore User Profile & View Mode
-      const savedUser = localStorage.getItem("ts_second_screen_user");
+      const savedUser =
+        localStorage.getItem("ts_tokens_platform_user") ||
+        localStorage.getItem("ts_second_screen_user");
       const userProfile = savedUser ? JSON.parse(savedUser) : null;
       const savedViewMode = (localStorage.getItem("ts_view_mode") as "matrix" | "flow") || "matrix";
 
@@ -978,13 +1007,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       groups.find((g) => g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // Automatically synchronize loaded tokens with Second Screen Cloud API
+    // Automatically synchronize loaded tokens with Tokens Platform Cloud API
     if (typeof window !== "undefined" && doc && typeof doc === "object") {
       fetch("/api/v1/tokens", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-internal-client": "second-screen",
+          "x-internal-client": "tokens-platform",
         },
         body: JSON.stringify({ rawTokens: doc }),
       }).catch(() => { });
@@ -1381,53 +1410,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     });
   },
 
-  loadSampleData: () => {
-    const resolved = flattenAndResolveTokens(SAMPLE_TOKENS_DATA, "ALL");
-    const groups = extractThemeGroups(SAMPLE_TOKENS_DATA);
-    const themeGroup =
-      groups.find((g) => g.name.toLowerCase() === "theme") || groups[0];
-
-    set({
-      rawTokens: SAMPLE_TOKENS_DATA,
-      resolvedTokens: resolved,
-      themeGroups: groups,
-      activeThemeGroupId: themeGroup?.id || "grp-theme",
-      activeThemeOptionId: themeGroup?.options[0]?.id || "opt-dark",
-      activeSet: "ALL",
-      activeGroup: "all",
-      isDirty: false,
-    });
-    get().addToast({
-      type: "info",
-      title: "Sample Theme Matrix Loaded",
-      message: "Loaded Tokens Studio multi-theme matrix with Dark & Light modes.",
-    });
-  },
-
-  loadStarterTemplate: (templateId: string) => {
-    const template = STARTER_TEMPLATES.find((t) => t.id === templateId) || STARTER_TEMPLATES[0];
-    const doc = template.tokensDoc;
-    const resolved = flattenAndResolveTokens(doc, "ALL");
-    const groups = extractThemeGroups(doc);
-
-    set({
-      rawTokens: doc,
-      resolvedTokens: resolved,
-      themeGroups: groups,
-      activeThemeGroupId: groups[0]?.id || "",
-      activeThemeOptionId: groups[0]?.options[0]?.id || "",
-      activeSet: "ALL",
-      activeGroup: "all",
-      isDirty: false,
-    });
-
-    get().addToast({
-      type: "success",
-      title: "Template Loaded",
-      message: `Loaded "${template.name}" with ${resolved.length} tokens.`,
-    });
-  },
-
   addNewToken: (setName, tokenPath, tokenData) => {
     const { rawTokens, activeSet } = get();
     const fullPath = [setName, ...tokenPath];
@@ -1538,9 +1520,28 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       message: `Deleted token set "${setName}".`,
     });
   },
+
+  initializeBlankWorkspace: () => {
+    const blankDoc: RawTokensDocument = {
+      global: {
+        colors: {
+          brand: {
+            primary: { value: "#7c3aed", type: "color", description: "Primary brand accent" },
+          },
+        },
+      },
+    };
+    get().setRawTokens(blankDoc);
+    set({ sidebarTab: "tokens" });
+    get().addToast({
+      type: "success",
+      title: "Workspace Initialized",
+      message: "Started with clean design token workspace. Add your tokens or connect a repository.",
+    });
+  },
 }));
 
-// Automatic reactive synchronization with Second Screen Cloud API
+// Automatic reactive synchronization with Tokens Platform Cloud API
 if (typeof window !== "undefined") {
   let syncTimer: any = null;
   useTokenStore.subscribe((state, prevState) => {
@@ -1555,7 +1556,7 @@ if (typeof window !== "undefined") {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-internal-client": "second-screen",
+            "x-internal-client": "tokens-platform",
           },
           body: JSON.stringify({ rawTokens: state.rawTokens }),
         }).catch(() => { });

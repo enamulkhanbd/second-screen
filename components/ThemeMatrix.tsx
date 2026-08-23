@@ -148,7 +148,6 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     setRawTokens,
     setSyncStatus,
     addToast,
-    loadSampleData,
     duplicateThemeGroup,
     deleteThemeGroup,
     deleteToken,
@@ -307,15 +306,6 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                 <span>Connect Repository</span>
               </Button>
             )}
-
-            <Button
-              variant="outline"
-              onClick={loadSampleData}
-              className="gap-2 text-xs"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span>Load Sample Data</span>
-            </Button>
           </div>
         </div>
       </div>

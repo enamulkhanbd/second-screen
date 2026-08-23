@@ -85,9 +85,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [branchSearch, setBranchSearch] = useState("");
 
-  const isConfigured = Boolean(credentials.repo && credentials.owner);
-  const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
   const hasTokens = Object.keys(rawTokens).length > 0;
+  const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
+  const isConfigured = Boolean(
+    (credentials.repo && credentials.owner) ||
+    hasTokens ||
+    currentUser
+  );
 
   // Fetch branch list whenever branch dropdown is opened
   useEffect(() => {
@@ -309,24 +313,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             </span>
           </div>
 
-          <div className="w-[1px] h-4 bg-border mx-0.5" />
-
-          {/* Multi-Tenant Organization & Project Switcher */}
-          <OrgSwitcher onOpenAuth={() => setIsAuthOpen(true)} />
-
-          {/* Interactive Breadcrumb Hierarchy */}
+          {/* Multi-Tenant Organization & Project Switcher & Breadcrumbs (Only when configured / logged in) */}
           {isConfigured && (
             <>
+              <div className="w-[1px] h-4 bg-border mx-0.5" />
+              <OrgSwitcher onOpenAuth={() => setIsAuthOpen(true)} />
+
+              {/* Interactive Breadcrumb Hierarchy */}
               <span className="text-muted-foreground font-mono text-[11px]">/</span>
               <nav className="flex items-center gap-1.5 text-muted-foreground font-mono text-[11px]">
-                <span
-                  onClick={onOpenSettings}
-                  className="hover:text-foreground cursor-pointer transition-colors font-medium text-foreground"
-                >
-                  {credentials.repo}
-                </span>
-
-                <span className="text-muted-foreground/50">/</span>
+                {credentials.repo && (
+                  <>
+                    <span
+                      onClick={onOpenSettings}
+                      className="hover:text-foreground cursor-pointer transition-colors font-medium text-foreground"
+                    >
+                      {credentials.repo}
+                    </span>
+                    <span className="text-muted-foreground/50">/</span>
+                  </>
+                )}
 
                 {sidebarTab === "dashboard" && (
                   <span className="font-semibold text-foreground">
@@ -634,16 +640,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 )}
               </div>
             </>
-          ) : (
-            <Button
-              onClick={onOpenSettings}
-              size="sm"
-              className="gap-1.5 text-xs shadow-sm"
-            >
-              <FolderGit2 className="w-3.5 h-3.5" />
-              <span>Connect Repository</span>
-            </Button>
-          )}
+          ) : null}
 
           {/* Divider before far-right theme switcher */}
           <div className="w-[1px] h-4 bg-border mx-0.5" />

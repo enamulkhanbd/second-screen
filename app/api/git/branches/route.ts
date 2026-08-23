@@ -22,14 +22,18 @@ export async function POST(req: NextRequest) {
       const headers = {
         Authorization: `Bearer ${pat}`,
         Accept: "application/vnd.github.v3+json",
-        "User-Agent": "TokensStudio-SecondScreen-Viewer",
+        "User-Agent": "TokensPlatform-Cloud/1.0",
       };
 
       const branchesUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
         repo
       )}/branches?per_page=100`;
 
-      const res = await fetch(branchesUrl, { headers, cache: "no-store" });
+      const res = await fetch(branchesUrl, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+      });
       if (!res.ok) {
         const errText = await res.text();
         return NextResponse.json(

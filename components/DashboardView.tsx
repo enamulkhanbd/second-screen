@@ -17,6 +17,9 @@ import {
   Sparkles,
   FolderGit2,
   ArrowRight,
+  Globe,
+  Code,
+  PlusCircle,
 } from "lucide-react";
 import {
   scanTokenHealth,
@@ -24,6 +27,7 @@ import {
   computeThemeCoverage,
 } from "@/utils/dashboardHelpers";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { AuthModal } from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,10 +52,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
     setSidebarTab,
     fetchLiveTokens,
     setActiveSet,
+    initializeBlankWorkspace,
+    currentUser,
   } = useTokenStore();
 
   const [selectedIssueTab, setSelectedIssueTab] = useState<"all" | "errors" | "warnings">("all");
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const setNames = useMemo(
     () => Object.keys(rawTokens).filter((k) => !k.startsWith("$")),
@@ -103,10 +110,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
     setSidebarTab("tokens");
   };
 
+  const handleCreateTokensClick = () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    initializeBlankWorkspace();
+  };
+
   // If no tokens or sync provider is connected, render Welcome Wizard
   if (totalTokens === 0) {
     return (
-      <div className="flex-1 h-full overflow-y-auto bg-background p-6 lg:p-12 flex flex-col justify-center max-w-5xl mx-auto space-y-8 font-sans select-none">
+      <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-[#09090d] p-6 lg:p-12 flex flex-col justify-center max-w-5xl mx-auto space-y-8 font-sans select-none">
         <div className="text-center space-y-3">
           <Badge variant="violet" className="gap-1.5 px-3 py-1 text-xs">
             <Sparkles className="w-3.5 h-3.5" />
@@ -116,7 +131,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
             Connect your design system
           </h1>
           <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Configure your Git sync provider, initialize from a starter design system template, or connect our companion Figma plugin to get started.
+            Connect your Git repository (GitHub / Azure DevOps), sync with our companion Figma plugin, and manage multi-theme design tokens.
           </p>
         </div>
 
@@ -145,49 +160,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
             </CardContent>
           </Card>
 
-          {/* Card 2: Starter Templates */}
-          <Card
-            onClick={() => setIsOnboardingOpen(true)}
-            className="cursor-pointer hover:border-primary transition-all flex flex-col justify-between"
-          >
-            <CardHeader className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <CardTitle className="text-base">2. Starter Templates</CardTitle>
-                <CardDescription className="text-xs mt-1">
-                  Initialize from multi-brand presets or import Tokens Studio JSON.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="sm" className="w-full gap-1.5">
-                <span>Explore Templates</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Card 3: Figma Companion Plugin */}
+          {/* Card 2: Figma Plugin Sync */}
           <Card
             onClick={onOpenSettings}
             className="cursor-pointer hover:border-primary transition-all flex flex-col justify-between"
           >
             <CardHeader className="space-y-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <Layers className="w-6 h-6" />
+                <Globe className="w-6 h-6" />
               </div>
               <div>
-                <CardTitle className="text-base">3. Figma Plugin</CardTitle>
+                <CardTitle className="text-base">2. Figma Plugin Sync</CardTitle>
                 <CardDescription className="text-xs mt-1">
-                  Install our companion plugin to sync Variables and Theme Modes.
+                  Connect our desktop companion plugin to sync Figma Variables and Theme Modes.
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent>
               <Button variant="outline" size="sm" className="w-full gap-1.5">
-                <span>Get Plugin</span>
+                <span>Setup Plugin</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Start Blank / Create Tokens */}
+          <Card
+            onClick={handleCreateTokensClick}
+            className="cursor-pointer hover:border-primary transition-all flex flex-col justify-between"
+          >
+            <CardHeader className="space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <PlusCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-base">3. Create Design Tokens</CardTitle>
+                <CardDescription className="text-xs mt-1">
+                  Start blank and create custom colors, typography, and spacing tokens in our visual editor.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" size="sm" className="w-full gap-1.5">
+                <span>Create Blank Tokens</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -198,6 +213,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
           isOpen={isOnboardingOpen}
           onClose={() => setIsOnboardingOpen(false)}
           onOpenSettings={onOpenSettings || (() => {})}
+        />
+
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          title="Sign in to Create Tokens"
+          subtitle="Please sign in or create a free workspace to start creating design tokens."
+          onSuccess={() => {
+            initializeBlankWorkspace();
+          }}
         />
       </div>
     );
@@ -237,11 +262,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsOnboardingOpen(true)}
+            onClick={() => setSidebarTab("exports")}
             className="gap-2 text-xs h-9"
           >
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span>Templates & Import</span>
+            <Code className="w-3.5 h-3.5" />
+            <span>Export Code</span>
           </Button>
 
           <Button
@@ -773,7 +798,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
         </Card>
       </div>
 
-      {/* Onboarding & Starter Templates Modal */}
+      {/* Onboarding Modal */}
       {isOnboardingOpen && (
         <OnboardingModal
           isOpen={isOnboardingOpen}
