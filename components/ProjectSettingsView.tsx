@@ -107,10 +107,40 @@ export const ProjectSettingsView: React.FC = () => {
   const [pairCodeInput, setPairCodeInput] = useState("");
   const [isPairing, setIsPairing] = useState(false);
   const [isPairSuccess, setIsPairSuccess] = useState(false);
+  const [activePluginKey, setActivePluginKey] = useState<any | null>(null);
+  const [isLoadingPluginStatus, setIsLoadingPluginStatus] = useState(false);
+  const [isUnlinkingPlugin, setIsUnlinkingPlugin] = useState(false);
+  const [showPairInput, setShowPairInput] = useState(false);
 
   // Danger Zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const fetchPluginStatus = async () => {
+    if (!currentProject) return;
+    setIsLoadingPluginStatus(true);
+    try {
+      const res = await fetch("/api/v1/auth/pat");
+      if (res.ok) {
+        const data = await res.json();
+        const keys = data.keys || [];
+        const match = keys.find(
+          (k: any) =>
+            k.projectId === currentProject.id ||
+            (k.name && k.name.toLowerCase().includes("figma"))
+        );
+        setActivePluginKey(match || null);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingPluginStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPluginStatus();
+  }, [currentProject?.id]);
 
   useEffect(() => {
     if (currentProject) {
@@ -262,6 +292,8 @@ export const ProjectSettingsView: React.FC = () => {
 
       setIsPairSuccess(true);
       setPairCodeInput("");
+      setShowPairInput(false);
+      await fetchPluginStatus();
       addToast({
         type: "success",
         title: "Figma Plugin Paired Successfully!",
@@ -276,6 +308,32 @@ export const ProjectSettingsView: React.FC = () => {
       });
     } finally {
       setIsPairing(false);
+    }
+  };
+
+  const handleUnlinkPlugin = async () => {
+    if (!activePluginKey?.id) return;
+    setIsUnlinkingPlugin(true);
+    try {
+      const res = await fetch(`/api/v1/auth/pat?id=${encodeURIComponent(activePluginKey.id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setActivePluginKey(null);
+        addToast({
+          type: "success",
+          title: "Plugin Unlinked",
+          message: "Figma Companion Plugin disconnected successfully.",
+        });
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Unlink Failed",
+        message: err.message || "Failed to disconnect plugin.",
+      });
+    } finally {
+      setIsUnlinkingPlugin(false);
     }
   };
 
@@ -563,10 +621,25 @@ export const ProjectSettingsView: React.FC = () => {
         <div className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-border/70 pb-3">
             <div>
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" />
-                <span>Figma Companion Plugin</span>
-              </h2>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <span>Figma Companion Plugin</span>
+                </h2>
+
+                {/* Live Connection Status Badge */}
+                {activePluginKey ? (
+                  <Badge variant="success" className="gap-1.5 text-[10px] px-2 py-0.5 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Connected</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 text-muted-foreground font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                    <span>Not Connected</span>
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Pair your desktop Figma canvas to push & pull 2,400+ variables with zero manual exports.
               </p>
@@ -583,43 +656,119 @@ export const ProjectSettingsView: React.FC = () => {
             </a>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            {/* Quick 6-Digit Pair Widget */}
-            <form onSubmit={handleApprovePairCode} className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
-              <div className="space-y-1">
-                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  <span>Quick 6-Digit Code Pairing</span>
-                </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            {/* Left Box: Active Bridge Card or Quick 6-Digit Pair Widget */}
+            {activePluginKey && !showPairInput ? (
+              <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <span>Active Companion Bridge</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {activePluginKey.name || "Figma Desktop Companion"}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-mono">
+                    {activePluginKey.keyPrefix || "sec_pat_..."}
+                  </Badge>
+                </div>
+
+                <div className="p-3 rounded-lg bg-background/80 border border-border/80 text-[11px] space-y-1.5">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Target Project:</span>
+                    <span className="font-semibold text-foreground">{currentProject.name}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Connection Status:</span>
+                    <span className="text-emerald-500 font-medium flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live &amp; Ready
+                    </span>
+                  </div>
+                  {activePluginKey.createdAt && (
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Paired Date:</span>
+                      <span className="font-mono text-[10px]">
+                        {new Date(activePluginKey.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPairInput(true)}
+                    className="flex-1 h-8 text-xs font-medium"
+                  >
+                    Pair Another Canvas
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleUnlinkPlugin}
+                    disabled={isUnlinkingPlugin}
+                    className="h-8 text-xs px-3"
+                  >
+                    {isUnlinkingPlugin ? "Unlinking..." : "Unlink"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleApprovePairCode} className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                    <span>Quick 6-Digit Code Pairing</span>
+                  </span>
+                  {activePluginKey && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPairInput(false)}
+                      className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                    >
+                      Back to status
+                    </button>
+                  )}
+                </div>
+
                 <p className="text-[11px] text-muted-foreground">
                   Open the plugin in Figma, grab the 6-character code (e.g. <code>TK-8492</code>), and approve it below:
                 </p>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Input
-                  value={pairCodeInput}
-                  onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
-                  placeholder="TK-XXXX"
-                  maxLength={7}
-                  className="h-9 text-xs font-mono uppercase tracking-wider"
-                />
-                <Button
-                  type="submit"
-                  disabled={isPairing || pairCodeInput.length < 4}
-                  className="h-9 text-xs font-bold gap-1.5 px-4"
-                >
-                  <span>{isPairing ? "Pairing..." : "Connect"}</span>
-                </Button>
-              </div>
-
-              {isPairSuccess && (
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span>Plugin paired to {currentProject.name}!</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={pairCodeInput}
+                    onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
+                    placeholder="TK-XXXX"
+                    maxLength={7}
+                    className="h-9 text-xs font-mono uppercase tracking-wider"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isPairing || pairCodeInput.length < 4}
+                    className="h-9 text-xs font-bold gap-1.5 px-4"
+                  >
+                    <span>{isPairing ? "Pairing..." : "Connect"}</span>
+                  </Button>
                 </div>
-              )}
-            </form>
+
+                {isPairSuccess && (
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Plugin paired to {currentProject.name}!</span>
+                  </div>
+                )}
+              </form>
+            )}
 
             {/* Quick Instructions */}
             <div className="space-y-2 text-xs text-muted-foreground">
