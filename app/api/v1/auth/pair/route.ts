@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
+import { getOrganization, getOrgProjects } from "@/services/organizationService";
 
 export const dynamic = "force-dynamic";
 
@@ -196,10 +197,28 @@ export async function PUT(req: NextRequest) {
     }
 
     const origin = getRequestOrigin(req);
-    
+
+    let resolvedOrgName = (orgName || "").trim();
+    let resolvedProjName = (projectName || "").trim();
+
+    if (orgId && !resolvedOrgName) {
+      try {
+        const org = await getOrganization(orgId);
+        if (org?.name) resolvedOrgName = org.name;
+      } catch {}
+    }
+
+    if (orgId && projectId && !resolvedProjName) {
+      try {
+        const projs = await getOrgProjects(orgId);
+        const proj = projs.find((p) => p.id === projectId);
+        if (proj?.name) resolvedProjName = proj.name;
+      } catch {}
+    }
+
     // Generate valid PAT record and persist it into cloud API keys store
     const { plaintextKey, record } = generateApiKey(
-      `Figma Plugin (${orgName || projectName || "Design Tokens"})`,
+      `Figma Plugin (${resolvedOrgName || resolvedProjName || "Design Tokens"})`,
       ["read:tokens", "write:tokens", "manage:releases"],
       undefined,
       {
@@ -207,8 +226,8 @@ export async function PUT(req: NextRequest) {
         userEmail: userEmail || undefined,
         orgId: orgId || "",
         projectId: projectId || "",
-        orgName: orgName || "",
-        projectName: projectName || "",
+        orgName: resolvedOrgName || "",
+        projectName: resolvedProjName || "",
       }
     );
     await saveApiKey(record);
@@ -217,8 +236,8 @@ export async function PUT(req: NextRequest) {
     session.pat = plaintextKey;
     session.orgId = orgId || "";
     session.projectId = projectId || "";
-    session.orgName = orgName || "";
-    session.projectName = projectName || "";
+    session.orgName = resolvedOrgName || "";
+    session.projectName = resolvedProjName || "";
     session.serverUrl = origin;
 
     pairingSessions.set(cleanCode, session);

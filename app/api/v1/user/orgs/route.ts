@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
-import { getUserOrganizations, getOrgProjects } from "@/services/organizationService";
+import { getUserOrganizations, getOrgProjects, getOrganization } from "@/services/organizationService";
 
 export async function OPTIONS() {
   return handleOptionsCors();
@@ -28,7 +28,14 @@ export async function GET(req: NextRequest) {
 
     // If PAT has bound org/project metadata and it's not yet in the list, ensure it's included
     if (auth.record?.orgId && !orgs.some((o) => o.id === auth.record.orgId)) {
-      const orgName = auth.record.orgName || "Organization";
+      let orgName = auth.record.orgName;
+      if (!orgName) {
+        try {
+          const boundOrg = await getOrganization(auth.record.orgId);
+          if (boundOrg?.name) orgName = boundOrg.name;
+        } catch {}
+      }
+      orgName = orgName || "Organization";
       orgs = [
         {
           id: auth.record.orgId,
