@@ -53,7 +53,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 
-const DEFAULT_SERVER_URL = "http://localhost:3000";
+export const PRODUCTION_APP_URL = "https://tokensplatform.enamulkhan.com";
 
 interface PluginConfig {
   serverUrl: string;
@@ -96,9 +96,10 @@ export const App: React.FC = () => {
   const [connectUrl, setConnectUrl] = useState<string>("");
   const [isGeneratingPair, setIsGeneratingPair] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const [config, setConfig] = useState<PluginConfig>({
-    serverUrl: DEFAULT_SERVER_URL,
+    serverUrl: PRODUCTION_APP_URL,
     pat: "",
     orgId: "",
     projectId: "",
@@ -128,8 +129,8 @@ export const App: React.FC = () => {
   const isPaired = Boolean(config.pat);
 
   const getServerUrl = (cfgUrl?: string) => {
-    let url = (cfgUrl || config.serverUrl || DEFAULT_SERVER_URL).trim();
-    if (!url) url = DEFAULT_SERVER_URL;
+    let url = (cfgUrl || config.serverUrl || PRODUCTION_APP_URL).trim();
+    if (!url) url = PRODUCTION_APP_URL;
     return url.replace(/\/+$/, "");
   };
 
@@ -140,6 +141,35 @@ export const App: React.FC = () => {
 
   const clearLogs = () => {
     setLogs([]);
+  };
+
+  /**
+   * Guaranteed clipboard copy for Figma sandboxed iframes
+   */
+  const copyToClipboard = (text: string, label: string = "Text"): boolean => {
+    let copied = false;
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.setAttribute("readonly", "");
+      el.style.position = "absolute";
+      el.style.left = "-9999px";
+      el.style.top = "-9999px";
+      document.body.appendChild(el);
+      el.select();
+      el.setSelectionRange(0, 99999);
+      copied = document.execCommand("copy");
+      document.body.removeChild(el);
+    } catch {}
+
+    if (!copied && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+      copied = true;
+    }
+
+    // Trigger Figma native toast
+    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `✓ Copied ${label} (${text})` } }, "*");
+    return copied;
   };
 
   useEffect(() => {
@@ -175,7 +205,6 @@ export const App: React.FC = () => {
         const list: Org[] = data.orgs || data.organizations || [];
         if (list && Array.isArray(list) && list.length > 0) {
           setOrgs(list);
-          // Auto-select valid org and project if not yet set or not matching
           const currentOrgMatch = list.find((o) => o.id === config.orgId);
           if (!config.orgId || !currentOrgMatch) {
             const firstOrg = list[0];
@@ -206,7 +235,7 @@ export const App: React.FC = () => {
 
       if (msg.type === "SAVED_CONFIG") {
         if (msg.payload) {
-          const loadedServer = msg.payload.serverUrl || DEFAULT_SERVER_URL;
+          const loadedServer = msg.payload.serverUrl || PRODUCTION_APP_URL;
           const updated = { ...config, ...msg.payload, serverUrl: loadedServer };
           setConfig(updated);
           if (msg.payload.pat) {
@@ -284,7 +313,7 @@ export const App: React.FC = () => {
       const data = await res.json();
       if (data.success && data.code) {
         setPairCode(data.code);
-        setConnectUrl(`${sUrl}/connect?code=${data.code}`);
+        setConnectUrl(`${PRODUCTION_APP_URL}/connect?code=${data.code}`);
         addLog(`Generated pairing code: ${data.code}`, "normal");
       }
     } catch (err: any) {
@@ -312,7 +341,7 @@ export const App: React.FC = () => {
         const data = await res.json();
 
         if (data.status === "approved" && data.pat) {
-          const serverUrl = data.serverUrl || config.serverUrl || DEFAULT_SERVER_URL;
+          const serverUrl = data.serverUrl || config.serverUrl || PRODUCTION_APP_URL;
           const orgId = data.orgId || config.orgId || "";
           const projectId = data.projectId || config.projectId || "";
           const orgName = data.orgName || (orgId ? "Organization" : "");
@@ -385,12 +414,19 @@ export const App: React.FC = () => {
   };
 
   const handleCopyLink = () => {
-    const sUrl = getServerUrl();
-    const linkToCopy = connectUrl || `${sUrl}/connect?code=${pairCode}`;
-    navigator.clipboard.writeText(linkToCopy);
+    const linkToCopy = `${PRODUCTION_APP_URL}/connect?code=${pairCode}`;
+    copyToClipboard(linkToCopy, "Magic Link");
     setCopiedLink(true);
     addLog("Copied pairing link to clipboard.", "normal");
     setTimeout(() => setCopiedLink(false), 3000);
+  };
+
+  const handleCopyCode = () => {
+    if (!pairCode) return;
+    copyToClipboard(pairCode, "Pairing Code");
+    setCopiedCode(true);
+    addLog(`Copied pairing code (${pairCode}) to clipboard.`, "normal");
+    setTimeout(() => setCopiedCode(false), 3000);
   };
 
   const handlePullTokens = async () => {
@@ -466,6 +502,8 @@ export const App: React.FC = () => {
     }))
     .filter((org) => org.projects.length > 0);
 
+  const productionConnectLink = `${PRODUCTION_APP_URL}/connect?code=${pairCode || ""}`;
+
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground select-none font-sans overflow-hidden antialiased">
       {/* 1. Header with App Branding, Status Pill & Theme Switcher */}
@@ -523,28 +561,62 @@ export const App: React.FC = () => {
               </div>
               <CardTitle className="text-sm font-bold">Connect to Tokens Platform</CardTitle>
               <CardDescription className="text-xs">
-                Authorize this Figma document in seconds with instant 1-click magic link.
+                Authorize this Figma document in seconds on production cloud dashboard.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2 space-y-4">
               {/* Pairing Code Display */}
-              <div className="bg-muted/60 border border-border rounded-xl p-3 text-center space-y-1.5">
+              <div className="bg-muted/60 border border-border rounded-xl p-3 text-center space-y-1.5 relative group">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Your 6-Digit Pairing Code
                 </span>
-                <div className="text-2xl font-mono font-black tracking-widest text-primary selection:bg-primary/20">
-                  {isGeneratingPair ? "••••••" : pairCode || "------"}
+                <div className="flex items-center justify-center gap-2">
+                  <div
+                    onClick={handleCopyCode}
+                    className="text-2xl font-mono font-black tracking-widest text-primary selection:bg-primary/20 cursor-pointer hover:opacity-80 transition-opacity"
+                    title="Click to copy pairing code"
+                  >
+                    {isGeneratingPair ? "••••••" : pairCode || "------"}
+                  </div>
+                  {pairCode && !isGeneratingPair && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleCopyCode}
+                      className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      title="Copy pairing code"
+                    >
+                      {copiedCode ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  )}
                 </div>
-                <p className="text-[10px] text-muted-foreground">Waiting for approval on web dashboard...</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {copiedCode ? (
+                    <span className="text-emerald-500 font-medium inline-flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Code copied to clipboard!
+                    </span>
+                  ) : (
+                    "Waiting for approval on web dashboard..."
+                  )}
+                </p>
               </div>
 
               {/* Action Buttons */}
               <div className="space-y-2">
                 <a
-                  href={connectUrl || `${getServerUrl()}/connect?code=${pairCode}`}
+                  href={productionConnectLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full inline-flex items-center justify-center rounded-md text-xs font-semibold h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs gap-1.5"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.open(productionConnectLink, "_blank");
+                    }
+                  }}
+                  className="w-full inline-flex items-center justify-center rounded-md text-xs font-semibold h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs gap-1.5 cursor-pointer"
                 >
                   <span>Authorize in Browser</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -758,7 +830,7 @@ export const App: React.FC = () => {
                     setConfig(updated);
                     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
                   }}
-                  placeholder="http://localhost:3000"
+                  placeholder={PRODUCTION_APP_URL}
                   className="h-8 text-xs bg-background"
                 />
               </div>

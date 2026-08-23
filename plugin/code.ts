@@ -118,7 +118,7 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
     figma.ui.postMessage({
       type: "SAVED_CONFIG",
       payload: saved || {
-        serverUrl: "http://localhost:3000",
+        serverUrl: "https://tokensplatform.enamulkhan.com",
         pat: "",
         createVariables: true,
         createStyles: true,
@@ -130,6 +130,11 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
   if (msg.type === "SAVE_CONFIG") {
     await figma.clientStorage.setAsync("second_screen_config", msg.payload);
     figma.notify("Configuration saved.");
+  }
+
+  // 2.5 Show native notification
+  if (msg.type === "NOTIFY") {
+    figma.notify(msg.payload || "Copied to clipboard!");
   }
 
   // 3. PULL TOKENS TO FIGMA
