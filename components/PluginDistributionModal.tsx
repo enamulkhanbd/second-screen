@@ -102,13 +102,16 @@ export const PluginDistributionModal: React.FC = () => {
             <div className="w-6 h-6 rounded-md bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">
               3
             </div>
-            <h5 className="font-bold text-foreground text-xs">Connect with PAT</h5>
+            <h5 className="font-bold text-foreground text-xs">One-Click Magic Connect</h5>
             <p className="text-muted-foreground text-[11px] leading-relaxed">
-              Launch the plugin, paste your Personal Access Token from the <strong>Cloud API Keys</strong> tab, and click <strong>Pull Tokens</strong>.
+              Launch the plugin in Figma, click <strong>Connect</strong>, or enter the 6-digit code below to instantly pair your workspace.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Quick 6-Digit Code Pairing Section */}
+      <QuickPairWidget />
 
       {/* Feature Highlights Grid */}
       <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2.5">
@@ -132,6 +135,106 @@ export const PluginDistributionModal: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const QuickPairWidget: React.FC = () => {
+  const { addToast, currentOrg, currentProject, userOrgs } = useTokenStore();
+  const [pairCode, setPairCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [pairedSuccess, setPairedSuccess] = useState(false);
+
+  const activeOrg = currentOrg || userOrgs[0];
+  const activeProj = currentProject;
+
+  const handlePair = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = pairCode.trim().toUpperCase();
+    if (!clean) return;
+
+    setLoading(true);
+    setPairedSuccess(false);
+
+    try {
+      const pat = `sec_pat_figma_${Math.random().toString(36).substring(2, 14)}`;
+      const res = await fetch("/api/v1/auth/pair", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: clean,
+          pat,
+          orgId: activeOrg?.id || "org-default",
+          projectId: activeProj?.id || "proj-main",
+          orgName: activeOrg?.name || "My Organization",
+          projectName: activeProj?.name || "Design System",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to pair");
+      }
+
+      setPairedSuccess(true);
+      setPairCode("");
+      addToast({
+        type: "success",
+        title: "Figma Plugin Paired!",
+        message: `Successfully connected code ${clean} to ${activeOrg?.name || "Workspace"}.`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Pairing Failed",
+        message: err.message || "Invalid or expired pairing code.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="font-bold text-xs text-foreground flex items-center gap-1.5">
+            <span>Pair Companion Plugin</span>
+            <Badge variant="violet" className="text-[9px] px-1 py-0">
+              Instant Connect
+            </Badge>
+          </h4>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Type the 6-digit code shown inside your Figma plugin to connect instantly.
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handlePair} className="flex gap-2">
+        <input
+          type="text"
+          placeholder="e.g. TK-8492"
+          value={pairCode}
+          onChange={(e) => setPairCode(e.target.value.toUpperCase())}
+          maxLength={10}
+          className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-mono tracking-wider uppercase focus:outline-hidden focus:ring-1 focus:ring-primary"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={loading || !pairCode.trim()}
+          className="text-xs font-semibold gap-1.5"
+        >
+          <span>{loading ? "Connecting..." : "Pair Plugin"}</span>
+        </Button>
+      </form>
+
+      {pairedSuccess && (
+        <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <span>Figma companion plugin authorized! Switch to Figma to start syncing.</span>
+        </div>
+      )}
     </div>
   );
 };
