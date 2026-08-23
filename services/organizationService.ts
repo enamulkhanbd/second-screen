@@ -546,11 +546,15 @@ export async function saveProjectTokens(
   if (isFirebaseConfigured && db) {
     try {
       const projRef = doc(db, "organizations", orgId, "projects", projectId);
-      await updateDoc(projRef, {
-        rawTokens,
-        themeGroups: groups,
-        updatedAt: new Date().toISOString(),
-      });
+      await setDoc(
+        projRef,
+        {
+          rawTokens,
+          themeGroups: groups,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
     } catch (e) {
       console.warn("Firestore error saving project tokens:", e);
     }

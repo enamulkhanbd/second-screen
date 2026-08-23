@@ -50,8 +50,11 @@ import {
   revokeInvitation,
   removeOrgMember,
 } from "@/services/organizationService";
-import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+
+let activeProjectUnsubscribe: (() => void) | null = null;
 
 interface TokenStoreState {
   // Multi-Tenant Identity & Scope
@@ -282,13 +285,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
 
   setCurrentProject: (proj) => {
     set({ currentProject: proj });
+
+    // Clean up previous real-time snapshot listener
+    if (activeProjectUnsubscribe) {
+      activeProjectUnsubscribe();
+      activeProjectUnsubscribe = null;
+    }
+
     if (proj) {
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("ts_active_project_id", proj.id);
         } catch {}
       }
-      // Load project tokens and git config
+
+      // 1. Initial Load project tokens and git config
       if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
         get().setRawTokens(proj.rawTokens);
       } else if (typeof window !== "undefined") {
@@ -303,6 +314,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
           })
           .catch(() => {});
       }
+
       if (proj.themeGroups && proj.themeGroups.length > 0) {
         set({
           themeGroups: proj.themeGroups,
@@ -312,6 +324,29 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       }
       if (proj.gitConfig) {
         get().setCredentials(proj.gitConfig);
+      }
+
+      // 2. Real-Time Firestore onSnapshot Listener (live syncing tokens from Figma or cloud)
+      if (isFirebaseConfigured && db && proj.orgId && proj.id && typeof window !== "undefined") {
+        try {
+          const projRef = doc(db, "organizations", proj.orgId, "projects", proj.id);
+          activeProjectUnsubscribe = onSnapshot(projRef, (snap) => {
+            if (snap.exists()) {
+              const liveData = snap.data() as Project;
+              if (liveData.rawTokens && Object.keys(liveData.rawTokens).length > 0) {
+                const currentRaw = get().rawTokens;
+                if (JSON.stringify(currentRaw) !== JSON.stringify(liveData.rawTokens)) {
+                  get().setRawTokens(liveData.rawTokens);
+                  if (liveData.themeGroups && liveData.themeGroups.length > 0) {
+                    set({ themeGroups: liveData.themeGroups });
+                  }
+                }
+              }
+            }
+          });
+        } catch (err) {
+          console.warn("Real-time project listener error:", err);
+        }
       }
     }
   },
