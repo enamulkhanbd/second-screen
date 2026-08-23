@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
-import { saveStoredTokens } from "@/utils/cloudStorage";
 
 // Ignored files during folder auto-discovery
 const IGNORED_JSON_FILES = new Set([
@@ -239,7 +238,6 @@ export async function POST(req: NextRequest) {
           }
 
           if (Object.keys(aggregated).length > 0) {
-            saveStoredTokens(aggregated);
             return NextResponse.json({
               tokens: aggregated,
               userProfile,
@@ -405,8 +403,6 @@ export async function POST(req: NextRequest) {
           { status: 422 }
         );
       }
-
-      saveStoredTokens(aggregated);
 
       return NextResponse.json({
         tokens: aggregated,

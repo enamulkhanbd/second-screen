@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { generateApiKey } from "@/utils/patAuth";
 import { getStoredApiKeys, saveApiKey, deleteApiKey } from "@/utils/cloudStorage";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
@@ -11,11 +11,11 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/auth/pat
- * List all active API keys (safe preview, no raw secrets)
+ * List all active API keys dynamically from Firestore
  */
 export async function GET() {
   try {
-    const keys = getStoredApiKeys();
+    const keys = await getStoredApiKeys();
     return jsonWithCors({
       success: true,
       keys: keys.map(({ keyHash, ...safe }) => safe),
@@ -27,7 +27,7 @@ export async function GET() {
 
 /**
  * POST /api/v1/auth/pat
- * Generate a new Personal Access Token (PAT)
+ * Dynamically generate and save a new Personal Access Token (PAT)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       expiresInDays ? parseInt(expiresInDays) : undefined
     );
 
-    saveApiKey(record);
+    await saveApiKey(record);
 
     return jsonWithCors({
       success: true,
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * DELETE /api/v1/auth/pat?id=...
- * Revoke an API key
+ * Revoke an API key dynamically in Firestore
  */
 export async function DELETE(req: NextRequest) {
   try {
@@ -73,7 +73,7 @@ export async function DELETE(req: NextRequest) {
       return jsonWithCors({ success: false, error: "Missing key ID" }, { status: 400 });
     }
 
-    deleteApiKey(id);
+    await deleteApiKey(id);
 
     return jsonWithCors({
       success: true,

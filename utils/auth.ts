@@ -3,15 +3,15 @@ import { validateApiKey } from "@/utils/patAuth";
 import { getStoredApiKeys } from "@/utils/cloudStorage";
 
 /**
- * Helper to authenticate request using Authorization: Bearer sec_pat_...
+ * Helper to authenticate request dynamically using Authorization: Bearer sec_pat_...
  */
-export function authenticateRequest(
+export async function authenticateRequest(
   req: NextRequest,
   requiredScope?: "read:tokens" | "write:tokens"
 ) {
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-  const storedKeys = getStoredApiKeys();
+  const storedKeys = await getStoredApiKeys();
   return validateApiKey(token, storedKeys, requiredScope);
 }

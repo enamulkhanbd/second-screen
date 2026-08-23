@@ -9,7 +9,6 @@ import {
   deleteDoc,
   query,
   where,
-  serverTimestamp,
 } from "firebase/firestore";
 import {
   Organization,
@@ -21,139 +20,77 @@ import {
 import { RawTokensDocument, ThemeGroup, GitCredentials } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
-const LOCAL_ORGS_KEY = "ts_local_organizations";
-const LOCAL_PROJECTS_KEY = "ts_local_projects";
-const LOCAL_INVITATIONS_KEY = "ts_local_invitations";
-
-const DEFAULT_ORGS: Organization[] = [];
-
-const DEFAULT_PROJECTS: Project[] = [];
+// -------------------------------------------------------------
+// ORGANIZATION OPERATIONS (100% Dynamic Firestore)
+// -------------------------------------------------------------
 
 /**
- * Reads local fallback organizations
+ * Dynamically fetches all organizations where the user is a member or owner from Firestore
  */
-function getLocalOrgs(): Organization[] {
-  if (typeof window === "undefined") return DEFAULT_ORGS;
-  try {
-    const raw = localStorage.getItem(LOCAL_ORGS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return parsed && parsed.length > 0 ? parsed : DEFAULT_ORGS;
-  } catch {
-    return DEFAULT_ORGS;
-  }
-}
+export async function getUserOrganizations(uid: string, userEmail?: string): Promise<Organization[]> {
+  if (!uid && !userEmail) return [];
+  if (!isFirebaseConfigured || !db) return [];
 
-function saveLocalOrgs(orgs: Organization[]) {
-  if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_ORGS_KEY, JSON.stringify(orgs));
-  } catch {}
-}
+    const orgsMap = new Map<string, Organization>();
 
-/**
- * Reads local fallback projects
- */
-function getLocalProjects(): Project[] {
-  if (typeof window === "undefined") return DEFAULT_PROJECTS;
-  try {
-    const raw = localStorage.getItem(LOCAL_PROJECTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return parsed && parsed.length > 0 ? parsed : DEFAULT_PROJECTS;
-  } catch {
-    return DEFAULT_PROJECTS;
-  }
-}
+    // 1. Direct query where user is the owner
+    try {
+      const ownerQ = query(collection(db, "organizations"), where("ownerUid", "==", uid));
+      const ownerSnap = await getDocs(ownerQ);
+      ownerSnap.forEach((d) => {
+        orgsMap.set(d.id, d.data() as Organization);
+      });
+    } catch (err) {
+      console.warn("Firestore owner query error:", err);
+    }
 
-function saveLocalProjects(projects: Project[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(projects));
-  } catch {}
-}
+    // 2. Query all accessible orgs for membership
+    try {
+      const orgsRef = collection(db, "organizations");
+      const snap = await getDocs(orgsRef);
+      snap.forEach((d) => {
+        const data = d.data() as Organization;
+        const isMember =
+          data.ownerUid === uid ||
+          data.members?.some(
+            (m) =>
+              m.uid === uid ||
+              (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())
+          );
+        if (isMember) {
+          orgsMap.set(d.id, data);
+        }
+      });
+    } catch (err) {
+      console.warn("Firestore membership scan error:", err);
+    }
 
-/**
- * Reads local fallback invitations
- */
-function getLocalInvitations(): OrganizationInvitation[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(LOCAL_INVITATIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+    return Array.from(orgsMap.values());
+  } catch (e) {
+    console.warn("Firestore error fetching user organizations:", e);
     return [];
   }
 }
 
-function saveLocalInvitations(invs: OrganizationInvitation[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LOCAL_INVITATIONS_KEY, JSON.stringify(invs));
-  } catch {}
-}
-
-// -------------------------------------------------------------
-// ORGANIZATION OPERATIONS
-// -------------------------------------------------------------
-
 /**
- * Fetches all organizations where the user is a member or owner
+ * Dynamically fetches a specific organization by ID from Firestore
  */
-export async function getUserOrganizations(uid: string, userEmail?: string): Promise<Organization[]> {
-  if (!uid && !userEmail) return [];
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const orgsMap = new Map<string, Organization>();
-
-      // 1. Direct query where user is the owner
-      try {
-        const ownerQ = query(collection(db, "organizations"), where("ownerUid", "==", uid));
-        const ownerSnap = await getDocs(ownerQ);
-        ownerSnap.forEach((d) => {
-          orgsMap.set(d.id, d.data() as Organization);
-        });
-      } catch (err) {
-        console.warn("Firestore owner query error:", err);
-      }
-
-      // 2. Query all accessible orgs for membership
-      try {
-        const orgsRef = collection(db, "organizations");
-        const snap = await getDocs(orgsRef);
-        snap.forEach((d) => {
-          const data = d.data() as Organization;
-          const isMember =
-            data.ownerUid === uid ||
-            data.members?.some(
-              (m) =>
-                m.uid === uid ||
-                (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())
-            );
-          if (isMember) {
-            orgsMap.set(d.id, data);
-          }
-        });
-      } catch (err) {
-        console.warn("Firestore membership scan error:", err);
-      }
-
-      const firestoreOrgs = Array.from(orgsMap.values());
-      if (firestoreOrgs.length > 0) return firestoreOrgs;
-    } catch (e) {
-      console.warn("Firestore error fetching orgs, using local fallback:", e);
+export async function getOrganization(orgId: string): Promise<Organization | null> {
+  if (!orgId || !isFirebaseConfigured || !db) return null;
+  try {
+    const snap = await getDoc(doc(db, "organizations", orgId));
+    if (snap.exists()) {
+      return snap.data() as Organization;
     }
+  } catch (e) {
+    console.warn("Firestore error fetching organization:", e);
   }
-
-  const local = getLocalOrgs();
-  return local.filter(
-    (o) =>
-      o.ownerUid === uid ||
-      o.members?.some((m) => m.uid === uid || (userEmail && m.email.toLowerCase() === userEmail.toLowerCase()))
-  );
+  return null;
 }
 
 /**
- * Creates a new Organization and provisions default starter project
+ * Creates a new Organization directly in Firestore
  */
 export async function createOrganization(
   name: string,
@@ -184,95 +121,72 @@ export async function createOrganization(
     try {
       await setDoc(doc(db, "organizations", orgId), newOrg);
     } catch (e) {
-      console.warn("Firestore error creating org, using local fallback:", e);
+      console.warn("Firestore error creating org:", e);
     }
   }
-
-  const local = getLocalOrgs();
-  local.push(newOrg);
-  saveLocalOrgs(local);
 
   return newOrg;
 }
 
 /**
- * Adds or updates a member in an Organization
+ * Adds or updates a member in an Organization in Firestore
  */
 export async function updateOrgMember(
   orgId: string,
   member: OrganizationMember
 ): Promise<void> {
-  if (isFirebaseConfigured && db) {
-    try {
-      const orgRef = doc(db, "organizations", orgId);
-      const orgSnap = await getDoc(orgRef);
-      if (orgSnap.exists()) {
-        const orgData = orgSnap.data() as Organization;
-        const filtered = orgData.members.filter((m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase());
-        filtered.push(member);
-        await updateDoc(orgRef, {
-          members: filtered,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (e) {
-      console.warn("Firestore error updating member:", e);
+  if (!isFirebaseConfigured || !db) return;
+  try {
+    const orgRef = doc(db, "organizations", orgId);
+    const orgSnap = await getDoc(orgRef);
+    if (orgSnap.exists()) {
+      const orgData = orgSnap.data() as Organization;
+      const filtered = orgData.members.filter(
+        (m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase()
+      );
+      filtered.push(member);
+      await updateDoc(orgRef, {
+        members: filtered,
+        updatedAt: new Date().toISOString(),
+      });
     }
-  }
-
-  const local = getLocalOrgs();
-  const target = local.find((o) => o.id === orgId);
-  if (target) {
-    target.members = target.members.filter((m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase());
-    target.members.push(member);
-    target.updatedAt = new Date().toISOString();
-    saveLocalOrgs(local);
+  } catch (e) {
+    console.warn("Firestore error updating member:", e);
   }
 }
 
 /**
- * Removes a member from an Organization
+ * Removes a member from an Organization in Firestore
  */
 export async function removeOrgMember(
   orgId: string,
   memberEmailOrUid: string
 ): Promise<void> {
-  if (isFirebaseConfigured && db) {
-    try {
-      const orgRef = doc(db, "organizations", orgId);
-      const orgSnap = await getDoc(orgRef);
-      if (orgSnap.exists()) {
-        const orgData = orgSnap.data() as Organization;
-        const filtered = orgData.members.filter(
-          (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
-        );
-        await updateDoc(orgRef, {
-          members: filtered,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (e) {
-      console.warn("Firestore error removing member:", e);
+  if (!isFirebaseConfigured || !db) return;
+  try {
+    const orgRef = doc(db, "organizations", orgId);
+    const orgSnap = await getDoc(orgRef);
+    if (orgSnap.exists()) {
+      const orgData = orgSnap.data() as Organization;
+      const filtered = orgData.members.filter(
+        (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
+      );
+      await updateDoc(orgRef, {
+        members: filtered,
+        updatedAt: new Date().toISOString(),
+      });
     }
-  }
-
-  const local = getLocalOrgs();
-  const target = local.find((o) => o.id === orgId);
-  if (target) {
-    target.members = target.members.filter(
-      (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
-    );
-    target.updatedAt = new Date().toISOString();
-    saveLocalOrgs(local);
+  } catch (e) {
+    console.warn("Firestore error removing member:", e);
   }
 }
 
 // -------------------------------------------------------------
-// INVITATION OPERATIONS
+// INVITATION OPERATIONS (100% Dynamic Firestore)
 // -------------------------------------------------------------
 
 /**
- * Generates a secure invitation for an email to join an organization with a designated role
+ * Generates an invitation for an email in Firestore
  */
 export async function createOrganizationInvitation(
   orgId: string,
@@ -304,96 +218,78 @@ export async function createOrganizationInvitation(
     try {
       await setDoc(doc(db, "invitations", id), newInvitation);
     } catch (e) {
-      console.warn("Firestore error saving invitation, using local fallback:", e);
+      console.warn("Firestore error saving invitation:", e);
     }
   }
-
-  const local = getLocalInvitations();
-  local.push(newInvitation);
-  saveLocalInvitations(local);
 
   return newInvitation;
 }
 
 /**
- * Gets all pending invitations for a specific organization
+ * Gets all pending invitations for a specific organization from Firestore
  */
 export async function getOrganizationInvitations(orgId: string): Promise<OrganizationInvitation[]> {
-  if (!orgId) return [];
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const q = query(
-        collection(db, "invitations"),
-        where("orgId", "==", orgId)
-      );
-      const snap = await getDocs(q);
-      const invs: OrganizationInvitation[] = [];
-      snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
-      if (invs.length > 0) return invs;
-    } catch (e) {
-      console.warn("Firestore error getting org invitations:", e);
-    }
+  if (!orgId || !isFirebaseConfigured || !db) return [];
+  try {
+    const q = query(
+      collection(db, "invitations"),
+      where("orgId", "==", orgId)
+    );
+    const snap = await getDocs(q);
+    const invs: OrganizationInvitation[] = [];
+    snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
+    return invs;
+  } catch (e) {
+    console.warn("Firestore error getting org invitations:", e);
+    return [];
   }
-
-  const local = getLocalInvitations();
-  return local.filter((i) => i.orgId === orgId && i.status === "pending");
 }
 
 /**
- * Gets pending invitations for a user's email address (for auto-detection on login)
+ * Gets pending invitations for a user's email address from Firestore
  */
 export async function getPendingInvitationsForEmail(email: string): Promise<OrganizationInvitation[]> {
-  if (!email) return [];
+  if (!email || !isFirebaseConfigured || !db) return [];
   const normalized = email.trim().toLowerCase();
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const q = query(
-        collection(db, "invitations"),
-        where("inviteeEmail", "==", normalized),
-        where("status", "==", "pending")
-      );
-      const snap = await getDocs(q);
-      const invs: OrganizationInvitation[] = [];
-      snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
-      if (invs.length > 0) return invs;
-    } catch (e) {
-      console.warn("Firestore error getting email invitations:", e);
-    }
+  try {
+    const q = query(
+      collection(db, "invitations"),
+      where("inviteeEmail", "==", normalized),
+      where("status", "==", "pending")
+    );
+    const snap = await getDocs(q);
+    const invs: OrganizationInvitation[] = [];
+    snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
+    return invs;
+  } catch (e) {
+    console.warn("Firestore error getting email invitations:", e);
+    return [];
   }
-
-  const local = getLocalInvitations();
-  return local.filter((i) => i.inviteeEmail.toLowerCase() === normalized && i.status === "pending");
 }
 
 /**
- * Looks up an invitation by its unique token
+ * Looks up an invitation by its unique token in Firestore
  */
 export async function getInvitationByToken(token: string): Promise<OrganizationInvitation | null> {
-  if (!token) return null;
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const q = query(
-        collection(db, "invitations"),
-        where("token", "==", token)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs[0].data() as OrganizationInvitation;
-      }
-    } catch (e) {
-      console.warn("Firestore error looking up invitation token:", e);
+  if (!token || !isFirebaseConfigured || !db) return null;
+  try {
+    const q = query(
+      collection(db, "invitations"),
+      where("token", "==", token)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs[0].data() as OrganizationInvitation;
     }
+  } catch (e) {
+    console.warn("Firestore error looking up invitation token:", e);
   }
-
-  const local = getLocalInvitations();
-  return local.find((i) => i.token === token) || null;
+  return null;
 }
 
 /**
- * Accepts an invitation: updates the status to accepted and adds the user to the organization
+ * Accepts an invitation in Firestore
  */
 export async function acceptOrganizationInvitation(
   token: string,
@@ -428,69 +324,47 @@ export async function acceptOrganizationInvitation(
     }
   }
 
-  const localInvs = getLocalInvitations();
-  const targetInv = localInvs.find((i) => i.id === inv.id || i.token === token);
-  if (targetInv) {
-    targetInv.status = "accepted";
-    saveLocalInvitations(localInvs);
-  }
-
-  // 3. Return updated organization
-  const localOrgs = getLocalOrgs();
-  return localOrgs.find((o) => o.id === inv.orgId) || null;
+  return await getOrganization(inv.orgId);
 }
 
 /**
- * Revokes a pending invitation
+ * Revokes a pending invitation in Firestore
  */
 export async function revokeInvitation(invitationId: string): Promise<void> {
-  if (isFirebaseConfigured && db) {
-    try {
-      await updateDoc(doc(db, "invitations", invitationId), {
-        status: "revoked",
-        updatedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("Firestore error revoking invitation:", e);
-    }
-  }
-
-  const localInvs = getLocalInvitations();
-  const target = localInvs.find((i) => i.id === invitationId);
-  if (target) {
-    target.status = "revoked";
-    saveLocalInvitations(localInvs);
+  if (!isFirebaseConfigured || !db) return;
+  try {
+    await updateDoc(doc(db, "invitations", invitationId), {
+      status: "revoked",
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Firestore error revoking invitation:", e);
   }
 }
 
 // -------------------------------------------------------------
-// PROJECT OPERATIONS
+// PROJECT OPERATIONS (100% Dynamic Firestore)
 // -------------------------------------------------------------
 
 /**
- * Fetches all projects under an Organization
+ * Dynamically fetches all projects under an Organization from Firestore
  */
 export async function getOrgProjects(orgId: string): Promise<Project[]> {
-  if (!orgId) return [];
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const projsRef = collection(db, "organizations", orgId, "projects");
-      const snap = await getDocs(projsRef);
-      const projs: Project[] = [];
-      snap.forEach((doc) => projs.push(doc.data() as Project));
-      if (projs.length > 0) return projs;
-    } catch (e) {
-      console.warn("Firestore error fetching projects, using local fallback:", e);
-    }
+  if (!orgId || !isFirebaseConfigured || !db) return [];
+  try {
+    const projsRef = collection(db, "organizations", orgId, "projects");
+    const snap = await getDocs(projsRef);
+    const projs: Project[] = [];
+    snap.forEach((docSnap) => projs.push(docSnap.data() as Project));
+    return projs;
+  } catch (e) {
+    console.warn("Firestore error fetching projects:", e);
+    return [];
   }
-
-  const local = getLocalProjects();
-  return local.filter((p) => p.orgId === orgId);
 }
 
 /**
- * Creates a new Project inside an Organization
+ * Creates a new Project inside an Organization directly in Firestore
  */
 export async function createProject(
   orgId: string,
@@ -521,19 +395,27 @@ export async function createProject(
     try {
       await setDoc(doc(db, "organizations", orgId, "projects", projId), newProject);
     } catch (e) {
-      console.warn("Firestore error creating project, using local fallback:", e);
+      console.warn("Firestore error creating project:", e);
     }
   }
-
-  const local = getLocalProjects();
-  local.push(newProject);
-  saveLocalProjects(local);
 
   return newProject;
 }
 
 /**
- * Saves updated design tokens & themes for a specific Project
+ * Deletes a Project from an Organization in Firestore
+ */
+export async function deleteProject(orgId: string, projectId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  try {
+    await deleteDoc(doc(db, "organizations", orgId, "projects", projectId));
+  } catch (e) {
+    console.warn("Firestore error deleting project:", e);
+  }
+}
+
+/**
+ * Dynamically saves updated design tokens & themes for a specific Project in Firestore
  */
 export async function saveProjectTokens(
   orgId: string,
@@ -541,60 +423,41 @@ export async function saveProjectTokens(
   rawTokens: RawTokensDocument,
   themeGroups?: ThemeGroup[]
 ): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
   const groups = themeGroups || extractThemeGroups(rawTokens);
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const projRef = doc(db, "organizations", orgId, "projects", projectId);
-      await setDoc(
-        projRef,
-        {
-          rawTokens,
-          themeGroups: groups,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-    } catch (e) {
-      console.warn("Firestore error saving project tokens:", e);
-    }
-  }
-
-  const local = getLocalProjects();
-  const proj = local.find((p) => p.id === projectId);
-  if (proj) {
-    proj.rawTokens = rawTokens;
-    proj.themeGroups = groups;
-    proj.updatedAt = new Date().toISOString();
-    saveLocalProjects(local);
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        rawTokens,
+        themeGroups: groups,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving project tokens:", e);
   }
 }
 
 /**
- * Saves Git configuration for a specific Project
+ * Dynamically saves Git configuration for a specific Project in Firestore
  */
 export async function saveProjectGitConfig(
   orgId: string,
   projectId: string,
   gitConfig: GitCredentials
 ): Promise<void> {
-  if (isFirebaseConfigured && db) {
-    try {
-      const projRef = doc(db, "organizations", orgId, "projects", projectId);
-      await updateDoc(projRef, {
-        gitConfig,
-        updatedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("Firestore error saving project git config:", e);
-    }
-  }
-
-  const local = getLocalProjects();
-  const proj = local.find((p) => p.id === projectId);
-  if (proj) {
-    proj.gitConfig = gitConfig;
-    proj.updatedAt = new Date().toISOString();
-    saveLocalProjects(local);
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await updateDoc(projRef, {
+      gitConfig,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Firestore error saving project git config:", e);
   }
 }

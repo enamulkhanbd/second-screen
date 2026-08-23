@@ -211,7 +211,7 @@ export async function PUT(req: NextRequest) {
         projectName: projectName || "",
       }
     );
-    saveApiKey(record);
+    await saveApiKey(record);
 
     session.status = "approved";
     session.pat = plaintextKey;

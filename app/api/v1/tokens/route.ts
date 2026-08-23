@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/utils/patAuth";
-import { getStoredApiKeys, getStoredTokens, saveStoredTokens } from "@/utils/cloudStorage";
+import { NextRequest } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
@@ -17,19 +16,8 @@ export async function OPTIONS() {
 }
 
 /**
- * Helper to authenticate request using Authorization: Bearer sec_pat_...
- */
-function authenticateRequest(req: NextRequest, requiredScope?: "read:tokens" | "write:tokens") {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-
-  const storedKeys = getStoredApiKeys();
-  return validateApiKey(token, storedKeys, requiredScope);
-}
-
-/**
  * GET /api/v1/tokens
- * Fetch current design tokens & themes (requires Bearer token with read:tokens scope or internal client)
+ * Fetch design tokens & themes dynamically from Firestore
  */
 export async function GET(req: NextRequest) {
   try {
@@ -41,7 +29,7 @@ export async function GET(req: NextRequest) {
       secFetchSite === "same-origin";
 
     const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
-      ? authenticateRequest(req, "read:tokens")
+      ? await authenticateRequest(req, "read:tokens")
       : { isValid: true, record: { name: "Tokens Platform Web App" } };
 
     if (!auth.isValid) {
@@ -49,32 +37,32 @@ export async function GET(req: NextRequest) {
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const orgId = searchParams.get("orgId");
-    const projectId = searchParams.get("projectId");
+    const orgId = searchParams.get("orgId") || auth.record?.orgId;
+    const projectId = searchParams.get("projectId") || auth.record?.projectId;
 
-    let storedDoc = getStoredTokens() || { global: {} };
+    let targetDoc: Record<string, any> = { global: {} };
 
-    // If orgId and projectId are provided, load directly from the specific project
+    // Fetch directly from the target project in Firestore
     if (orgId && projectId) {
       try {
         const projects = await getOrgProjects(orgId);
         const proj = projects.find((p) => p.id === projectId);
         if (proj && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
-          storedDoc = proj.rawTokens;
+          targetDoc = proj.rawTokens;
         }
       } catch (err) {
         console.warn("Error fetching project tokens:", err);
       }
     }
 
-    const resolvedTokens = flattenAndResolveTokens(storedDoc, "ALL");
-    const themeGroups = extractThemeGroups(storedDoc);
+    const resolvedTokens = flattenAndResolveTokens(targetDoc, "ALL");
+    const themeGroups = extractThemeGroups(targetDoc);
 
-    const themesKey = storedDoc["$themes.json"] ? "$themes.json" : "$themes";
-    const themes = storedDoc[themesKey] || [];
+    const themesKey = targetDoc["$themes.json"] ? "$themes.json" : "$themes";
+    const themes = targetDoc[themesKey] || [];
 
-    const metaKey = storedDoc["$metadata.json"] ? "$metadata.json" : "$metadata";
-    const metadata = storedDoc[metaKey] || {};
+    const metaKey = targetDoc["$metadata.json"] ? "$metadata.json" : "$metadata";
+    const metadata = targetDoc[metaKey] || {};
 
     return jsonWithCors({
       success: true,
@@ -82,7 +70,7 @@ export async function GET(req: NextRequest) {
       orgId: orgId || undefined,
       projectId: projectId || undefined,
       version: "1.0.0",
-      rawTokens: storedDoc,
+      rawTokens: targetDoc,
       resolvedTokens,
       themeGroups,
       themes,
@@ -95,7 +83,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/v1/tokens
- * Push token updates (requires Bearer token with write:tokens scope or internal client)
+ * Push token updates directly to Firestore dynamically
  */
 export async function POST(req: NextRequest) {
   try {
@@ -107,7 +95,7 @@ export async function POST(req: NextRequest) {
       secFetchSite === "same-origin";
 
     const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
-      ? authenticateRequest(req, "write:tokens")
+      ? await authenticateRequest(req, "write:tokens")
       : { isValid: true, record: { name: "Tokens Platform Web App" } };
 
     if (!auth.isValid) {
@@ -115,8 +103,8 @@ export async function POST(req: NextRequest) {
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const orgId = searchParams.get("orgId");
-    const projectId = searchParams.get("projectId");
+    const orgId = searchParams.get("orgId") || auth.record?.orgId;
+    const projectId = searchParams.get("projectId") || auth.record?.projectId;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -127,7 +115,7 @@ export async function POST(req: NextRequest) {
     }
 
     const rawDoc = body.rawTokens || body;
-    let currentDoc = getStoredTokens() || {};
+    let currentDoc: Record<string, any> = {};
 
     if (orgId && projectId) {
       try {
@@ -151,8 +139,6 @@ export async function POST(req: NextRequest) {
     if (!mergedDoc["$metadata"] && !mergedDoc["$metadata.json"] && (currentDoc["$metadata"] || currentDoc["$metadata.json"])) {
       mergedDoc["$metadata"] = currentDoc["$metadata"] || currentDoc["$metadata.json"];
     }
-
-    saveStoredTokens(mergedDoc);
 
     if (orgId && projectId) {
       try {

@@ -227,21 +227,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
     }
-
-    if (typeof window !== "undefined" && doc && typeof doc === "object") {
-      const query =
-        currentOrg && currentProject
-          ? `?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`
-          : "";
-      fetch(`/api/v1/tokens${query}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-client": "tokens-platform",
-        },
-        body: JSON.stringify({ rawTokens: doc }),
-      }).catch(() => {});
-    }
   };
 
   return {
@@ -1689,35 +1674,3 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 };
 });
-
-// Automatic reactive synchronization with Tokens Platform Cloud API & Firestore
-if (typeof window !== "undefined") {
-  let syncTimer: any = null;
-  useTokenStore.subscribe((state, prevState) => {
-    if (
-      state.rawTokens &&
-      typeof state.rawTokens === "object" &&
-      state.rawTokens !== prevState.rawTokens
-    ) {
-      clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => {
-        const { currentOrg, currentProject } = state;
-        if (currentOrg && currentProject) {
-          saveProjectTokens(currentOrg.id, currentProject.id, state.rawTokens, state.themeGroups).catch(() => {});
-        }
-        const query =
-          currentOrg && currentProject
-            ? `?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`
-            : "";
-        fetch(`/api/v1/tokens${query}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-internal-client": "tokens-platform",
-          },
-          body: JSON.stringify({ rawTokens: state.rawTokens }),
-        }).catch(() => { });
-      }, 250);
-    }
-  });
-}

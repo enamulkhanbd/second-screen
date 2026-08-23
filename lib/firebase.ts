@@ -20,12 +20,14 @@ let auth: Auth | null = null;
 let db: Firestore | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
 
-if (typeof window !== "undefined" && isFirebaseConfigured) {
+if (isFirebaseConfigured) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    auth = getAuth(app);
     db = getFirestore(app);
-    googleProvider = new GoogleAuthProvider();
+    if (typeof window !== "undefined") {
+      auth = getAuth(app);
+      googleProvider = new GoogleAuthProvider();
+    }
   } catch (error) {
     console.warn("Firebase initialization error:", error);
   }

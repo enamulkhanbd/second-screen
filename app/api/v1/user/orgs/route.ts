@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     const isInternal = req.headers.get("x-internal-client") === "second-screen";
     const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
-      ? authenticateRequest(req, "read:tokens")
+      ? await authenticateRequest(req, "read:tokens")
       : { isValid: true, record: { uid: "usr_internal", name: "Internal" } };
 
     if (!auth.isValid) {

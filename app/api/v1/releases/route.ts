@@ -1,38 +1,58 @@
-import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/utils/patAuth";
-import { getStoredApiKeys, getStoredTokens } from "@/utils/cloudStorage";
+import { NextRequest } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { compileCssVariables, compileStyleDictionary } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
+import { getOrgProjects } from "@/services/organizationService";
+import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 
 export const dynamic = "force-dynamic";
 
+export async function OPTIONS() {
+  return handleOptionsCors();
+}
+
 /**
  * GET /api/v1/releases
- * Fetch compiled release packages and assets (requires Bearer token with read:tokens scope)
+ * Dynamically compiles release packages and assets from Firestore
  */
 export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-
-    const storedKeys = getStoredApiKeys();
-    const auth = validateApiKey(token, storedKeys, "read:tokens");
+    const auth = await authenticateRequest(req, "read:tokens");
 
     if (!auth.isValid) {
-      return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
+      return jsonWithCors({ success: false, error: auth.error }, { status: 401 });
     }
 
-    const storedDoc = getStoredTokens() || { global: {} };
-    const resolved = flattenAndResolveTokens(storedDoc, "ALL");
-    const themeGroups = extractThemeGroups(storedDoc);
+    const { searchParams } = new URL(req.url);
+    const orgId = searchParams.get("orgId") || auth.record?.orgId;
+    const projectId = searchParams.get("projectId") || auth.record?.projectId;
+
+    let targetDoc: Record<string, any> = { global: {} };
+
+    if (orgId && projectId) {
+      try {
+        const projects = await getOrgProjects(orgId);
+        const proj = projects.find((p) => p.id === projectId);
+        if (proj && proj.rawTokens) {
+          targetDoc = proj.rawTokens;
+        }
+      } catch (err) {
+        console.warn("Error fetching release tokens:", err);
+      }
+    }
+
+    const resolved = flattenAndResolveTokens(targetDoc, "ALL");
+    const themeGroups = extractThemeGroups(targetDoc);
 
     const cssVars = compileCssVariables(resolved, themeGroups);
     const styleDict = compileStyleDictionary(resolved, themeGroups);
 
-    return NextResponse.json({
+    return jsonWithCors({
       success: true,
       authenticatedAs: auth.record?.name,
+      orgId,
+      projectId,
       latestRelease: {
         version: "v1.0.0",
         tokenCount: resolved.length,
@@ -42,6 +62,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return jsonWithCors({ success: false, error: err.message }, { status: 500 });
   }
 }
