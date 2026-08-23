@@ -18,7 +18,7 @@ export const PluginDistributionModal: React.FC = () => {
     try {
       const link = document.createElement("a");
       link.href = "/api/v1/plugin/download";
-      link.download = "second-screen-figma-plugin.zip";
+      link.download = "tokens-platform-figma-plugin.zip";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -51,10 +51,10 @@ export const PluginDistributionModal: React.FC = () => {
             <span className="text-muted-foreground font-mono text-[10px]">v0.1.0</span>
           </div>
           <h3 className="text-base font-bold text-foreground mt-1.5">
-            Second Screen for Figma
+            Tokens Platform for Figma
           </h3>
           <p className="text-muted-foreground mt-1 max-w-lg leading-relaxed text-[11px]">
-            Sync your design tokens bi-directionally between Second Screen Cloud and native Figma Variables, Theme Modes, Paint Styles, and Text Styles.
+            Sync your design tokens bi-directionally between Tokens Platform Cloud and native Figma Variables, Theme Modes, Paint Styles, and Text Styles.
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export const PluginDistributionModal: React.FC = () => {
             </div>
             <h5 className="font-bold text-foreground text-xs">Extract ZIP Bundle</h5>
             <p className="text-muted-foreground text-[11px] leading-relaxed">
-              Download and unzip <code className="font-mono bg-muted px-1 rounded">second-screen-figma-plugin.zip</code> to a permanent folder on your machine.
+              Download and unzip <code className="font-mono bg-muted px-1 rounded">tokens-platform-figma-plugin.zip</code> to a permanent folder on your machine.
             </p>
           </div>
 

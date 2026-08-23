@@ -14,6 +14,87 @@
     }
   ],
   "tokensDoc": {
+    "$themes": [
+      {
+        "id": "light",
+        "name": "Light",
+        "group": "Mode",
+        "selectedTokenSets": {
+          "foundation/seed-color": "source",
+          "foundation/font-families": "source",
+          "foundation/spacing-unite": "source",
+          "alias/color-palette": "source",
+          "alias/typography": "source",
+          "alias/spacing": "source",
+          "brand/justgo": "source",
+          "typography/global": "enabled",
+          "typography/component": "source",
+          "dimension/global": "source",
+          "dimension/component": "source",
+          "mode/light/global": "enabled",
+          "mode/light/component": "enabled"
+        },
+        "$figmaStyleReferences": {},
+        "$figmaVariableReferences": {}
+      },
+      {
+        "id": "dark",
+        "name": "Dark",
+        "group": "Mode",
+        "selectedTokenSets": {
+          "foundation/seed-color": "source",
+          "foundation/font-families": "source",
+          "foundation/spacing-unite": "source",
+          "alias/color-palette": "source",
+          "alias/typography": "source",
+          "alias/spacing": "source",
+          "brand/justgo": "source",
+          "typography/global": "enabled",
+          "typography/component": "source",
+          "dimension/global": "source",
+          "dimension/component": "source",
+          "mode/dark/global": "enabled",
+          "mode/dark/component": "enabled"
+        },
+        "$figmaStyleReferences": {
+          "heading.h1.medium": "S:a49361aa4e220cc56330f39687269aea361f4c74,",
+          "heading.h1.semibold": "S:1493c801ea877f941b2fd4d3e03b5833eb195df7,",
+          "heading.h2.medium": "S:90da1b355905d20fa17576f64a87a372a7ee88cc,",
+          "heading.h2.semibold": "S:458e5701bd8407d18db885d7b7bd2cc054103e12,",
+          "heading.h3.medium": "S:bf86cd5530251cf7e169af9e4be018a03918800d,",
+          "heading.h3.semibold": "S:27672a1f627b45b57c9b3208f8648bd0399e354a,",
+          "heading.h4.medium": "S:43e1a90071a6a3b59e702f2e4a83eeec190ad065,",
+          "heading.h4.semibold": "S:f5bf1700a8e095273eae2fe1e45bb67538e364e9,",
+          "heading.h5.medium": "S:917f30c2cf48d1d56c684df2861351ce222b0621,",
+          "heading.h5.semibold": "S:c9d1b53b5571315cef926a0d4528815e563fb544,",
+          "heading.h6.medium": "S:198c825ac7d69d1db4e3c979fcab3fa423feb1b8,",
+          "heading.h6.semibold": "S:ea4e86b9f6f6a5e5d9f3e7b3b1d48f89c5369645,",
+          "title.sm.medium": "S:cba40783343554a005d5652355a2dacabb3841ee,",
+          "title.sm.semibold": "S:4d111f40e4f716a0043e226f4df48cce5e2dce02,",
+          "title.md.medium": "S:77631d520f7e05bc4b193f8df63cbf66d4567702,",
+          "title.md.semibold": "S:a67f972fed16f3a91aaca3278d76c2c871a389df,",
+          "title.lg.medium": "S:e155e2383de87668b5183153cd5907cef4364474,",
+          "title.lg.semibold": "S:5de33e36ae685378da79e5cea18d32f39cec15f3,",
+          "title.xl.medium": "S:e3c1f33e8dbc59d9faf1deb60477b26968ba5b35,",
+          "title.xl.semibold": "S:5c41d51409efeea428633346164af48a15f6319c,",
+          "subtitle.sm.normal": "S:80eb950cb3cd2c890297733e4087af31e3df6c71,",
+          "subtitle.md.normal": "S:ea2aa7f9ec788d08669bfeae3f4081c65684e98b,",
+          "body.sm.normal": "S:85099904c52de716aa3e338ad83167420887dda0,",
+          "body.sm.medium": "S:a13f205996a5d34dd3ec64947cd27690faada5b6,",
+          "body.md.normal": "S:9e2fa55da5e4b8bc6f8770009fa949185f308181,",
+          "body.md.medium": "S:6102957c08eb5209aeb3da4f081fa85837a2c3cf,",
+          "body.lg.normal": "S:660ae4f45e4d9a83241b415ddaecf90e810c4f2f,",
+          "body.lg.medium": "S:7b71a496c89d890a917b9d6faf4e709f1078e7ee,",
+          "caption.sm.normal": "S:18b92802265869f63f8b846666ac7df62962a732,",
+          "caption.md.normal": "S:746cdc952f90618849bba9295cf5d70a27bdb0b5,",
+          "overline.sm.normal": "S:8047ee8ac4ce3c773bff84e245d5f9291411cc9a,",
+          "overline.sm.medium": "S:1f9c5c7a77eb0244256f690df1181c256ad4279d,",
+          "overline.md.normal": "S:0d8b07275ca6b6742f9d4da8da90a6b467f311bf,",
+          "overline.md.medium": "S:73d669155d6d9741337f700bc8764ff180dfc954,"
+        },
+        "$figmaVariableReferences": {}
+      }
+    ],
     "$metadata": {
       "tokenSetOrder": [
         "foundation/seed-color",
@@ -399,87 +480,746 @@
         }
       }
     },
-    "$themes": [
-      {
-        "id": "light",
-        "name": "Light",
-        "group": "Mode",
-        "selectedTokenSets": {
-          "foundation/seed-color": "source",
-          "foundation/font-families": "source",
-          "foundation/spacing-unite": "source",
-          "alias/color-palette": "source",
-          "alias/typography": "source",
-          "alias/spacing": "source",
-          "brand/justgo": "source",
-          "typography/global": "enabled",
-          "typography/component": "source",
-          "dimension/global": "source",
-          "dimension/component": "source",
-          "mode/light/global": "enabled",
-          "mode/light/component": "enabled"
+    "alias/spacing": {
+      "padding": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - No padding"
         },
-        "$figmaStyleReferences": {},
-        "$figmaVariableReferences": {}
+        "3xs": {
+          "$type": "dimension",
+          "$value": "{unites.x2}",
+          "$description": "2px padding"
+        },
+        "2xs": {
+          "$type": "dimension",
+          "$value": "{unites.x4}",
+          "$description": "4px padding"
+        },
+        "xs": {
+          "$type": "dimension",
+          "$value": "{unites.x8}",
+          "$description": "8px padding"
+        },
+        "sm": {
+          "$type": "dimension",
+          "$value": "{unites.x12}",
+          "$description": "12px padding"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{unites.x16}",
+          "$description": "16px base padding"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{unites.x24}",
+          "$description": "24px padding"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{unites.x32}",
+          "$description": "32px padding"
+        },
+        "2xl": {
+          "$type": "dimension",
+          "$value": "{unites.x48}",
+          "$description": "48px padding"
+        },
+        "3xl": {
+          "$type": "dimension",
+          "$value": "{unites.x64}",
+          "$description": "64px padding"
+        },
+        "4xl": {
+          "$type": "dimension",
+          "$value": "{unites.x96}",
+          "$description": "96px padding"
+        }
       },
-      {
-        "id": "dark",
-        "name": "Dark",
-        "group": "Mode",
-        "selectedTokenSets": {
-          "foundation/seed-color": "source",
-          "foundation/font-families": "source",
-          "foundation/spacing-unite": "source",
-          "alias/color-palette": "source",
-          "alias/typography": "source",
-          "alias/spacing": "source",
-          "brand/justgo": "source",
-          "typography/global": "enabled",
-          "typography/component": "source",
-          "dimension/global": "source",
-          "dimension/component": "source",
-          "mode/dark/global": "enabled",
-          "mode/dark/component": "enabled"
+      "radius": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - Sharp corners"
         },
-        "$figmaStyleReferences": {
-          "heading.h1.medium": "S:a49361aa4e220cc56330f39687269aea361f4c74,",
-          "heading.h1.semibold": "S:1493c801ea877f941b2fd4d3e03b5833eb195df7,",
-          "heading.h2.medium": "S:90da1b355905d20fa17576f64a87a372a7ee88cc,",
-          "heading.h2.semibold": "S:458e5701bd8407d18db885d7b7bd2cc054103e12,",
-          "heading.h3.medium": "S:bf86cd5530251cf7e169af9e4be018a03918800d,",
-          "heading.h3.semibold": "S:27672a1f627b45b57c9b3208f8648bd0399e354a,",
-          "heading.h4.medium": "S:43e1a90071a6a3b59e702f2e4a83eeec190ad065,",
-          "heading.h4.semibold": "S:f5bf1700a8e095273eae2fe1e45bb67538e364e9,",
-          "heading.h5.medium": "S:917f30c2cf48d1d56c684df2861351ce222b0621,",
-          "heading.h5.semibold": "S:c9d1b53b5571315cef926a0d4528815e563fb544,",
-          "heading.h6.medium": "S:198c825ac7d69d1db4e3c979fcab3fa423feb1b8,",
-          "heading.h6.semibold": "S:ea4e86b9f6f6a5e5d9f3e7b3b1d48f89c5369645,",
-          "title.sm.medium": "S:cba40783343554a005d5652355a2dacabb3841ee,",
-          "title.sm.semibold": "S:4d111f40e4f716a0043e226f4df48cce5e2dce02,",
-          "title.md.medium": "S:77631d520f7e05bc4b193f8df63cbf66d4567702,",
-          "title.md.semibold": "S:a67f972fed16f3a91aaca3278d76c2c871a389df,",
-          "title.lg.medium": "S:e155e2383de87668b5183153cd5907cef4364474,",
-          "title.lg.semibold": "S:5de33e36ae685378da79e5cea18d32f39cec15f3,",
-          "title.xl.medium": "S:e3c1f33e8dbc59d9faf1deb60477b26968ba5b35,",
-          "title.xl.semibold": "S:5c41d51409efeea428633346164af48a15f6319c,",
-          "subtitle.sm.normal": "S:80eb950cb3cd2c890297733e4087af31e3df6c71,",
-          "subtitle.md.normal": "S:ea2aa7f9ec788d08669bfeae3f4081c65684e98b,",
-          "body.sm.normal": "S:85099904c52de716aa3e338ad83167420887dda0,",
-          "body.sm.medium": "S:a13f205996a5d34dd3ec64947cd27690faada5b6,",
-          "body.md.normal": "S:9e2fa55da5e4b8bc6f8770009fa949185f308181,",
-          "body.md.medium": "S:6102957c08eb5209aeb3da4f081fa85837a2c3cf,",
-          "body.lg.normal": "S:660ae4f45e4d9a83241b415ddaecf90e810c4f2f,",
-          "body.lg.medium": "S:7b71a496c89d890a917b9d6faf4e709f1078e7ee,",
-          "caption.sm.normal": "S:18b92802265869f63f8b846666ac7df62962a732,",
-          "caption.md.normal": "S:746cdc952f90618849bba9295cf5d70a27bdb0b5,",
-          "overline.sm.normal": "S:8047ee8ac4ce3c773bff84e245d5f9291411cc9a,",
-          "overline.sm.medium": "S:1f9c5c7a77eb0244256f690df1181c256ad4279d,",
-          "overline.md.normal": "S:0d8b07275ca6b6742f9d4da8da90a6b467f311bf,",
-          "overline.md.medium": "S:73d669155d6d9741337f700bc8764ff180dfc954,"
+        "xs": {
+          "$type": "dimension",
+          "$value": "{unites.x2}",
+          "$description": "2px - Micro radius"
         },
-        "$figmaVariableReferences": {}
+        "sm": {
+          "$type": "dimension",
+          "$value": "{unites.x4}",
+          "$description": "4px - Small component radius"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{unites.x6}",
+          "$description": "6px - Default base radius"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{unites.x8}",
+          "$description": "8px - Card and container radius"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{unites.x12}",
+          "$description": "12px - Sheet and floating panel radius"
+        },
+        "2xl": {
+          "$type": "dimension",
+          "$value": "{unites.x16}",
+          "$description": "16px - Large modal radius"
+        },
+        "3xl": {
+          "$type": "dimension",
+          "$value": "{unites.x24}",
+          "$description": "24px - Hero container radius"
+        },
+        "full": {
+          "$type": "dimension",
+          "$value": "{unites.x999}",
+          "$description": "999px - Pill / circular radius"
+        }
+      },
+      "border": {
+        "none": {
+          "$type": "dimension",
+          "$value": "{unites.x0}",
+          "$description": "0px - No border"
+        },
+        "sm": {
+          "$type": "dimension",
+          "$value": "{unites.x1}",
+          "$description": "1px - Default standard border"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{unites.x2}",
+          "$description": "2px - Focus and active indicator border"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{unites.x4}",
+          "$description": "4px - Callout and progress border"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{unites.x8}",
+          "$description": "8px - Heavy accent border"
+        }
       }
-    ],
+    },
+    "foundation/seed-color": {
+      "base": {
+        "white": {
+          "$type": "color",
+          "$value": "#ffffff",
+          "$description": "Pure absolute white (#ffffff)"
+        },
+        "black": {
+          "$type": "color",
+          "$value": "#000000",
+          "$description": "Pure absolute black (#000000)"
+        }
+      },
+      "gray": {
+        "50": {
+          "$type": "color",
+          "$value": "#fafafa",
+          "$description": "Gray 50 - Lightest tint for subtle backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#f7f7f7",
+          "$description": "Gray 100 - Very light background surface"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#eeeeee",
+          "$description": "Gray 200 - Light surface container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#e0e0e0",
+          "$description": "Gray 300 - Subtle border and divider"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#bdbdbd",
+          "$description": "Gray 400 - Medium border and placeholder text"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#9e9e9e",
+          "$description": "Gray 500 - Base mid-tone neutral"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#757575",
+          "$description": "Gray 600 - Secondary text and strong border"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#616161",
+          "$description": "Gray 700 - Dark text and interactive elements"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#424242",
+          "$description": "Gray 800 - High contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#212121",
+          "$description": "Gray 900 - Deepest neutral for highest contrast text"
+        }
+      },
+      "slate": {
+        "50": {
+          "$type": "color",
+          "$value": "#eceff1",
+          "$description": "Slate 50 - Lightest cool-gray tint for backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#cfd8dc",
+          "$description": "Slate 100 - Light cool-gray surface"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#b0bec5",
+          "$description": "Slate 200 - Subtle cool-gray container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#90a4ae",
+          "$description": "Slate 300 - Soft cool-gray border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#78909c",
+          "$description": "Slate 400 - Medium cool-gray border and accents"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#607d8b",
+          "$description": "Slate 500 - Base slate blue-gray hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#546e7a",
+          "$description": "Slate 600 - Medium dark slate for UI elements"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#455a64",
+          "$description": "Slate 700 - Dark slate for high contrast UI"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#37474f",
+          "$description": "Slate 800 - Very dark slate for text and headings"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#263238",
+          "$description": "Slate 900 - Deepest dark slate tone"
+        }
+      },
+      "blue": {
+        "50": {
+          "$type": "color",
+          "$value": "#e3f2fd",
+          "$description": "Blue 50 - Lightest tint for info backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#bbdefb",
+          "$description": "Blue 100 - Very light blue surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#90c9f9",
+          "$description": "Blue 200 - Light blue container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#63b4f6",
+          "$description": "Blue 300 - Subtle blue border and highlight"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#42a4f5",
+          "$description": "Blue 400 - Medium blue for decorative elements"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#2194f3",
+          "$description": "Blue 500 - Base primary blue hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#1f87e5",
+          "$description": "Blue 600 - Interactive hover blue"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#1a75d2",
+          "$description": "Blue 700 - Dark interactive blue"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#1764c0",
+          "$description": "Blue 800 - Deep blue for accessible text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#1045a1",
+          "$description": "Blue 900 - Darkest blue for high contrast"
+        }
+      },
+      "yellow": {
+        "50": {
+          "$type": "color",
+          "$value": "#fffde7",
+          "$description": "Yellow 50 - Lightest tint for warning backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#fff9c4",
+          "$description": "Yellow 100 - Very light warning surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#fff59d",
+          "$description": "Yellow 200 - Light yellow container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#fef075",
+          "$description": "Yellow 300 - Subtle warning border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#fceb55",
+          "$description": "Yellow 400 - Medium yellow warning accent"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#fae635",
+          "$description": "Yellow 500 - Base primary yellow warning hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#fdd835",
+          "$description": "Yellow 600 - Darker yellow warning indicator"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#fbc02d",
+          "$description": "Yellow 700 - Dark amber yellow for icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#f9a825",
+          "$description": "Yellow 800 - Deep yellow-amber for accessible text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#f57f17",
+          "$description": "Yellow 900 - Deepest amber tone"
+        }
+      },
+      "red": {
+        "50": {
+          "$type": "color",
+          "$value": "#ffebee",
+          "$description": "Red 50 - Lightest tint for error backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#ffcdd2",
+          "$description": "Red 100 - Very light error surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#ef9a9a",
+          "$description": "Red 200 - Light red container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#e57373",
+          "$description": "Red 300 - Subtle error border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#ef5350",
+          "$description": "Red 400 - Medium red alert accent"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#f44236",
+          "$description": "Red 500 - Base primary red error hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#e53835",
+          "$description": "Red 600 - Interactive hover red"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#d32e2f",
+          "$description": "Red 700 - Dark red for accessible text and icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#c62728",
+          "$description": "Red 800 - Deep red for high contrast alert text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#b71b1c",
+          "$description": "Red 900 - Darkest red tone"
+        }
+      },
+      "green": {
+        "50": {
+          "$type": "color",
+          "$value": "#e8f5e9",
+          "$description": "Green 50 - Lightest tint for success backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#c8e6c9",
+          "$description": "Green 100 - Very light green surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#a5d6a7",
+          "$description": "Green 200 - Light green container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#81c784",
+          "$description": "Green 300 - Subtle green border and indicator"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#66bb69",
+          "$description": "Green 400 - Medium green indicator"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#4caf4f",
+          "$description": "Green 500 - Base primary green success hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#43a046",
+          "$description": "Green 600 - Interactive hover green"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#388e3b",
+          "$description": "Green 700 - Dark green for accessible text and icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#2e7d31",
+          "$description": "Green 800 - Deep green for high contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#1b5e1f",
+          "$description": "Green 900 - Darkest green tone"
+        }
+      },
+      "violet": {
+        "50": {
+          "$type": "color",
+          "$value": "#f3e5f5",
+          "$description": "Violet 50 - Lightest tint for purple backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#e1bee7",
+          "$description": "Violet 100 - Very light violet surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#ce93d8",
+          "$description": "Violet 200 - Light violet container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#ba68c8",
+          "$description": "Violet 300 - Subtle violet border"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#ab47bc",
+          "$description": "Violet 400 - Medium violet accent"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#9c27b0",
+          "$description": "Violet 500 - Base primary violet hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#8e24aa",
+          "$description": "Violet 600 - Interactive hover violet"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#7b1fa2",
+          "$description": "Violet 700 - Dark violet for accessible UI elements"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#6a1b9a",
+          "$description": "Violet 800 - Deep violet for high contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#4a148c",
+          "$description": "Violet 900 - Deepest violet tone"
+        }
+      }
+    },
+    "foundation/spacing-unite": {
+      "unites": {
+        "x0": {
+          "$type": "dimension",
+          "$value": "0px"
+        },
+        "x1": {
+          "$type": "dimension",
+          "$value": "1px"
+        },
+        "x2": {
+          "$type": "dimension",
+          "$value": "2px"
+        },
+        "x3": {
+          "$type": "dimension",
+          "$value": "3px"
+        },
+        "x4": {
+          "$type": "dimension",
+          "$value": "4px"
+        },
+        "x6": {
+          "$type": "dimension",
+          "$value": "6px"
+        },
+        "x8": {
+          "$type": "dimension",
+          "$value": "8px"
+        },
+        "x10": {
+          "$type": "dimension",
+          "$value": "10px"
+        },
+        "x12": {
+          "$type": "dimension",
+          "$value": "12px"
+        },
+        "x14": {
+          "$type": "dimension",
+          "$value": "14px"
+        },
+        "x16": {
+          "$type": "dimension",
+          "$value": "16px"
+        },
+        "x18": {
+          "$type": "dimension",
+          "$value": "18px"
+        },
+        "x20": {
+          "$type": "dimension",
+          "$value": "20px"
+        },
+        "x22": {
+          "$type": "dimension",
+          "$value": "22px"
+        },
+        "x24": {
+          "$type": "dimension",
+          "$value": "24px"
+        },
+        "x26": {
+          "$type": "dimension",
+          "$value": "26px"
+        },
+        "x28": {
+          "$type": "dimension",
+          "$value": "28px"
+        },
+        "x30": {
+          "$type": "dimension",
+          "$value": "30px"
+        },
+        "x32": {
+          "$type": "dimension",
+          "$value": "32px"
+        },
+        "x34": {
+          "$type": "dimension",
+          "$value": "34px"
+        },
+        "x36": {
+          "$type": "dimension",
+          "$value": "36px"
+        },
+        "x38": {
+          "$type": "dimension",
+          "$value": "38px"
+        },
+        "x40": {
+          "$type": "dimension",
+          "$value": "40px"
+        },
+        "x42": {
+          "$type": "dimension",
+          "$value": "42px"
+        },
+        "x44": {
+          "$type": "dimension",
+          "$value": "44px"
+        },
+        "x46": {
+          "$type": "dimension",
+          "$value": "46px"
+        },
+        "x48": {
+          "$type": "dimension",
+          "$value": "48px"
+        },
+        "x50": {
+          "$type": "dimension",
+          "$value": "50px"
+        },
+        "x52": {
+          "$type": "dimension",
+          "$value": "52px"
+        },
+        "x54": {
+          "$type": "dimension",
+          "$value": "54px"
+        },
+        "x56": {
+          "$type": "dimension",
+          "$value": "56px"
+        },
+        "x58": {
+          "$type": "dimension",
+          "$value": "58px"
+        },
+        "x60": {
+          "$type": "dimension",
+          "$value": "60px"
+        },
+        "x62": {
+          "$type": "dimension",
+          "$value": "62px"
+        },
+        "x64": {
+          "$type": "dimension",
+          "$value": "64px"
+        },
+        "x66": {
+          "$type": "dimension",
+          "$value": "66px"
+        },
+        "x68": {
+          "$type": "dimension",
+          "$value": "68px"
+        },
+        "x70": {
+          "$type": "dimension",
+          "$value": "70px"
+        },
+        "x72": {
+          "$type": "dimension",
+          "$value": "72px"
+        },
+        "x74": {
+          "$type": "dimension",
+          "$value": "74px"
+        },
+        "x76": {
+          "$type": "dimension",
+          "$value": "76px"
+        },
+        "x78": {
+          "$type": "dimension",
+          "$value": "78px"
+        },
+        "x80": {
+          "$type": "dimension",
+          "$value": "80px"
+        },
+        "x82": {
+          "$type": "dimension",
+          "$value": "82px"
+        },
+        "x84": {
+          "$type": "dimension",
+          "$value": "84px"
+        },
+        "x86": {
+          "$type": "dimension",
+          "$value": "86px"
+        },
+        "x88": {
+          "$type": "dimension",
+          "$value": "88px"
+        },
+        "x90": {
+          "$type": "dimension",
+          "$value": "90px"
+        },
+        "x92": {
+          "$type": "dimension",
+          "$value": "92px"
+        },
+        "x94": {
+          "$type": "dimension",
+          "$value": "94px"
+        },
+        "x96": {
+          "$type": "dimension",
+          "$value": "96px"
+        },
+        "x98": {
+          "$type": "dimension",
+          "$value": "98px"
+        },
+        "x100": {
+          "$type": "dimension",
+          "$value": "100px"
+        },
+        "x999": {
+          "$type": "dimension",
+          "$value": "999px"
+        }
+      }
+    },
+    "foundation/font-families": {
+      "font-families": {
+        "primary": {
+          "$type": "fontFamilies",
+          "$value": "Inter, Arial",
+          "$description": "Primary sans-serif font stack"
+        }
+      }
+    },
     "dimension/global": {
       "padding": {
         "none": {
@@ -613,472 +1353,9 @@
         }
       }
     },
-    "brand/justgo": {
-      "primary": {
-        "50": {
-          "$type": "color",
-          "$value": "#e8f5e9",
-          "$description": "Green 50 - Lightest tint for success backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#c8e6c9",
-          "$description": "Green 100 - Very light green surface fill"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#a5d6a7",
-          "$description": "Green 200 - Light green container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#81c784",
-          "$description": "Green 300 - Subtle green border and indicator"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#66bb69",
-          "$description": "Green 400 - Medium green indicator"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#4caf4f",
-          "$description": "Green 500 - Base primary green success hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#43a046",
-          "$description": "Green 600 - Interactive hover green"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#388e3b",
-          "$description": "Green 700 - Dark green for accessible text and icons"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#2e7d31",
-          "$description": "Green 800 - Deep green for high contrast text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#1b5e1f",
-          "$description": "Green 900 - Darkest green tone"
-        }
-      }
-    },
-    "dimension/component": {},
-    "foundation/font-families": {
-      "font-families": {
-        "primary": {
-          "$type": "fontFamilies",
-          "$value": "Inter, Arial",
-          "$description": "Primary sans-serif font stack"
-        }
-      }
-    },
     "mode/light/global": {},
-    "typography/global": {
-      "heading": {
-        "h1": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.heading.h1} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h1}"
-            },
-            "$description": "heading.h1.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.heading.h1} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h1}"
-            },
-            "$description": "heading.h1.semibold"
-          }
-        },
-        "h2": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.heading.h2} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h2}"
-            },
-            "$description": "heading.h2.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.heading.h2} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h2}"
-            },
-            "$description": "heading.h2.semibold"
-          }
-        },
-        "h3": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.heading.h3} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h3}"
-            },
-            "$description": "heading.h3.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.heading.h3} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h3}"
-            },
-            "$description": "heading.h3.semibold"
-          }
-        },
-        "h4": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.heading.h4} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h4}"
-            },
-            "$description": "heading.h4.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.heading.h4} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h4}"
-            },
-            "$description": "heading.h4.semibold"
-          }
-        },
-        "h5": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.heading.h5} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h5}"
-            },
-            "$description": "heading.h5.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.heading.h5} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h5}"
-            },
-            "$description": "heading.h5.semibold"
-          }
-        },
-        "h6": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.heading.h6} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h6}"
-            },
-            "$description": "heading.h6.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.heading.h6} * {line-height.tight}, 0)",
-              "fontSize": "{font-size.heading.h6}"
-            },
-            "$description": "heading.h6.semibold"
-          }
-        }
-      },
-      "title": {
-        "xl": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.title.xl} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.xl}"
-            },
-            "$description": "title.xl.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.title.xl} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.xl}"
-            },
-            "$description": "title.xl.semibold"
-          }
-        },
-        "lg": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.title.lg} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.lg}"
-            },
-            "$description": "title.lg.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.title.lg} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.lg}"
-            },
-            "$description": "title.lg.semibold"
-          }
-        },
-        "md": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.title.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.md}"
-            },
-            "$description": "title.md.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.title.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.md}"
-            },
-            "$description": "title.md.semibold"
-          }
-        },
-        "sm": {
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.title.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.sm}"
-            },
-            "$description": "title.sm.medium"
-          },
-          "semibold": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.semibold}",
-              "lineHeight": "roundTo({font-size.title.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.title.sm}"
-            },
-            "$description": "title.sm.semibold"
-          }
-        }
-      },
-      "subtitle": {
-        "md": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.subtitle.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.subtitle.md}"
-            },
-            "$description": "subtitle.md.normal"
-          }
-        },
-        "sm": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.subtitle.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.subtitle.sm}"
-            },
-            "$description": "subtitle.sm.normal"
-          }
-        }
-      },
-      "body": {
-        "lg": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.body.lg} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.body.lg}"
-            },
-            "$description": "body.lg.normal"
-          },
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.body.lg} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.body.lg}"
-            },
-            "$description": "body.lg.medium"
-          }
-        },
-        "md": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.body.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.body.md}"
-            },
-            "$description": "body.md.normal"
-          },
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.body.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.body.md}"
-            },
-            "$description": "body.md.medium"
-          }
-        },
-        "sm": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.body.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.body.sm}"
-            },
-            "$description": "body.sm.normal"
-          },
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.body.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.body.sm}"
-            },
-            "$description": "body.sm.medium"
-          }
-        }
-      },
-      "caption": {
-        "md": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.caption.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.caption.md}"
-            },
-            "$description": "caption.md.normal"
-          }
-        },
-        "sm": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.caption.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.caption.sm}"
-            },
-            "$description": "caption.sm.normal"
-          }
-        }
-      },
-      "overline": {
-        "md": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.overline.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.overline.md}",
-              "letterSpacing": "{letter-spacing.wide}",
-              "textCase": "capitalize"
-            },
-            "$description": "overline.md.normal"
-          },
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.overline.md} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.overline.md}",
-              "letterSpacing": "{letter-spacing.wide}",
-              "textCase": "capitalize"
-            },
-            "$description": "overline.md.medium"
-          }
-        },
-        "sm": {
-          "normal": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.normal}",
-              "lineHeight": "roundTo({font-size.overline.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.overline.sm}",
-              "letterSpacing": "{letter-spacing.wide}",
-              "textCase": "capitalize"
-            },
-            "$description": "overline.sm.normal"
-          },
-          "medium": {
-            "$type": "typography",
-            "$value": {
-              "fontFamily": "{font-families.primary}",
-              "fontWeight": "{font-weight.medium}",
-              "lineHeight": "roundTo({font-size.overline.sm} * {line-height.normal}, 0)",
-              "fontSize": "{font-size.overline.sm}",
-              "letterSpacing": "{letter-spacing.wide}",
-              "textCase": "capitalize"
-            },
-            "$description": "overline.sm.medium"
-          }
-        }
-      }
-    },
-    "typography/component": {},
+    "mode/dark/global": {},
+    "dimension/component": {},
     "mode/light/component": {
       "button": {
         "bg": {
@@ -1757,6 +2034,613 @@
                 "$description": "Transparent ghost button pressed text color (Light mode)"
               }
             }
+          }
+        }
+      }
+    },
+    "typography/component": {},
+    "alias/typography": {
+      "font-weight": {
+        "normal": {
+          "$type": "fontWeights",
+          "$value": "Regular",
+          "$description": "Normal font weight (400) for standard body copy"
+        },
+        "medium": {
+          "$type": "fontWeights",
+          "$value": "Medium",
+          "$description": "Medium font weight (500) for emphasized text and UI elements"
+        },
+        "semibold": {
+          "$type": "fontWeights",
+          "$value": "Semi Bold",
+          "$description": "Semi-bold font weight (600) for headings and prominent labels"
+        }
+      },
+      "line-height": {
+        "tight": {
+          "$type": "lineHeights",
+          "$value": "1.25",
+          "$description": "Tight (1.25) line height ratio for headings and single-line elements"
+        },
+        "normal": {
+          "$type": "lineHeights",
+          "$value": "1.5",
+          "$description": "Normal (1.5) line height ratio for readable multi-line body text"
+        }
+      },
+      "letter-spacing": {
+        "normal": {
+          "$type": "letterSpacing",
+          "$value": "0%",
+          "$description": "Normal letter spacing tracking (0%)"
+        },
+        "wide": {
+          "$type": "letterSpacing",
+          "$value": "2%",
+          "$description": "Wide letter spacing tracking (2%)"
+        }
+      },
+      "font-size": {
+        "heading": {
+          "h1": {
+            "$type": "fontSizes",
+            "$value": "48",
+            "$description": "Heading 1 font size (48px)"
+          },
+          "h2": {
+            "$type": "fontSizes",
+            "$value": "40",
+            "$description": "Heading 2 font size (40px)"
+          },
+          "h3": {
+            "$type": "fontSizes",
+            "$value": "36",
+            "$description": "Heading 3 font size (36px)"
+          },
+          "h4": {
+            "$type": "fontSizes",
+            "$value": "32",
+            "$description": "Heading 4 font size (32px)"
+          },
+          "h5": {
+            "$type": "fontSizes",
+            "$value": "28",
+            "$description": "Heading 5 font size (28px)"
+          },
+          "h6": {
+            "$type": "fontSizes",
+            "$value": "24",
+            "$description": "Heading 6 font size (24px)"
+          }
+        },
+        "title": {
+          "xl": {
+            "$type": "fontSizes",
+            "$value": "20",
+            "$description": "Title XL font size (20px)"
+          },
+          "lg": {
+            "$type": "fontSizes",
+            "$value": "18",
+            "$description": "Title LG font size (18px)"
+          },
+          "md": {
+            "$type": "fontSizes",
+            "$value": "16",
+            "$description": "Title MD font size (16px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Title SM font size (14px)"
+          }
+        },
+        "subtitle": {
+          "md": {
+            "$type": "fontSizes",
+            "$value": "16",
+            "$description": "Subtitle MD font size (16px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Subtitle SM font size (14px)"
+          }
+        },
+        "body": {
+          "lg": {
+            "$type": "fontSizes",
+            "$value": "18",
+            "$description": "Body LG font size (18px)"
+          },
+          "md": {
+            "$type": "fontSizes",
+            "$value": "16",
+            "$description": "Body MD font size (16px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Body SM font size (14px)"
+          }
+        },
+        "caption": {
+          "md": {
+            "$type": "fontSizes",
+            "$value": "13",
+            "$description": "Caption MD font size (13px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "12",
+            "$description": "Caption SM font size (12px)"
+          }
+        },
+        "overline": {
+          "md": {
+            "$type": "fontSizes",
+            "$value": "14",
+            "$description": "Overline MD font size (14px)"
+          },
+          "sm": {
+            "$type": "fontSizes",
+            "$value": "13",
+            "$description": "Overline SM font size (13px)"
+          }
+        }
+      }
+    },
+    "brand/justgo": {
+      "primary": {
+        "50": {
+          "$type": "color",
+          "$value": "#e8f5e9",
+          "$description": "Green 50 - Lightest tint for success backgrounds"
+        },
+        "100": {
+          "$type": "color",
+          "$value": "#c8e6c9",
+          "$description": "Green 100 - Very light green surface fill"
+        },
+        "200": {
+          "$type": "color",
+          "$value": "#a5d6a7",
+          "$description": "Green 200 - Light green container fill"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#81c784",
+          "$description": "Green 300 - Subtle green border and indicator"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#66bb69",
+          "$description": "Green 400 - Medium green indicator"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#4caf4f",
+          "$description": "Green 500 - Base primary green success hue"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#43a046",
+          "$description": "Green 600 - Interactive hover green"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "#388e3b",
+          "$description": "Green 700 - Dark green for accessible text and icons"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#2e7d31",
+          "$description": "Green 800 - Deep green for high contrast text"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#1b5e1f",
+          "$description": "Green 900 - Darkest green tone"
+        }
+      }
+    },
+    "typography/global": {
+      "heading": {
+        "h1": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.heading.h1} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h1}"
+            },
+            "$description": "heading.h1.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.heading.h1} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h1}"
+            },
+            "$description": "heading.h1.semibold"
+          }
+        },
+        "h2": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.heading.h2} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h2}"
+            },
+            "$description": "heading.h2.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.heading.h2} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h2}"
+            },
+            "$description": "heading.h2.semibold"
+          }
+        },
+        "h3": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.heading.h3} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h3}"
+            },
+            "$description": "heading.h3.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.heading.h3} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h3}"
+            },
+            "$description": "heading.h3.semibold"
+          }
+        },
+        "h4": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.heading.h4} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h4}"
+            },
+            "$description": "heading.h4.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.heading.h4} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h4}"
+            },
+            "$description": "heading.h4.semibold"
+          }
+        },
+        "h5": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.heading.h5} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h5}"
+            },
+            "$description": "heading.h5.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.heading.h5} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h5}"
+            },
+            "$description": "heading.h5.semibold"
+          }
+        },
+        "h6": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.heading.h6} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h6}"
+            },
+            "$description": "heading.h6.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.heading.h6} * {line-height.tight}, 0)",
+              "fontSize": "{font-size.heading.h6}"
+            },
+            "$description": "heading.h6.semibold"
+          }
+        }
+      },
+      "title": {
+        "xl": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.title.xl} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.xl}"
+            },
+            "$description": "title.xl.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.title.xl} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.xl}"
+            },
+            "$description": "title.xl.semibold"
+          }
+        },
+        "lg": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.title.lg} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.lg}"
+            },
+            "$description": "title.lg.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.title.lg} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.lg}"
+            },
+            "$description": "title.lg.semibold"
+          }
+        },
+        "md": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.title.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.md}"
+            },
+            "$description": "title.md.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.title.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.md}"
+            },
+            "$description": "title.md.semibold"
+          }
+        },
+        "sm": {
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.title.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.sm}"
+            },
+            "$description": "title.sm.medium"
+          },
+          "semibold": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.semibold}",
+              "lineHeight": "roundTo({font-size.title.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.title.sm}"
+            },
+            "$description": "title.sm.semibold"
+          }
+        }
+      },
+      "subtitle": {
+        "md": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.subtitle.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.subtitle.md}"
+            },
+            "$description": "subtitle.md.normal"
+          }
+        },
+        "sm": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.subtitle.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.subtitle.sm}"
+            },
+            "$description": "subtitle.sm.normal"
+          }
+        }
+      },
+      "body": {
+        "lg": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.body.lg} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.body.lg}"
+            },
+            "$description": "body.lg.normal"
+          },
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.body.lg} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.body.lg}"
+            },
+            "$description": "body.lg.medium"
+          }
+        },
+        "md": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.body.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.body.md}"
+            },
+            "$description": "body.md.normal"
+          },
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.body.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.body.md}"
+            },
+            "$description": "body.md.medium"
+          }
+        },
+        "sm": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.body.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.body.sm}"
+            },
+            "$description": "body.sm.normal"
+          },
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.body.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.body.sm}"
+            },
+            "$description": "body.sm.medium"
+          }
+        }
+      },
+      "caption": {
+        "md": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.caption.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.caption.md}"
+            },
+            "$description": "caption.md.normal"
+          }
+        },
+        "sm": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.caption.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.caption.sm}"
+            },
+            "$description": "caption.sm.normal"
+          }
+        }
+      },
+      "overline": {
+        "md": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.overline.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.overline.md}",
+              "letterSpacing": "{letter-spacing.wide}",
+              "textCase": "capitalize"
+            },
+            "$description": "overline.md.normal"
+          },
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.overline.md} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.overline.md}",
+              "letterSpacing": "{letter-spacing.wide}",
+              "textCase": "capitalize"
+            },
+            "$description": "overline.md.medium"
+          }
+        },
+        "sm": {
+          "normal": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.normal}",
+              "lineHeight": "roundTo({font-size.overline.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.overline.sm}",
+              "letterSpacing": "{letter-spacing.wide}",
+              "textCase": "capitalize"
+            },
+            "$description": "overline.sm.normal"
+          },
+          "medium": {
+            "$type": "typography",
+            "$value": {
+              "fontFamily": "{font-families.primary}",
+              "fontWeight": "{font-weight.medium}",
+              "lineHeight": "roundTo({font-size.overline.sm} * {line-height.normal}, 0)",
+              "fontSize": "{font-size.overline.sm}",
+              "letterSpacing": "{letter-spacing.wide}",
+              "textCase": "capitalize"
+            },
+            "$description": "overline.sm.medium"
           }
         }
       }
@@ -2442,891 +3326,7 @@
           }
         }
       }
-    },
-    "alias/typography": {
-      "font-weight": {
-        "normal": {
-          "$type": "fontWeights",
-          "$value": "Regular",
-          "$description": "Normal font weight (400) for standard body copy"
-        },
-        "medium": {
-          "$type": "fontWeights",
-          "$value": "Medium",
-          "$description": "Medium font weight (500) for emphasized text and UI elements"
-        },
-        "semibold": {
-          "$type": "fontWeights",
-          "$value": "Semi Bold",
-          "$description": "Semi-bold font weight (600) for headings and prominent labels"
-        }
-      },
-      "line-height": {
-        "tight": {
-          "$type": "lineHeights",
-          "$value": "1.25",
-          "$description": "Tight (1.25) line height ratio for headings and single-line elements"
-        },
-        "normal": {
-          "$type": "lineHeights",
-          "$value": "1.5",
-          "$description": "Normal (1.5) line height ratio for readable multi-line body text"
-        }
-      },
-      "letter-spacing": {
-        "normal": {
-          "$type": "letterSpacing",
-          "$value": "0%",
-          "$description": "Normal letter spacing tracking (0%)"
-        },
-        "wide": {
-          "$type": "letterSpacing",
-          "$value": "2%",
-          "$description": "Wide letter spacing tracking (2%)"
-        }
-      },
-      "font-size": {
-        "heading": {
-          "h1": {
-            "$type": "fontSizes",
-            "$value": "48",
-            "$description": "Heading 1 font size (48px)"
-          },
-          "h2": {
-            "$type": "fontSizes",
-            "$value": "40",
-            "$description": "Heading 2 font size (40px)"
-          },
-          "h3": {
-            "$type": "fontSizes",
-            "$value": "36",
-            "$description": "Heading 3 font size (36px)"
-          },
-          "h4": {
-            "$type": "fontSizes",
-            "$value": "32",
-            "$description": "Heading 4 font size (32px)"
-          },
-          "h5": {
-            "$type": "fontSizes",
-            "$value": "28",
-            "$description": "Heading 5 font size (28px)"
-          },
-          "h6": {
-            "$type": "fontSizes",
-            "$value": "24",
-            "$description": "Heading 6 font size (24px)"
-          }
-        },
-        "title": {
-          "xl": {
-            "$type": "fontSizes",
-            "$value": "20",
-            "$description": "Title XL font size (20px)"
-          },
-          "lg": {
-            "$type": "fontSizes",
-            "$value": "18",
-            "$description": "Title LG font size (18px)"
-          },
-          "md": {
-            "$type": "fontSizes",
-            "$value": "16",
-            "$description": "Title MD font size (16px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Title SM font size (14px)"
-          }
-        },
-        "subtitle": {
-          "md": {
-            "$type": "fontSizes",
-            "$value": "16",
-            "$description": "Subtitle MD font size (16px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Subtitle SM font size (14px)"
-          }
-        },
-        "body": {
-          "lg": {
-            "$type": "fontSizes",
-            "$value": "18",
-            "$description": "Body LG font size (18px)"
-          },
-          "md": {
-            "$type": "fontSizes",
-            "$value": "16",
-            "$description": "Body MD font size (16px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Body SM font size (14px)"
-          }
-        },
-        "caption": {
-          "md": {
-            "$type": "fontSizes",
-            "$value": "13",
-            "$description": "Caption MD font size (13px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "12",
-            "$description": "Caption SM font size (12px)"
-          }
-        },
-        "overline": {
-          "md": {
-            "$type": "fontSizes",
-            "$value": "14",
-            "$description": "Overline MD font size (14px)"
-          },
-          "sm": {
-            "$type": "fontSizes",
-            "$value": "13",
-            "$description": "Overline SM font size (13px)"
-          }
-        }
-      }
-    },
-    "mode/dark/global": {},
-    "foundation/spacing-unite": {
-      "unites": {
-        "x0": {
-          "$type": "dimension",
-          "$value": "0px"
-        },
-        "x1": {
-          "$type": "dimension",
-          "$value": "1px"
-        },
-        "x2": {
-          "$type": "dimension",
-          "$value": "2px"
-        },
-        "x3": {
-          "$type": "dimension",
-          "$value": "3px"
-        },
-        "x4": {
-          "$type": "dimension",
-          "$value": "4px"
-        },
-        "x6": {
-          "$type": "dimension",
-          "$value": "6px"
-        },
-        "x8": {
-          "$type": "dimension",
-          "$value": "8px"
-        },
-        "x10": {
-          "$type": "dimension",
-          "$value": "10px"
-        },
-        "x12": {
-          "$type": "dimension",
-          "$value": "12px"
-        },
-        "x14": {
-          "$type": "dimension",
-          "$value": "14px"
-        },
-        "x16": {
-          "$type": "dimension",
-          "$value": "16px"
-        },
-        "x18": {
-          "$type": "dimension",
-          "$value": "18px"
-        },
-        "x20": {
-          "$type": "dimension",
-          "$value": "20px"
-        },
-        "x22": {
-          "$type": "dimension",
-          "$value": "22px"
-        },
-        "x24": {
-          "$type": "dimension",
-          "$value": "24px"
-        },
-        "x26": {
-          "$type": "dimension",
-          "$value": "26px"
-        },
-        "x28": {
-          "$type": "dimension",
-          "$value": "28px"
-        },
-        "x30": {
-          "$type": "dimension",
-          "$value": "30px"
-        },
-        "x32": {
-          "$type": "dimension",
-          "$value": "32px"
-        },
-        "x34": {
-          "$type": "dimension",
-          "$value": "34px"
-        },
-        "x36": {
-          "$type": "dimension",
-          "$value": "36px"
-        },
-        "x38": {
-          "$type": "dimension",
-          "$value": "38px"
-        },
-        "x40": {
-          "$type": "dimension",
-          "$value": "40px"
-        },
-        "x42": {
-          "$type": "dimension",
-          "$value": "42px"
-        },
-        "x44": {
-          "$type": "dimension",
-          "$value": "44px"
-        },
-        "x46": {
-          "$type": "dimension",
-          "$value": "46px"
-        },
-        "x48": {
-          "$type": "dimension",
-          "$value": "48px"
-        },
-        "x50": {
-          "$type": "dimension",
-          "$value": "50px"
-        },
-        "x52": {
-          "$type": "dimension",
-          "$value": "52px"
-        },
-        "x54": {
-          "$type": "dimension",
-          "$value": "54px"
-        },
-        "x56": {
-          "$type": "dimension",
-          "$value": "56px"
-        },
-        "x58": {
-          "$type": "dimension",
-          "$value": "58px"
-        },
-        "x60": {
-          "$type": "dimension",
-          "$value": "60px"
-        },
-        "x62": {
-          "$type": "dimension",
-          "$value": "62px"
-        },
-        "x64": {
-          "$type": "dimension",
-          "$value": "64px"
-        },
-        "x66": {
-          "$type": "dimension",
-          "$value": "66px"
-        },
-        "x68": {
-          "$type": "dimension",
-          "$value": "68px"
-        },
-        "x70": {
-          "$type": "dimension",
-          "$value": "70px"
-        },
-        "x72": {
-          "$type": "dimension",
-          "$value": "72px"
-        },
-        "x74": {
-          "$type": "dimension",
-          "$value": "74px"
-        },
-        "x76": {
-          "$type": "dimension",
-          "$value": "76px"
-        },
-        "x78": {
-          "$type": "dimension",
-          "$value": "78px"
-        },
-        "x80": {
-          "$type": "dimension",
-          "$value": "80px"
-        },
-        "x82": {
-          "$type": "dimension",
-          "$value": "82px"
-        },
-        "x84": {
-          "$type": "dimension",
-          "$value": "84px"
-        },
-        "x86": {
-          "$type": "dimension",
-          "$value": "86px"
-        },
-        "x88": {
-          "$type": "dimension",
-          "$value": "88px"
-        },
-        "x90": {
-          "$type": "dimension",
-          "$value": "90px"
-        },
-        "x92": {
-          "$type": "dimension",
-          "$value": "92px"
-        },
-        "x94": {
-          "$type": "dimension",
-          "$value": "94px"
-        },
-        "x96": {
-          "$type": "dimension",
-          "$value": "96px"
-        },
-        "x98": {
-          "$type": "dimension",
-          "$value": "98px"
-        },
-        "x100": {
-          "$type": "dimension",
-          "$value": "100px"
-        },
-        "x999": {
-          "$type": "dimension",
-          "$value": "999px"
-        }
-      }
-    },
-    "alias/spacing": {
-      "padding": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - No padding"
-        },
-        "3xs": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px padding"
-        },
-        "2xs": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px padding"
-        },
-        "xs": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px padding"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x12}",
-          "$description": "12px padding"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x16}",
-          "$description": "16px base padding"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x24}",
-          "$description": "24px padding"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x32}",
-          "$description": "32px padding"
-        },
-        "2xl": {
-          "$type": "dimension",
-          "$value": "{unites.x48}",
-          "$description": "48px padding"
-        },
-        "3xl": {
-          "$type": "dimension",
-          "$value": "{unites.x64}",
-          "$description": "64px padding"
-        },
-        "4xl": {
-          "$type": "dimension",
-          "$value": "{unites.x96}",
-          "$description": "96px padding"
-        }
-      },
-      "radius": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - Sharp corners"
-        },
-        "xs": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px - Micro radius"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px - Small component radius"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x6}",
-          "$description": "6px - Default base radius"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px - Card and container radius"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x12}",
-          "$description": "12px - Sheet and floating panel radius"
-        },
-        "2xl": {
-          "$type": "dimension",
-          "$value": "{unites.x16}",
-          "$description": "16px - Large modal radius"
-        },
-        "3xl": {
-          "$type": "dimension",
-          "$value": "{unites.x24}",
-          "$description": "24px - Hero container radius"
-        },
-        "full": {
-          "$type": "dimension",
-          "$value": "{unites.x999}",
-          "$description": "999px - Pill / circular radius"
-        }
-      },
-      "border": {
-        "none": {
-          "$type": "dimension",
-          "$value": "{unites.x0}",
-          "$description": "0px - No border"
-        },
-        "sm": {
-          "$type": "dimension",
-          "$value": "{unites.x1}",
-          "$description": "1px - Default standard border"
-        },
-        "md": {
-          "$type": "dimension",
-          "$value": "{unites.x2}",
-          "$description": "2px - Focus and active indicator border"
-        },
-        "lg": {
-          "$type": "dimension",
-          "$value": "{unites.x4}",
-          "$description": "4px - Callout and progress border"
-        },
-        "xl": {
-          "$type": "dimension",
-          "$value": "{unites.x8}",
-          "$description": "8px - Heavy accent border"
-        }
-      }
-    },
-    "foundation/seed-color": {
-      "base": {
-        "white": {
-          "$type": "color",
-          "$value": "#ffffff",
-          "$description": "Pure absolute white (#ffffff)"
-        },
-        "black": {
-          "$type": "color",
-          "$value": "#000000",
-          "$description": "Pure absolute black (#000000)"
-        }
-      },
-      "gray": {
-        "50": {
-          "$type": "color",
-          "$value": "#fafafa",
-          "$description": "Gray 50 - Lightest tint for subtle backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#f7f7f7",
-          "$description": "Gray 100 - Very light background surface"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#eeeeee",
-          "$description": "Gray 200 - Light surface container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#e0e0e0",
-          "$description": "Gray 300 - Subtle border and divider"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#bdbdbd",
-          "$description": "Gray 400 - Medium border and placeholder text"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#9e9e9e",
-          "$description": "Gray 500 - Base mid-tone neutral"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#757575",
-          "$description": "Gray 600 - Secondary text and strong border"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#616161",
-          "$description": "Gray 700 - Dark text and interactive elements"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#424242",
-          "$description": "Gray 800 - High contrast text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#212121",
-          "$description": "Gray 900 - Deepest neutral for highest contrast text"
-        }
-      },
-      "slate": {
-        "50": {
-          "$type": "color",
-          "$value": "#eceff1",
-          "$description": "Slate 50 - Lightest cool-gray tint for backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#cfd8dc",
-          "$description": "Slate 100 - Light cool-gray surface"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#b0bec5",
-          "$description": "Slate 200 - Subtle cool-gray container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#90a4ae",
-          "$description": "Slate 300 - Soft cool-gray border"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#78909c",
-          "$description": "Slate 400 - Medium cool-gray border and accents"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#607d8b",
-          "$description": "Slate 500 - Base slate blue-gray hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#546e7a",
-          "$description": "Slate 600 - Medium dark slate for UI elements"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#455a64",
-          "$description": "Slate 700 - Dark slate for high contrast UI"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#37474f",
-          "$description": "Slate 800 - Very dark slate for text and headings"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#263238",
-          "$description": "Slate 900 - Deepest dark slate tone"
-        }
-      },
-      "blue": {
-        "50": {
-          "$type": "color",
-          "$value": "#e3f2fd",
-          "$description": "Blue 50 - Lightest tint for info backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#bbdefb",
-          "$description": "Blue 100 - Very light blue surface fill"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#90c9f9",
-          "$description": "Blue 200 - Light blue container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#63b4f6",
-          "$description": "Blue 300 - Subtle blue border and highlight"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#42a4f5",
-          "$description": "Blue 400 - Medium blue for decorative elements"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#2194f3",
-          "$description": "Blue 500 - Base primary blue hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#1f87e5",
-          "$description": "Blue 600 - Interactive hover blue"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#1a75d2",
-          "$description": "Blue 700 - Dark interactive blue"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#1764c0",
-          "$description": "Blue 800 - Deep blue for accessible text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#1045a1",
-          "$description": "Blue 900 - Darkest blue for high contrast"
-        }
-      },
-      "yellow": {
-        "50": {
-          "$type": "color",
-          "$value": "#fffde7",
-          "$description": "Yellow 50 - Lightest tint for warning backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#fff9c4",
-          "$description": "Yellow 100 - Very light warning surface fill"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#fff59d",
-          "$description": "Yellow 200 - Light yellow container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#fef075",
-          "$description": "Yellow 300 - Subtle warning border"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#fceb55",
-          "$description": "Yellow 400 - Medium yellow warning accent"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#fae635",
-          "$description": "Yellow 500 - Base primary yellow warning hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#fdd835",
-          "$description": "Yellow 600 - Darker yellow warning indicator"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#fbc02d",
-          "$description": "Yellow 700 - Dark amber yellow for icons"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#f9a825",
-          "$description": "Yellow 800 - Deep yellow-amber for accessible text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#f57f17",
-          "$description": "Yellow 900 - Deepest amber tone"
-        }
-      },
-      "red": {
-        "50": {
-          "$type": "color",
-          "$value": "#ffebee",
-          "$description": "Red 50 - Lightest tint for error backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#ffcdd2",
-          "$description": "Red 100 - Very light error surface fill"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#ef9a9a",
-          "$description": "Red 200 - Light red container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#e57373",
-          "$description": "Red 300 - Subtle error border"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#ef5350",
-          "$description": "Red 400 - Medium red alert accent"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#f44236",
-          "$description": "Red 500 - Base primary red error hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#e53835",
-          "$description": "Red 600 - Interactive hover red"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#d32e2f",
-          "$description": "Red 700 - Dark red for accessible text and icons"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#c62728",
-          "$description": "Red 800 - Deep red for high contrast alert text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#b71b1c",
-          "$description": "Red 900 - Darkest red tone"
-        }
-      },
-      "green": {
-        "50": {
-          "$type": "color",
-          "$value": "#e8f5e9",
-          "$description": "Green 50 - Lightest tint for success backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#c8e6c9",
-          "$description": "Green 100 - Very light green surface fill"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#a5d6a7",
-          "$description": "Green 200 - Light green container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#81c784",
-          "$description": "Green 300 - Subtle green border and indicator"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#66bb69",
-          "$description": "Green 400 - Medium green indicator"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#4caf4f",
-          "$description": "Green 500 - Base primary green success hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#43a046",
-          "$description": "Green 600 - Interactive hover green"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#388e3b",
-          "$description": "Green 700 - Dark green for accessible text and icons"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#2e7d31",
-          "$description": "Green 800 - Deep green for high contrast text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#1b5e1f",
-          "$description": "Green 900 - Darkest green tone"
-        }
-      },
-      "violet": {
-        "50": {
-          "$type": "color",
-          "$value": "#f3e5f5",
-          "$description": "Violet 50 - Lightest tint for purple backgrounds"
-        },
-        "100": {
-          "$type": "color",
-          "$value": "#e1bee7",
-          "$description": "Violet 100 - Very light violet surface fill"
-        },
-        "200": {
-          "$type": "color",
-          "$value": "#ce93d8",
-          "$description": "Violet 200 - Light violet container fill"
-        },
-        "300": {
-          "$type": "color",
-          "$value": "#ba68c8",
-          "$description": "Violet 300 - Subtle violet border"
-        },
-        "400": {
-          "$type": "color",
-          "$value": "#ab47bc",
-          "$description": "Violet 400 - Medium violet accent"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "#9c27b0",
-          "$description": "Violet 500 - Base primary violet hue"
-        },
-        "600": {
-          "$type": "color",
-          "$value": "#8e24aa",
-          "$description": "Violet 600 - Interactive hover violet"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "#7b1fa2",
-          "$description": "Violet 700 - Dark violet for accessible UI elements"
-        },
-        "800": {
-          "$type": "color",
-          "$value": "#6a1b9a",
-          "$description": "Violet 800 - Deep violet for high contrast text"
-        },
-        "900": {
-          "$type": "color",
-          "$value": "#4a148c",
-          "$description": "Violet 900 - Deepest violet tone"
-        }
-      }
     }
   },
-  "updatedAt": "2026-08-21T18:40:09.869Z"
+  "updatedAt": "2026-08-23T02:21:46.237Z"
 }

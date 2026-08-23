@@ -147,7 +147,7 @@ export const ApiKeysManager: React.FC = () => {
             <span>Personal Access Tokens (PATs)</span>
           </h3>
           <p className="text-muted-foreground mt-0.5 text-[11px]">
-            Use PATs to authenticate the Second Screen private Figma plugin, CLI scripts, and CI/CD pipelines.
+            Use PATs to authenticate the Tokens Platform private Figma plugin, CLI scripts, and CI/CD pipelines.
           </p>
         </div>
 

@@ -94,7 +94,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <DialogTitle className="text-lg font-bold">Welcome to Second Screen</DialogTitle>
+                <DialogTitle className="text-lg font-bold">Welcome to Tokens Platform</DialogTitle>
                 <Badge variant="violet" className="text-[10px]">
                   v0.1.0-beta
                 </Badge>

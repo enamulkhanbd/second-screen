@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
+import { AcceptInviteModal } from "@/components/AcceptInviteModal";
+import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -67,6 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     setSidebarTab,
     activeSet,
     currentUser,
+    getCurrentUserRole,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -292,7 +295,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       <header className="h-12 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center justify-between text-xs select-none relative z-30 transition-colors">
         {/* Left: App Logo & System Name */}
         <div className="flex items-center gap-3">
-          {/* Second Screen Logo & Brand -> Redirects to Dashboard */}
+          {/* Tokens Platform Logo & Brand -> Redirects to Dashboard */}
           <div
             onClick={() => setSidebarTab("dashboard")}
             className="flex items-center gap-2 cursor-pointer group"
@@ -302,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               <Layers className="w-3 h-3" />
             </div>
             <span className="font-semibold text-foreground text-xs tracking-tight group-hover:text-primary transition-colors hidden md:inline">
-              Second Screen
+              Tokens Platform
             </span>
           </div>
 
@@ -331,13 +334,49 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   </span>
                 )}
 
+                {sidebarTab === "documentation" && (
+                  <span className="font-semibold text-foreground">
+                    Documentation
+                  </span>
+                )}
+
+                {sidebarTab === "assets" && (
+                  <span className="font-semibold text-foreground">
+                    Assets
+                  </span>
+                )}
+
+                {sidebarTab === "exports" && (
+                  <span className="font-semibold text-foreground">
+                    Exports
+                  </span>
+                )}
+
                 {sidebarTab === "releases" && (
                   <span className="font-semibold text-foreground">
                     Releases
                   </span>
                 )}
 
-                {sidebarTab === "tokens" && (
+                {sidebarTab === "activity" && (
+                  <span className="font-semibold text-foreground">
+                    Activity
+                  </span>
+                )}
+
+                {sidebarTab === "integrations" && (
+                  <span className="font-semibold text-foreground">
+                    Integrations
+                  </span>
+                )}
+
+                {sidebarTab === "mcp" && (
+                  <span className="font-semibold text-foreground">
+                    MCP &amp; CLI
+                  </span>
+                )}
+
+                {(sidebarTab === "variables" || sidebarTab === "tokens") && (
                   <>
                     <button
                       onClick={() => setSidebarTab("tokens")}
@@ -634,24 +673,39 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
-                size="icon-sm"
+                size="sm"
                 onClick={() => setIsAuthOpen(true)}
+                className="h-8 gap-1.5 px-2"
               >
                 {currentUser ? (
-                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shadow-xs">
-                    {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email[0].toUpperCase()}
-                  </div>
+                  <>
+                    <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shadow-xs">
+                      {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email[0].toUpperCase()}
+                    </div>
+                    <Badge variant="violet" className="text-[10px] py-0 px-1.5 font-bold gap-1 capitalize hidden sm:inline-flex">
+                      <span>{ROLE_DEFINITIONS[getCurrentUserRole()].icon}</span>
+                      <span>{ROLE_DEFINITIONS[getCurrentUserRole()].title}</span>
+                    </Badge>
+                  </>
                 ) : (
-                  <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  <>
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="hidden sm:inline text-xs">Sign In</span>
+                  </>
                 )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {currentUser ? `Signed in as ${currentUser.displayName || currentUser.email}` : "Sign In / Profile"}
+              {currentUser
+                ? `Signed in as ${currentUser.displayName || currentUser.email} (${ROLE_DEFINITIONS[getCurrentUserRole()].title})`
+                : "Sign In / Free Workspace Setup"}
             </TooltipContent>
           </Tooltip>
         </div>
       </header>
+
+      {/* Accept Invite Modal (Triggered automatically on invite detection) */}
+      <AcceptInviteModal />
 
       {/* Auth Modal */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />

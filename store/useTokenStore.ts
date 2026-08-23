@@ -29,7 +29,14 @@ import {
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 import { STARTER_TEMPLATES } from "@/data/starterTemplates";
-import { Organization, Project, OrganizationMember } from "@/types/tenant";
+import {
+  Organization,
+  Project,
+  OrganizationMember,
+  OrganizationInvitation,
+  UserRole,
+  ROLE_DEFINITIONS,
+} from "@/types/tenant";
 import {
   getUserOrganizations,
   getOrgProjects,
@@ -37,7 +44,16 @@ import {
   createProject,
   saveProjectTokens,
   saveProjectGitConfig,
+  createOrganizationInvitation,
+  getOrganizationInvitations,
+  getPendingInvitationsForEmail,
+  getInvitationByToken,
+  acceptOrganizationInvitation,
+  revokeInvitation,
+  removeOrgMember,
 } from "@/services/organizationService";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface TokenStoreState {
   // Multi-Tenant Identity & Scope
@@ -46,12 +62,25 @@ interface TokenStoreState {
   currentOrg: Organization | null;
   orgProjects: Project[];
   currentProject: Project | null;
+  pendingInvitations: OrganizationInvitation[];
+  pendingInvitePrompt: OrganizationInvitation | null;
+  activeInviteToken: string | null;
+
   setCurrentUser: (user: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null) => void;
   setCurrentOrg: (org: Organization | null) => void;
   setCurrentProject: (project: Project | null) => void;
-  loadTenantData: (uid: string) => Promise<void>;
+  setActiveInviteToken: (token: string | null) => void;
+  setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
+  loadTenantData: (uid: string, email?: string) => Promise<void>;
   createOrgAction: (name: string) => Promise<Organization | null>;
   createProjectAction: (name: string, description?: string) => Promise<Project | null>;
+  loadInvitations: (orgId: string) => Promise<void>;
+  sendInvitationAction: (email: string, role: UserRole) => Promise<OrganizationInvitation | null>;
+  acceptInvitationAction: (token: string) => Promise<boolean>;
+  revokeInvitationAction: (id: string) => Promise<void>;
+  removeMemberAction: (memberEmailOrUid: string) => Promise<void>;
+  getCurrentUserRole: () => UserRole;
+  canUserEdit: () => boolean;
 
   // Git Credentials
   credentials: GitCredentials;
@@ -75,9 +104,33 @@ interface TokenStoreState {
   themeMode: "light" | "dark";
   setThemeMode: (mode: "light" | "dark") => void;
 
-  // Sidebar Tab (dashboard, tokens, themes, or releases)
-  sidebarTab: "dashboard" | "tokens" | "themes" | "releases";
-  setSidebarTab: (tab: "dashboard" | "tokens" | "themes" | "releases") => void;
+  // Sidebar Tab
+  sidebarTab:
+    | "dashboard"
+    | "variables"
+    | "tokens"
+    | "themes"
+    | "documentation"
+    | "assets"
+    | "exports"
+    | "releases"
+    | "activity"
+    | "integrations"
+    | "mcp";
+  setSidebarTab: (
+    tab:
+      | "dashboard"
+      | "variables"
+      | "tokens"
+      | "themes"
+      | "documentation"
+      | "assets"
+      | "exports"
+      | "releases"
+      | "activity"
+      | "integrations"
+      | "mcp"
+  ) => void;
 
   // Releases, Compilers & Distribution Targets
   releases: ReleasePackage[];
@@ -166,12 +219,40 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
   currentOrg: null,
   orgProjects: [],
   currentProject: null,
+  pendingInvitations: [],
+  pendingInvitePrompt: null,
+  activeInviteToken: null,
+
+  setActiveInviteToken: (token) => set({ activeInviteToken: token }),
+  setPendingInvitePrompt: (inv) => set({ pendingInvitePrompt: inv }),
 
   setCurrentUser: (user) => {
     set({ currentUser: user });
     if (user?.uid) {
-      get().loadTenantData(user.uid);
+      get().loadTenantData(user.uid, user.email);
+      if (user.email) {
+        getPendingInvitationsForEmail(user.email).then((invs) => {
+          if (invs.length > 0) {
+            set({ pendingInvitePrompt: invs[0] });
+          }
+        });
+      }
     }
+  },
+
+  getCurrentUserRole: () => {
+    const { currentOrg, currentUser } = get();
+    if (!currentOrg || !currentUser) return "viewer";
+    if (currentOrg.ownerUid === currentUser.uid) return "owner";
+    const member = currentOrg.members?.find(
+      (m) => m.uid === currentUser.uid || (currentUser.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
+    );
+    return member?.role || "viewer";
+  },
+
+  canUserEdit: () => {
+    const role = get().getCurrentUserRole();
+    return role !== "viewer";
   },
 
   setCurrentOrg: async (org) => {
@@ -189,6 +270,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       } else {
         set({ currentProject: null });
       }
+      get().loadInvitations(org.id);
     }
   },
 
@@ -217,9 +299,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     }
   },
 
-  loadTenantData: async (uid) => {
+  loadTenantData: async (uid, email) => {
     try {
-      const orgs = await getUserOrganizations(uid);
+      const orgs = await getUserOrganizations(uid, email);
       set({ userOrgs: orgs });
 
       let activeOrg = orgs[0] || null;
@@ -245,9 +327,101 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         if (activeProj) {
           get().setCurrentProject(activeProj);
         }
+        get().loadInvitations(activeOrg.id);
       }
     } catch (e) {
       console.warn("Error loading tenant data:", e);
+    }
+  },
+
+  loadInvitations: async (orgId) => {
+    try {
+      const invs = await getOrganizationInvitations(orgId);
+      set({ pendingInvitations: invs });
+    } catch (e) {
+      console.warn("Error loading invitations:", e);
+    }
+  },
+
+  sendInvitationAction: async (email, role) => {
+    const { currentOrg, currentUser } = get();
+    if (!currentOrg || !currentUser) return null;
+
+    try {
+      const inv = await createOrganizationInvitation(
+        currentOrg.id,
+        currentOrg.name,
+        {
+          uid: currentUser.uid,
+          name: currentUser.displayName,
+          email: currentUser.email,
+        },
+        email,
+        role
+      );
+
+      set((state) => ({
+        pendingInvitations: [inv, ...state.pendingInvitations.filter((i) => i.id !== inv.id)],
+      }));
+
+      return inv;
+    } catch (e) {
+      console.warn("Error sending invitation:", e);
+      return null;
+    }
+  },
+
+  acceptInvitationAction: async (token) => {
+    const { currentUser } = get();
+    if (!currentUser) return false;
+
+    try {
+      const updatedOrg = await acceptOrganizationInvitation(token, {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        displayName: currentUser.displayName,
+      });
+
+      if (updatedOrg) {
+        const allOrgs = await getUserOrganizations(currentUser.uid, currentUser.email);
+        set({ userOrgs: allOrgs, pendingInvitePrompt: null, activeInviteToken: null });
+        get().setCurrentOrg(updatedOrg);
+        return true;
+      }
+      return false;
+    } catch (e: any) {
+      console.warn("Error accepting invitation:", e);
+      throw e;
+    }
+  },
+
+  revokeInvitationAction: async (id) => {
+    try {
+      await revokeInvitation(id);
+      set((state) => ({
+        pendingInvitations: state.pendingInvitations.filter((i) => i.id !== id),
+      }));
+    } catch (e) {
+      console.warn("Error revoking invitation:", e);
+    }
+  },
+
+  removeMemberAction: async (memberEmailOrUid) => {
+    const { currentOrg } = get();
+    if (!currentOrg) return;
+
+    try {
+      await removeOrgMember(currentOrg.id, memberEmailOrUid);
+      const updatedMembers = (currentOrg.members || []).filter(
+        (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
+      );
+      const updatedOrg = { ...currentOrg, members: updatedMembers };
+      set((state) => ({
+        currentOrg: updatedOrg,
+        userOrgs: state.userOrgs.map((o) => (o.id === updatedOrg.id ? updatedOrg : o)),
+      }));
+    } catch (e) {
+      console.warn("Error removing member:", e);
     }
   },
 
@@ -678,14 +852,22 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       }
 
       // 5. Restore Active Sidebar Tab and Tokens View Mode
-      const savedTab = localStorage.getItem("ts_sidebar_tab") as
-        | "dashboard"
-        | "tokens"
-        | "themes"
-        | "releases"
-        | null;
-      const initialTab: "dashboard" | "tokens" | "themes" | "releases" =
-        savedTab && ["dashboard", "tokens", "themes", "releases"].includes(savedTab)
+      const validTabs = [
+        "dashboard",
+        "variables",
+        "tokens",
+        "themes",
+        "documentation",
+        "assets",
+        "exports",
+        "releases",
+        "activity",
+        "integrations",
+        "mcp",
+      ];
+      const savedTab = localStorage.getItem("ts_sidebar_tab");
+      const initialTab: any =
+        savedTab && validTabs.includes(savedTab)
           ? savedTab
           : "dashboard";
 
@@ -733,6 +915,42 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         syncError: null,
         toasts: [],
       });
+
+      // 7. Check for Invitation Token in URL Query Parameters
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteToken = urlParams.get("invite");
+        if (inviteToken) {
+          set({ activeInviteToken: inviteToken });
+          getInvitationByToken(inviteToken).then((inv) => {
+            if (inv && inv.status === "pending") {
+              set({ pendingInvitePrompt: inv });
+            }
+          });
+        }
+      }
+
+      // 8. Listen to Firebase Authentication State Changes
+      if (isFirebaseConfigured && auth) {
+        onAuthStateChanged(auth, async (fbUser) => {
+          if (fbUser) {
+            const userObj = {
+              uid: fbUser.uid,
+              email: fbUser.email || "",
+              displayName: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
+              avatarUrl: fbUser.photoURL || undefined,
+            };
+            set({ currentUser: userObj });
+            await get().loadTenantData(userObj.uid, userObj.email);
+            if (userObj.email) {
+              const pendingInvs = await getPendingInvitationsForEmail(userObj.email);
+              if (pendingInvs.length > 0) {
+                set({ pendingInvitePrompt: pendingInvs[0] });
+              }
+            }
+          }
+        });
+      }
 
       // 5. Automatically fetch fresh live tokens from remote git repository if credentials exist
       if (

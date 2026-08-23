@@ -154,6 +154,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     deleteToken,
     highlightedTokenKey,
     setHighlightedTokenKey,
+    canUserEdit,
   } = useTokenStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -589,8 +590,28 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                         <MatrixRowActionMenu
                           row={row}
                           activeGroup={activeGroup}
-                          onEdit={(token) => setEditingToken(token)}
-                          onDelete={(token) => deleteToken(token.setName, token.name.split("."))}
+                          onEdit={(token) => {
+                            if (!canUserEdit()) {
+                              addToast({
+                                type: "info",
+                                title: "Read-Only Access",
+                                message: "Viewer role cannot edit design tokens.",
+                              });
+                              return;
+                            }
+                            setEditingToken(token);
+                          }}
+                          onDelete={(token) => {
+                            if (!canUserEdit()) {
+                              addToast({
+                                type: "info",
+                                title: "Read-Only Access",
+                                message: "Viewer role cannot delete design tokens.",
+                              });
+                              return;
+                            }
+                            deleteToken(token.setName, token.name.split("."));
+                          }}
                         />
                       </div>
                     </td>

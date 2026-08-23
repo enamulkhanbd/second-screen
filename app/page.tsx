@@ -9,6 +9,12 @@ import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { DashboardView } from "@/components/DashboardView";
 import { ReleasesWorkspace } from "@/components/ReleasesWorkspace";
+import { DocumentationView } from "@/components/DocumentationView";
+import { AssetsView } from "@/components/AssetsView";
+import { ExportsView } from "@/components/ExportsView";
+import { ActivityView } from "@/components/ActivityView";
+import { IntegrationsView } from "@/components/IntegrationsView";
+import { McpCliView } from "@/components/McpCliView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 
@@ -26,15 +32,27 @@ export default function Home() {
       {/* Top Header: Logo, Interactive Breadcrumbs, Avatar, Branch Dropdown */}
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
-      {/* Main Workspace: Theme Groups Sidebar + Matrix, Flow Graph, Dashboard, Tokens Workspace, or Releases */}
+      {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
         {sidebarTab === "dashboard" ? (
           <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
-        ) : sidebarTab === "tokens" ? (
-          <TokensWorkspace onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "documentation" ? (
+          <DocumentationView />
+        ) : sidebarTab === "assets" ? (
+          <AssetsView />
+        ) : sidebarTab === "exports" ? (
+          <ExportsView />
         ) : sidebarTab === "releases" ? (
           <ReleasesWorkspace />
+        ) : sidebarTab === "activity" ? (
+          <ActivityView />
+        ) : sidebarTab === "integrations" ? (
+          <IntegrationsView onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "mcp" ? (
+          <McpCliView />
+        ) : sidebarTab === "tokens" ? (
+          <TokensWorkspace onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : viewMode === "flow" ? (
           <TokenFlow />
         ) : (

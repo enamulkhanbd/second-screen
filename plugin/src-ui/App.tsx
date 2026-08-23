@@ -94,7 +94,7 @@ export const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [logs, setLogs] = useState<{ id: string; text: string; type: "normal" | "success" | "error" }[]>([
-    { id: "1", text: "Second Screen plugin ready.", type: "normal" },
+    { id: "1", text: "Tokens Platform plugin ready.", type: "normal" },
   ]);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -211,7 +211,7 @@ export const App: React.FC = () => {
 
   const handlePullTokens = async () => {
     setIsSyncing(true);
-    addLog("Connecting to Second Screen Cloud API...");
+    addLog("Connecting to Tokens Platform Cloud API...");
     const cleanUrl = (config.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
 
     try {
@@ -286,9 +286,9 @@ export const App: React.FC = () => {
       <header className="h-12 px-4 border-b border-border flex items-center justify-between bg-card flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
-            S
+            T
           </div>
-          <span className="font-bold text-xs tracking-tight">Second Screen</span>
+          <span className="font-bold text-xs tracking-tight">Tokens Platform</span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted border border-border text-[10px] font-medium">

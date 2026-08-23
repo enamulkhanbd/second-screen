@@ -110,7 +110,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
         <div className="text-center space-y-3">
           <Badge variant="violet" className="gap-1.5 px-3 py-1 text-xs">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Welcome to Second Screen</span>
+            <span>Welcome to Tokens Platform</span>
           </Badge>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
             Connect your design system

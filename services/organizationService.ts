@@ -11,13 +11,21 @@ import {
   where,
   serverTimestamp,
 } from "firebase/firestore";
-import { Organization, Project, OrganizationMember } from "@/types/tenant";
+import {
+  Organization,
+  Project,
+  OrganizationMember,
+  OrganizationInvitation,
+  UserRole,
+} from "@/types/tenant";
 import { RawTokensDocument, ThemeGroup, GitCredentials } from "@/types/tokens";
 import { SAMPLE_TOKENS_DATA } from "@/data/sampleTokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
 const LOCAL_ORGS_KEY = "ts_local_organizations";
 const LOCAL_PROJECTS_KEY = "ts_local_projects";
+const LOCAL_INVITATIONS_KEY = "ts_local_invitations";
+
 const DEFAULT_ORGS: Organization[] = [
   {
     id: "org_acme",
@@ -127,6 +135,26 @@ function saveLocalProjects(projects: Project[]) {
   } catch {}
 }
 
+/**
+ * Reads local fallback invitations
+ */
+function getLocalInvitations(): OrganizationInvitation[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_INVITATIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalInvitations(invs: OrganizationInvitation[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LOCAL_INVITATIONS_KEY, JSON.stringify(invs));
+  } catch {}
+}
+
 // -------------------------------------------------------------
 // ORGANIZATION OPERATIONS
 // -------------------------------------------------------------
@@ -134,60 +162,58 @@ function saveLocalProjects(projects: Project[]) {
 /**
  * Fetches all organizations where the user is a member or owner
  */
-export async function getUserOrganizations(uid: string): Promise<Organization[]> {
-  if (!uid) return [];
+export async function getUserOrganizations(uid: string, userEmail?: string): Promise<Organization[]> {
+  if (!uid && !userEmail) return [];
 
   if (isFirebaseConfigured && db) {
     try {
       const orgsRef = collection(db, "organizations");
-      // Query where members contains this user's UID
-      const q = query(orgsRef);
-      const snapshot = await getDocs(q);
+      const snap = await getDocs(orgsRef);
       const orgs: Organization[] = [];
-
-      snapshot.forEach((d) => {
-        const data = d.data() as Organization;
-        if (
+      snap.forEach((doc) => {
+        const data = doc.data() as Organization;
+        const isMember =
           data.ownerUid === uid ||
-          (Array.isArray(data.members) && data.members.some((m) => m.uid === uid))
-        ) {
-          orgs.push({ ...data, id: d.id });
+          data.members?.some((m) => m.uid === uid || (userEmail && m.email.toLowerCase() === userEmail.toLowerCase()));
+        if (isMember) {
+          orgs.push(data);
         }
       });
-
-      return orgs;
+      if (orgs.length > 0) return orgs;
     } catch (e) {
       console.warn("Firestore error fetching orgs, using local fallback:", e);
     }
   }
 
-  // Local fallback
   const local = getLocalOrgs();
   return local.filter(
-    (o) => o.ownerUid === uid || o.members.some((m) => m.uid === uid)
+    (o) =>
+      o.ownerUid === uid ||
+      o.members?.some((m) => m.uid === uid || (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())) ||
+      o.ownerUid === "usr_default"
   );
 }
 
 /**
- * Creates a new Organization
+ * Creates a new Organization and provisions default starter project
  */
 export async function createOrganization(
   name: string,
-  user: { uid: string; email: string; displayName?: string }
+  owner: { uid: string; email: string; displayName?: string }
 ): Promise<Organization> {
-  const orgId = `org_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const orgId = `org_${Date.now()}`;
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
 
   const newOrg: Organization = {
     id: orgId,
     name,
     slug,
-    ownerUid: user.uid,
+    ownerUid: owner.uid,
     members: [
       {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || user.email.split("@")[0],
+        uid: owner.uid,
+        email: owner.email,
+        displayName: owner.displayName || owner.email.split("@")[0],
         role: "owner",
         joinedAt: new Date().toISOString(),
       },
@@ -224,7 +250,7 @@ export async function updateOrgMember(
       const orgSnap = await getDoc(orgRef);
       if (orgSnap.exists()) {
         const orgData = orgSnap.data() as Organization;
-        const filtered = orgData.members.filter((m) => m.uid !== member.uid && m.email !== member.email);
+        const filtered = orgData.members.filter((m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase());
         filtered.push(member);
         await updateDoc(orgRef, {
           members: filtered,
@@ -239,10 +265,243 @@ export async function updateOrgMember(
   const local = getLocalOrgs();
   const target = local.find((o) => o.id === orgId);
   if (target) {
-    target.members = target.members.filter((m) => m.uid !== member.uid && m.email !== member.email);
+    target.members = target.members.filter((m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase());
     target.members.push(member);
     target.updatedAt = new Date().toISOString();
     saveLocalOrgs(local);
+  }
+}
+
+/**
+ * Removes a member from an Organization
+ */
+export async function removeOrgMember(
+  orgId: string,
+  memberEmailOrUid: string
+): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const orgRef = doc(db, "organizations", orgId);
+      const orgSnap = await getDoc(orgRef);
+      if (orgSnap.exists()) {
+        const orgData = orgSnap.data() as Organization;
+        const filtered = orgData.members.filter(
+          (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
+        );
+        await updateDoc(orgRef, {
+          members: filtered,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.warn("Firestore error removing member:", e);
+    }
+  }
+
+  const local = getLocalOrgs();
+  const target = local.find((o) => o.id === orgId);
+  if (target) {
+    target.members = target.members.filter(
+      (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
+    );
+    target.updatedAt = new Date().toISOString();
+    saveLocalOrgs(local);
+  }
+}
+
+// -------------------------------------------------------------
+// INVITATION OPERATIONS
+// -------------------------------------------------------------
+
+/**
+ * Generates a secure invitation for an email to join an organization with a designated role
+ */
+export async function createOrganizationInvitation(
+  orgId: string,
+  orgName: string,
+  inviter: { uid: string; name?: string; email: string },
+  inviteeEmail: string,
+  role: UserRole
+): Promise<OrganizationInvitation> {
+  const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const token = `tok_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+  const newInvitation: OrganizationInvitation = {
+    id,
+    token,
+    orgId,
+    orgName,
+    invitedByUid: inviter.uid,
+    invitedByName: inviter.name || inviter.email.split("@")[0],
+    invitedByEmail: inviter.email,
+    inviteeEmail: inviteeEmail.trim().toLowerCase(),
+    role,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    expiresAt,
+  };
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await setDoc(doc(db, "invitations", id), newInvitation);
+    } catch (e) {
+      console.warn("Firestore error saving invitation, using local fallback:", e);
+    }
+  }
+
+  const local = getLocalInvitations();
+  local.push(newInvitation);
+  saveLocalInvitations(local);
+
+  return newInvitation;
+}
+
+/**
+ * Gets all pending invitations for a specific organization
+ */
+export async function getOrganizationInvitations(orgId: string): Promise<OrganizationInvitation[]> {
+  if (!orgId) return [];
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const q = query(
+        collection(db, "invitations"),
+        where("orgId", "==", orgId)
+      );
+      const snap = await getDocs(q);
+      const invs: OrganizationInvitation[] = [];
+      snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
+      if (invs.length > 0) return invs;
+    } catch (e) {
+      console.warn("Firestore error getting org invitations:", e);
+    }
+  }
+
+  const local = getLocalInvitations();
+  return local.filter((i) => i.orgId === orgId && i.status === "pending");
+}
+
+/**
+ * Gets pending invitations for a user's email address (for auto-detection on login)
+ */
+export async function getPendingInvitationsForEmail(email: string): Promise<OrganizationInvitation[]> {
+  if (!email) return [];
+  const normalized = email.trim().toLowerCase();
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const q = query(
+        collection(db, "invitations"),
+        where("inviteeEmail", "==", normalized),
+        where("status", "==", "pending")
+      );
+      const snap = await getDocs(q);
+      const invs: OrganizationInvitation[] = [];
+      snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
+      if (invs.length > 0) return invs;
+    } catch (e) {
+      console.warn("Firestore error getting email invitations:", e);
+    }
+  }
+
+  const local = getLocalInvitations();
+  return local.filter((i) => i.inviteeEmail.toLowerCase() === normalized && i.status === "pending");
+}
+
+/**
+ * Looks up an invitation by its unique token
+ */
+export async function getInvitationByToken(token: string): Promise<OrganizationInvitation | null> {
+  if (!token) return null;
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const q = query(
+        collection(db, "invitations"),
+        where("token", "==", token)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data() as OrganizationInvitation;
+      }
+    } catch (e) {
+      console.warn("Firestore error looking up invitation token:", e);
+    }
+  }
+
+  const local = getLocalInvitations();
+  return local.find((i) => i.token === token) || null;
+}
+
+/**
+ * Accepts an invitation: updates the status to accepted and adds the user to the organization
+ */
+export async function acceptOrganizationInvitation(
+  token: string,
+  user: { uid: string; email: string; displayName?: string }
+): Promise<Organization | null> {
+  const inv = await getInvitationByToken(token);
+  if (!inv || inv.status !== "pending") {
+    throw new Error("Invitation is invalid or has already been used.");
+  }
+
+  // 1. Add user as a member of the organization
+  const newMember: OrganizationMember = {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName || user.email.split("@")[0],
+    role: inv.role,
+    joinedAt: new Date().toISOString(),
+  };
+
+  await updateOrgMember(inv.orgId, newMember);
+
+  // 2. Mark invitation status as accepted
+  if (isFirebaseConfigured && db) {
+    try {
+      await updateDoc(doc(db, "invitations", inv.id), {
+        status: "accepted",
+        acceptedAt: new Date().toISOString(),
+        acceptedByUid: user.uid,
+      });
+    } catch (e) {
+      console.warn("Firestore error updating invitation status:", e);
+    }
+  }
+
+  const localInvs = getLocalInvitations();
+  const targetInv = localInvs.find((i) => i.id === inv.id || i.token === token);
+  if (targetInv) {
+    targetInv.status = "accepted";
+    saveLocalInvitations(localInvs);
+  }
+
+  // 3. Return updated organization
+  const localOrgs = getLocalOrgs();
+  return localOrgs.find((o) => o.id === inv.orgId) || null;
+}
+
+/**
+ * Revokes a pending invitation
+ */
+export async function revokeInvitation(invitationId: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await updateDoc(doc(db, "invitations", invitationId), {
+        status: "revoked",
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn("Firestore error revoking invitation:", e);
+    }
+  }
+
+  const localInvs = getLocalInvitations();
+  const target = localInvs.find((i) => i.id === invitationId);
+  if (target) {
+    target.status = "revoked";
+    saveLocalInvitations(localInvs);
   }
 }
 
@@ -258,15 +517,11 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
 
   if (isFirebaseConfigured && db) {
     try {
-      const projRef = collection(db, "organizations", orgId, "projects");
-      const snapshot = await getDocs(projRef);
-      const projects: Project[] = [];
-
-      snapshot.forEach((d) => {
-        projects.push({ ...(d.data() as Project), id: d.id, orgId });
-      });
-
-      return projects;
+      const projsRef = collection(db, "organizations", orgId, "projects");
+      const snap = await getDocs(projsRef);
+      const projs: Project[] = [];
+      snap.forEach((doc) => projs.push(doc.data() as Project));
+      if (projs.length > 0) return projs;
     } catch (e) {
       console.warn("Firestore error fetching projects, using local fallback:", e);
     }
@@ -277,7 +532,7 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
 }
 
 /**
- * Creates a new Project under an Organization
+ * Creates a new Project inside an Organization
  */
 export async function createProject(
   orgId: string,
@@ -286,9 +541,9 @@ export async function createProject(
   initialTokens?: RawTokensDocument,
   createdByName?: string
 ): Promise<Project> {
-  const projId = `proj_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  const rawTokens = initialTokens || SAMPLE_TOKENS_DATA;
+  const projId = `proj_${Date.now()}`;
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : SAMPLE_TOKENS_DATA;
   const themeGroups = extractThemeGroups(rawTokens);
 
   const newProject: Project = {
@@ -296,7 +551,7 @@ export async function createProject(
     orgId,
     name,
     slug,
-    description: description || "",
+    description: description || "Design tokens project",
     rawTokens,
     themeGroups,
     createdAt: new Date().toISOString(),

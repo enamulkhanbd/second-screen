@@ -1,6 +1,6 @@
 {
-  "name": "Second Screen — Design Tokens",
-  "id": "second-screen-tokens-studio",
+  "name": "Tokens Platform — Design Tokens",
+  "id": "tokens-platform-studio",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -11,6 +11,6 @@
   "networkAccess": {
     "allowedDomains": ["*"],
     "devAllowedDomains": ["*"],
-    "reasoning": "Synchronize design tokens, theme collections, and variables bi-directionally with the Second Screen Cloud API server."
+    "reasoning": "Synchronize design tokens, theme collections, and variables bi-directionally with the Tokens Platform Cloud API server."
   }
 }

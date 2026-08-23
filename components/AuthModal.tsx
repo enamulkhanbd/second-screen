@@ -195,7 +195,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </Button>
           </div>
         ) : (
-          // Sign In / Sign Up View
           <div className="space-y-4">
             <DialogHeader className="gap-1 text-left">
               <div className="flex items-center gap-2.5">
@@ -203,12 +202,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <DialogTitle className="text-base">
-                    {isSignUp ? "Create Workspace Account" : "Sign In to Second Screen"}
-                  </DialogTitle>
+                  <div className="flex items-center gap-2">
+                    <DialogTitle className="text-base">
+                      {isSignUp ? "Create Workspace Account" : "Sign In to Tokens Platform"}
+                    </DialogTitle>
+                    <Badge variant="success" className="text-[10px] py-0 font-semibold">
+                      100% Free
+                    </Badge>
+                  </div>
                   <DialogDescription className="text-xs">
                     {isSignUp
-                      ? "Get started with multi-tenant design token management"
+                      ? "Get started with multi-tenant design token management — no credit card needed"
                       : "Access your cloud organizations and token repositories"}
                   </DialogDescription>
                 </div>

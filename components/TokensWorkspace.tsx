@@ -56,6 +56,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     deleteToken,
     tokensViewMode,
     setTokensViewMode,
+    canUserEdit,
+    addToast,
   } = useTokenStore();
 
   const allSetKeys = useMemo(() => {
@@ -246,7 +248,17 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
 
               <Button
                 size="sm"
-                onClick={() => setIsAddTokenOpen(true)}
+                onClick={() => {
+                  if (!canUserEdit()) {
+                    addToast({
+                      type: "info",
+                      title: "Read-Only Access",
+                      message: "Viewer role cannot add tokens.",
+                    });
+                    return;
+                  }
+                  setIsAddTokenOpen(true);
+                }}
                 className="gap-1.5 h-8 text-xs font-semibold"
               >
                 <Plus className="w-3.5 h-3.5" />

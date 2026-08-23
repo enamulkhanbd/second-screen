@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tokens Studio — Second Screen Web Viewer",
+  title: "Tokens Platform — Single source of truth for Design Tokens",
   description:
     "Real-time two-way sync web interface for Tokens Studio design tokens across GitHub and Azure DevOps.",
 };

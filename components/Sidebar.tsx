@@ -10,14 +10,22 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  LayoutDashboard,
+  Home,
   Layers,
   Palette,
-  Settings,
+  FileText,
+  Image as ImageIcon,
+  Download,
   Package,
+  Clock,
+  Settings,
+  Users,
+  Link2,
+  Code2,
 } from "lucide-react";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import { AddSetModal } from "@/components/AddSetModal";
+import { ManageOrgModal } from "@/components/ManageOrgModal";
 import { buildSetFolderTree, SetTreeNode } from "@/utils/themeHelpers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,10 +48,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     activeSet,
     setActiveSet,
     releases,
+    currentOrg,
   } = useTokenStore();
 
   const [addModalGroupId, setAddModalGroupId] = useState<string | null>(null);
   const [isAddSetOpen, setIsAddSetOpen] = useState(false);
+  const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [searchFilter, setSearchFilter] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -63,13 +73,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       ...prev,
       [folderId]: !prev[folderId],
     }));
-  };
-
-  const getEnabledSetCount = (option: any) => {
-    if (!option?.selectedTokenSets) return 0;
-    return Object.values(option.selectedTokenSets).filter(
-      (status) => status === "enabled"
-    ).length;
   };
 
   const renderTreeNode = (node: SetTreeNode, depth: number = 0) => {
@@ -156,121 +159,211 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   return (
     <div className="flex h-full border-r border-border font-sans select-none flex-shrink-0">
       {/* 1. PRIMARY LEFT NAVIGATION RAIL */}
-      <aside className="w-52 bg-background border-r border-border flex flex-col justify-between p-3 select-none flex-shrink-0">
-        <div className="space-y-3">
-          {/* Primary Navigation Tabs */}
-          <nav className="space-y-1">
-            {/* Tab: Dashboard */}
+      <aside className="w-[18rem] bg-background border-r border-border flex flex-col justify-between p-3 select-none flex-shrink-0">
+        <div className="space-y-4">
+          {/* Main App Navigation Section */}
+          <nav className="space-y-0.5">
+            {/* 1. Dashboard */}
             <button
               onClick={() => setSidebarTab("dashboard")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "dashboard"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
               }`}
             >
-              <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+              <Home className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
               <span>Dashboard</span>
             </button>
 
-            {/* Tab: Tokens */}
+            {/* 2. Tokens */}
             <button
               onClick={() => setSidebarTab("tokens")}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "tokens"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-4 h-4 flex-shrink-0" />
+              <div className="flex items-center gap-3">
+                <Layers className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
                 <span>Tokens</span>
               </div>
-              <span
-                className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
-                  sidebarTab === "tokens"
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
                 {allSetNames.length}
               </span>
             </button>
 
-            {/* Tab: Themes */}
+            {/* 3. Theme */}
             <button
               onClick={() => setSidebarTab("themes")}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "themes"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Palette className="w-4 h-4 flex-shrink-0" />
-                <span>Themes</span>
+              <div className="flex items-center gap-3">
+                <Palette className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                <span>Theme</span>
               </div>
-              <span
-                className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
-                  sidebarTab === "themes"
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
                 {themeGroups.length}
               </span>
             </button>
 
-            {/* Tab: Releases */}
+            {/* 4. Documentation (Beta) */}
+            <button
+              onClick={() => setSidebarTab("documentation")}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "documentation"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                <span>Documentation</span>
+              </div>
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-normal text-muted-foreground bg-muted/40">
+                Beta
+              </Badge>
+            </button>
+
+            {/* 5. Assets (Beta) */}
+            <button
+              onClick={() => setSidebarTab("assets")}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "assets"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ImageIcon className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                <span>Assets</span>
+              </div>
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-normal text-muted-foreground bg-muted/40">
+                Beta
+              </Badge>
+            </button>
+
+            {/* 6. Exports */}
+            <button
+              onClick={() => setSidebarTab("exports")}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "exports"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <Download className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+              <span>Exports</span>
+            </button>
+
+            {/* 7. Releases */}
             <button
               onClick={() => setSidebarTab("releases")}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                 sidebarTab === "releases"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Package className="w-4 h-4 flex-shrink-0" />
+              <div className="flex items-center gap-3">
+                <Package className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
                 <span>Releases</span>
               </div>
               {releases.length > 0 && (
-                <span
-                  className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-semibold ${
-                    sidebarTab === "releases"
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
                   {releases.length}
                 </span>
               )}
             </button>
+
+            {/* 8. Activity */}
+            <button
+              onClick={() => setSidebarTab("activity")}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "activity"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <Clock className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+              <span>Activity</span>
+            </button>
           </nav>
+
+          {/* SETTINGS Category Section */}
+          <div className="space-y-1 pt-2 border-t border-border/70">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+              SETTINGS
+            </div>
+
+            {/* Project Settings */}
+            <button
+              onClick={onOpenSettings}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium transition-all cursor-pointer"
+            >
+              <Settings className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+              <span>Project Settings</span>
+            </button>
+
+            {/* Members */}
+            <button
+              onClick={() => setIsManageMembersOpen(true)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                <span>Members</span>
+              </div>
+              {currentOrg?.members && (
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {currentOrg.members.length}
+                </span>
+              )}
+            </button>
+
+            {/* Integrations */}
+            <button
+              onClick={() => setSidebarTab("integrations")}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "integrations"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <Link2 className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+              <span>Integrations</span>
+            </button>
+
+            {/* MCP & CLI */}
+            <button
+              onClick={() => setSidebarTab("mcp")}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "mcp"
+                  ? "bg-muted text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <Code2 className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+              <span>MCP &amp; CLI</span>
+            </button>
+          </div>
         </div>
 
-        {/* Bottom: Project Settings & Web App Version */}
-        <div className="pt-3 border-t border-border space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onOpenSettings}
-            className="w-full justify-start gap-2.5 text-xs text-muted-foreground hover:text-foreground h-8 font-medium"
-          >
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <span>Project settings</span>
-          </Button>
-
-          <div className="px-3 py-1 flex items-center justify-between text-[10px] text-muted-foreground font-mono select-none">
-            <span>Second Screen</span>
-            <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
-              v0.1.0-beta
-            </Badge>
-          </div>
+        {/* Footer info */}
+        <div className="px-3 py-1 flex items-center justify-between text-[10px] text-muted-foreground font-mono select-none border-t border-border/70 pt-2">
+          <span>Tokens Platform</span>
+          <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
+            v0.1.0-beta
+          </Badge>
         </div>
       </aside>
 
-      {/* 2. SECONDARY CONTEXTUAL DRAWER (Only for Tokens and Themes) */}
+      {/* 2. SECONDARY CONTEXTUAL DRAWER (For Tokens or Themes) */}
       {(sidebarTab === "tokens" || sidebarTab === "themes") && (
         <aside className="w-60 bg-muted/20 flex flex-col flex-shrink-0 overflow-hidden select-none animate-in fade-in duration-150">
           {/* Header depending on active tab */}
@@ -295,23 +388,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                 <Search className="w-3.5 h-3.5" />
               </Button>
 
-              {sidebarTab === "tokens" && (
+              {sidebarTab === "tokens" ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setIsAddSetOpen(true)}
                   className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  title="Add New Token Set"
+                  title="Add Token Set"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </Button>
-              )}
-
-              {sidebarTab === "themes" && (
+              ) : (
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => setAddModalGroupId(themeGroups[0]?.id || "new")}
+                  onClick={() => setAddModalGroupId(activeThemeGroupId || themeGroups[0]?.id || "new")}
                   className="h-7 w-7 text-muted-foreground hover:text-foreground"
                   title="Add Theme Option"
                 >
@@ -321,137 +412,107 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             </div>
           </div>
 
-          {/* Search Filter Bar (if open) */}
+          {/* Optional Search Input */}
           {showSearch && (
-            <div className="px-3 py-2 border-b border-border bg-background">
+            <div className="p-2 border-b border-border bg-background/60">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-3 h-3 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
-                  placeholder="Filter..."
+                  placeholder={sidebarTab === "tokens" ? "Filter sets..." : "Filter themes..."}
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  className="h-7 pl-8 text-xs"
+                  className="h-7 pl-6 text-xs"
                   autoFocus
                 />
               </div>
             </div>
           )}
 
-          {/* Content Area */}
+          {/* Drawer Body: Sets Tree OR Theme Groups List */}
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {/* View 1: Tokens Hierarchical Sets Tree */}
-            {sidebarTab === "tokens" && (
-              <div className="space-y-0.5">
-                {/* Option to select ALL Sets */}
+            {sidebarTab === "tokens" ? (
+              <>
+                {/* "All Sets" special filter button */}
                 <button
                   onClick={() => setActiveSet("ALL")}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer text-left mb-1 ${
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer select-none text-left mb-1 ${
                     activeSet === "ALL"
                       ? "bg-primary text-primary-foreground font-bold shadow-xs"
                       : "text-foreground hover:bg-muted font-medium"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>All Sets</span>
-                  </div>
-                  <span className="text-[10px] font-mono opacity-80">
-                    {allSetNames.length}
-                  </span>
+                  <Layers className="w-3.5 h-3.5 flex-shrink-0 stroke-[1.5]" />
+                  <span>All Token Sets</span>
                 </button>
 
-                {/* Tree View */}
-                {setTree.map((node) => renderTreeNode(node, 0))}
-              </div>
-            )}
-
-            {/* View 2: Themes Explorer */}
-            {sidebarTab === "themes" && (
-              <div className="space-y-3 p-1">
-                {themeGroups.map((group) => (
-                  <div key={group.id} className="space-y-1">
-                    <button
+                {setTree.map((node) => renderTreeNode(node))}
+              </>
+            ) : (
+              themeGroups.map((group) => {
+                const isGroupActive = group.id === activeThemeGroupId;
+                return (
+                  <div key={group.id} className="space-y-1 mb-3">
+                    <div
                       onClick={() => setActiveThemeGroup(group.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors text-left ${
-                        activeThemeGroupId === group.id
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-muted"
+                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-bold cursor-pointer transition-colors ${
+                        isGroupActive
+                          ? "text-primary bg-primary/10"
+                          : "text-foreground hover:bg-muted/80"
                       }`}
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: group.color || "#7c3aed" }}
-                        />
-                        <span className="truncate">{group.name}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        {group.options.length}
+                      <span className="truncate uppercase tracking-wider text-[11px]">
+                        {group.name}
                       </span>
-                    </button>
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
+                        {group.options.length}
+                      </Badge>
+                    </div>
 
-                    {/* Theme Options */}
-                    <div className="space-y-0.5 pl-3">
-                      {group.options.map((option) => {
-                        const isOptionActive = activeThemeOptionId === option.id;
-                        const enabledCount = getEnabledSetCount(option);
-
+                    <div className="space-y-0.5 pl-2">
+                      {group.options.map((opt) => {
+                        const isSelected =
+                          isGroupActive && activeThemeOptionId === opt.id;
                         return (
                           <button
-                            key={option.id}
+                            key={opt.id}
                             onClick={() => {
                               setActiveThemeGroup(group.id);
-                              setActiveThemeOption(option.id);
+                              setActiveThemeOption(opt.id);
                             }}
-                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-all cursor-pointer text-left ${
-                              isOptionActive
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-left transition-all ${
+                              isSelected
                                 ? "bg-primary text-primary-foreground font-bold shadow-xs"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
                             }`}
                           >
-                            <div className="flex items-center gap-2 truncate">
-                              <span
-                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: option.color || group.color }}
-                              />
-                              <span className="truncate">{option.name}</span>
-                            </div>
-                            <span
-                              className={`text-[10px] font-mono ${
-                                isOptionActive ? "opacity-90" : "text-muted-foreground"
-                              }`}
-                            >
-                              {enabledCount} sets
-                            </span>
+                            <span className="truncate">{opt.name}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })
             )}
           </div>
         </aside>
       )}
 
-      {/* Add Theme Option Modal */}
-      {addModalGroupId && (
-        <AddThemeOptionModal
-          isOpen={Boolean(addModalGroupId)}
-          defaultGroupId={addModalGroupId}
-          onClose={() => setAddModalGroupId(null)}
-        />
-      )}
-
-      {/* Add Token Set Modal */}
-      {isAddSetOpen && (
-        <AddSetModal
-          isOpen={isAddSetOpen}
-          onClose={() => setIsAddSetOpen(false)}
-        />
-      )}
+      {/* Modals */}
+      <AddSetModal
+        isOpen={isAddSetOpen}
+        onClose={() => setIsAddSetOpen(false)}
+      />
+      <AddThemeOptionModal
+        isOpen={Boolean(addModalGroupId)}
+        onClose={() => setAddModalGroupId(null)}
+        defaultGroupId={addModalGroupId || undefined}
+      />
+      <ManageOrgModal
+        isOpen={isManageMembersOpen}
+        onClose={() => setIsManageMembersOpen(false)}
+      />
     </div>
   );
 };

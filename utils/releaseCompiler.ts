@@ -260,6 +260,37 @@ export default tokens;
 }
 
 /**
+ * Compiles flattened tokens into production-ready Tailwind CSS configuration
+ */
+export function compileTailwindConfig(
+  tokens: FlattenedToken[],
+  config: Partial<CompilerConfig> = DEFAULT_COMPILER_CONFIG
+): string {
+  const tailwindColors: Record<string, string> = {};
+  const tailwindSpacing: Record<string, string> = {};
+  const tailwindRadius: Record<string, string> = {};
+
+  tokens.forEach((t) => {
+    const key = formatTokenName(t.name, config, "camel");
+    if (t.type === "color") tailwindColors[key] = `var(${tokenToCssVarName(t.name, config)})`;
+    else if (t.type === "spacing" || t.type === "sizing") tailwindSpacing[key] = `var(${tokenToCssVarName(t.name, config)})`;
+    else if (t.type === "borderRadius") tailwindRadius[key] = `var(${tokenToCssVarName(t.name, config)})`;
+  });
+
+  return `/** @type {import('tailwindcss').Config} */
+module.exports = {
+  theme: {
+    extend: {
+      colors: ${JSON.stringify(tailwindColors, null, 8)},
+      spacing: ${JSON.stringify(tailwindSpacing, null, 8)},
+      borderRadius: ${JSON.stringify(tailwindRadius, null, 8)}
+    }
+  }
+};
+`;
+}
+
+/**
  * Compiles flattened tokens into production-ready CSS variables
  */
 export function compileCssVariables(

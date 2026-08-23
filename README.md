@@ -1,6 +1,6 @@
-# Tokens Studio Second Screen 🎨
+# Tokens Platform 🎨
 
-A web-based second-screen viewer and editor for **Tokens Studio for Figma** design tokens, supporting dual-state alias resolution, deep multi-mode theme matrices (Theme, Mode, Brand, Typography), and real-time Git synchronization (GitHub & Azure DevOps).
+A web-based design tokens platform and companion plugin for **Tokens Studio & Figma** design tokens, supporting dual-state alias resolution, deep multi-mode theme matrices (Theme, Mode, Brand, Typography), multi-platform compilation (Tailwind, CSS, React, Flutter, Swift, Android), and real-time Git synchronization (GitHub & Azure DevOps).
 
 ---
 

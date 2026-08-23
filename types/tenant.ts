@@ -18,6 +18,21 @@ export interface OrganizationMember {
   joinedAt: string;
 }
 
+export interface OrganizationInvitation {
+  id: string;
+  token: string;
+  orgId: string;
+  orgName: string;
+  invitedByUid: string;
+  invitedByName: string;
+  invitedByEmail: string;
+  inviteeEmail: string;
+  role: UserRole;
+  status: "pending" | "accepted" | "declined" | "revoked";
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -42,3 +57,67 @@ export interface Project {
   updatedAt: string;
   createdByName?: string;
 }
+
+export interface RolePermissionDetails {
+  title: string;
+  description: string;
+  badgeColor: "violet" | "secondary" | "success" | "outline";
+  icon: string;
+  canManageOrg: boolean;
+  canInviteMembers: boolean;
+  canEditTokens: boolean;
+  canPushGit: boolean;
+  canPublishReleases: boolean;
+  canViewTokens: boolean;
+}
+
+export const ROLE_DEFINITIONS: Record<UserRole, RolePermissionDetails> = {
+  owner: {
+    title: "Owner",
+    description: "Full administrative control, project management, billing, and member roles.",
+    badgeColor: "violet",
+    icon: "👑",
+    canManageOrg: true,
+    canInviteMembers: true,
+    canEditTokens: true,
+    canPushGit: true,
+    canPublishReleases: true,
+    canViewTokens: true,
+  },
+  admin: {
+    title: "Admin",
+    description: "Can manage projects, configure Git repositories, and invite team members.",
+    badgeColor: "violet",
+    icon: "🛡️",
+    canManageOrg: false,
+    canInviteMembers: true,
+    canEditTokens: true,
+    canPushGit: true,
+    canPublishReleases: true,
+    canViewTokens: true,
+  },
+  editor: {
+    title: "Editor",
+    description: "Can edit design tokens, modify theme matrices, push branches, and create releases.",
+    badgeColor: "secondary",
+    icon: "✏️",
+    canManageOrg: false,
+    canInviteMembers: false,
+    canEditTokens: true,
+    canPushGit: true,
+    canPublishReleases: true,
+    canViewTokens: true,
+  },
+  viewer: {
+    title: "Viewer",
+    description: "Read-only access. Can view token matrices, explore flow, copy code, and download packages.",
+    badgeColor: "outline",
+    icon: "👁️",
+    canManageOrg: false,
+    canInviteMembers: false,
+    canEditTokens: false,
+    canPushGit: false,
+    canPublishReleases: false,
+    canViewTokens: true,
+  },
+};

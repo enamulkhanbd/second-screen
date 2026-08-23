@@ -134,7 +134,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
             <div>
               <DialogTitle className="text-base">Project Settings & Sync</DialogTitle>
               <DialogDescription className="text-xs">
-                Configure Git repositories and Second Screen Cloud API access
+                Configure Git repositories and Tokens Platform Cloud API access
               </DialogDescription>
             </div>
           </div>
