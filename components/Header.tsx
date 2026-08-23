@@ -88,9 +88,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const hasTokens = Object.keys(rawTokens).length > 0;
   const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
   const isConfigured = Boolean(
-    (credentials.repo && credentials.owner) ||
-    hasTokens ||
-    currentUser
+    currentUser && ((credentials.repo && credentials.owner) || hasTokens)
   );
 
   // Fetch branch list whenever branch dropdown is opened

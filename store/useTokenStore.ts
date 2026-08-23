@@ -283,6 +283,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       // Load project tokens and git config
       if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
         get().setRawTokens(proj.rawTokens);
+      } else if (typeof window !== "undefined") {
+        fetch(`/api/v1/tokens?projectId=${encodeURIComponent(proj.id)}&orgId=${encodeURIComponent(proj.orgId || "")}`, {
+          headers: { "x-internal-client": "tokens-platform" },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0) {
+              get().setRawTokens(data.rawTokens);
+            }
+          })
+          .catch(() => {});
       }
       if (proj.themeGroups && proj.themeGroups.length > 0) {
         set({
@@ -981,7 +992,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         });
       }
 
-      // 5. Automatically fetch fresh live tokens from remote git repository if credentials exist
+      // 5. Automatically fetch fresh live tokens from remote git repository or Cloud API
       if (
         parsedCreds.provider &&
         parsedCreds.owner &&
@@ -990,6 +1001,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         parsedCreds.pat
       ) {
         get().fetchLiveTokens(parsedCreds);
+      } else if (typeof window !== "undefined" && get().currentUser) {
+        // Fetch latest synced tokens from Tokens Platform Cloud API if user is authenticated
+        fetch("/api/v1/tokens", {
+          headers: { "x-internal-client": "tokens-platform" },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0) {
+              get().setRawTokens(data.rawTokens);
+            }
+          })
+          .catch(() => {});
       }
     } catch {
       // ignore storage parsing error

@@ -36,7 +36,7 @@ export default function Home() {
 
   const hasTokens = Object.keys(rawTokens).length > 0;
   const isGitConnected = Boolean(credentials.owner && credentials.repo);
-  const isConfigured = Boolean(hasTokens || isGitConnected || currentUser);
+  const isConfigured = Boolean(currentUser && (hasTokens || isGitConnected));
 
   return (
     <main className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">

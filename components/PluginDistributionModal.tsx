@@ -4,10 +4,13 @@ import React, { useState } from "react";
 import {
   Download,
   CheckCircle2,
+  Lock,
+  LogIn,
 } from "lucide-react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AuthModal } from "@/components/AuthModal";
 
 export const PluginDistributionModal: React.FC = () => {
   const { addToast } = useTokenStore();
@@ -140,16 +143,22 @@ export const PluginDistributionModal: React.FC = () => {
 };
 
 const QuickPairWidget: React.FC = () => {
-  const { addToast, currentOrg, currentProject, userOrgs } = useTokenStore();
+  const { addToast, currentOrg, currentProject, userOrgs, currentUser } = useTokenStore();
   const [pairCode, setPairCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [pairedSuccess, setPairedSuccess] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const activeOrg = currentOrg || userOrgs[0];
   const activeProj = currentProject;
 
   const handlePair = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      setIsAuthOpen(true);
+      return;
+    }
+
     const clean = pairCode.trim().toUpperCase();
     if (!clean) return;
 
@@ -210,24 +219,41 @@ const QuickPairWidget: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handlePair} className="flex gap-2">
-        <input
-          type="text"
-          placeholder="e.g. TK-8492"
-          value={pairCode}
-          onChange={(e) => setPairCode(e.target.value.toUpperCase())}
-          maxLength={10}
-          className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-mono tracking-wider uppercase focus:outline-hidden focus:ring-1 focus:ring-primary"
-        />
-        <Button
-          type="submit"
-          size="sm"
-          disabled={loading || !pairCode.trim()}
-          className="text-xs font-semibold gap-1.5"
-        >
-          <span>{loading ? "Connecting..." : "Pair Plugin"}</span>
-        </Button>
-      </form>
+      {!currentUser ? (
+        <div className="p-3 rounded-lg bg-background border border-border flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Lock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <span>Sign in to link companion plugins to your workspace.</span>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setIsAuthOpen(true)}
+            className="text-xs font-semibold h-7 gap-1"
+          >
+            <LogIn className="w-3 h-3" />
+            <span>Sign In</span>
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={handlePair} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="e.g. TK-8492"
+            value={pairCode}
+            onChange={(e) => setPairCode(e.target.value.toUpperCase())}
+            maxLength={10}
+            className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-mono tracking-wider uppercase focus:outline-hidden focus:ring-1 focus:ring-primary"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            disabled={loading || !pairCode.trim()}
+            className="text-xs font-semibold gap-1.5"
+          >
+            <span>{loading ? "Connecting..." : "Pair Plugin"}</span>
+          </Button>
+        </form>
+      )}
 
       {pairedSuccess && (
         <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
@@ -235,6 +261,13 @@ const QuickPairWidget: React.FC = () => {
           <span>Figma companion plugin authorized! Switch to Figma to start syncing.</span>
         </div>
       )}
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        title="Sign In to Pair Plugin"
+        subtitle="Sign in with your Google account to connect your Figma plugin."
+      />
     </div>
   );
 };

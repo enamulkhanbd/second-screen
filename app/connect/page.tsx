@@ -16,6 +16,8 @@ import {
   Lock,
   Globe,
   Key,
+  LogIn,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +92,11 @@ function ConnectPageContent() {
   const activeProj = orgProjects.find((p) => p.id === selectedProjId) || currentProject || orgProjects[0];
 
   const handleAuthorize = async () => {
+    if (!currentUser) {
+      setIsAuthOpen(true);
+      return;
+    }
+
     const cleanCode = code.trim().toUpperCase();
     if (!cleanCode) {
       setErrorMessage("Please enter a valid 6-digit pairing code from Figma.");
@@ -102,15 +109,11 @@ function ConnectPageContent() {
     setErrorMessage("");
 
     try {
-      // Generate or read PAT for this session
-      const pat = `sec_pat_figma_${Math.random().toString(36).substring(2, 14)}`;
-
       const res = await fetch("/api/v1/auth/pair", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: cleanCode,
-          pat,
           orgId: activeOrg?.id || "org-default",
           projectId: activeProj?.id || "proj-main",
           orgName: activeOrg?.name || "My Organization",
@@ -161,9 +164,10 @@ function ConnectPageContent() {
               variant="outline"
               size="sm"
               onClick={() => setIsAuthOpen(true)}
-              className="text-xs"
+              className="text-xs gap-1.5"
             >
-              Sign In
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign In</span>
             </Button>
           )}
         </div>
@@ -185,7 +189,7 @@ function ConnectPageContent() {
                 <CardDescription className="text-xs text-muted-foreground">
                   Your companion plugin is now linked to{" "}
                   <strong className="text-foreground">
-                    {activeOrg?.name} / {activeProj?.name}
+                    {activeOrg?.name || "Workspace"} / {activeProj?.name || "Project"}
                   </strong>
                   .
                 </CardDescription>
@@ -197,9 +201,15 @@ function ConnectPageContent() {
                   <span className="font-mono font-bold text-foreground">{code}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
+                  <span>Authorized By:</span>
+                  <span className="font-semibold text-foreground">
+                    {currentUser?.displayName || currentUser?.email || "Authenticated User"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
                   <span>Target Workspace:</span>
                   <span className="font-semibold text-foreground">
-                    {activeOrg?.name} / {activeProj?.name}
+                    {activeOrg?.name || "My Organization"} / {activeProj?.name || "Design System"}
                   </span>
                 </div>
               </div>
@@ -218,7 +228,62 @@ function ConnectPageContent() {
                 </Button>
               </div>
             </Card>
+          ) : !currentUser ? (
+            /* AUTHENTICATION GUARD CARD (WHEN NOT SIGNED IN) */
+            <Card className="border-border shadow-xl">
+              <CardHeader className="space-y-2 text-center pb-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center shadow-xs">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <Badge variant="outline" className="gap-1 px-2.5 py-0.5 text-[10px] mb-1.5 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Sign In Required</span>
+                  </Badge>
+                  <CardTitle className="text-xl font-bold text-foreground">
+                    Sign in to Connect Plugin
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground mt-1">
+                    You must be signed in to Tokens Platform to authorize companion plugins and sync tokens with your cloud workspace.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-3">
+                {code && (
+                  <div className="p-3 rounded-xl bg-muted/60 border border-border text-center space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                      Pairing Request Code
+                    </span>
+                    <div className="font-mono text-xl font-black tracking-widest text-primary">
+                      {code}
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    <span>Why do I need to sign in?</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    Signing in ensures your design tokens, variables, and repositories are securely saved and accessible only by you and your team.
+                  </p>
+                </div>
+              </CardContent>
+
+              <CardFooter className="flex flex-col gap-2 pt-2 border-t border-border">
+                <Button
+                  onClick={() => setIsAuthOpen(true)}
+                  className="w-full text-xs font-bold h-10 shadow-md gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Sign In / Sign Up to Continue</span>
+                </Button>
+              </CardFooter>
+            </Card>
           ) : (
+            /* AUTHORIZE CARD (WHEN SIGNED IN) */
             <Card className="border-border shadow-xl">
               <CardHeader className="space-y-2 text-center pb-4">
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center shadow-xs">
@@ -230,7 +295,7 @@ function ConnectPageContent() {
                     <span>Figma Plugin Quick Connect</span>
                   </Badge>
                   <CardTitle className="text-xl font-bold text-foreground">
-                    Connect Figma Companion
+                    Authorize Figma Companion
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-1">
                     Authorize the Figma desktop plugin to sync tokens and variables with your workspace.
@@ -239,6 +304,25 @@ function ConnectPageContent() {
               </CardHeader>
 
               <CardContent className="space-y-4">
+                {/* User Account Info Bar */}
+                <div className="p-2.5 rounded-lg bg-muted/60 border border-border text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                      {(currentUser.displayName || currentUser.email || "U").charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground text-xs leading-tight">
+                        {currentUser.displayName || currentUser.email}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Connected Account</div>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[9px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                    <UserCheck className="w-2.5 h-2.5 mr-1" />
+                    <span>Authenticated</span>
+                  </Badge>
+                </div>
+
                 {/* Pairing Code Field */}
                 <div className="space-y-1.5">
                   <Label htmlFor="pair-code" className="text-xs font-semibold">
@@ -328,16 +412,6 @@ function ConnectPageContent() {
                     </>
                   )}
                 </Button>
-
-                {!currentUser && (
-                  <button
-                    type="button"
-                    onClick={() => setIsAuthOpen(true)}
-                    className="text-[11px] text-muted-foreground hover:text-primary transition-colors py-1"
-                  >
-                    Want to save to your personal account? <strong>Sign in with Google</strong>
-                  </button>
-                )}
               </CardFooter>
             </Card>
           )}
@@ -350,7 +424,12 @@ function ConnectPageContent() {
       </footer>
 
       {/* Auth Modal */}
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        title="Sign In to Connect Plugin"
+        subtitle="Sign in with your Google account to pair your Figma plugin to your workspace."
+      />
     </div>
   );
 }

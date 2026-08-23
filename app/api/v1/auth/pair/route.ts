@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
+import { generateApiKey } from "@/utils/patAuth";
+import { saveApiKey } from "@/utils/cloudStorage";
 
 export const dynamic = "force-dynamic";
 
@@ -194,10 +196,16 @@ export async function PUT(req: NextRequest) {
     }
 
     const origin = getRequestOrigin(req);
-    const userPat = pat || `sec_pat_pair_${Math.random().toString(36).substring(2, 12)}`;
+    
+    // Generate valid PAT record and persist it into cloud API keys store
+    const { plaintextKey, record } = generateApiKey(
+      `Figma Plugin (${orgName || "Design System"})`,
+      ["read:tokens", "write:tokens", "manage:releases"]
+    );
+    saveApiKey(record);
 
     session.status = "approved";
-    session.pat = userPat;
+    session.pat = plaintextKey;
     session.orgId = orgId || "org-default";
     session.projectId = projectId || "proj-main";
     session.orgName = orgName || "Default Organization";
