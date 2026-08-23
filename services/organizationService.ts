@@ -103,19 +103,42 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
 
   if (isFirebaseConfigured && db) {
     try {
-      const orgsRef = collection(db, "organizations");
-      const snap = await getDocs(orgsRef);
-      const orgs: Organization[] = [];
-      snap.forEach((doc) => {
-        const data = doc.data() as Organization;
-        const isMember =
-          data.ownerUid === uid ||
-          data.members?.some((m) => m.uid === uid || (userEmail && m.email.toLowerCase() === userEmail.toLowerCase()));
-        if (isMember) {
-          orgs.push(data);
-        }
-      });
-      if (orgs.length > 0) return orgs;
+      const orgsMap = new Map<string, Organization>();
+
+      // 1. Direct query where user is the owner
+      try {
+        const ownerQ = query(collection(db, "organizations"), where("ownerUid", "==", uid));
+        const ownerSnap = await getDocs(ownerQ);
+        ownerSnap.forEach((d) => {
+          orgsMap.set(d.id, d.data() as Organization);
+        });
+      } catch (err) {
+        console.warn("Firestore owner query error:", err);
+      }
+
+      // 2. Query all accessible orgs for membership
+      try {
+        const orgsRef = collection(db, "organizations");
+        const snap = await getDocs(orgsRef);
+        snap.forEach((d) => {
+          const data = d.data() as Organization;
+          const isMember =
+            data.ownerUid === uid ||
+            data.members?.some(
+              (m) =>
+                m.uid === uid ||
+                (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())
+            );
+          if (isMember) {
+            orgsMap.set(d.id, data);
+          }
+        });
+      } catch (err) {
+        console.warn("Firestore membership scan error:", err);
+      }
+
+      const firestoreOrgs = Array.from(orgsMap.values());
+      if (firestoreOrgs.length > 0) return firestoreOrgs;
     } catch (e) {
       console.warn("Firestore error fetching orgs, using local fallback:", e);
     }
