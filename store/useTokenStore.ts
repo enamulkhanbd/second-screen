@@ -56,6 +56,7 @@ import { onAuthStateChanged } from "firebase/auth";
 interface TokenStoreState {
   // Multi-Tenant Identity & Scope
   currentUser: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null;
+  isLoadingTenant: boolean;
   userOrgs: Organization[];
   currentOrg: Organization | null;
   orgProjects: Project[];
@@ -219,6 +220,7 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
 
 export const useTokenStore = create<TokenStoreState>((set, get) => ({
   currentUser: null,
+  isLoadingTenant: true,
   userOrgs: [],
   currentOrg: null,
   orgProjects: [],
@@ -315,6 +317,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
   },
 
   loadTenantData: async (uid, email) => {
+    set({ isLoadingTenant: true });
     try {
       const orgs = await getUserOrganizations(uid, email);
       set({ userOrgs: orgs });
@@ -346,6 +349,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       }
     } catch (e) {
       console.warn("Error loading tenant data:", e);
+    } finally {
+      set({ isLoadingTenant: false });
     }
   },
 
@@ -997,8 +1002,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
                 set({ pendingInvitePrompt: pendingInvs[0] });
               }
             }
+          } else {
+            set({ currentUser: null, isLoadingTenant: false });
           }
         });
+      } else {
+        set({ isLoadingTenant: false });
       }
 
       // 5. Automatically fetch fresh live tokens from remote git repository or Cloud API

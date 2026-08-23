@@ -29,11 +29,13 @@ import { Badge } from "@/components/ui/badge";
 
 interface OnboardingWizardModalProps {
   isOpen: boolean;
+  onClose?: () => void;
   onOpenSettings?: () => void;
 }
 
 export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
   isOpen,
+  onClose,
   onOpenSettings,
 }) => {
   const {
@@ -121,7 +123,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && onClose) onClose(); }}>
       <DialogContent className="max-w-md p-6 gap-5 select-none font-sans">
         {/* Step Indicator Header */}
         <div className="flex items-center justify-between border-b border-border pb-3">

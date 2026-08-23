@@ -26,6 +26,7 @@ import { useTokenStore } from "@/store/useTokenStore";
 
 export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWizardDismissed, setIsWizardDismissed] = useState(false);
   const {
     initializeFromStorage,
     viewMode,
@@ -33,6 +34,7 @@ export default function Home() {
     credentials,
     rawTokens,
     currentUser,
+    isLoadingTenant,
     userOrgs,
     pendingInvitePrompt,
   } = useTokenStore();
@@ -47,7 +49,11 @@ export default function Home() {
   const isConfigured = Boolean(currentUser && (hasTokens || isGitConnected));
 
   const showOnboardingWizard = Boolean(
-    currentUser && userOrgs.length === 0 && !pendingInvitePrompt
+    currentUser &&
+    !isLoadingTenant &&
+    userOrgs.length === 0 &&
+    !pendingInvitePrompt &&
+    !isWizardDismissed
   );
 
   return (
@@ -101,6 +107,7 @@ export default function Home() {
       {/* Onboarding Wizard Modal for fresh accounts */}
       <OnboardingWizardModal
         isOpen={showOnboardingWizard}
+        onClose={() => setIsWizardDismissed(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
