@@ -114,10 +114,10 @@ function ConnectPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: cleanCode,
-          orgId: activeOrg?.id || "org-default",
-          projectId: activeProj?.id || "proj-main",
-          orgName: activeOrg?.name || "My Organization",
-          projectName: activeProj?.name || "Design System",
+          orgId: activeOrg?.id || "",
+          projectId: activeProj?.id || "",
+          orgName: activeOrg?.name || "",
+          projectName: activeProj?.name || "",
           uid: currentUser?.uid,
           userEmail: currentUser?.email,
         }),
@@ -191,7 +191,7 @@ function ConnectPageContent() {
                 <CardDescription className="text-xs text-muted-foreground">
                   Your companion plugin is now linked to{" "}
                   <strong className="text-foreground">
-                    {activeOrg?.name || "Workspace"} / {activeProj?.name || "Project"}
+                    {activeOrg?.name || "Workspace"}{activeProj?.name ? ` / ${activeProj.name}` : ""}
                   </strong>
                   .
                 </CardDescription>
@@ -211,7 +211,7 @@ function ConnectPageContent() {
                 <div className="flex justify-between text-muted-foreground">
                   <span>Target Workspace:</span>
                   <span className="font-semibold text-foreground">
-                    {activeOrg?.name || "My Organization"} / {activeProj?.name || "Design System"}
+                    {activeOrg?.name || "Workspace"}{activeProj?.name ? ` / ${activeProj.name}` : ""}
                   </span>
                 </div>
               </div>

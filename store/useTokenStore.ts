@@ -221,7 +221,30 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
   pat: "",
 };
 
-export const useTokenStore = create<TokenStoreState>((set, get) => ({
+export const useTokenStore = create<TokenStoreState>((set, get) => {
+  const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
+    const { currentOrg, currentProject } = get();
+    if (currentOrg && currentProject) {
+      saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
+    }
+
+    if (typeof window !== "undefined" && doc && typeof doc === "object") {
+      const query =
+        currentOrg && currentProject
+          ? `?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`
+          : "";
+      fetch(`/api/v1/tokens${query}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-client": "tokens-platform",
+        },
+        body: JSON.stringify({ rawTokens: doc }),
+      }).catch(() => {});
+    }
+  };
+
+  return {
   currentUser: null,
   isLoadingTenant: true,
   userOrgs: [],
@@ -299,20 +322,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
         } catch {}
       }
 
-      // 1. Initial Load project tokens and git config
-      if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
-        get().setRawTokens(proj.rawTokens);
-      } else if (typeof window !== "undefined") {
-        fetch(`/api/v1/tokens?projectId=${encodeURIComponent(proj.id)}&orgId=${encodeURIComponent(proj.orgId || "")}`, {
-          headers: { "x-internal-client": "tokens-platform" },
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0) {
-              get().setRawTokens(data.rawTokens);
-            }
+      // 1. Initial Load project tokens and git config (only if no unsaved local modifications)
+      const isCurrentDirty = get().isDirty;
+      const currentTokens = get().rawTokens;
+      const hasCurrentTokens = Object.keys(currentTokens).length > 0;
+
+      if (!isCurrentDirty || !hasCurrentTokens) {
+        if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
+          get().setRawTokens(proj.rawTokens);
+        } else if (typeof window !== "undefined") {
+          fetch(`/api/v1/tokens?projectId=${encodeURIComponent(proj.id)}&orgId=${encodeURIComponent(proj.orgId || "")}`, {
+            headers: { "x-internal-client": "tokens-platform" },
           })
-          .catch(() => {});
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0 && !get().isDirty) {
+                get().setRawTokens(data.rawTokens);
+              }
+            })
+            .catch(() => {});
+        }
       }
 
       if (proj.themeGroups && proj.themeGroups.length > 0) {
@@ -332,6 +361,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
           const projRef = doc(db, "organizations", proj.orgId, "projects", proj.id);
           activeProjectUnsubscribe = onSnapshot(projRef, (snap) => {
             if (snap.exists()) {
+              // Ignore snapshot if it has pending local writes or if the user has unsaved edits
+              if (snap.metadata?.hasPendingWrites || get().isDirty) {
+                return;
+              }
               const liveData = snap.data() as Project;
               if (liveData.rawTokens && Object.keys(liveData.rawTokens).length > 0) {
                 const currentRaw = get().rawTokens;
@@ -1132,6 +1165,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       themeGroups: updatedGroups,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRaw, updatedGroups);
   },
 
   updateSetJson: (setName, newJsonContent) => {
@@ -1149,6 +1184,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       themeGroups: updatedGroups,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRaw, updatedGroups);
   },
 
   setActiveSet: (setName) => {
@@ -1276,6 +1313,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       isDirty: true,
     });
 
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
     get().addToast({
       type: "success",
       title: "Theme Option Created",
@@ -1348,6 +1387,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       isDirty: true,
     });
 
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
     get().addToast({
       type: "success",
       title: "Theme Group Updated",
@@ -1416,6 +1457,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       activeThemeOptionId: newMatchedGroup?.options[0]?.id || "",
       isDirty: true,
     });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
 
     get().addToast({
       type: "success",
@@ -1488,6 +1531,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       isDirty: true,
     });
 
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
     get().addToast({
       type: "info",
       title: "Theme Group Deleted",
@@ -1500,12 +1545,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     const fullPath = [setName, ...tokenPath];
     const updatedRawDoc = createTokenAtKeyPath(rawTokens, fullPath, tokenData);
     const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
 
     set({
       rawTokens: updatedRawDoc,
       resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
 
     get().addToast({
       type: "success",
@@ -1519,12 +1568,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
     const fullPath = [setName, ...tokenPath];
     const updatedRawDoc = deleteTokenAtKeyPath(rawTokens, fullPath);
     const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
 
     set({
       rawTokens: updatedRawDoc,
       resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
 
     get().addToast({
       type: "info",
@@ -1547,12 +1600,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       description: existing.description ? `${existing.description} (Copy)` : undefined,
     });
     const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
 
     set({
       rawTokens: updatedRawDoc,
       resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
 
     get().addToast({
       type: "success",
@@ -1568,13 +1625,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
 
     const updatedRawDoc = createEmptyTokenSet(rawTokens, cleanName);
     const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
 
     set({
       rawTokens: updatedRawDoc,
       resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
       activeSet: cleanName,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
 
     get().addToast({
       type: "success",
@@ -1598,6 +1659,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       activeSet: newActiveSet,
       isDirty: true,
     });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
 
     get().addToast({
       type: "info",
@@ -1624,9 +1687,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       message: "Started with clean design token workspace. Add your tokens or connect a repository.",
     });
   },
-}));
+};
+});
 
-// Automatic reactive synchronization with Tokens Platform Cloud API
+// Automatic reactive synchronization with Tokens Platform Cloud API & Firestore
 if (typeof window !== "undefined") {
   let syncTimer: any = null;
   useTokenStore.subscribe((state, prevState) => {
@@ -1637,7 +1701,15 @@ if (typeof window !== "undefined") {
     ) {
       clearTimeout(syncTimer);
       syncTimer = setTimeout(() => {
-        fetch("/api/v1/tokens", {
+        const { currentOrg, currentProject } = state;
+        if (currentOrg && currentProject) {
+          saveProjectTokens(currentOrg.id, currentProject.id, state.rawTokens, state.themeGroups).catch(() => {});
+        }
+        const query =
+          currentOrg && currentProject
+            ? `?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`
+            : "";
+        fetch(`/api/v1/tokens${query}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

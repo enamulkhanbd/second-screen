@@ -28,11 +28,12 @@ export async function GET(req: NextRequest) {
 
     // If PAT has bound org/project metadata and it's not yet in the list, ensure it's included
     if (auth.record?.orgId && !orgs.some((o) => o.id === auth.record.orgId)) {
+      const orgName = auth.record.orgName || "Organization";
       orgs = [
         {
           id: auth.record.orgId,
-          name: auth.record.orgName || "My Organization",
-          slug: (auth.record.orgName || "org").toLowerCase().replace(/[^a-z0-9]/g, "-"),
+          name: orgName,
+          slug: orgName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
           ownerUid: uid,
           members: [{ uid, email: userEmail || "", displayName: "Member", role: "owner", joinedAt: new Date().toISOString() }],
           createdAt: new Date().toISOString(),
@@ -47,12 +48,13 @@ export async function GET(req: NextRequest) {
       orgs.map(async (org) => {
         let projects = await getOrgProjects(org.id);
         if (projects.length === 0 && auth.record?.projectId && auth.record.orgId === org.id) {
+          const projName = auth.record.projectName || "Project";
           projects = [
             {
               id: auth.record.projectId,
               orgId: org.id,
-              name: auth.record.projectName || "Core Design System",
-              slug: (auth.record.projectName || "proj").toLowerCase().replace(/[^a-z0-9]/g, "-"),
+              name: projName,
+              slug: projName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
               description: "Design tokens project",
               rawTokens: {},
               themeGroups: [],

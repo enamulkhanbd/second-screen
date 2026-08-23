@@ -173,10 +173,10 @@ const QuickPairWidget: React.FC = () => {
         body: JSON.stringify({
           code: clean,
           pat,
-          orgId: activeOrg?.id || "org-default",
-          projectId: activeProj?.id || "proj-main",
-          orgName: activeOrg?.name || "My Organization",
-          projectName: activeProj?.name || "Design System",
+          orgId: activeOrg?.id || "",
+          projectId: activeProj?.id || "",
+          orgName: activeOrg?.name || "",
+          projectName: activeProj?.name || "",
         }),
       });
 

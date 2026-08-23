@@ -79,15 +79,7 @@ interface Org {
   projects: Project[];
 }
 
-const DEFAULT_ORGS: Org[] = [
-  {
-    id: "org-default",
-    name: "My Organization",
-    projects: [
-      { id: "proj-main", name: "Core Design System", description: "Brand tokens, colors, and typography" },
-    ],
-  },
-];
+const DEFAULT_ORGS: Org[] = [];
 
 interface LogEntry {
   id: string;
@@ -110,8 +102,8 @@ export const App: React.FC = () => {
   const [config, setConfig] = useState<PluginConfig>({
     serverUrl: PRODUCTION_APP_URL,
     pat: "",
-    orgId: "org-default",
-    projectId: "proj-main",
+    orgId: "",
+    projectId: "",
     createVariables: true,
     createStyles: true,
     createPaintStyles: true,
@@ -274,10 +266,10 @@ export const App: React.FC = () => {
         const data = await res.json();
 
         if (data.status === "approved" && data.pat) {
-          const orgId = data.orgId || config.orgId;
-          const projectId = data.projectId || config.projectId;
-          const orgName = data.orgName || "My Organization";
-          const projectName = data.projectName || "Core Design System";
+          const orgId = data.orgId || config.orgId || "";
+          const projectId = data.projectId || config.projectId || "";
+          const orgName = data.orgName || (orgId ? "Organization" : "");
+          const projectName = data.projectName || (projectId ? "Project" : "");
 
           const updatedConfig: PluginConfig = {
             ...config,
@@ -288,35 +280,37 @@ export const App: React.FC = () => {
           };
 
           setConfig(updatedConfig);
-          setOrgs((prev) => {
-            const exists = prev.some((o) => o.id === orgId);
-            if (exists) {
-              return prev.map((o) =>
-                o.id === orgId
-                  ? {
-                      ...o,
-                      name: orgName,
-                      projects: o.projects.some((p) => p.id === projectId)
-                        ? o.projects
-                        : [{ id: projectId, name: projectName }, ...o.projects],
-                    }
-                  : o
-              );
-            }
-            return [
-              {
-                id: orgId,
-                name: orgName,
-                projects: [{ id: projectId, name: projectName }],
-              },
-              ...prev.filter((o) => o.id !== "org-default"),
-            ];
-          });
+          if (orgId && projectId) {
+            setOrgs((prev) => {
+              const exists = prev.some((o) => o.id === orgId);
+              if (exists) {
+                return prev.map((o) =>
+                  o.id === orgId
+                    ? {
+                        ...o,
+                        name: orgName || o.name,
+                        projects: o.projects.some((p) => p.id === projectId)
+                          ? o.projects
+                          : [{ id: projectId, name: projectName || "Project" }, ...o.projects],
+                      }
+                    : o
+                );
+              }
+              return [
+                {
+                  id: orgId,
+                  name: orgName || "Organization",
+                  projects: [{ id: projectId, name: projectName || "Project" }],
+                },
+                ...prev,
+              ];
+            });
+          }
 
           setConnectionStatus("connected");
           parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
 
-          addLog(`✓ Magic Paired! Connected to ${orgName} / ${projectName}.`, "success");
+          addLog(`✓ Magic Paired! Connected to ${orgName || "Workspace"}${projectName ? ` / ${projectName}` : ""}.`, "success");
           fetchWorkspaces(PRODUCTION_APP_URL, updatedConfig.pat);
           clearInterval(interval);
         } else if (data.status === "expired") {
@@ -583,7 +577,9 @@ export const App: React.FC = () => {
               <div className="flex items-center gap-1 truncate text-[11px]">
                 <span className="text-muted-foreground">Workspace:</span>
                 <span className="font-semibold text-foreground truncate">
-                  {currentOrg?.name} / {currentProject?.name}
+                  {currentOrg?.name && currentProject?.name
+                    ? `${currentOrg.name} / ${currentProject.name}`
+                    : currentProject?.name || currentOrg?.name || (config.orgId || config.projectId ? `${config.orgId} / ${config.projectId}` : "Connected")}
                 </span>
               </div>
             </div>
@@ -633,18 +629,18 @@ export const App: React.FC = () => {
                     </Badge>
                   </div>
                   <CardDescription className="text-[11px]">
-                    Fetch token sets & themes from <span className="font-semibold text-foreground">{currentProject?.name}</span> and generate native Figma Variables and Styles.
+                    Fetch token sets &amp; themes from <span className="font-semibold text-foreground">{currentProject?.name || "Cloud Workspace"}</span> and generate native Figma Variables and Styles.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-3.5 pt-0 space-y-2.5">
                   <div className="p-2.5 rounded-lg bg-muted/50 border border-border text-[11px] space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Target Project:</span>
-                      <span className="font-semibold text-foreground">{currentProject?.name}</span>
+                      <span className="font-semibold text-foreground">{currentProject?.name || "None selected"}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Active Org:</span>
-                      <span className="font-medium text-foreground">{currentOrg?.name}</span>
+                      <span className="font-medium text-foreground">{currentOrg?.name || "None selected"}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -687,7 +683,7 @@ export const App: React.FC = () => {
                   <div className="p-2.5 rounded-lg bg-muted/50 border border-border text-[11px] space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Publish Destination:</span>
-                      <span className="font-semibold text-foreground">{currentProject?.name}</span>
+                      <span className="font-semibold text-foreground">{currentProject?.name || "Cloud Workspace"}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -723,7 +719,7 @@ export const App: React.FC = () => {
                     <Badge variant="violet" className="text-[9px] px-1 py-0">Active</Badge>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    Connected to {currentOrg?.name} / {currentProject?.name}.
+                    {currentOrg?.name && currentProject?.name ? `Connected to ${currentOrg.name} / ${currentProject.name}.` : "Connected to Tokens Platform Cloud."}
                   </p>
                 </div>
                 <Button
@@ -904,38 +900,44 @@ export const App: React.FC = () => {
           </div>
 
           <div className="max-h-56 overflow-y-auto space-y-2 p-1">
-            {filteredOrgs.map((org) => (
-              <div key={org.id} className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">
-                  {org.name}
-                </span>
-                <div className="space-y-0.5">
-                  {org.projects.map((proj) => {
-                    const isSelected = config.orgId === org.id && config.projectId === proj.id;
-                    return (
-                      <button
-                        key={proj.id}
-                        onClick={() => {
-                          const updated = { ...config, orgId: org.id, projectId: proj.id };
-                          setConfig(updated);
-                          parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
-                          setIsSwitchModalOpen(false);
-                          addLog(`Switched active target to ${org.name} / ${proj.name}.`, "normal");
-                        }}
-                        className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground font-bold"
-                            : "hover:bg-muted text-foreground"
-                        }`}
-                      >
-                        <span className="truncate">{proj.name}</span>
-                        {isSelected && <Check className="w-3 h-3" />}
-                      </button>
-                    );
-                  })}
-                </div>
+            {filteredOrgs.length === 0 ? (
+              <div className="py-6 text-center text-xs text-muted-foreground">
+                No cloud workspaces found.
               </div>
-            ))}
+            ) : (
+              filteredOrgs.map((org) => (
+                <div key={org.id} className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+                    {org.name}
+                  </span>
+                  <div className="space-y-0.5">
+                    {org.projects.map((proj) => {
+                      const isSelected = config.orgId === org.id && config.projectId === proj.id;
+                      return (
+                        <button
+                          key={proj.id}
+                          onClick={() => {
+                            const updated = { ...config, orgId: org.id, projectId: proj.id };
+                            setConfig(updated);
+                            parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+                            setIsSwitchModalOpen(false);
+                            addLog(`Switched active target to ${org.name} / ${proj.name}.`, "normal");
+                          }}
+                          className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground font-bold"
+                              : "hover:bg-muted text-foreground"
+                          }`}
+                        >
+                          <span className="truncate">{proj.name}</span>
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

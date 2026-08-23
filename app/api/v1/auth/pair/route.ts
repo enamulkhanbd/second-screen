@@ -199,26 +199,26 @@ export async function PUT(req: NextRequest) {
     
     // Generate valid PAT record and persist it into cloud API keys store
     const { plaintextKey, record } = generateApiKey(
-      `Figma Plugin (${orgName || "Design System"})`,
+      `Figma Plugin (${orgName || projectName || "Design Tokens"})`,
       ["read:tokens", "write:tokens", "manage:releases"],
       undefined,
       {
         uid: uid || "usr_default",
         userEmail: userEmail || undefined,
-        orgId: orgId || "org-default",
-        projectId: projectId || "proj-main",
-        orgName: orgName || "My Organization",
-        projectName: projectName || "Core Design System",
+        orgId: orgId || "",
+        projectId: projectId || "",
+        orgName: orgName || "",
+        projectName: projectName || "",
       }
     );
     saveApiKey(record);
 
     session.status = "approved";
     session.pat = plaintextKey;
-    session.orgId = orgId || "org-default";
-    session.projectId = projectId || "proj-main";
-    session.orgName = orgName || "Default Organization";
-    session.projectName = projectName || "Main Design System";
+    session.orgId = orgId || "";
+    session.projectId = projectId || "";
+    session.orgName = orgName || "";
+    session.projectName = projectName || "";
     session.serverUrl = origin;
 
     pairingSessions.set(cleanCode, session);
