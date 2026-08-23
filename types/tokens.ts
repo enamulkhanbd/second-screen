@@ -1,12 +1,13 @@
-export type GitProvider = "github" | "azure";
+export type GitProvider = "github" | "azure" | "gitlab" | "bitbucket";
 
 export interface GitCredentials {
   provider: GitProvider;
-  owner: string; // GitHub owner / Azure Org
-  project?: string; // Azure Project (optional for GitHub)
+  owner: string; // GitHub owner / Azure Org / GitLab group
+  project?: string; // Azure Project (optional for GitHub/GitLab)
   repo: string;
   branch: string;
   path: string; // e.g. "tokens.json" or "tokens" or "$themes.json"
+  filePath?: string;
   pat: string;
 }
 

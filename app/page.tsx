@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
+import { SecondarySidebar } from "@/components/SecondarySidebar";
 import { ThemeMatrix } from "@/components/ThemeMatrix";
 import { TokenFlow } from "@/components/TokenFlow";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
@@ -15,6 +16,9 @@ import { ExportsView } from "@/components/ExportsView";
 import { ActivityView } from "@/components/ActivityView";
 import { IntegrationsView } from "@/components/IntegrationsView";
 import { McpCliView } from "@/components/McpCliView";
+import { ProjectSettingsView } from "@/components/ProjectSettingsView";
+import { MembersView } from "@/components/MembersView";
+import { OrgSettingsView } from "@/components/OrgSettingsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { ToastContainer } from "@/components/Toast";
@@ -53,9 +57,13 @@ export default function Home() {
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Render Sidebar ONLY when user is configured / logged in / has tokens */}
+        {/* 1. Primary Navigation Sidebar */}
         {isConfigured && <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />}
 
+        {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups) */}
+        {isConfigured && <SecondarySidebar />}
+
+        {/* 3. Main Workspace Page Views */}
         {!isConfigured ? (
           /* Full-screen clean Onboarding Hub when unconfigured / empty */
           <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
@@ -75,6 +83,12 @@ export default function Home() {
           <IntegrationsView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "mcp" ? (
           <McpCliView />
+        ) : sidebarTab === "project-settings" ? (
+          <ProjectSettingsView />
+        ) : sidebarTab === "members" ? (
+          <MembersView />
+        ) : sidebarTab === "org-settings" ? (
+          <OrgSettingsView />
         ) : sidebarTab === "tokens" ? (
           <TokensWorkspace onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : viewMode === "flow" ? (

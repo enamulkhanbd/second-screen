@@ -32,6 +32,7 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
     setCurrentProject,
     createOrgAction,
     addToast,
+    setSidebarTab,
   } = useTokenStore();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -170,7 +171,7 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
             {currentOrg && (
               <button
                 onClick={() => {
-                  setShowManageOrg(true);
+                  setSidebarTab("members");
                   setIsOpen(false);
                 }}
                 className="mt-1.5 w-full flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"

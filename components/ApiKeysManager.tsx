@@ -333,9 +333,9 @@ export const ApiKeysManager: React.FC = () => {
                   <td className="py-3 px-4 text-right font-sans">
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="sm"
                       onClick={() => handleDeleteKey(k.id, k.name)}
-                      className="text-muted-foreground hover:text-destructive h-7 w-7"
+                      className="text-muted-foreground hover:text-destructive h-7 w-7 p-0"
                       title="Revoke Token"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
