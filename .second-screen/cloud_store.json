@@ -3343,7 +3343,7 @@
       "colors": {
         "brand": {
           "primary": {
-            "value": "#7c3aed",
+            "value": "#4caf4f",
             "type": "color",
             "description": "Primary brand accent"
           }
@@ -12289,5 +12289,5 @@
       }
     }
   },
-  "updatedAt": "2026-08-23T11:55:00.453Z"
+  "updatedAt": "2026-08-23T13:16:00.625Z"
 }

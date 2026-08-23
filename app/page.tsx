@@ -15,6 +15,8 @@ import { ExportsView } from "@/components/ExportsView";
 import { ActivityView } from "@/components/ActivityView";
 import { IntegrationsView } from "@/components/IntegrationsView";
 import { McpCliView } from "@/components/McpCliView";
+import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
+import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 
@@ -27,6 +29,8 @@ export default function Home() {
     credentials,
     rawTokens,
     currentUser,
+    userOrgs,
+    pendingInvitePrompt,
   } = useTokenStore();
 
   useEffect(() => {
@@ -37,6 +41,10 @@ export default function Home() {
   const hasTokens = Object.keys(rawTokens).length > 0;
   const isGitConnected = Boolean(credentials.owner && credentials.repo);
   const isConfigured = Boolean(currentUser && (hasTokens || isGitConnected));
+
+  const showOnboardingWizard = Boolean(
+    currentUser && userOrgs.length === 0 && !pendingInvitePrompt
+  );
 
   return (
     <main className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
@@ -75,6 +83,15 @@ export default function Home() {
           <ThemeMatrix onOpenSettings={() => setIsSettingsOpen(true)} />
         )}
       </div>
+
+      {/* Onboarding Wizard Modal for fresh accounts */}
+      <OnboardingWizardModal
+        isOpen={showOnboardingWizard}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
+      {/* Accept Team Invitation Modal for invited members */}
+      <AcceptInviteModal />
 
       {/* Settings Modal & Toast Notifications */}
       <CredentialsModal

@@ -1030,9 +1030,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => ({
       groups.find((g) => g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // Automatically synchronize loaded tokens with Tokens Platform Cloud API
+    // Automatically synchronize loaded tokens with active Project & Tokens Platform Cloud API
+    const { currentOrg, currentProject } = get();
+    if (currentOrg && currentProject) {
+      saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
+    }
+
     if (typeof window !== "undefined" && doc && typeof doc === "object") {
-      fetch("/api/v1/tokens", {
+      const query =
+        currentOrg && currentProject
+          ? `?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`
+          : "";
+      fetch(`/api/v1/tokens${query}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
