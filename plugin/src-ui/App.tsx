@@ -387,7 +387,7 @@ export const App: React.FC = () => {
           parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
 
           addLog(`✓ Magic Paired! Connected to ${orgName || "Workspace"}${projectName ? ` / ${projectName}` : ""}.`, "success");
-          fetchWorkspaces(serverUrl, updatedConfig.pat);
+          fetchWorkspaces(serverUrl, data.pat);
           clearInterval(interval);
         } else if (data.status === "expired") {
           addLog("Pairing code expired. Refreshing...", "normal");
@@ -399,7 +399,7 @@ export const App: React.FC = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [pairCode, config]);
+  }, [pairCode, config.pat]);
 
   const handleDisconnect = () => {
     const unlinkedConfig: PluginConfig = {

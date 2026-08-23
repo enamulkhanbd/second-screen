@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
 import { getOrganization, getOrgProjects } from "@/services/organizationService";
+import { db, isFirebaseConfigured } from "@/lib/firebase";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 export const dynamic = "force-dynamic";
 
@@ -19,22 +21,9 @@ interface PairingSession {
   projectName?: string;
 }
 
-// In-memory pairing sessions map (10-minute lifecycle)
+// In-memory runtime cache
 const pairingSessions = new Map<string, PairingSession>();
 
-// Cleanup expired sessions periodically
-function cleanupExpiredSessions() {
-  const now = Date.now();
-  pairingSessions.forEach((session, code) => {
-    if (session.expiresAt < now) {
-      pairingSessions.delete(code);
-    }
-  });
-}
-
-/**
- * Helper to dynamically detect the public deployment domain / origin on Vercel or custom domain
- */
 function getRequestOrigin(req: NextRequest): string {
   const forwardedProto = req.headers.get("x-forwarded-proto");
   const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
@@ -55,11 +44,8 @@ function getRequestOrigin(req: NextRequest): string {
   return req.nextUrl.origin || "http://localhost:3000";
 }
 
-/**
- * Generate a random 6-character alphanumeric pairing code (e.g. TK-8492)
- */
 function generatePairingCode(): string {
-  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // excludes 0, 1, O, I for clarity
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   let code = "TK-";
   for (let i = 0; i < 4; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -67,10 +53,6 @@ function generatePairingCode(): string {
   return code;
 }
 
-/**
- * OPTIONS /api/v1/auth/pair
- * Handle CORS preflight
- */
 export async function OPTIONS() {
   return handleOptionsCors();
 }
@@ -79,18 +61,11 @@ export async function OPTIONS() {
  * POST: Generate a new pairing session from the Figma Plugin
  */
 export async function POST(req: NextRequest) {
-  cleanupExpiredSessions();
-
-  let code = generatePairingCode();
-  // Ensure uniqueness
-  while (pairingSessions.has(code)) {
-    code = generatePairingCode();
-  }
-
+  const code = generatePairingCode();
   const now = Date.now();
   const expiresAt = now + 10 * 60 * 1000; // 10 minutes
   const origin = getRequestOrigin(req);
-  const connectUrl = `${origin}/connect?code=${code}`;
+  const connectUrl = `https://tokensplatform.enamulkhan.com/connect?code=${code}`;
 
   const session: PairingSession = {
     code,
@@ -101,6 +76,14 @@ export async function POST(req: NextRequest) {
   };
 
   pairingSessions.set(code, session);
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await setDoc(doc(db, "pairing_sessions", code), session);
+    } catch (e) {
+      console.warn("Firestore save pairing session error:", e);
+    }
+  }
 
   return jsonWithCors({
     success: true,
@@ -115,8 +98,6 @@ export async function POST(req: NextRequest) {
  * GET: Poll pairing status from the Figma Plugin
  */
 export async function GET(req: NextRequest) {
-  cleanupExpiredSessions();
-
   const { searchParams } = new URL(req.url);
   const code = (searchParams.get("code") || "").trim().toUpperCase();
 
@@ -124,7 +105,20 @@ export async function GET(req: NextRequest) {
     return jsonWithCors({ error: "Missing pairing code parameter" }, { status: 400 });
   }
 
-  const session = pairingSessions.get(code);
+  let session = pairingSessions.get(code);
+
+  // Fallback to Firestore to share state across localhost, production, and serverless lambdas
+  if ((!session || session.status !== "approved") && isFirebaseConfigured && db) {
+    try {
+      const snap = await getDoc(doc(db, "pairing_sessions", code));
+      if (snap.exists()) {
+        session = snap.data() as PairingSession;
+        pairingSessions.set(code, session);
+      }
+    } catch (e) {
+      console.warn("Firestore fetch pairing session error:", e);
+    }
+  }
 
   if (!session) {
     return jsonWithCors({
@@ -135,6 +129,11 @@ export async function GET(req: NextRequest) {
 
   if (session.expiresAt < Date.now()) {
     pairingSessions.delete(code);
+    if (isFirebaseConfigured && db) {
+      try {
+        await deleteDoc(doc(db, "pairing_sessions", code));
+      } catch {}
+    }
     return jsonWithCors({
       status: "expired",
       error: "Pairing code has expired. Please generate a new code.",
@@ -142,7 +141,6 @@ export async function GET(req: NextRequest) {
   }
 
   if (session.status === "approved") {
-    // Return credentials and delete session after single-use handshake
     const responseData = {
       status: "approved",
       pat: session.pat,
@@ -152,11 +150,6 @@ export async function GET(req: NextRequest) {
       projectName: session.projectName,
       serverUrl: session.serverUrl,
     };
-
-    // Clean up consumed session after slight delay
-    setTimeout(() => {
-      pairingSessions.delete(code);
-    }, 15000);
 
     return jsonWithCors(responseData);
   }
@@ -171,29 +164,33 @@ export async function GET(req: NextRequest) {
  * PUT: Approve pairing session from the authenticated Tokens Platform web app
  */
 export async function PUT(req: NextRequest) {
-  cleanupExpiredSessions();
-
   try {
     const body = await req.json();
-    const { code, pat, orgId, projectId, orgName, projectName, uid, userEmail } = body;
+    const { code, orgId, projectId, orgName, projectName, uid, userEmail } = body;
 
     const cleanCode = (code || "").trim().toUpperCase();
     if (!cleanCode) {
       return jsonWithCors({ error: "Pairing code is required." }, { status: 400 });
     }
 
-    const session = pairingSessions.get(cleanCode);
+    let session = pairingSessions.get(cleanCode);
 
-    if (!session) {
-      return jsonWithCors(
-        { error: "Pairing code not found or expired. Please check the code in Figma." },
-        { status: 404 }
-      );
+    if (!session && isFirebaseConfigured && db) {
+      try {
+        const snap = await getDoc(doc(db, "pairing_sessions", cleanCode));
+        if (snap.exists()) {
+          session = snap.data() as PairingSession;
+        }
+      } catch {}
     }
 
-    if (session.expiresAt < Date.now()) {
-      pairingSessions.delete(cleanCode);
-      return jsonWithCors({ error: "Pairing code has expired." }, { status: 400 });
+    if (!session) {
+      session = {
+        code: cleanCode,
+        status: "pending",
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      };
     }
 
     const origin = getRequestOrigin(req);
@@ -241,6 +238,14 @@ export async function PUT(req: NextRequest) {
     session.serverUrl = origin;
 
     pairingSessions.set(cleanCode, session);
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, "pairing_sessions", cleanCode), session);
+      } catch (e) {
+        console.warn("Firestore update pairing session error:", e);
+      }
+    }
 
     return jsonWithCors({
       success: true,
