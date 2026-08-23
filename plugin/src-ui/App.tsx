@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Zap,
   Unlink,
+  Cloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,8 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 
+const PRODUCTION_APP_URL = "https://tokensplatform.enamulkhan.com";
+
 interface PluginConfig {
   serverUrl: string;
   pat: string;
@@ -81,7 +84,7 @@ const DEFAULT_ORGS: Org[] = [
     id: "org-default",
     name: "My Organization",
     projects: [
-      { id: "proj-main", name: "Design System", description: "Core brand variables & tokens" },
+      { id: "proj-main", name: "Core Design System", description: "Brand tokens, colors, and typography" },
     ],
   },
 ];
@@ -96,9 +99,7 @@ interface LogEntry {
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"pull" | "push" | "settings">("pull");
   const [themeMode, setThemeMode] = useState<"light" | "dark">("light");
-  const [showPat, setShowPat] = useState(false);
   const [isLogExpanded, setIsLogExpanded] = useState(false);
-  const [isManualMode, setIsManualMode] = useState(false);
 
   // Magic Pairing State
   const [pairCode, setPairCode] = useState<string>("");
@@ -107,7 +108,7 @@ export const App: React.FC = () => {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [config, setConfig] = useState<PluginConfig>({
-    serverUrl: "http://localhost:3000",
+    serverUrl: PRODUCTION_APP_URL,
     pat: "",
     orgId: "org-default",
     projectId: "proj-main",
@@ -121,7 +122,6 @@ export const App: React.FC = () => {
   const [modalSearch, setModalSearch] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
-  const [isTestingConn, setIsTestingConn] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "checking">("checking");
 
   const [logs, setLogs] = useState<LogEntry[]>([
@@ -172,12 +172,11 @@ export const App: React.FC = () => {
 
       if (msg.type === "SAVED_CONFIG") {
         if (msg.payload) {
-          setConfig((prev) => ({ ...prev, ...msg.payload }));
+          const loadedServer = PRODUCTION_APP_URL; // Always prioritize production domain
+          setConfig((prev) => ({ ...prev, ...msg.payload, serverUrl: loadedServer }));
           if (msg.payload.pat) {
             setConnectionStatus("connected");
-            if (msg.payload.serverUrl) {
-              fetchWorkspaces(msg.payload.serverUrl, msg.payload.pat);
-            }
+            fetchWorkspaces(loadedServer, msg.payload.pat);
           } else {
             setConnectionStatus("disconnected");
           }
@@ -203,13 +202,13 @@ export const App: React.FC = () => {
       }
 
       if (msg.type === "EXPORTED_TOKENS") {
-        addLog(`Pushing scanned tokens to Tokens Platform Cloud [${config.orgId}/${config.projectId}]...`, "normal");
+        addLog(`Publishing scanned tokens to Cloud Workspace [${config.orgId}/${config.projectId}]...`, "normal");
         try {
           const query =
             config.orgId && config.projectId
               ? `?orgId=${encodeURIComponent(config.orgId)}&projectId=${encodeURIComponent(config.projectId)}`
               : "";
-          const url = `${config.serverUrl.replace(/\/+$/, "")}/api/v1/tokens${query}`;
+          const url = `${PRODUCTION_APP_URL}/api/v1/tokens${query}`;
 
           const res = await fetch(url, {
             method: "POST",
@@ -236,24 +235,23 @@ export const App: React.FC = () => {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [config.serverUrl, config.pat, config.orgId, config.projectId]);
+  }, [config.pat, config.orgId, config.projectId]);
 
   // Request new pairing code from backend
-  const requestPairingCode = async (server = config.serverUrl) => {
+  const requestPairingCode = async () => {
     setIsGeneratingPair(true);
-    const cleanUrl = (server || "http://localhost:3000").replace(/\/+$/, "");
     try {
-      const res = await fetch(`${cleanUrl}/api/v1/auth/pair`, {
+      const res = await fetch(`${PRODUCTION_APP_URL}/api/v1/auth/pair`, {
         method: "POST",
       });
       const data = await res.json();
       if (data.success && data.code) {
         setPairCode(data.code);
-        setConnectUrl(data.connectUrl || `${cleanUrl}/connect?code=${data.code}`);
+        setConnectUrl(`${PRODUCTION_APP_URL}/connect?code=${data.code}`);
         addLog(`Generated pairing code: ${data.code}`, "normal");
       }
     } catch (err: any) {
-      addLog(`Cannot reach ${cleanUrl} to generate pair code. Ensure web server is running.`, "error");
+      addLog(`Cannot reach Tokens Platform cloud service: ${err.message}`, "error");
     } finally {
       setIsGeneratingPair(false);
     }
@@ -261,36 +259,65 @@ export const App: React.FC = () => {
 
   // Generate pairing code when unlinked
   useEffect(() => {
-    if (!config.pat && !pairCode && !isManualMode) {
+    if (!config.pat && !pairCode) {
       requestPairingCode();
     }
-  }, [config.pat, pairCode, isManualMode]);
+  }, [config.pat, pairCode]);
 
   // Poll pairing status every 2 seconds when pair code is active
   useEffect(() => {
     if (!pairCode || config.pat) return;
 
     const interval = setInterval(async () => {
-      const cleanUrl = (config.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
       try {
-        const res = await fetch(`${cleanUrl}/api/v1/auth/pair?code=${pairCode}`);
+        const res = await fetch(`${PRODUCTION_APP_URL}/api/v1/auth/pair?code=${pairCode}`);
         const data = await res.json();
 
         if (data.status === "approved" && data.pat) {
+          const orgId = data.orgId || config.orgId;
+          const projectId = data.projectId || config.projectId;
+          const orgName = data.orgName || "My Organization";
+          const projectName = data.projectName || "Core Design System";
+
           const updatedConfig: PluginConfig = {
             ...config,
             pat: data.pat,
-            orgId: data.orgId || config.orgId,
-            projectId: data.projectId || config.projectId,
-            serverUrl: data.serverUrl || config.serverUrl,
+            orgId,
+            projectId,
+            serverUrl: PRODUCTION_APP_URL,
           };
 
           setConfig(updatedConfig);
+          setOrgs((prev) => {
+            const exists = prev.some((o) => o.id === orgId);
+            if (exists) {
+              return prev.map((o) =>
+                o.id === orgId
+                  ? {
+                      ...o,
+                      name: orgName,
+                      projects: o.projects.some((p) => p.id === projectId)
+                        ? o.projects
+                        : [{ id: projectId, name: projectName }, ...o.projects],
+                    }
+                  : o
+              );
+            }
+            return [
+              {
+                id: orgId,
+                name: orgName,
+                projects: [{ id: projectId, name: projectName }],
+              },
+              ...prev.filter((o) => o.id !== "org-default"),
+            ];
+          });
+
           setConnectionStatus("connected");
           parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
 
-          addLog(`✓ Magic Paired! Connected to ${data.orgName || "Workspace"} / ${data.projectName || "Project"}.`, "success");
-          fetchWorkspaces(updatedConfig.serverUrl, updatedConfig.pat);
+          addLog(`✓ Magic Paired! Connected to ${orgName} / ${projectName}.`, "success");
+          fetchWorkspaces(PRODUCTION_APP_URL, updatedConfig.pat);
           clearInterval(interval);
         } else if (data.status === "expired") {
           addLog("Pairing code expired. Refreshing...", "normal");
@@ -306,8 +333,7 @@ export const App: React.FC = () => {
 
   const fetchWorkspaces = async (sUrl: string, pat: string) => {
     try {
-      const cleanUrl = (sUrl || "http://localhost:3000").replace(/\/+$/, "");
-      const res = await fetch(`${cleanUrl}/api/v1/user/orgs`, {
+      const res = await fetch(`${PRODUCTION_APP_URL}/api/v1/user/orgs`, {
         headers: {
           "Content-Type": "application/json",
           ...(pat ? { Authorization: `Bearer ${pat}` } : {}),
@@ -315,48 +341,14 @@ export const App: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.orgs && Array.isArray(data.orgs) && data.orgs.length > 0) {
-          setOrgs(data.orgs);
-          addLog(`Discovered ${data.orgs.length} cloud organizations.`, "normal");
+        const list: Org[] = data.orgs || data.organizations || [];
+        if (list && Array.isArray(list) && list.length > 0) {
+          setOrgs(list);
+          addLog(`Discovered ${list.length} cloud organizations.`, "normal");
         }
       }
     } catch {
       // Fallback silently
-    }
-  };
-
-  const handleTestConnection = async () => {
-    setIsTestingConn(true);
-    setConnectionStatus("checking");
-    addLog(`Testing connection to ${config.serverUrl}...`, "normal");
-    try {
-      const cleanUrl = (config.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
-      const res = await fetch(`${cleanUrl}/api/v1/tokens`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(config.pat ? { Authorization: `Bearer ${config.pat}` } : {}),
-        },
-      });
-      if (res.ok) {
-        setConnectionStatus("connected");
-        addLog("✓ Connection verified successfully!", "success");
-      } else {
-        setConnectionStatus("disconnected");
-        addLog(`Connection test returned status ${res.status}`, "error");
-      }
-    } catch (err: any) {
-      setConnectionStatus("disconnected");
-      addLog(`Cannot reach server: ${err.message}`, "error");
-    } finally {
-      setIsTestingConn(false);
-    }
-  };
-
-  const handleSaveSettings = () => {
-    parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: config } }, "*");
-    addLog("Configuration saved to Figma client storage.", "success");
-    if (config.pat) {
-      fetchWorkspaces(config.serverUrl, config.pat);
     }
   };
 
@@ -370,12 +362,11 @@ export const App: React.FC = () => {
     setPairCode("");
     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: unlinkedConfig } }, "*");
     addLog("Disconnected workspace session.", "normal");
-    setIsManualMode(false);
   };
 
   const handleCopyLink = () => {
-    if (!connectUrl) return;
-    navigator.clipboard.writeText(connectUrl);
+    const linkToCopy = connectUrl || `${PRODUCTION_APP_URL}/connect?code=${pairCode}`;
+    navigator.clipboard.writeText(linkToCopy);
     setCopiedLink(true);
     addLog("Copied pairing link to clipboard.", "normal");
     setTimeout(() => setCopiedLink(false), 3000);
@@ -383,15 +374,14 @@ export const App: React.FC = () => {
 
   const handlePullTokens = async () => {
     setIsSyncing(true);
-    addLog("Fetching tokens from Tokens Platform Cloud API...", "normal");
-    const cleanUrl = (config.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
+    addLog("Fetching tokens from Tokens Platform Cloud...", "normal");
 
     try {
       const query =
         config.orgId && config.projectId
           ? `?orgId=${encodeURIComponent(config.orgId)}&projectId=${encodeURIComponent(config.projectId)}`
           : "";
-      const res = await fetch(`${cleanUrl}/api/v1/tokens${query}`, {
+      const res = await fetch(`${PRODUCTION_APP_URL}/api/v1/tokens${query}`, {
         headers: {
           "Content-Type": "application/json",
           ...(config.pat ? { Authorization: `Bearer ${config.pat}` } : {}),
@@ -465,7 +455,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-xs tracking-tight text-foreground">Tokens Platform</span>
             <Badge variant="secondary" className="text-[9px] px-1 py-0 font-medium">
-              Plugin
+              Companion
             </Badge>
           </div>
         </div>
@@ -488,9 +478,9 @@ export const App: React.FC = () => {
           {/* Theme Toggle */}
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             onClick={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
-            className="h-7 w-7 rounded-md"
+            className="h-7 w-7 rounded-md p-0"
             title={themeMode === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             {themeMode === "dark" ? (
@@ -503,7 +493,7 @@ export const App: React.FC = () => {
       </header>
 
       {/* UNLINKED MAGIC PAIRING SCREEN */}
-      {!isPaired && !isManualMode ? (
+      {!isPaired ? (
         <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-center space-y-4">
           <Card className="border-border shadow-md">
             <CardHeader className="text-center pb-2 space-y-2">
@@ -513,11 +503,11 @@ export const App: React.FC = () => {
               <div>
                 <Badge variant="violet" className="gap-1 text-[9px] mb-1">
                   <Sparkles className="w-2.5 h-2.5" />
-                  <span>One-Click Pairing</span>
+                  <span>One-Click Cloud Pairing</span>
                 </Badge>
-                <CardTitle className="text-sm font-bold">Connect to Web App</CardTitle>
+                <CardTitle className="text-sm font-bold">Connect to Tokens Platform</CardTitle>
                 <CardDescription className="text-[11px] mt-0.5">
-                  Authorize this Figma file with your Tokens Platform workspace in seconds.
+                  Link this Figma file to your Cloud Workspace in seconds.
                 </CardDescription>
               </div>
             </CardHeader>
@@ -549,17 +539,15 @@ export const App: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="space-y-2 pt-1">
-                {connectUrl && (
-                  <a
-                    href={connectUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 transition-colors"
-                  >
-                    <span>Open Web &amp; Connect</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                )}
+                <a
+                  href={connectUrl || `${PRODUCTION_APP_URL}/connect?code=${pairCode}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 transition-colors"
+                >
+                  <span>Open Web &amp; Connect</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
 
                 <Button
                   variant="outline"
@@ -581,16 +569,6 @@ export const App: React.FC = () => {
                 </Button>
               </div>
             </CardContent>
-
-            <CardFooter className="pt-2 pb-3 border-t border-border flex justify-center">
-              <button
-                onClick={() => setIsManualMode(true)}
-                className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-              >
-                <span>Or connect manually with Personal Access Token (PAT)</span>
-                <ChevronDown className="w-2.5 h-2.5" />
-              </button>
-            </CardFooter>
           </Card>
         </div>
       ) : (
@@ -648,50 +626,26 @@ export const App: React.FC = () => {
             <TabsContent value="pull" className="flex-1 overflow-y-auto p-4 space-y-4 m-0">
               <Card className="border-border shadow-xs">
                 <CardHeader className="p-3.5 pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded-md bg-primary/10 text-primary">
-                      <Download className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xs font-bold">Sync Scope</CardTitle>
-                      <CardDescription className="text-[11px]">
-                        Select which elements to generate in this Figma file.
-                      </CardDescription>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-bold">Design Tokens to Figma</CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      Cloud Sync
+                    </Badge>
                   </div>
+                  <CardDescription className="text-[11px]">
+                    Fetch token sets & themes from <span className="font-semibold text-foreground">{currentProject?.name}</span> and generate native Figma Variables and Styles.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="p-3.5 pt-1 space-y-3">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50">
-                    <div className="space-y-0.5">
-                      <Label className="text-xs font-semibold">Figma Variables</Label>
-                      <p className="text-[10px] text-muted-foreground">Colors, dimensions, spacing, border radiuses</p>
+                <CardContent className="p-3.5 pt-0 space-y-2.5">
+                  <div className="p-2.5 rounded-lg bg-muted/50 border border-border text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Target Project:</span>
+                      <span className="font-semibold text-foreground">{currentProject?.name}</span>
                     </div>
-                    <Switch
-                      checked={config.createVariables}
-                      onCheckedChange={(c) => setConfig((p) => ({ ...p, createVariables: c }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50">
-                    <div className="space-y-0.5">
-                      <Label className="text-xs font-semibold">Typography Text Styles</Label>
-                      <p className="text-[10px] text-muted-foreground">Composite fonts, font weights, line-heights</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Active Org:</span>
+                      <span className="font-medium text-foreground">{currentOrg?.name}</span>
                     </div>
-                    <Switch
-                      checked={config.createStyles}
-                      onCheckedChange={(c) => setConfig((p) => ({ ...p, createStyles: c }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50">
-                    <div className="space-y-0.5">
-                      <Label className="text-xs font-semibold">Solid Paint Styles</Label>
-                      <p className="text-[10px] text-muted-foreground">Legacy Figma color fill styles</p>
-                    </div>
-                    <Switch
-                      checked={config.createPaintStyles}
-                      onCheckedChange={(c) => setConfig((p) => ({ ...p, createPaintStyles: c }))}
-                    />
                   </div>
                 </CardContent>
               </Card>
@@ -704,12 +658,12 @@ export const App: React.FC = () => {
                 {isSyncing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Syncing into Figma...</span>
+                    <span>Syncing Tokens to Figma...</span>
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
-                    <span>Pull Tokens to Figma Document</span>
+                    <span>Pull Tokens to Figma</span>
                   </>
                 )}
               </Button>
@@ -719,32 +673,23 @@ export const App: React.FC = () => {
             <TabsContent value="push" className="flex-1 overflow-y-auto p-4 space-y-4 m-0">
               <Card className="border-border shadow-xs">
                 <CardHeader className="p-3.5 pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded-md bg-primary/10 text-primary">
-                      <Upload className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xs font-bold">Publish Local Variables</CardTitle>
-                      <CardDescription className="text-[11px]">
-                        Extract Figma Collections and sync them to Tokens Platform Cloud.
-                      </CardDescription>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-bold">Figma Variables to Tokens</CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      Bi-directional
+                    </Badge>
                   </div>
+                  <CardDescription className="text-[11px]">
+                    Scan local Figma collections, modes, colors, dimensions, and aliases, then publish directly to your Cloud Project.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="p-3.5 pt-1 space-y-2">
-                  <div className="p-3 rounded-lg bg-muted/50 border border-border text-xs space-y-1.5">
+                <CardContent className="p-3.5 pt-0 space-y-2.5">
+                  <div className="p-2.5 rounded-lg bg-muted/50 border border-border text-[11px] space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px]">Destination Org:</span>
-                      <span className="font-semibold text-foreground">{currentOrg?.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px]">Target Project:</span>
+                      <span className="text-muted-foreground">Publish Destination:</span>
                       <span className="font-semibold text-foreground">{currentProject?.name}</span>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground px-1 leading-relaxed">
-                    Tokens will be compiled into W3C Design Tokens Community Group (DTCG) standard JSON format.
-                  </p>
                 </CardContent>
               </Card>
 
@@ -769,15 +714,16 @@ export const App: React.FC = () => {
 
             {/* TAB 3: SETTINGS */}
             <TabsContent value="settings" className="flex-1 overflow-y-auto p-4 space-y-3.5 m-0">
-              {/* Magic Re-Pair Callout */}
+              {/* Cloud Connection Endpoint Status */}
               <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
                 <div className="space-y-0.5">
                   <div className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                    <span>Magic Quick Connect</span>
+                    <Cloud className="w-3.5 h-3.5 text-primary" />
+                    <span>Tokens Platform Cloud</span>
                     <Badge variant="violet" className="text-[9px] px-1 py-0">Active</Badge>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    Paired with {currentOrg?.name} / {currentProject?.name}.
+                    Connected to {currentOrg?.name} / {currentProject?.name}.
                   </p>
                 </div>
                 <Button
@@ -791,49 +737,6 @@ export const App: React.FC = () => {
                 </Button>
               </div>
 
-              {/* Server URL */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold">Server API URL</Label>
-                  <button
-                    onClick={handleTestConnection}
-                    disabled={isTestingConn}
-                    className="text-[10px] text-primary hover:underline flex items-center gap-1"
-                  >
-                    {isTestingConn && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
-                    <span>Test Connection</span>
-                  </button>
-                </div>
-                <Input
-                  type="text"
-                  value={config.serverUrl}
-                  onChange={(e) => setConfig((p) => ({ ...p, serverUrl: e.target.value }))}
-                  placeholder="http://localhost:3000"
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
-
-              {/* PAT */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Personal Access Token (PAT)</Label>
-                <div className="relative">
-                  <Input
-                    type={showPat ? "text" : "password"}
-                    value={config.pat}
-                    onChange={(e) => setConfig((p) => ({ ...p, pat: e.target.value }))}
-                    placeholder="sec_pat_..."
-                    className="h-8 text-xs font-mono pr-8"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPat(!showPat)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPat ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </div>
-
               {/* Organization Select */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Organization</Label>
@@ -841,11 +744,13 @@ export const App: React.FC = () => {
                   value={config.orgId}
                   onValueChange={(val) => {
                     const o = orgs.find((item) => item.id === val);
-                    setConfig((p) => ({
-                      ...p,
+                    const updated = {
+                      ...config,
                       orgId: val,
-                      projectId: o?.projects?.[0]?.id || p.projectId,
-                    }));
+                      projectId: o?.projects?.[0]?.id || config.projectId,
+                    };
+                    setConfig(updated);
+                    parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
                   }}
                 >
                   <SelectTrigger className="h-8 text-xs">
@@ -866,7 +771,11 @@ export const App: React.FC = () => {
                 <Label className="text-xs font-semibold">Project</Label>
                 <Select
                   value={config.projectId}
-                  onValueChange={(val) => setConfig((p) => ({ ...p, projectId: val }))}
+                  onValueChange={(val) => {
+                    const updated = { ...config, projectId: val };
+                    setConfig(updated);
+                    parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+                  }}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Select project" />
@@ -881,141 +790,147 @@ export const App: React.FC = () => {
                 </Select>
               </div>
 
-              <div className="pt-1 flex gap-2">
-                <Button
-                  onClick={handleSaveSettings}
-                  className="flex-1 text-xs font-bold h-8"
-                >
-                  Save Configuration
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsManualMode(false)}
-                  className="text-xs h-8"
-                >
-                  Back to Magic Pair
-                </Button>
+              {/* Sync Preferences */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <Label className="text-xs font-semibold block">Creation Options</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+                    <div className="space-y-0.5">
+                      <Label className="text-xs font-medium cursor-pointer" htmlFor="create-vars">
+                        Figma Variables
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">Colors, dimensions, numbers, booleans</p>
+                    </div>
+                    <Switch
+                      id="create-vars"
+                      checked={config.createVariables}
+                      onCheckedChange={(checked) => {
+                        const updated = { ...config, createVariables: checked };
+                        setConfig(updated);
+                        parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+                    <div className="space-y-0.5">
+                      <Label className="text-xs font-medium cursor-pointer" htmlFor="create-styles">
+                        Typography Styles
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">Generate native Figma Text Styles</p>
+                    </div>
+                    <Switch
+                      id="create-styles"
+                      checked={config.createStyles}
+                      onCheckedChange={(checked) => {
+                        const updated = { ...config, createStyles: checked };
+                        setConfig(updated);
+                        parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
         </>
       )}
 
-      {/* 4. Real-time Activity Log Terminal Drawer */}
-      <div
-        className={`border-t border-border bg-card flex flex-col flex-shrink-0 transition-all duration-200 ${
-          isLogExpanded ? "h-48" : "h-20"
-        }`}
-      >
-        <div className="px-3 py-1.5 border-b border-border bg-muted/40 flex items-center justify-between text-[10px] font-mono">
-          <div className="flex items-center gap-2 font-bold text-muted-foreground uppercase tracking-wider">
-            <span>Activity Log</span>
-            <Badge variant="secondary" className="text-[9px] px-1 py-0">
-              {logs.length}
-            </Badge>
+      {/* 4. Terminal Activity Drawer */}
+      <footer className="border-t border-border bg-card/95 flex-shrink-0 font-mono">
+        <div
+          onClick={() => setIsLogExpanded(!isLogExpanded)}
+          className="h-7 px-3 flex items-center justify-between text-[10px] text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/50"
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="font-semibold text-foreground">Live Activity</span>
+            <span>({logs.length})</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
-              onClick={clearLogs}
-              className="text-muted-foreground hover:text-foreground text-[10px] flex items-center gap-1"
-              title="Clear log history"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearLogs();
+              }}
+              className="p-1 hover:text-foreground text-[10px]"
+              title="Clear Logs"
             >
-              <Trash2 className="w-3 h-3" />
-              <span>Clear</span>
+              Clear
             </button>
-            <button
-              onClick={() => setIsLogExpanded(!isLogExpanded)}
-              className="text-muted-foreground hover:text-foreground"
-              title={isLogExpanded ? "Collapse Log" : "Expand Log"}
-            >
-              {isLogExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-            </button>
+            {isLogExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
           </div>
         </div>
 
-        <div ref={logContainerRef} className="flex-1 overflow-y-auto p-2.5 space-y-1 font-mono text-[10px]">
-          {logs.length === 0 ? (
-            <div className="text-muted-foreground/60 italic text-center py-2">No activity recorded.</div>
-          ) : (
-            logs.map((item) => (
+        {isLogExpanded && (
+          <div ref={logContainerRef} className="h-28 overflow-y-auto p-2 space-y-1 text-[10px] bg-black/20">
+            {logs.map((log) => (
               <div
-                key={item.id}
-                className={`leading-relaxed flex items-start gap-1.5 ${
-                  item.type === "success"
-                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
-                    : item.type === "error"
-                    ? "text-destructive font-medium"
+                key={log.id}
+                className={`flex items-start gap-1.5 ${
+                  log.type === "success"
+                    ? "text-emerald-500"
+                    : log.type === "error"
+                    ? "text-destructive"
                     : "text-muted-foreground"
                 }`}
               >
-                <span className="opacity-50 flex-shrink-0 text-[9px]">[{item.time}]</span>
-                <span className="flex-1 break-words">{item.text}</span>
+                <span className="opacity-40 select-none">[{log.time}]</span>
+                <span className="flex-1 font-sans">{log.text}</span>
               </div>
-            ))
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </footer>
 
-      {/* Target Project Switcher Modal */}
+      {/* Switch Workspace Modal */}
       <Dialog open={isSwitchModalOpen} onOpenChange={setIsSwitchModalOpen}>
-        <DialogContent className="max-w-xs p-4 gap-3">
-          <DialogHeader className="p-0 text-left">
-            <DialogTitle className="text-xs font-bold">Switch Target Project</DialogTitle>
+        <DialogContent className="max-w-xs p-4 gap-3 font-sans">
+          <DialogHeader className="p-0 space-y-1">
+            <DialogTitle className="text-xs font-bold">Switch Cloud Workspace</DialogTitle>
             <DialogDescription className="text-[11px]">
-              Select which organization and project to sync.
+              Select which organization and project you want to synchronize.
             </DialogDescription>
           </DialogHeader>
 
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              type="text"
-              placeholder="Filter organizations & projects..."
               value={modalSearch}
               onChange={(e) => setModalSearch(e.target.value)}
-              className="pl-8 h-8 text-xs"
+              placeholder="Search projects..."
+              className="h-7 text-xs pl-7 bg-background"
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto space-y-3 pt-1">
+          <div className="max-h-56 overflow-y-auto space-y-2 p-1">
             {filteredOrgs.map((org) => (
               <div key={org.id} className="space-y-1">
-                <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider block px-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">
                   {org.name}
                 </span>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {org.projects.map((proj) => {
                     const isSelected = config.orgId === org.id && config.projectId === proj.id;
                     return (
-                      <div
+                      <button
                         key={proj.id}
                         onClick={() => {
-                          setConfig((p) => ({ ...p, orgId: org.id, projectId: proj.id }));
+                          const updated = { ...config, orgId: org.id, projectId: proj.id };
+                          setConfig(updated);
+                          parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
                           setIsSwitchModalOpen(false);
-                          parent.postMessage({
-                            pluginMessage: {
-                              type: "SAVE_CONFIG",
-                              payload: { ...config, orgId: org.id, projectId: proj.id },
-                            },
-                          });
-                          addLog(`Switched target project to ${org.name} / ${proj.name}`, "normal");
+                          addLog(`Switched active target to ${org.name} / ${proj.name}.`, "normal");
                         }}
-                        className={`p-2 rounded-lg border text-xs cursor-pointer flex items-center justify-between transition-colors ${
+                        className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors ${
                           isSelected
-                            ? "bg-primary/10 border-primary text-primary font-semibold"
-                            : "bg-card border-border hover:bg-muted"
+                            ? "bg-primary text-primary-foreground font-bold"
+                            : "hover:bg-muted text-foreground"
                         }`}
                       >
-                        <div>
-                          <div className="font-semibold">{proj.name}</div>
-                          {proj.description && (
-                            <div className="text-[10px] text-muted-foreground font-normal">
-                              {proj.description}
-                            </div>
-                          )}
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
-                      </div>
+                        <span className="truncate">{proj.name}</span>
+                        {isSelected && <Check className="w-3 h-3" />}
+                      </button>
                     );
                   })}
                 </div>

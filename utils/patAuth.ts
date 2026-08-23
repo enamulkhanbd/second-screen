@@ -9,6 +9,12 @@ export interface ApiKeyRecord {
   createdAt: string;
   lastUsedAt?: string;
   expiresAt?: string; // ISO string or null for never
+  uid?: string;
+  userEmail?: string;
+  orgId?: string;
+  projectId?: string;
+  orgName?: string;
+  projectName?: string;
 }
 
 const STORAGE_FILE_PATH = "ts_cloud_api_keys";
@@ -19,7 +25,15 @@ const STORAGE_FILE_PATH = "ts_cloud_api_keys";
 export function generateApiKey(
   name: string,
   scopes: Array<"read:tokens" | "write:tokens" | "manage:releases"> = ["read:tokens", "write:tokens"],
-  expiresInDays?: number
+  expiresInDays?: number,
+  metadata?: {
+    uid?: string;
+    userEmail?: string;
+    orgId?: string;
+    projectId?: string;
+    orgName?: string;
+    projectName?: string;
+  }
 ): { plaintextKey: string; record: ApiKeyRecord } {
   const randomBytes = crypto.randomBytes(24).toString("hex");
   const plaintextKey = `sec_pat_live_${randomBytes}`;
@@ -41,6 +55,7 @@ export function generateApiKey(
     scopes,
     createdAt: now.toISOString(),
     expiresAt,
+    ...(metadata || {}),
   };
 
   return { plaintextKey, record };

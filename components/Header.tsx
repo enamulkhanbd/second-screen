@@ -221,7 +221,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       const orgId = useTokenStore.getState().currentOrg?.id;
       const projectId = useTokenStore.getState().currentProject?.id;
       const query = orgId && projectId ? `?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}` : "";
-      const res = await fetch(`/api/v1/tokens${query}`);
+      const res = await fetch(`/api/v1/tokens${query}`, {
+        headers: { "x-internal-client": "tokens-platform" },
+      });
       const data = await res.json();
       if (data.success && data.rawTokens) {
         setRawTokens(data.rawTokens);

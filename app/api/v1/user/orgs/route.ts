@@ -23,12 +23,44 @@ export async function GET(req: NextRequest) {
     }
 
     const uid = auth.record?.uid || "usr_default";
-    const orgs = await getUserOrganizations(uid);
+    const userEmail = auth.record?.userEmail;
+    let orgs = await getUserOrganizations(uid, userEmail);
+
+    // If PAT has bound org/project metadata and it's not yet in the list, ensure it's included
+    if (auth.record?.orgId && !orgs.some((o) => o.id === auth.record.orgId)) {
+      orgs = [
+        {
+          id: auth.record.orgId,
+          name: auth.record.orgName || "My Organization",
+          slug: (auth.record.orgName || "org").toLowerCase().replace(/[^a-z0-9]/g, "-"),
+          ownerUid: uid,
+          members: [{ uid, email: userEmail || "", displayName: "Member", role: "owner", joinedAt: new Date().toISOString() }],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        ...orgs,
+      ];
+    }
 
     // Fetch projects for each org
     const orgsWithProjects = await Promise.all(
       orgs.map(async (org) => {
-        const projects = await getOrgProjects(org.id);
+        let projects = await getOrgProjects(org.id);
+        if (projects.length === 0 && auth.record?.projectId && auth.record.orgId === org.id) {
+          projects = [
+            {
+              id: auth.record.projectId,
+              orgId: org.id,
+              name: auth.record.projectName || "Core Design System",
+              slug: (auth.record.projectName || "proj").toLowerCase().replace(/[^a-z0-9]/g, "-"),
+              description: "Design tokens project",
+              rawTokens: {},
+              themeGroups: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ];
+        }
         return {
           id: org.id,
           name: org.name,
@@ -46,6 +78,7 @@ export async function GET(req: NextRequest) {
 
     return jsonWithCors({
       success: true,
+      orgs: orgsWithProjects,
       organizations: orgsWithProjects,
     });
   } catch (err: any) {

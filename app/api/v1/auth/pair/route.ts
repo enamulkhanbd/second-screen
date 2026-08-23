@@ -174,7 +174,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { code, pat, orgId, projectId, orgName, projectName } = body;
+    const { code, pat, orgId, projectId, orgName, projectName, uid, userEmail } = body;
 
     const cleanCode = (code || "").trim().toUpperCase();
     if (!cleanCode) {
@@ -200,7 +200,16 @@ export async function PUT(req: NextRequest) {
     // Generate valid PAT record and persist it into cloud API keys store
     const { plaintextKey, record } = generateApiKey(
       `Figma Plugin (${orgName || "Design System"})`,
-      ["read:tokens", "write:tokens", "manage:releases"]
+      ["read:tokens", "write:tokens", "manage:releases"],
+      undefined,
+      {
+        uid: uid || "usr_default",
+        userEmail: userEmail || undefined,
+        orgId: orgId || "org-default",
+        projectId: projectId || "proj-main",
+        orgName: orgName || "My Organization",
+        projectName: projectName || "Core Design System",
+      }
     );
     saveApiKey(record);
 

@@ -118,6 +118,8 @@ function ConnectPageContent() {
           projectId: activeProj?.id || "proj-main",
           orgName: activeOrg?.name || "My Organization",
           projectName: activeProj?.name || "Design System",
+          uid: currentUser?.uid,
+          userEmail: currentUser?.email,
         }),
       });
 
