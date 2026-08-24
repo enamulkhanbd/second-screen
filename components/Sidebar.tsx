@@ -79,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       if (auth) {
         await signOut(auth);
       }
-    } catch {}
+    } catch { }
     setCurrentUser(null);
     addToast({
       type: "info",
@@ -179,11 +179,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Dashboard */}
           <button
             onClick={() => setSidebarTab("dashboard")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "dashboard"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "dashboard"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Home className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Dashboard</span>
@@ -192,11 +191,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Variables (Figma Native) */}
           <button
             onClick={() => setSidebarTab("variables")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "variables"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "variables"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <Sparkles className={`size-4 flex-shrink-0 ${sidebarTab === "variables" ? "text-violet-500" : "text-muted-foreground"}`} />
@@ -214,11 +212,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Tokens */}
           <button
             onClick={() => setSidebarTab("tokens")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "tokens"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "tokens"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <Layers className={`size-4 flex-shrink-0 ${sidebarTab === "tokens" ? "text-primary" : "text-muted-foreground"}`} />
@@ -234,15 +231,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Themes & Modes */}
           <button
             onClick={() => setSidebarTab("themes")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "themes"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "themes"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <Palette className={`size-4 flex-shrink-0 ${sidebarTab === "themes" ? "text-violet-500" : "text-muted-foreground"}`} />
-              <span>Themes &amp; Modes</span>
+              <span>Themes</span>
             </div>
             {themeGroups.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
@@ -254,11 +250,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Documentation */}
           <button
             onClick={() => setSidebarTab("documentation")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "documentation"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "documentation"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <FileText className="size-4 flex-shrink-0 text-muted-foreground" />
@@ -270,11 +265,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Assets */}
           <button
             onClick={() => setSidebarTab("assets")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "assets"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "assets"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <ImageIcon className="size-4 flex-shrink-0 text-muted-foreground" />
@@ -286,11 +280,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Exports */}
           <button
             onClick={() => setSidebarTab("exports")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "exports"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "exports"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Download className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Exports</span>
@@ -299,11 +292,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Releases */}
           <button
             onClick={() => setSidebarTab("releases")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "releases"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "releases"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <Package className="size-4 flex-shrink-0 text-muted-foreground" />
@@ -319,11 +311,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Activity */}
           <button
             onClick={() => setSidebarTab("activity")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "activity"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "activity"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Clock className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Activity</span>
@@ -339,11 +330,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Project Settings */}
           <button
             onClick={() => setSidebarTab("project-settings")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "project-settings"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "project-settings"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Settings className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Project Settings</span>
@@ -352,11 +342,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Members */}
           <button
             onClick={() => setSidebarTab("members")}
-            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "members"
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "members"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2.5">
               <Users className="size-4 flex-shrink-0 text-muted-foreground" />
@@ -372,11 +361,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Organization Settings */}
           <button
             onClick={() => setSidebarTab("org-settings")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "org-settings"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "org-settings"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Building2 className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Organization Settings</span>
@@ -385,11 +373,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* Integrations */}
           <button
             onClick={() => setSidebarTab("integrations")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "integrations"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "integrations"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Link2 className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Integrations</span>
@@ -398,11 +385,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           {/* MCP & CLI */}
           <button
             onClick={() => setSidebarTab("mcp")}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "mcp"
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "mcp"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
+              }`}
           >
             <Code2 className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>MCP &amp; CLI</span>
