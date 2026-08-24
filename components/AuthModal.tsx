@@ -19,6 +19,8 @@ import {
   ArrowRight,
   LogOut,
   AlertCircle,
+  Building2,
+  Crown,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ROLE_DEFINITIONS } from "@/types/tenant";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -47,7 +50,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   subtitle,
   onSuccess,
 }) => {
-  const { currentUser, setCurrentUser, addToast } = useTokenStore();
+  const {
+    currentUser,
+    setCurrentUser,
+    currentOrg,
+    getCurrentUserRole,
+    addToast,
+  } = useTokenStore();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -175,31 +184,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           // Authenticated Profile View
           <div className="space-y-4 pt-1">
             <DialogHeader className="gap-1 text-left">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground font-bold flex items-center justify-center text-sm shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground font-bold flex items-center justify-center text-sm shadow-xs flex-shrink-0">
                   {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email[0].toUpperCase()}
                 </div>
-                <div>
-                  <DialogTitle className="text-base">{currentUser.displayName || "User Profile"}</DialogTitle>
-                  <DialogDescription className="text-xs">{currentUser.email}</DialogDescription>
+                <div className="min-w-0">
+                  <DialogTitle className="text-base font-bold truncate">
+                    {currentUser.displayName || "User Profile"}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground truncate">
+                    {currentUser.email}
+                  </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
 
-            <div className="p-3.5 rounded-xl bg-muted/50 border border-border text-xs space-y-2">
+            {/* Clean Workspace & Role Card */}
+            <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">User ID</span>
-                <span className="font-mono text-[11px] text-foreground">{currentUser.uid}</span>
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Workspace</span>
+                </span>
+                <span className="font-medium text-foreground truncate max-w-[180px]">
+                  {currentOrg?.name || "Personal Workspace"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Session Status</span>
-                <Badge variant="success">Active Session</Badge>
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Role</span>
+                </span>
+                <Badge variant="violet" className="text-[10px] capitalize font-medium">
+                  {ROLE_DEFINITIONS[getCurrentUserRole()]?.title || "Owner"}
+                </Badge>
               </div>
             </div>
 
             <Button
               variant="destructive"
-              className="w-full gap-2 text-xs"
+              className="w-full gap-2 text-xs font-semibold h-9 shadow-xs cursor-pointer"
               onClick={handleSignOut}
             >
               <LogOut className="w-3.5 h-3.5" />
