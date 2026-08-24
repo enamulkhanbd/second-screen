@@ -42,6 +42,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getValidTokenSetNames } from "@/utils/themeHelpers";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -74,9 +75,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const userRole = getCurrentUserRole();
   const roleDef = ROLE_DEFINITIONS[userRole];
 
-  // Extract all non-metadata set names from rawTokens
+  // Extract all valid set names based on $metadata.json ($themes.json or valid token sets)
   const allSetNames = useMemo(() => {
-    return Object.keys(rawTokens).filter((k) => !k.startsWith("$"));
+    return getValidTokenSetNames(rawTokens);
   }, [rawTokens]);
 
   const handleSignOut = async () => {

@@ -404,6 +404,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
         if (activeProj) {
           get().setCurrentProject(activeProj);
+          if (
+            activeProj.gitConfig?.provider &&
+            activeProj.gitConfig?.owner &&
+            activeProj.gitConfig?.repo &&
+            activeProj.gitConfig?.branch &&
+            activeProj.gitConfig?.pat
+          ) {
+            get().fetchLiveTokens(activeProj.gitConfig);
+          }
         }
         get().loadInvitations(activeOrg.id);
       }

@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -710,7 +711,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                     proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0
                   );
                   const rawTokensCount = proj.rawTokens
-                    ? Object.keys(proj.rawTokens).filter((k) => !k.startsWith("$")).length
+                    ? getValidTokenSetNames(proj.rawTokens).length
                     : 0;
                   const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
