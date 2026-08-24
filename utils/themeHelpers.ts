@@ -475,30 +475,161 @@ export interface SetTreeNode {
 }
 
 /**
- * Builds a hierarchical folder tree from flat set names using "/" delimiters.
- * e.g. ["comp/button", "comp/toggle", "global", "pattern/feature"]
+ * Non-token JSON files or configs to ignore
  */
-export function buildSetFolderTree(setNames: string[]): SetTreeNode[] {
+export const NON_TOKEN_PATTERNS = [
+  "staticwebapp.config",
+  "package-releases",
+  "metadata",
+  "package",
+  "package-lock",
+  "tsconfig",
+  "jsconfig",
+  "vercel",
+  "project",
+  "composer",
+  "angular",
+];
+
+/**
+ * Extracts the exact list of valid token sets defined by $metadata.json (tokenSetOrder)
+ * or $themes.json (selectedTokenSets). If neither exists, returns cleaned token set keys.
+ */
+export function getValidTokenSetNames(rawDoc: RawTokensDocument): string[] {
+  if (!rawDoc || typeof rawDoc !== "object") return [];
+
+  const rawKeys = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
+
+  // 1. Check $metadata.json / $metadata for tokenSetOrder
+  const meta = rawDoc["$metadata"] || rawDoc["$metadata.json"];
+  if (meta && Array.isArray(meta.tokenSetOrder) && meta.tokenSetOrder.length > 0) {
+    const validOrdered: string[] = [];
+    const visited = new Set<string>();
+
+    for (const declaredSet of meta.tokenSetOrder) {
+      if (typeof declaredSet !== "string" || !declaredSet.trim()) continue;
+      const match = findSetInDoc(declaredSet, rawDoc);
+      if (match && !visited.has(match.actualKey)) {
+        validOrdered.push(match.actualKey);
+        visited.add(match.actualKey);
+      } else if (!visited.has(declaredSet) && rawDoc[declaredSet]) {
+        validOrdered.push(declaredSet);
+        visited.add(declaredSet);
+      }
+    }
+
+    if (validOrdered.length > 0) {
+      return validOrdered;
+    }
+  }
+
+  // 2. Check $themes.json / $themes for selectedTokenSets across all themes
+  const themesRaw = rawDoc["$themes"] || rawDoc["$themes.json"];
+  if (themesRaw && Array.isArray(themesRaw) && themesRaw.length > 0) {
+    const themeSets = new Set<string>();
+    for (const theme of themesRaw) {
+      if (theme && theme.selectedTokenSets && typeof theme.selectedTokenSets === "object") {
+        for (const setName of Object.keys(theme.selectedTokenSets)) {
+          const match = findSetInDoc(setName, rawDoc);
+          if (match) {
+            themeSets.add(match.actualKey);
+          } else if (rawDoc[setName]) {
+            themeSets.add(setName);
+          }
+        }
+      }
+    }
+
+    if (themeSets.size > 0) {
+      return Array.from(themeSets).sort((a, b) => a.localeCompare(b));
+    }
+  }
+
+  // 3. Fallback: Filter all non-system keys, rejecting non-token files
+  return rawKeys
+    .filter((key) => {
+      const lower = key.toLowerCase();
+      const fileName = lower.split("/").pop() || "";
+      const baseName = fileName.replace(/\.json$/i, "");
+
+      if (NON_TOKEN_PATTERNS.includes(baseName)) {
+        return false;
+      }
+
+      if (
+        lower.startsWith("apps/") ||
+        lower.startsWith("assets/icons") ||
+        lower.startsWith("assets/illustrations") ||
+        lower.startsWith("assets/logos")
+      ) {
+        return false;
+      }
+
+      const val = rawDoc[key];
+      return val !== null && typeof val === "object" && Object.keys(val).length > 0;
+    })
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Finds common directory prefix among paths to strip unnecessary wrapper folders in UI
+ */
+export function getCommonPathPrefix(paths: string[]): string {
+  if (!paths || paths.length === 0) return "";
+  const partsList = paths.map((p) => p.split("/").filter(Boolean));
+  if (partsList.length === 0 || partsList[0].length <= 1) return "";
+
+  const commonSegments: string[] = [];
+  const firstParts = partsList[0];
+
+  for (let i = 0; i < firstParts.length - 1; i++) {
+    const seg = firstParts[i];
+    const isCommon = partsList.every((parts) => parts.length > i + 1 && parts[i] === seg);
+    if (isCommon) {
+      commonSegments.push(seg);
+    } else {
+      break;
+    }
+  }
+
+  return commonSegments.length > 0 ? commonSegments.join("/") + "/" : "";
+}
+
+/**
+ * Builds a hierarchical folder tree from set names or a RawTokensDocument.
+ */
+export function buildSetFolderTree(
+  setNamesOrDoc: string[] | RawTokensDocument
+): SetTreeNode[] {
+  let validSets: string[] = [];
+
+  if (Array.isArray(setNamesOrDoc)) {
+    validSets = setNamesOrDoc.filter((s) => !s.startsWith("$"));
+  } else if (setNamesOrDoc && typeof setNamesOrDoc === "object") {
+    validSets = getValidTokenSetNames(setNamesOrDoc);
+  }
+
   const rootNodes: SetTreeNode[] = [];
   const folderMap = new Map<string, SetTreeNode>();
 
-  // Filter out system files like $themes, $metadata
-  const validSets = setNames
-    .filter((s) => !s.startsWith("$"))
-    .sort((a, b) => a.localeCompare(b));
+  // Determine common wrapper prefix if multiple sets exist
+  const commonPrefix = getCommonPathPrefix(validSets);
 
-  for (const setName of validSets) {
-    const parts = setName.split("/").filter(Boolean);
+  for (const fullKey of validSets) {
+    // Strip common outer prefix for display while retaining fullKey for selection
+    const displayPath = commonPrefix && fullKey.startsWith(commonPrefix)
+      ? fullKey.slice(commonPrefix.length)
+      : fullKey;
+
+    const parts = displayPath.split("/").filter(Boolean);
     if (parts.length === 1) {
-      // Root leaf set (e.g. "global", "semantic")
       rootNodes.push({
-        id: setName,
+        id: fullKey,
         name: parts[0],
         isFolder: false,
-        fullPath: setName,
+        fullPath: fullKey,
       });
     } else {
-      // Nested set in folder(s) (e.g. "comp/button", "pattern/feature")
       let currentPath = "";
       let currentParentList = rootNodes;
 
@@ -509,10 +640,10 @@ export function buildSetFolderTree(setNames: string[]): SetTreeNode[] {
 
         if (isLeaf) {
           currentParentList.push({
-            id: currentPath,
+            id: fullKey,
             name: part,
             isFolder: false,
-            fullPath: setName,
+            fullPath: fullKey,
           });
         } else {
           let folderNode = folderMap.get(currentPath);

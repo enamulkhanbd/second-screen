@@ -33,6 +33,78 @@ function isIgnored(filePath: string): boolean {
 }
 
 /**
+ * Scopes aggregated tokens strictly to the token root (based on $themes.json / $metadata.json or folder path)
+ * and excludes non-token repository JSON files.
+ */
+function scopeAggregatedTokens(
+  rawMap: Record<string, any>,
+  filesMeta: Record<string, string>,
+  requestedFolder?: string
+): { tokens: Record<string, any>; files: Record<string, string> } {
+  let tokenRoot = requestedFolder ? requestedFolder.replace(/^\/+|\/+$/g, "").toLowerCase() : "";
+
+  if (!tokenRoot) {
+    for (const [key, filePath] of Object.entries(filesMeta)) {
+      const fileName = filePath.split("/").pop()?.toLowerCase() || "";
+      if (
+        fileName === "$themes.json" ||
+        fileName === "$metadata.json" ||
+        fileName === "$themes" ||
+        fileName === "$metadata" ||
+        fileName === "metadata.json"
+      ) {
+        const parentDir = filePath.substring(0, filePath.lastIndexOf("/")).replace(/^\/+|\/+$/g, "");
+        if (parentDir) {
+          tokenRoot = parentDir.toLowerCase();
+          break;
+        }
+      }
+    }
+  }
+
+  const resultTokens: Record<string, any> = {};
+  const resultFiles: Record<string, string> = {};
+
+  if (rawMap["$themes"]) resultTokens["$themes"] = rawMap["$themes"];
+  if (rawMap["$themes.json"]) resultTokens["$themes"] = rawMap["$themes.json"];
+  if (rawMap["$metadata"]) resultTokens["$metadata"] = rawMap["$metadata"];
+  if (rawMap["$metadata.json"]) resultTokens["$metadata"] = rawMap["$metadata.json"];
+
+  for (const [key, val] of Object.entries(rawMap)) {
+    if (key.startsWith("$")) continue;
+    const filePath = (filesMeta[key] || key).replace(/^\/+/, "");
+    const lowerPath = filePath.toLowerCase();
+
+    if (tokenRoot && !lowerPath.startsWith(`${tokenRoot}/`) && lowerPath !== tokenRoot) {
+      continue;
+    }
+
+    let relativeKey = key;
+    if (tokenRoot && lowerPath.startsWith(`${tokenRoot}/`)) {
+      relativeKey = filePath.slice(tokenRoot.length + 1).replace(/\.json$/i, "");
+    }
+
+    const baseName = relativeKey.split("/").pop()?.toLowerCase() || "";
+    if (
+      baseName.startsWith("staticwebapp") ||
+      baseName.startsWith("package") ||
+      baseName === "metadata" ||
+      relativeKey.toLowerCase().startsWith("apps/") ||
+      relativeKey.toLowerCase().startsWith("assets/icons") ||
+      relativeKey.toLowerCase().startsWith("assets/illustrations") ||
+      relativeKey.toLowerCase().startsWith("assets/logos")
+    ) {
+      continue;
+    }
+
+    resultTokens[relativeKey] = val;
+    resultFiles[relativeKey] = filePath;
+  }
+
+  return { tokens: resultTokens, files: resultFiles };
+}
+
+/**
  * Robustly fetches raw file content from Azure DevOps using blob objectId or path
  */
 async function fetchAzureItemText(
@@ -237,11 +309,12 @@ export async function POST(req: NextRequest) {
             // ignore
           }
 
-          if (Object.keys(aggregated).length > 0) {
+          const scoped = scopeAggregatedTokens(aggregated, filesMeta, cleanPath);
+          if (Object.keys(scoped.tokens).length > 0) {
             return NextResponse.json({
-              tokens: aggregated,
+              tokens: scoped.tokens,
               userProfile,
-              syncMeta: { mode: "folder", targetFolder: cleanPath, files: filesMeta },
+              syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
             });
           }
         }
@@ -397,7 +470,9 @@ export async function POST(req: NextRequest) {
         username: owner,
       };
 
-      if (Object.keys(aggregated).length === 0) {
+      const scoped = scopeAggregatedTokens(aggregated, filesMeta, cleanPath);
+
+      if (Object.keys(scoped.tokens).length === 0) {
         return NextResponse.json(
           { error: `Found JSON files, but could not parse token data from them.` },
           { status: 422 }
@@ -405,9 +480,9 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({
-        tokens: aggregated,
+        tokens: scoped.tokens,
         userProfile,
-        syncMeta: { mode: "folder", targetFolder: cleanPath, files: filesMeta },
+        syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
       });
     }
 

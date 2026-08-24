@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import { AddSetModal } from "@/components/AddSetModal";
-import { buildSetFolderTree, SetTreeNode } from "@/utils/themeHelpers";
+import { buildSetFolderTree, getValidTokenSetNames, SetTreeNode } from "@/utils/themeHelpers";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,9 +38,9 @@ export const SecondarySidebar: React.FC = () => {
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [searchFilter, setSearchFilter] = useState("");
 
-  // Extract all non-metadata set names from rawTokens
+  // Extract all valid set names based on $metadata.json (tokenSetOrder), $themes.json, or valid token sets
   const allSetNames = useMemo(() => {
-    return Object.keys(rawTokens).filter((k) => !k.startsWith("$"));
+    return getValidTokenSetNames(rawTokens);
   }, [rawTokens]);
 
   // Build folder-wise hierarchical tree for the Tokens tab
