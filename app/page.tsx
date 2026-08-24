@@ -67,16 +67,13 @@ export default function Home() {
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
         {/* 1. Primary Navigation Sidebar */}
-        {isConfigured && <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />}
+        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
 
-        {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups) */}
-        {isConfigured && <SecondarySidebar />}
+        {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
+        {(sidebarTab === "tokens" || sidebarTab === "themes") && <SecondarySidebar />}
 
         {/* 3. Main Workspace Page Views */}
-        {!isConfigured ? (
-          /* Full-screen clean Onboarding Hub when unconfigured / empty */
-          <WorkspacesProjectsView />
-        ) : sidebarTab === "dashboard" || (sidebarTab as string) === "workspaces" ? (
+        {sidebarTab === "dashboard" || (sidebarTab as string) === "workspaces" ? (
           <WorkspacesProjectsView />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />

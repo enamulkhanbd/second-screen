@@ -815,7 +815,10 @@ export const WorkspacesProjectsView: React.FC = () => {
                               <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="Connected" />
                             ) : (
                               <button
-                                onClick={() => handleConfigureSync(proj)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfigureSync(proj);
+                                }}
                                 className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
                               >
                                 Connect
@@ -841,7 +844,10 @@ export const WorkspacesProjectsView: React.FC = () => {
                               </span>
                             ) : (
                               <button
-                                onClick={() => handleConfigureSync(proj)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfigureSync(proj);
+                                }}
                                 className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
                               >
                                 Pair Plugin
@@ -860,7 +866,10 @@ export const WorkspacesProjectsView: React.FC = () => {
                         </div>
 
                         <Button
-                          onClick={() => handleOpenProjectInStudio(proj)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenProjectInStudio(proj);
+                          }}
                           size="sm"
                           className="gap-1 text-xs font-semibold h-7 px-3 shadow-xs cursor-pointer"
                         >

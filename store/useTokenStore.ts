@@ -319,25 +319,36 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
 
-      // 1. Git Connection & Token Dictionary (Dynamic-only on explicit Pull)
+      // 1. Git Connection & Token Dictionary
       if (proj.gitConfig && proj.gitConfig.repo) {
-        get().setCredentials(proj.gitConfig);
+        set({ credentials: { ...DEFAULT_CREDENTIALS, ...proj.gitConfig } });
         if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
           get().setRawTokens(proj.rawTokens);
+        } else {
+          set({
+            rawTokens: {},
+            resolvedTokens: [],
+            themeGroups: proj.themeGroups || [],
+            activeThemeGroupId: proj.themeGroups?.[0]?.id || "",
+            activeThemeOptionId: proj.themeGroups?.[0]?.options?.[0]?.id || "",
+            syncMeta: null,
+          });
         }
       } else {
-        get().clearCredentials();
         set({
-          rawTokens: {},
-          resolvedTokens: [],
-          themeGroups: [],
-          activeThemeGroupId: "",
-          activeThemeOptionId: "",
+          credentials: DEFAULT_CREDENTIALS,
+          rawTokens: proj.rawTokens || {},
+          resolvedTokens: proj.rawTokens && Object.keys(proj.rawTokens).length > 0
+            ? flattenAndResolveTokens(proj.rawTokens, "ALL")
+            : [],
+          themeGroups: proj.themeGroups || [],
+          activeThemeGroupId: proj.themeGroups?.[0]?.id || "",
+          activeThemeOptionId: proj.themeGroups?.[0]?.options?.[0]?.id || "",
           syncMeta: null,
         });
       }
 
-      // 2. Figma Variables (Explicitly pushed from Figma Plugin)
+      // 2. Figma Variables
       if (proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0) {
         const resolvedFigma = flattenAndResolveTokens(proj.figmaVariables, "ALL");
         set({
@@ -355,7 +366,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
       }
 
-      if (proj.themeGroups && proj.themeGroups.length > 0 && proj.gitConfig?.repo) {
+      if (proj.themeGroups && proj.themeGroups.length > 0) {
         set({
           themeGroups: proj.themeGroups,
           activeThemeGroupId: proj.themeGroups[0].id,
@@ -711,11 +722,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       syncError: null,
       isDirty: false,
     });
-    const { currentOrg, currentProject } = get();
-    if (currentOrg && currentProject) {
-      saveProjectGitConfig(currentOrg.id, currentProject.id, null).catch(() => {});
-      saveProjectTokens(currentOrg.id, currentProject.id, {}).catch(() => {});
-    }
   },
 
   rawTokens: {},
