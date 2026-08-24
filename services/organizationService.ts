@@ -461,3 +461,31 @@ export async function saveProjectGitConfig(
     console.warn("Firestore error saving project git config:", e);
   }
 }
+
+/**
+ * Dynamically saves or clears Figma Variables for a specific Project in Firestore
+ */
+export async function saveProjectFigmaVariables(
+  orgId: string,
+  projectId: string,
+  figmaVariables: RawTokensDocument | null,
+  meta?: Record<string, any>
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        figmaVariables: figmaVariables || {},
+        figmaUpdatedAt: figmaVariables && Object.keys(figmaVariables).length > 0 ? new Date().toISOString() : null,
+        figmaMeta: meta || {},
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving figma variables:", e);
+  }
+}
+

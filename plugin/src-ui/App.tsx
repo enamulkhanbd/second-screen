@@ -281,7 +281,11 @@ export const App: React.FC = () => {
               "Content-Type": "application/json",
               ...(config.pat ? { Authorization: `Bearer ${config.pat}` } : {}),
             },
-            body: JSON.stringify({ rawTokens: msg.payload.rawTokens }),
+            body: JSON.stringify({
+              rawTokens: msg.payload.rawTokens,
+              source: "figma_plugin",
+              isFigmaPlugin: true,
+            }),
           });
 
           const data = await res.json();

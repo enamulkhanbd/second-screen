@@ -53,6 +53,9 @@ export interface Project {
   gitConfig?: GitCredentials;
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];
+  figmaVariables?: RawTokensDocument;
+  figmaUpdatedAt?: string;
+  figmaMeta?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
   createdByName?: string;

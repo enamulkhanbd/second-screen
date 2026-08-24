@@ -42,6 +42,7 @@ import {
   createProject,
   saveProjectTokens,
   saveProjectGitConfig,
+  saveProjectFigmaVariables,
   createOrganizationInvitation,
   getOrganizationInvitations,
   getPendingInvitationsForEmail,
@@ -94,6 +95,16 @@ interface TokenStoreState {
   rawTokens: RawTokensDocument;
   resolvedTokens: FlattenedToken[];
   isDirty: boolean;
+
+  // Figma Variables State
+  figmaVariables: RawTokensDocument | null;
+  figmaResolvedVariables: FlattenedToken[];
+  figmaUpdatedAt: string | null;
+  figmaMeta: Record<string, any> | null;
+  setFigmaVariables: (vars: RawTokensDocument | null, meta?: Record<string, any>) => void;
+  desyncFigmaVariablesAction: () => Promise<void>;
+  deleteFigmaVariableAction: (setName: string, tokenPath: string[]) => Promise<void>;
+  deleteFigmaCollectionAction: (setName: string) => Promise<void>;
 
   // Theme Groups Architecture
   themeGroups: ThemeGroup[];
@@ -324,9 +335,35 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0 && !get().isDirty) {
                 get().setRawTokens(data.rawTokens);
               }
+              if (data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
+                const resolved = flattenAndResolveTokens(data.figmaVariables, "ALL");
+                set({
+                  figmaVariables: data.figmaVariables,
+                  figmaResolvedVariables: resolved,
+                  figmaUpdatedAt: data.figmaUpdatedAt || null,
+                });
+              }
             })
             .catch(() => {});
         }
+      }
+
+      // Load Figma variables if present on project
+      if (proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0) {
+        const resolvedFigma = flattenAndResolveTokens(proj.figmaVariables, "ALL");
+        set({
+          figmaVariables: proj.figmaVariables,
+          figmaResolvedVariables: resolvedFigma,
+          figmaUpdatedAt: proj.figmaUpdatedAt || null,
+          figmaMeta: proj.figmaMeta || null,
+        });
+      } else {
+        set({
+          figmaVariables: null,
+          figmaResolvedVariables: [],
+          figmaUpdatedAt: null,
+          figmaMeta: null,
+        });
       }
 
       if (proj.themeGroups && proj.themeGroups.length > 0) {
@@ -359,6 +396,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                     set({ themeGroups: liveData.themeGroups });
                   }
                 }
+              }
+              if (liveData.figmaVariables) {
+                const resolvedFigma = Object.keys(liveData.figmaVariables).length > 0
+                  ? flattenAndResolveTokens(liveData.figmaVariables, "ALL")
+                  : [];
+                set({
+                  figmaVariables: Object.keys(liveData.figmaVariables).length > 0 ? liveData.figmaVariables : null,
+                  figmaResolvedVariables: resolvedFigma,
+                  figmaUpdatedAt: liveData.figmaUpdatedAt || null,
+                  figmaMeta: liveData.figmaMeta || null,
+                });
               }
             }
           });
@@ -599,6 +647,93 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   rawTokens: {},
   resolvedTokens: [],
   isDirty: false,
+
+  figmaVariables: null,
+  figmaResolvedVariables: [],
+  figmaUpdatedAt: null,
+  figmaMeta: null,
+
+  setFigmaVariables: (vars, meta) => {
+    const resolved = vars && Object.keys(vars).length > 0 ? flattenAndResolveTokens(vars, "ALL") : [];
+    set({
+      figmaVariables: vars,
+      figmaResolvedVariables: resolved,
+      figmaUpdatedAt: vars && Object.keys(vars).length > 0 ? new Date().toISOString() : null,
+      figmaMeta: meta || null,
+    });
+    const { currentOrg, currentProject } = get();
+    if (currentOrg && currentProject) {
+      saveProjectFigmaVariables(currentOrg.id, currentProject.id, vars, meta).catch(() => {});
+    }
+  },
+
+  desyncFigmaVariablesAction: async () => {
+    const { currentOrg, currentProject, addToast } = get();
+    set({
+      figmaVariables: null,
+      figmaResolvedVariables: [],
+      figmaUpdatedAt: null,
+      figmaMeta: null,
+    });
+    if (currentOrg && currentProject) {
+      await saveProjectFigmaVariables(currentOrg.id, currentProject.id, null);
+    }
+    addToast({
+      type: "info",
+      title: "Figma Variables De-synced",
+      message: "Disconnected Figma variables. You can re-sync anytime from Figma.",
+    });
+  },
+
+  deleteFigmaVariableAction: async (setName: string, tokenPath: string[]) => {
+    const { figmaVariables, currentOrg, currentProject, addToast } = get();
+    if (!figmaVariables) return;
+    const cloned = JSON.parse(JSON.stringify(figmaVariables));
+    const targetSet = cloned[setName];
+    if (targetSet) {
+      const updatedSet = deleteTokenAtKeyPath(targetSet, tokenPath);
+      if (Object.keys(updatedSet).length === 0) {
+        delete cloned[setName];
+      } else {
+        cloned[setName] = updatedSet;
+      }
+    }
+    const resolved = Object.keys(cloned).length > 0 ? flattenAndResolveTokens(cloned, "ALL") : [];
+    set({
+      figmaVariables: Object.keys(cloned).length > 0 ? cloned : null,
+      figmaResolvedVariables: resolved,
+      figmaUpdatedAt: Object.keys(cloned).length > 0 ? new Date().toISOString() : null,
+    });
+    if (currentOrg && currentProject) {
+      await saveProjectFigmaVariables(currentOrg.id, currentProject.id, Object.keys(cloned).length > 0 ? cloned : null);
+    }
+    addToast({
+      type: "success",
+      title: "Variable Deleted",
+      message: `Deleted variable ${tokenPath.join(".")}.`,
+    });
+  },
+
+  deleteFigmaCollectionAction: async (setName: string) => {
+    const { figmaVariables, currentOrg, currentProject, addToast } = get();
+    if (!figmaVariables) return;
+    const cloned = JSON.parse(JSON.stringify(figmaVariables));
+    delete cloned[setName];
+    const resolved = Object.keys(cloned).length > 0 ? flattenAndResolveTokens(cloned, "ALL") : [];
+    set({
+      figmaVariables: Object.keys(cloned).length > 0 ? cloned : null,
+      figmaResolvedVariables: resolved,
+      figmaUpdatedAt: Object.keys(cloned).length > 0 ? new Date().toISOString() : null,
+    });
+    if (currentOrg && currentProject) {
+      await saveProjectFigmaVariables(currentOrg.id, currentProject.id, Object.keys(cloned).length > 0 ? cloned : null);
+    }
+    addToast({
+      type: "success",
+      title: "Collection Deleted",
+      message: `Deleted Figma collection "${setName}".`,
+    });
+  },
 
   themeGroups: [],
   activeThemeGroupId: "",

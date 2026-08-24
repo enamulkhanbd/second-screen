@@ -9,6 +9,7 @@ import { TokenFlow } from "@/components/TokenFlow";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { DashboardView } from "@/components/DashboardView";
+import { VariablesView } from "@/components/VariablesView";
 import { ReleasesWorkspace } from "@/components/ReleasesWorkspace";
 import { DocumentationView } from "@/components/DocumentationView";
 import { AssetsView } from "@/components/AssetsView";
@@ -75,6 +76,8 @@ export default function Home() {
           <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "dashboard" ? (
           <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "variables" ? (
+          <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "documentation" ? (
           <DocumentationView />
         ) : sidebarTab === "assets" ? (

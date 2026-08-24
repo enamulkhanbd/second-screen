@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Home,
+  Sparkles,
   Layers,
   Palette,
   FileText,
@@ -55,6 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     setCurrentProject,
     themeGroups,
     rawTokens,
+    figmaResolvedVariables,
     sidebarTab,
     setSidebarTab,
     releases,
@@ -185,6 +187,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           >
             <Home className="size-4 flex-shrink-0 text-muted-foreground" />
             <span>Dashboard</span>
+          </button>
+
+          {/* Variables (Figma Native) */}
+          <button
+            onClick={() => setSidebarTab("variables")}
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "variables"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Sparkles className={`size-4 flex-shrink-0 ${sidebarTab === "variables" ? "text-violet-500" : "text-muted-foreground"}`} />
+              <span>Variables</span>
+            </div>
+            {figmaResolvedVariables.length > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-violet-500/10 text-violet-600 dark:text-violet-400 font-bold">
+                {figmaResolvedVariables.length}
+              </span>
+            ) : (
+              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">Figma</Badge>
+            )}
           </button>
 
           {/* Tokens */}

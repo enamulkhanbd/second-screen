@@ -409,6 +409,15 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
         {/* Right: Search Filter & + Add option Button */}
         <div className="flex items-center gap-3">
+          {/* Sync Provider Badge */}
+          {credentials.repo && (
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
+              <FolderGit2 className="w-3.5 h-3.5 text-primary" />
+              <span className="font-semibold text-foreground truncate max-w-[120px]">{credentials.repo}</span>
+              <span className="text-[10px]">@{credentials.branch || "main"}</span>
+            </div>
+          )}
+
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <Input
@@ -431,6 +440,28 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           </Button>
         </div>
       </div>
+
+      {/* Sync Provider Notification Banner when unlinked */}
+      {!credentials.repo && (
+        <div className="px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <FolderGit2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+            <span>
+              Connect a <strong>Git Sync Provider</strong> (GitHub, GitLab, Azure DevOps, Bitbucket) to version and sync multi-theme tokens with your repository.
+            </span>
+          </div>
+          {onOpenSettings && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenSettings}
+              className="h-6 text-[11px] px-2 font-medium"
+            >
+              Connect Provider
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Minimal Token Type Filter & Separation Sub-Bar */}
       {availableCategories.length > 0 && (

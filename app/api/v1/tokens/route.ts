@@ -3,7 +3,7 @@ import { authenticateRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
-import { getOrgProjects, saveProjectTokens } from "@/services/organizationService";
+import { getOrgProjects, saveProjectTokens, saveProjectFigmaVariables } from "@/services/organizationService";
 
 export const dynamic = "force-dynamic";
 
@@ -41,14 +41,22 @@ export async function GET(req: NextRequest) {
     const projectId = searchParams.get("projectId") || auth.record?.projectId;
 
     let targetDoc: Record<string, any> = { global: {} };
+    let figmaVariables: Record<string, any> = {};
+    let figmaUpdatedAt: string | null = null;
 
     // Fetch directly from the target project in Firestore
     if (orgId && projectId) {
       try {
         const projects = await getOrgProjects(orgId);
         const proj = projects.find((p) => p.id === projectId);
-        if (proj && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
-          targetDoc = proj.rawTokens;
+        if (proj) {
+          if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
+            targetDoc = proj.rawTokens;
+          }
+          if (proj.figmaVariables) {
+            figmaVariables = proj.figmaVariables;
+            figmaUpdatedAt = proj.figmaUpdatedAt || null;
+          }
         }
       } catch (err) {
         console.warn("Error fetching project tokens:", err);
@@ -71,6 +79,8 @@ export async function GET(req: NextRequest) {
       projectId: projectId || undefined,
       version: "1.0.0",
       rawTokens: targetDoc,
+      figmaVariables,
+      figmaUpdatedAt,
       resolvedTokens,
       themeGroups,
       themes,
@@ -115,6 +125,11 @@ export async function POST(req: NextRequest) {
     }
 
     const rawDoc = body.rawTokens || body;
+    const isFromFigma =
+      body.source === "figma_plugin" ||
+      Boolean(body.isFigmaPlugin) ||
+      (auth.record?.name && auth.record.name.toLowerCase().includes("figma"));
+
     let currentDoc: Record<string, any> = {};
 
     if (orgId && projectId) {
@@ -143,6 +158,9 @@ export async function POST(req: NextRequest) {
     if (orgId && projectId) {
       try {
         await saveProjectTokens(orgId, projectId, mergedDoc);
+        if (isFromFigma) {
+          await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
+        }
       } catch (err) {
         console.warn("Error saving project tokens:", err);
       }
@@ -152,7 +170,9 @@ export async function POST(req: NextRequest) {
 
     return jsonWithCors({
       success: true,
-      message: "Tokens updated successfully in Tokens Platform Cloud.",
+      message: isFromFigma
+        ? "Figma Variables synced successfully to Tokens Platform."
+        : "Tokens updated successfully in Tokens Platform Cloud.",
       tokenCount: resolved.length,
       timestamp: new Date().toISOString(),
       updatedBy: auth.record?.name,
