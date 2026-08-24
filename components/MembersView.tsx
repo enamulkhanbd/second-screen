@@ -24,6 +24,9 @@ import {
   Send,
   Link,
   Sparkles,
+  RotateCcw,
+  AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +47,7 @@ export const MembersView: React.FC = () => {
     pendingInvitations,
     loadInvitations,
     sendInvitationAction,
+    resendInvitationAction,
     revokeInvitationAction,
     removeMemberAction,
     addToast,
@@ -53,6 +57,7 @@ export const MembersView: React.FC = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>("editor");
   const [loading, setLoading] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [previewInvitation, setPreviewInvitation] = useState<OrganizationInvitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -140,6 +145,75 @@ export const MembersView: React.FC = () => {
       message: "Direct join link copied to clipboard.",
     });
   };
+
+  const handleResendInvite = async (invId: string) => {
+    setResendingId(invId);
+    try {
+      const refreshed = await resendInvitationAction(invId);
+      if (refreshed) {
+        addToast({
+          type: "success",
+          title: "Invitation Renewed & Sent",
+          message: `New 7-day invitation link generated for ${refreshed.inviteeEmail}.`,
+        });
+        setPreviewInvitation(refreshed);
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Failed to Resend",
+        message: err.message || "Could not renew invitation.",
+      });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  // Format date and time
+  const formatDateTime = (isoString?: string) => {
+    if (!isoString) return "N/A";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "N/A";
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // Calculate expiration status
+  const getExpiryStatus = (expiresAt?: string) => {
+    if (!expiresAt) return { isExpired: false, label: "No expiration" };
+    const expireTime = new Date(expiresAt).getTime();
+    const now = Date.now();
+    const diffMs = expireTime - now;
+
+    if (diffMs <= 0) {
+      return { isExpired: true, label: `Expired on ${formatDateTime(expiresAt)}` };
+    }
+
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+    if (diffDays > 0) {
+      return { isExpired: false, label: `Expires in ${diffDays}d ${diffHours}h (${formatDateTime(expiresAt)})` };
+    }
+    return { isExpired: false, label: `Expires in ${diffHours}h (${formatDateTime(expiresAt)})` };
+  };
+
+  // Filter out invitations that have been accepted or where the colleague is already an active member
+  const memberEmails = React.useMemo(() => {
+    return new Set((currentOrg?.members || []).map((m) => m.email.toLowerCase()));
+  }, [currentOrg?.members]);
+
+  const activePendingInvitations = React.useMemo(() => {
+    return pendingInvitations.filter(
+      (inv) => inv.status === "pending" && !memberEmails.has(inv.inviteeEmail.toLowerCase())
+    );
+  }, [pendingInvitations, memberEmails]);
 
   if (!currentOrg) {
     return (
@@ -350,13 +424,13 @@ export const MembersView: React.FC = () => {
         </div>
 
         {/* Section 3: Pending Invitations */}
-        {pendingInvitations.length > 0 && (
+        {activePendingInvitations.length > 0 && (
           <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
             <div className="p-6 border-b border-border/70 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
-                  <span>Pending Invitations ({pendingInvitations.length})</span>
+                  <span>Pending Invitations ({activePendingInvitations.length})</span>
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Invitations waiting to be accepted by colleagues.
@@ -365,51 +439,105 @@ export const MembersView: React.FC = () => {
             </div>
 
             <div className="divide-y divide-border/60">
-              {pendingInvitations.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                >
-                  <div className="space-y-0.5">
-                    <div className="text-xs font-semibold text-foreground flex items-center gap-2">
-                      <span>{inv.inviteeEmail}</span>
-                      <Badge variant="outline" className="text-[10px] font-normal capitalize">
-                        {inv.role}
-                      </Badge>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Invited by {inv.invitedByName || inv.invitedByEmail}
-                    </div>
-                  </div>
+              {activePendingInvitations.map((inv) => {
+                const expiry = getExpiryStatus(inv.expiresAt);
+                const isExpired = expiry.isExpired;
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopyLink(inv.token)}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      {copiedToken === inv.token ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                return (
+                  <div
+                    key={inv.id}
+                    className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors ${
+                      isExpired ? "bg-destructive/5" : ""
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="text-xs font-semibold text-foreground flex items-center gap-2">
+                        <span>{inv.inviteeEmail}</span>
+                        <Badge variant="outline" className="text-[10px] font-normal capitalize">
+                          {inv.role}
+                        </Badge>
+                        {isExpired && (
+                          <Badge variant="destructive" className="text-[9px] px-1.5 py-0 gap-1 font-semibold">
+                            <AlertTriangle className="size-2.5" />
+                            <span>Expired</span>
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Timestamps: Sent & Expire Time */}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                        <span>Invited by {inv.invitedByName || inv.invitedByEmail}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Send className="size-3 text-muted-foreground/70" />
+                          <span>Sent: {formatDateTime(inv.createdAt)}</span>
+                        </span>
+                        <span>•</span>
+                        <span className={`flex items-center gap-1 ${isExpired ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          <Clock className="size-3" />
+                          <span>{expiry.label}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isExpired ? (
+                        /* Expired: Show Resend Invitation Button */
+                        <Button
+                          size="sm"
+                          onClick={() => handleResendInvite(inv.id)}
+                          disabled={resendingId === inv.id}
+                          className="h-8 text-xs font-semibold gap-1.5"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                          <span>{resendingId === inv.id ? "Resending..." : "Resend Invitation"}</span>
+                        </Button>
                       ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                      <span>{copiedToken === inv.token ? "Copied" : "Copy Link"}</span>
-                    </Button>
+                        /* Active: Show Copy Link & Resend/Renew option */
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopyLink(inv.token)}
+                            className="h-8 text-xs gap-1.5"
+                          >
+                            {copiedToken === inv.token ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            <span>{copiedToken === inv.token ? "Copied" : "Copy Link"}</span>
+                          </Button>
 
-                    {canManageMembers && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => revokeInvitationAction(inv.id)}
-                        className="h-8 text-xs text-muted-foreground hover:text-destructive"
-                      >
-                        Revoke
-                      </Button>
-                    )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendInvite(inv.id)}
+                            disabled={resendingId === inv.id}
+                            className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                            title="Generate fresh 7-day invite link"
+                          >
+                            <RotateCcw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                            <span>{resendingId === inv.id ? "Renewing..." : "Resend"}</span>
+                          </Button>
+                        </>
+                      )}
+
+                      {canManageMembers && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => revokeInvitationAction(inv.id)}
+                          className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

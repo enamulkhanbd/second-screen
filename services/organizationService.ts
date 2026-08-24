@@ -281,12 +281,59 @@ export async function getOrganizationInvitations(orgId: string): Promise<Organiz
     );
     const snap = await getDocs(q);
     const invs: OrganizationInvitation[] = [];
-    snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
+    snap.forEach((d) => {
+      const data = d.data() as OrganizationInvitation;
+      // Only keep pending invitations (exclude accepted or revoked)
+      if (data.status === "pending") {
+        invs.push(data);
+      }
+    });
     return invs;
   } catch (e) {
     console.warn("Firestore error getting org invitations:", e);
     return [];
   }
+}
+
+/**
+ * Resends / renews an invitation in Firestore with a new token and fresh 7-day expiration
+ */
+export async function resendOrganizationInvitation(
+  invitationId: string
+): Promise<OrganizationInvitation | null> {
+  if (!invitationId) return null;
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days from now
+  const newToken = `tok_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
+  const createdAt = new Date().toISOString();
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const invRef = doc(db, "invitations", invitationId);
+      const invSnap = await getDoc(invRef);
+      if (invSnap.exists()) {
+        const existing = invSnap.data() as OrganizationInvitation;
+        const updatedInv: OrganizationInvitation = {
+          ...existing,
+          token: newToken,
+          status: "pending",
+          createdAt,
+          expiresAt,
+        };
+        await updateDoc(invRef, {
+          token: newToken,
+          status: "pending",
+          createdAt,
+          expiresAt,
+          updatedAt: createdAt,
+        });
+        return updatedInv;
+      }
+    } catch (e) {
+      console.warn("Firestore error resending invitation:", e);
+      throw e;
+    }
+  }
+  return null;
 }
 
 /**
@@ -342,6 +389,11 @@ export async function acceptOrganizationInvitation(
   const inv = await getInvitationByToken(token);
   if (!inv || inv.status !== "pending") {
     throw new Error("Invitation is invalid or has already been used.");
+  }
+
+  // Check expiration
+  if (inv.expiresAt && new Date(inv.expiresAt).getTime() < Date.now()) {
+    throw new Error("This invitation has expired. Please ask your team administrator to resend it.");
   }
 
   // 1. Add user as a member of the organization

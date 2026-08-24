@@ -49,6 +49,7 @@ import {
   getInvitationByToken,
   acceptOrganizationInvitation,
   revokeInvitation,
+  resendOrganizationInvitation,
   removeOrgMember,
   deleteOrganization,
   deleteProject,
@@ -85,6 +86,7 @@ interface TokenStoreState {
   loadInvitations: (orgId: string) => Promise<void>;
   sendInvitationAction: (email: string, role: UserRole) => Promise<OrganizationInvitation | null>;
   acceptInvitationAction: (token: string) => Promise<boolean>;
+  resendInvitationAction: (id: string) => Promise<OrganizationInvitation | null>;
   revokeInvitationAction: (id: string) => Promise<void>;
   removeMemberAction: (memberEmailOrUid: string) => Promise<void>;
   getCurrentUserRole: () => UserRole;
@@ -404,7 +406,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   loadInvitations: async (orgId) => {
     try {
       const invs = await getOrganizationInvitations(orgId);
-      set({ pendingInvitations: invs });
+      const { currentOrg } = get();
+      const memberEmails = new Set(
+        (currentOrg?.members || []).map((m) => m.email.toLowerCase())
+      );
+      // Filter out any invitation where invitee is already an active member or not pending
+      const pendingOnly = invs.filter(
+        (i) => i.status === "pending" && !memberEmails.has(i.inviteeEmail.toLowerCase())
+      );
+      set({ pendingInvitations: pendingOnly });
     } catch (e) {
       console.warn("Error loading invitations:", e);
     }
@@ -451,7 +461,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       if (updatedOrg) {
         const allOrgs = await getUserOrganizations(currentUser.uid, currentUser.email);
-        set({ userOrgs: allOrgs, pendingInvitePrompt: null, activeInviteToken: null });
+        set((state) => ({
+          userOrgs: allOrgs,
+          pendingInvitePrompt: null,
+          activeInviteToken: null,
+          pendingInvitations: state.pendingInvitations.filter(
+            (i) => i.token !== token && i.inviteeEmail.toLowerCase() !== currentUser.email.toLowerCase()
+          ),
+        }));
         get().setCurrentOrg(updatedOrg);
         return true;
       }
@@ -460,6 +477,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       console.warn("Error accepting invitation:", e);
       throw e;
     }
+  },
+
+  resendInvitationAction: async (id) => {
+    try {
+      const updated = await resendOrganizationInvitation(id);
+      if (updated) {
+        set((state) => ({
+          pendingInvitations: state.pendingInvitations.map((i) =>
+            i.id === id ? updated : i
+          ),
+        }));
+        return updated;
+      }
+    } catch (e) {
+      console.warn("Error resending invitation:", e);
+    }
+    return null;
   },
 
   revokeInvitationAction: async (id) => {
