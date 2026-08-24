@@ -13,34 +13,33 @@ export async function OPTIONS() {
  */
 export async function GET(req: NextRequest) {
   try {
-    const isInternal = req.headers.get("x-internal-client") === "second-screen";
-    const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
-      ? await authenticateRequest(req, "read:tokens")
-      : { isValid: true, record: { uid: "usr_internal", name: "Internal" } };
+    const auth = await authenticateRequest(req, "read:tokens");
 
-    if (!auth.isValid) {
+    if (!auth.isValid || !auth.record) {
       return jsonWithCors({ success: false, error: auth.error || "Unauthorized" }, { status: 401 });
     }
 
-    const uid = auth.record?.uid || "usr_default";
-    const userEmail = auth.record?.userEmail;
+    const record = auth.record;
+    const uid = record.uid || "usr_default";
+    const userEmail = record.userEmail;
     let orgs = await getUserOrganizations(uid, userEmail);
 
     // If PAT has bound org/project metadata and it's not yet in the list, ensure it's included
-    if (auth.record?.orgId && !orgs.some((o) => o.id === auth.record.orgId)) {
-      let orgName = auth.record.orgName;
+    if (record.orgId && !orgs.some((o) => o.id === record.orgId)) {
+      let orgName = record.orgName;
       if (!orgName) {
         try {
-          const boundOrg = await getOrganization(auth.record.orgId);
+          const boundOrg = await getOrganization(record.orgId);
           if (boundOrg?.name) orgName = boundOrg.name;
         } catch {}
       }
-      orgName = orgName || "Organization";
+      const resolvedOrgName = orgName || "Organization";
+      const boundOrgId = record.orgId;
       orgs = [
         {
-          id: auth.record.orgId,
-          name: orgName,
-          slug: orgName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+          id: boundOrgId,
+          name: resolvedOrgName,
+          slug: resolvedOrgName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
           ownerUid: uid,
           members: [{ uid, email: userEmail || "", displayName: "Member", role: "owner", joinedAt: new Date().toISOString() }],
           createdAt: new Date().toISOString(),
@@ -54,11 +53,11 @@ export async function GET(req: NextRequest) {
     const orgsWithProjects = await Promise.all(
       orgs.map(async (org) => {
         let projects = await getOrgProjects(org.id);
-        if (projects.length === 0 && auth.record?.projectId && auth.record.orgId === org.id) {
-          const projName = auth.record.projectName || "Project";
+        if (projects.length === 0 && record.projectId && record.orgId === org.id) {
+          const projName = record.projectName || "Project";
           projects = [
             {
-              id: auth.record.projectId,
+              id: record.projectId,
               orgId: org.id,
               name: projName,
               slug: projName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
