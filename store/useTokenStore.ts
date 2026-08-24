@@ -739,35 +739,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   // Releases & Distribution Targets State
   releases: [],
   activeReleaseId: null,
-  distributionTargets: [
-    {
-      id: "target-web-app",
-      name: "Web App (Tailwind & CSS)",
-      provider: "github",
-      owner: "",
-      repo: "web-frontend",
-      branch: "main",
-      publishMode: "commit",
-      formats: [
-        { formatId: "css", targetPath: "apps/web/styles/tokens.css", enabled: true },
-        { formatId: "tailwind", targetPath: "apps/web/tailwind.tokens.js", enabled: true },
-        { formatId: "react", targetPath: "packages/tokens/src/index.ts", enabled: true },
-      ],
-    },
-    {
-      id: "target-flutter-app",
-      name: "Mobile Flutter App",
-      provider: "azure",
-      owner: "",
-      project: "",
-      repo: "flutter-mobile",
-      branch: "develop",
-      publishMode: "pull_request",
-      formats: [
-        { formatId: "flutter", targetPath: "lib/tokens/tokens.dart", enabled: true },
-      ],
-    },
-  ],
+  distributionTargets: [],
   createRelease: (pkg) =>
     set((state) => {
       const updated = [pkg, ...state.releases];

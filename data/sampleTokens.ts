@@ -1,8 +1,7 @@
 import { RawTokensDocument } from "@/types/tokens";
 
 /**
- * Production clean empty tokens schema
+ * Clean empty tokens document
  */
-export const EMPTY_TOKENS_DOCUMENT: RawTokensDocument = {
-  global: {},
-};
+export const EMPTY_TOKENS_DOCUMENT: RawTokensDocument = {};
+
