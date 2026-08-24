@@ -167,7 +167,169 @@ export function resolveTokenAlias(
 }
 
 /**
+/**
+ * Safe mathematical expression evaluator without `new Function` or `eval`.
+ * Parses and computes arithmetic expressions, percentage transforms, and rounding functions safely.
+ */
+function safeEvalArithmetic(expr: string): number | null {
+  let pos = 0;
+  const input = expr.trim();
+
+  function peek(): string {
+    while (pos < input.length && /\s/.test(input[pos])) pos++;
+    return pos < input.length ? input[pos] : "";
+  }
+
+  function consume(char?: string): string {
+    while (pos < input.length && /\s/.test(input[pos])) pos++;
+    if (pos >= input.length) return "";
+    const c = input[pos];
+    if (char && c !== char) return "";
+    pos++;
+    return c;
+  }
+
+  function parseNumberOrFunction(): number | null {
+    while (pos < input.length && /\s/.test(input[pos])) pos++;
+    if (pos >= input.length) return null;
+
+    // Unary plus/minus
+    if (input[pos] === "+") {
+      pos++;
+      return parseNumberOrFunction();
+    }
+    if (input[pos] === "-") {
+      pos++;
+      const val = parseNumberOrFunction();
+      return val !== null ? -val : null;
+    }
+
+    // Parentheses
+    if (input[pos] === "(") {
+      pos++;
+      const val = parseExpression();
+      if (consume(")") !== ")") return null;
+      return val;
+    }
+
+    // Function calls (roundTo, Math.round, round, floor, ceil, etc.)
+    const funcMatch = input.slice(pos).match(/^(?:Math\.)?(roundTo|round|floor|ceil|abs|min|max)\s*\(/i);
+    if (funcMatch) {
+      const funcName = funcMatch[1].toLowerCase();
+      pos += funcMatch[0].length; // moved past '('
+      const args: number[] = [];
+      while (pos < input.length) {
+        const arg = parseExpression();
+        if (arg === null) return null;
+        args.push(arg);
+        const next = peek();
+        if (next === ",") {
+          pos++;
+        } else if (next === ")") {
+          pos++;
+          break;
+        } else {
+          return null;
+        }
+      }
+
+      if (funcName === "roundto") {
+        const val = args[0] ?? 0;
+        const step = args[1] ?? 1;
+        if (step === 0) return Math.round(val);
+        return Math.round(val / step) * step;
+      }
+      if (funcName === "round") {
+        const val = args[0] ?? 0;
+        const step = args[1] ?? 1;
+        if (args.length > 1 && step !== 0) return Math.round(val / step) * step;
+        return Math.round(val);
+      }
+      if (funcName === "floor") return Math.floor(args[0] ?? 0);
+      if (funcName === "ceil") return Math.ceil(args[0] ?? 0);
+      if (funcName === "abs") return Math.abs(args[0] ?? 0);
+      if (funcName === "min") return Math.min(...args);
+      if (funcName === "max") return Math.max(...args);
+      return null;
+    }
+
+    // Number literal (supports optional units %, px, rem, em)
+    const numMatch = input.slice(pos).match(/^([0-9]+(?:\.[0-9]+)?)(%|px|rem|em)?/i);
+    if (numMatch) {
+      pos += numMatch[0].length;
+      let num = parseFloat(numMatch[1]);
+      if (numMatch[2] === "%") {
+        num = num / 100;
+      }
+      return num;
+    }
+
+    return null;
+  }
+
+  function parseFactor(): number | null {
+    return parseNumberOrFunction();
+  }
+
+  function parseTerm(): number | null {
+    let left = parseFactor();
+    if (left === null) return null;
+
+    while (pos < input.length) {
+      const op = peek();
+      if (op === "*" || op === "/") {
+        pos++;
+        const right = parseFactor();
+        if (right === null) return null;
+        if (op === "*") {
+          left = left * right;
+        } else {
+          if (right === 0) return null;
+          left = left / right;
+        }
+      } else {
+        break;
+      }
+    }
+    return left;
+  }
+
+  function parseExpression(): number | null {
+    let left = parseTerm();
+    if (left === null) return null;
+
+    while (pos < input.length) {
+      const op = peek();
+      if (op === "+" || op === "-") {
+        pos++;
+        const right = parseTerm();
+        if (right === null) return null;
+        if (op === "+") {
+          left = left + right;
+        } else {
+          left = left - right;
+        }
+      } else {
+        break;
+      }
+    }
+    return left;
+  }
+
+  try {
+    const result = parseExpression();
+    if (pos < input.length && peek() !== "") {
+      return null;
+    }
+    return result !== null && isFinite(result) && !isNaN(result) ? result : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Evaluates mathematical expressions and Tokens Studio functions (e.g. roundTo, arithmetic, percentages)
+ * using a safe AST arithmetic evaluator without code execution risks.
  */
 export function evaluateTokenMath(
   expr: string,
@@ -177,12 +339,12 @@ export function evaluateTokenMath(
   if (!expr || typeof expr !== "string") return expr;
   let str = expr.trim();
 
-  // If expression is already a plain number, return it
-  if (/^-?[0-9]+(\.[0-9]+)?(px|rem|em)?$/.test(str)) {
+  // If expression is already a plain number or color or non-math string, return it
+  if (/^-?[0-9]+(\.[0-9]+)?(px|rem|em)?$/.test(str) || str.startsWith("#") || str.startsWith("rgba")) {
     return str;
   }
 
-  // If expression contains roundTo or functions, resolve bare token names first if present
+  // If expression contains roundTo or math functions, resolve bare token names first if present
   if (allTokens && (str.includes("roundTo") || /^[a-zA-Z0-9_\-\.\s\+\-\*\/,()]+$/.test(str))) {
     const wordRegex = /[a-zA-Z0-9_\-]+(\.[a-zA-Z0-9_\-]+)+/g;
     str = str.replace(wordRegex, (match) => {
@@ -200,43 +362,20 @@ export function evaluateTokenMath(
     });
   }
 
-  // Transform roundTo(val, step) to JavaScript Math.round
-  let jsExpr = str.replace(/roundTo\s*\(\s*([^,]+)\s*(?:,\s*([^)]+))?\s*\)/gi, (_, valExpr, stepExpr) => {
-    const step = stepExpr ? stepExpr.trim().replace(/px|rem|em/g, "") : "1";
-    if (step === "0" || step === "" || !stepExpr) {
-      return `Math.round(${valExpr})`;
-    }
-    return `(Math.round((${valExpr}) / (${step})) * (${step}))`;
-  });
+  // Preserve units if present
+  const hasPx = str.includes("px");
+  const hasRem = str.includes("rem");
+  const hasEm = str.includes("em");
 
-  // Convert percentages (e.g. "125%" -> "(125 / 100)")
-  jsExpr = jsExpr.replace(/([0-9.]+)%/g, "($1 / 100)");
+  // Evaluate safely using our sandboxed arithmetic parser
+  const result = safeEvalArithmetic(str);
 
-  // Strip CSS units before evaluation
-  const hasPx = jsExpr.includes("px") || str.includes("px");
-  const hasRem = jsExpr.includes("rem") || str.includes("rem");
-  const hasEm = jsExpr.includes("em") || str.includes("em");
-  const sanitized = jsExpr.replace(/px|rem|em/g, "");
-
-  try {
-    // eslint-disable-next-line no-new-func
-    const result = new Function(`
-      "use strict";
-      return (${sanitized});
-    `)();
-
-    if (typeof result === "number" && !isNaN(result) && isFinite(result)) {
-      const rounded = Math.round(result * 1000) / 1000;
-      if (hasPx) return `${rounded}px`;
-      if (hasRem) return `${rounded}rem`;
-      if (hasEm) return `${rounded}em`;
-      return String(rounded);
-    }
-  } catch {
-    // If evaluation fails, strip raw Math.round artifacts if present
-    if (str.includes("Math.round")) {
-      return str.replace(/Math\.round\(([^)]+)\)/g, "$1");
-    }
+  if (result !== null && typeof result === "number") {
+    const rounded = Math.round(result * 1000) / 1000;
+    if (hasPx) return `${rounded}px`;
+    if (hasRem) return `${rounded}rem`;
+    if (hasEm) return `${rounded}em`;
+    return String(rounded);
   }
 
   return str;

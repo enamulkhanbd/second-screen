@@ -164,6 +164,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
 
+  // Pagination state for ultra-fast rendering with large token sets
+  const [pageSize, setPageSize] = useState<number>(50);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
   // Auto-scroll and flash row if highlightedTokenKey changes
   useEffect(() => {
     if (!highlightedTokenKey) return;
@@ -180,6 +184,11 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
     return () => clearTimeout(timer);
   }, [highlightedTokenKey, setHighlightedTokenKey]);
+
+  // Reset to page 1 when search or category filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, activeThemeGroupId]);
 
   const activeGroup = useMemo(() => {
     return (
@@ -227,7 +236,16 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     return list;
   }, [matrixRows, selectedCategory, searchQuery]);
 
-  const displayRows = filteredRows;
+  const totalFilteredCount = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+
+  // Slice rows for the current page
+  const displayRows = useMemo(() => {
+    if (pageSize === 0) return filteredRows; // 0 = show all
+    const start = (currentPage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, currentPage, pageSize]);
+
   const isConfigured = Boolean(credentials.repo && credentials.owner);
   const hasTokens = Object.keys(rawTokens).length > 0;
 
@@ -595,6 +613,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                         <td key={option.id} className="py-2.5 px-6 align-middle">
                           <MatrixPillCell
                             cellData={cellData}
+                            rawTokens={rawTokens}
                             tokenType={row.type}
                             tokenCategory={row.category}
                             tokenKey={row.tokenKey}
@@ -643,6 +662,64 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           </table>
         )}
       </div>
+
+      {/* Pagination & Token Count Status Bar */}
+      {totalFilteredCount > 0 && (
+        <div className="h-10 px-6 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <span>
+              Showing <strong className="text-foreground font-semibold font-mono">{displayRows.length}</strong> of{" "}
+              <strong className="text-foreground font-semibold font-mono">{totalFilteredCount}</strong> tokens
+            </span>
+
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1.5 border-l border-border pl-3">
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono outline-none cursor-pointer"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={250}>250</option>
+                <option value={0}>All</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Page Navigation Buttons */}
+          {pageSize > 0 && totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <span className="font-mono text-xs text-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Edit Token Slide-Over Drawer */}
       <EditTokenDrawer
@@ -832,6 +909,7 @@ const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
 
 interface MatrixPillCellProps {
   cellData?: MatrixCellData;
+  rawTokens?: any;
   tokenType: string;
   tokenCategory: TokenCategory;
   tokenKey: string;
@@ -839,15 +917,15 @@ interface MatrixPillCellProps {
   onUpdate: (path: string[], newValue: any) => void;
 }
 
-const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
+const MatrixPillCell: React.FC<MatrixPillCellProps> = React.memo(({
   cellData,
+  rawTokens,
   tokenType,
   tokenCategory,
   tokenKey,
   optionName,
   onUpdate,
 }) => {
-  const { rawTokens } = useTokenStore();
   const [isEditing, setIsEditing] = useState(false);
   const [val, setVal] = useState(cellData?.rawValue || "");
   const [showTypographyModal, setShowTypographyModal] = useState(false);
@@ -1017,7 +1095,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = ({
       )}
     </div>
   );
-};
+});
 
 interface TypographyModalProps {
   tokenKey: string;

@@ -383,17 +383,31 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
           }
         }
 
-        // 3. PASS 2: Link Variable Aliases in Figma!
+        // 3. PASS 2: Link Variable Aliases in Figma! ($O(1) Indexed Lookup)
         if (aliasTasks.length > 0) {
           figma.ui.postMessage({ type: "LOG", payload: `Linking ${aliasTasks.length} variable aliases...` });
 
           const allFreshVars = await figma.variables.getLocalVariablesAsync();
 
+          // Build O(1) alias lookup index by normalized paths
+          const aliasIndex = new Map<string, Variable>();
+          for (const v of allFreshVars) {
+            const clean = v.name.toLowerCase();
+            aliasIndex.set(clean, v);
+            aliasIndex.set(clean.replace(/\//g, "."), v);
+            aliasIndex.set(clean.replace(/\s*\/\s*/g, "."), v);
+            const parts = clean.split("/");
+            if (parts.length > 1) {
+              aliasIndex.set(parts.slice(1).join("/"), v);
+              aliasIndex.set(parts.slice(1).join("."), v);
+            }
+          }
+
           for (const task of aliasTasks) {
             const match = task.rawValue.match(/\{([^}]+)\}/);
             if (match && match[1]) {
-              const aliasKey = match[1];
-              const targetVar = findVariableByAlias(aliasKey, allFreshVars);
+              const aliasKey = match[1].trim().toLowerCase();
+              const targetVar = aliasIndex.get(aliasKey) || findVariableByAlias(aliasKey, allFreshVars);
 
               if (targetVar && targetVar.id !== task.variable.id) {
                 try {
@@ -419,6 +433,40 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
 
         const existingPaintStyles = await figma.getLocalPaintStylesAsync();
         const existingTextStyles = await figma.getLocalTextStylesAsync();
+
+        // Pre-load all unique typography fonts in a single parallel batch (PERF-04)
+        const uniqueFontsMap = new Map<string, FontName>();
+        uniqueFontsMap.set("Inter::Regular", { family: "Inter", style: "Regular" });
+
+        for (const token of resolvedTokens) {
+          if (token.type === "typography") {
+            let fontObj = token.resolvedValue || token.rawValue;
+            if (typeof fontObj === "string") {
+              try { fontObj = JSON.parse(fontObj); } catch { fontObj = {}; }
+            }
+            const family = (fontObj.fontFamily || "Inter").replace(/['",]/g, "").split(" ")[0] || "Inter";
+            const weightVal = fontObj.fontWeight || "400";
+            let fontStyle = "Regular";
+            if (String(weightVal).includes("700") || String(weightVal).toLowerCase().includes("bold")) {
+              fontStyle = "Bold";
+            } else if (String(weightVal).includes("600") || String(weightVal).toLowerCase().includes("semibold")) {
+              fontStyle = "Semi Bold";
+            } else if (String(weightVal).includes("500") || String(weightVal).toLowerCase().includes("medium")) {
+              fontStyle = "Medium";
+            }
+            uniqueFontsMap.set(`${family}::${fontStyle}`, { family, style: fontStyle });
+          }
+        }
+
+        await Promise.all(
+          Array.from(uniqueFontsMap.values()).map(async (font) => {
+            try {
+              await figma.loadFontAsync(font);
+            } catch {
+              await figma.loadFontAsync({ family: "Inter", style: "Regular" }).catch(() => {});
+            }
+          })
+        );
 
         for (const token of resolvedTokens) {
           const styleName = `${token.setName}/${token.name.replace(/\./g, "/")}`;
@@ -472,10 +520,8 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
               }
 
               try {
-                await figma.loadFontAsync({ family, style: fontStyle });
                 style.fontName = { family, style: fontStyle };
               } catch {
-                await figma.loadFontAsync({ family: "Inter", style: "Regular" });
                 style.fontName = { family: "Inter", style: "Regular" };
               }
 

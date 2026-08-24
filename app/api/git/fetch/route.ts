@@ -188,6 +188,20 @@ async function fetchAzureItemText(
   return null;
 }
 
+/**
+ * Concurrency-limited batch execution to prevent rate limiting (429) and socket pool exhaustion
+ */
+async function batchProcess<T>(
+  items: T[],
+  batchSize: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.all(batch.map(fn));
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const rawCreds: GitCredentials = await req.json();
@@ -254,44 +268,43 @@ export async function POST(req: NextRequest) {
           const aggregated: Record<string, any> = {};
           const filesMeta: Record<string, string> = {};
 
-          await Promise.all(
-            targetBlobs.map(async (blob) => {
-              const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
-              if (blobRes.ok) {
-                const bData = await blobRes.json();
-                if (bData.content) {
-                  const decoded = Buffer.from(bData.content, "base64").toString("utf-8");
-                  try {
-                    const parsed = JSON.parse(decoded);
-                    const cleanBlobPath = blob.path.replace(/^\/+/, "");
-                    const normC = cleanPath.toLowerCase();
+          // Concurrency-limited batching (12 at a time) to prevent GitHub 429 rate-limiting
+          await batchProcess(targetBlobs, 12, async (blob) => {
+            const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
+            if (blobRes.ok) {
+              const bData = await blobRes.json();
+              if (bData.content) {
+                const decoded = Buffer.from(bData.content, "base64").toString("utf-8");
+                try {
+                  const parsed = JSON.parse(decoded);
+                  const cleanBlobPath = blob.path.replace(/^\/+/, "");
+                  const normC = cleanPath.toLowerCase();
 
-                    // Strip base configured path from set key so it doesn't show full repository prefix
-                    let relativeSetName = cleanBlobPath.replace(/\.json$/i, "");
-                    if (normC && cleanBlobPath.toLowerCase().startsWith(`${normC}/`)) {
-                      relativeSetName = cleanBlobPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
-                    } else if (normC && cleanBlobPath.toLowerCase() === normC) {
-                      relativeSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
-                    }
-
-                    const baseSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
-
-                    if (baseSetName === "$themes" || baseSetName === "$themes.json") {
-                      aggregated["$themes"] = parsed;
-                    } else if (baseSetName === "$metadata" || baseSetName === "$metadata.json") {
-                      aggregated["$metadata"] = parsed;
-                    } else {
-                      aggregated[relativeSetName] = parsed;
-                    }
-
-                    filesMeta[relativeSetName] = blob.path;
-                  } catch {
-                    // ignore non-json
+                  // Strip base configured path from set key so it doesn't show full repository prefix
+                  let relativeSetName = cleanBlobPath.replace(/\.json$/i, "");
+                  if (normC && cleanBlobPath.toLowerCase().startsWith(`${normC}/`)) {
+                    relativeSetName = cleanBlobPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
+                  } else if (normC && cleanBlobPath.toLowerCase() === normC) {
+                    relativeSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
                   }
+
+                  const baseSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
+
+                  if (baseSetName === "$themes" || baseSetName === "$themes.json") {
+                    aggregated["$themes"] = parsed;
+                  } else if (baseSetName === "$metadata" || baseSetName === "$metadata.json") {
+                    aggregated["$metadata"] = parsed;
+                  } else {
+                    aggregated[relativeSetName] = parsed;
+                  }
+
+                  filesMeta[relativeSetName] = blob.path;
+                } catch {
+                  // ignore non-json
                 }
               }
-            })
-          );
+            }
+          });
 
           // Fetch user profile avatar if available
           let userProfile = undefined;
@@ -426,44 +439,42 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Fetch ALL JSON token files concurrently so all sets and themes are available
+      // Fetch ALL JSON token files in concurrency-limited batches (12 at a time)
       const aggregated: Record<string, any> = {};
       const filesMeta: Record<string, string> = {};
 
-      await Promise.all(
-        targetJsonItems.map(async (item) => {
-          const rawText = await fetchAzureItemText(azOrg, azProject, azRepo, branch, item, basicAuth);
-          if (rawText) {
-            try {
-              const cleanItemPath = item.path.replace(/^\/+/, "");
-              const normC = cleanPath.toLowerCase();
+      await batchProcess(targetJsonItems, 12, async (item) => {
+        const rawText = await fetchAzureItemText(azOrg, azProject, azRepo, branch, item, basicAuth);
+        if (rawText) {
+          try {
+            const cleanItemPath = item.path.replace(/^\/+/, "");
+            const normC = cleanPath.toLowerCase();
 
-              // Strip base configured path from set key so it doesn't show full repository prefix
-              let relativeSetName = cleanItemPath.replace(/\.json$/i, "");
-              if (normC && cleanItemPath.toLowerCase().startsWith(`${normC}/`)) {
-                relativeSetName = cleanItemPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
-              } else if (normC && cleanItemPath.toLowerCase() === normC) {
-                relativeSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
-              }
-
-              const baseSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
-              const parsed = JSON.parse(rawText);
-
-              if (baseSetName === "$themes" || baseSetName === "$themes.json") {
-                aggregated["$themes"] = parsed;
-              } else if (baseSetName === "$metadata" || baseSetName === "$metadata.json") {
-                aggregated["$metadata"] = parsed;
-              } else {
-                aggregated[relativeSetName] = parsed;
-              }
-
-              filesMeta[relativeSetName] = cleanItemPath;
-            } catch {
-              // ignore invalid json files
+            // Strip base configured path from set key so it doesn't show full repository prefix
+            let relativeSetName = cleanItemPath.replace(/\.json$/i, "");
+            if (normC && cleanItemPath.toLowerCase().startsWith(`${normC}/`)) {
+              relativeSetName = cleanItemPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
+            } else if (normC && cleanItemPath.toLowerCase() === normC) {
+              relativeSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
             }
+
+            const baseSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
+            const parsed = JSON.parse(rawText);
+
+            if (baseSetName === "$themes" || baseSetName === "$themes.json") {
+              aggregated["$themes"] = parsed;
+            } else if (baseSetName === "$metadata" || baseSetName === "$metadata.json") {
+              aggregated["$metadata"] = parsed;
+            } else {
+              aggregated[relativeSetName] = parsed;
+            }
+
+            filesMeta[relativeSetName] = cleanItemPath;
+          } catch {
+            // ignore invalid json files
           }
-        })
-      );
+        }
+      });
 
       const userProfile = {
         displayName: owner,

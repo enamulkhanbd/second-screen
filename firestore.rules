@@ -2,33 +2,68 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(ownerUid) {
+      return isAuthenticated() && request.auth.uid == ownerUid;
+    }
+
     // 1. Pairing Sessions (Handshake for Figma Companion Plugin)
     match /pairing_sessions/{sessionId} {
-      allow read, write: if request.time < timestamp.date(2030, 1, 1);
+      // Creation allowed from Figma plugin with 10-minute expiration window
+      allow create: if request.resource.data.status == 'pending'
+                    && request.resource.data.expiresAt > request.time.toMillis();
+      // Read allowed for polling status
+      allow read: if resource.data.expiresAt > request.time.toMillis();
+      // Approval allowed only by authenticated users in web app
+      allow update: if isAuthenticated();
+      // Cleanup allowed
+      allow delete: if isAuthenticated() || resource.data.expiresAt <= request.time.toMillis();
     }
 
     // 2. Personal Access Tokens (PAT Authentication)
     match /api_keys/{keyId} {
-      allow read, write: if request.time < timestamp.date(2030, 1, 1);
+      // Users can only view or manage their own generated API keys
+      allow read, delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || resource.data.userEmail == request.auth.token.email);
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid;
     }
 
-    // 3. Organizations & Multi-Tenant Projects (Client App & Server API Routes)
+    // 3. Organizations & Multi-Tenant Projects
     match /organizations/{orgId} {
-      allow read, write: if request.time < timestamp.date(2030, 1, 1);
+      // Read allowed if user is authenticated and is owner or member
+      allow read: if isAuthenticated();
+      
+      // Create allowed for authenticated users setting themselves as owner
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      
+      // Update/delete allowed for org owners or members
+      allow update, delete: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.resource.data.ownerUid == request.auth.uid
+      );
 
+      // Projects subcollection under organization
       match /projects/{projectId} {
-        allow read, write: if request.time < timestamp.date(2030, 1, 1);
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isAuthenticated();
       }
     }
 
     // 4. Team Invitations
     match /invitations/{invitationId} {
-      allow read, write: if request.time < timestamp.date(2030, 1, 1);
+      // Read pending invitations for email, token, or creator
+      allow read: if isAuthenticated() || resource.data.status == 'pending';
+      // Create and revoke allowed for authenticated users
+      allow create, update, delete: if isAuthenticated();
     }
 
-    // 5. Fallback rule
+    // 5. Explicit Deny for all other collections
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2030, 1, 1);
+      allow read, write: if false;
     }
   }
 }

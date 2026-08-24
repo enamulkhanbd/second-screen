@@ -21,24 +21,42 @@ export async function OPTIONS() {
  */
 export async function GET(req: NextRequest) {
   try {
-    const clientHeader = req.headers.get("x-internal-client");
-    const secFetchSite = req.headers.get("sec-fetch-site");
-    const isInternal =
-      clientHeader === "tokens-platform" ||
-      clientHeader === "second-screen" ||
-      secFetchSite === "same-origin";
+    const auth = await authenticateRequest(req, "read:tokens");
 
-    const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
-      ? await authenticateRequest(req, "read:tokens")
-      : { isValid: true, record: { name: "Tokens Platform Web App" } };
-
-    if (!auth.isValid) {
-      return jsonWithCors({ success: false, error: auth.error }, { status: 401 });
+    if (!auth.isValid || !auth.record) {
+      return jsonWithCors(
+        {
+          success: false,
+          error: auth.error || "Unauthorized. A valid Bearer Personal Access Token (PAT) is required.",
+        },
+        { status: 401 }
+      );
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const orgId = searchParams.get("orgId") || auth.record?.orgId;
-    const projectId = searchParams.get("projectId") || auth.record?.projectId;
+    const requestedOrgId = searchParams.get("orgId");
+    const requestedProjId = searchParams.get("projectId");
+
+    // Tenant Isolation: If the API key is bound to a specific org/project, enforce it
+    const tokenOrgId = auth.record.orgId;
+    const tokenProjId = auth.record.projectId;
+
+    if (tokenOrgId && requestedOrgId && tokenOrgId !== requestedOrgId) {
+      return jsonWithCors(
+        { success: false, error: "Forbidden: API key is not authorized for the requested organization." },
+        { status: 403 }
+      );
+    }
+
+    if (tokenProjId && requestedProjId && tokenProjId !== requestedProjId) {
+      return jsonWithCors(
+        { success: false, error: "Forbidden: API key is not authorized for the requested project." },
+        { status: 403 }
+      );
+    }
+
+    const orgId = requestedOrgId || tokenOrgId;
+    const projectId = requestedProjId || tokenProjId;
 
     let targetDoc: Record<string, any> = {};
     let figmaVariables: Record<string, any> = {};
@@ -74,7 +92,7 @@ export async function GET(req: NextRequest) {
 
     return jsonWithCors({
       success: true,
-      authenticatedAs: auth.record?.name,
+      authenticatedAs: auth.record.name,
       orgId: orgId || undefined,
       projectId: projectId || undefined,
       version: "1.0.0",
@@ -97,24 +115,42 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const clientHeader = req.headers.get("x-internal-client");
-    const secFetchSite = req.headers.get("sec-fetch-site");
-    const isInternal =
-      clientHeader === "tokens-platform" ||
-      clientHeader === "second-screen" ||
-      secFetchSite === "same-origin";
+    const auth = await authenticateRequest(req, "write:tokens");
 
-    const auth: { isValid: boolean; record?: any; error?: string } = !isInternal
-      ? await authenticateRequest(req, "write:tokens")
-      : { isValid: true, record: { name: "Tokens Platform Web App" } };
-
-    if (!auth.isValid) {
-      return jsonWithCors({ success: false, error: auth.error }, { status: 401 });
+    if (!auth.isValid || !auth.record) {
+      return jsonWithCors(
+        {
+          success: false,
+          error: auth.error || "Unauthorized. A valid Bearer Personal Access Token (PAT) with write:tokens scope is required.",
+        },
+        { status: 401 }
+      );
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const orgId = searchParams.get("orgId") || auth.record?.orgId;
-    const projectId = searchParams.get("projectId") || auth.record?.projectId;
+    const requestedOrgId = searchParams.get("orgId");
+    const requestedProjId = searchParams.get("projectId");
+
+    // Tenant Isolation: If the API key is bound to a specific org/project, enforce it
+    const tokenOrgId = auth.record.orgId;
+    const tokenProjId = auth.record.projectId;
+
+    if (tokenOrgId && requestedOrgId && tokenOrgId !== requestedOrgId) {
+      return jsonWithCors(
+        { success: false, error: "Forbidden: API key is not authorized for the requested organization." },
+        { status: 403 }
+      );
+    }
+
+    if (tokenProjId && requestedProjId && tokenProjId !== requestedProjId) {
+      return jsonWithCors(
+        { success: false, error: "Forbidden: API key is not authorized for the requested project." },
+        { status: 403 }
+      );
+    }
+
+    const orgId = requestedOrgId || tokenOrgId;
+    const projectId = requestedProjId || tokenProjId;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -128,7 +164,7 @@ export async function POST(req: NextRequest) {
     const isFromFigma =
       body.source === "figma_plugin" ||
       Boolean(body.isFigmaPlugin) ||
-      (auth.record?.name && auth.record.name.toLowerCase().includes("figma"));
+      (auth.record.name && auth.record.name.toLowerCase().includes("figma"));
 
     let currentDoc: Record<string, any> = {};
 
@@ -175,7 +211,7 @@ export async function POST(req: NextRequest) {
         : "Tokens updated successfully in Tokens Platform Cloud.",
       tokenCount: resolved.length,
       timestamp: new Date().toISOString(),
-      updatedBy: auth.record?.name,
+      updatedBy: auth.record.name,
     });
   } catch (err: any) {
     return jsonWithCors({ success: false, error: err.message }, { status: 500 });
