@@ -50,7 +50,7 @@ export interface Project {
   name: string;
   slug: string;
   description?: string;
-  gitConfig?: GitCredentials;
+  gitConfig?: GitCredentials | null;
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];
   figmaVariables?: RawTokensDocument;

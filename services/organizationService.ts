@@ -448,7 +448,7 @@ export async function saveProjectTokens(
 export async function saveProjectGitConfig(
   orgId: string,
   projectId: string,
-  gitConfig: GitCredentials
+  gitConfig: GitCredentials | null
 ): Promise<void> {
   if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
   try {

@@ -18,6 +18,7 @@ import {
   Check,
   AlertTriangle,
   Trash2,
+  Unlink,
   ExternalLink,
   Eye,
   EyeOff,
@@ -79,6 +80,7 @@ export const ProjectSettingsView: React.FC = () => {
     currentProject,
     credentials,
     setCredentials,
+    clearCredentials,
     addToast,
     getCurrentUserRole,
     setSidebarTab,
@@ -104,6 +106,8 @@ export const ProjectSettingsView: React.FC = () => {
   const [rememberPat, setRememberPat] = useState(true);
   const [isSavingGit, setIsSavingGit] = useState(false);
   const [isTestingGit, setIsTestingGit] = useState(false);
+  const [showDisconnectGitModal, setShowDisconnectGitModal] = useState(false);
+  const [isDisconnectingGit, setIsDisconnectingGit] = useState(false);
 
   // Quick Pair State for Figma Plugin
   const [pairCodeInput, setPairCodeInput] = useState("");
@@ -261,6 +265,35 @@ export const ProjectSettingsView: React.FC = () => {
       });
     } finally {
       setIsTestingGit(false);
+    }
+  };
+
+  const handleConfirmDisconnectGit = async () => {
+    if (!currentOrg || !currentProject) return;
+    setIsDisconnectingGit(true);
+    try {
+      clearCredentials();
+      await saveProjectGitConfig(currentOrg.id, currentProject.id, null);
+      setOwner("");
+      setGitProject("");
+      setRepo("");
+      setBranch("main");
+      setFilePath("tokens/tokens.json");
+      setPat("");
+      setShowDisconnectGitModal(false);
+      addToast({
+        type: "info",
+        title: "Sync Provider Disconnected",
+        message: "Successfully unlinked Git repository from this project.",
+      });
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Disconnection Failed",
+        message: err.message || "Failed to disconnect Git provider.",
+      });
+    } finally {
+      setIsDisconnectingGit(false);
     }
   };
 
@@ -473,10 +506,24 @@ export const ProjectSettingsView: React.FC = () => {
               </p>
             </div>
             {credentials.owner && credentials.repo ? (
-              <Badge variant="success" className="text-[10px] gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>Connected</span>
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="success" className="text-[10px] gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Connected</span>
+                </Badge>
+                {canEditSettings && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDisconnectGitModal(true)}
+                    className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 px-2.5 gap-1.5"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                    <span>Disconnect</span>
+                  </Button>
+                )}
+              </div>
             ) : (
               <Badge variant="outline" className="text-[10px]">
                 Not Configured
@@ -624,17 +671,33 @@ export const ProjectSettingsView: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-border/70">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleTestConnection}
-                disabled={isTestingGit || !pat || !repo}
-                className="h-9 text-xs gap-1.5"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isTestingGit ? "animate-spin" : ""}`} />
-                <span>{isTestingGit ? "Testing..." : "Test Connection"}</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestConnection}
+                  disabled={isTestingGit || !pat || !repo}
+                  className="h-9 text-xs gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingGit ? "animate-spin" : ""}`} />
+                  <span>{isTestingGit ? "Testing..." : "Test Connection"}</span>
+                </Button>
+
+                {(credentials.owner || credentials.repo) && canEditSettings && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDisconnectGitModal(true)}
+                    disabled={isDisconnectingGit}
+                    className="h-9 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                    <span>Disconnect Provider</span>
+                  </Button>
+                )}
+              </div>
 
               <Button
                 type="submit"
@@ -849,6 +912,42 @@ export const ProjectSettingsView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Disconnect Git Provider Confirmation Dialog */}
+      <Dialog open={showDisconnectGitModal} onOpenChange={setShowDisconnectGitModal}>
+        <DialogContent className="max-w-md p-6 gap-4 font-sans">
+          <DialogHeader className="space-y-1">
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-1">
+              <Unlink className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-base font-bold">Disconnect Git Provider?</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              This will unlink repository <strong className="text-foreground">{credentials.repo || "active"}</strong> from this project and clear saved synchronization credentials. You can reconnect anytime.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDisconnectGitModal(false)}
+              className="text-xs h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmDisconnectGit}
+              disabled={isDisconnectingGit}
+              className="text-xs h-9 font-bold gap-1.5"
+            >
+              <Unlink className="w-3.5 h-3.5" />
+              <span>{isDisconnectingGit ? "Disconnecting..." : "Confirm Disconnect"}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Project Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

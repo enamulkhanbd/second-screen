@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { GitCredentials, GitProvider } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
+import { saveProjectGitConfig } from "@/services/organizationService";
 import {
   Server,
   Key,
@@ -14,6 +15,7 @@ import {
   RefreshCw,
   Globe,
   Layers,
+  Unlink,
 } from "lucide-react";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
 import { PluginDistributionModal } from "@/components/PluginDistributionModal";
@@ -35,7 +37,16 @@ interface CredentialsModalProps {
 }
 
 export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onClose }) => {
-  const { credentials, setCredentials, clearCredentials, setRawTokens, setSyncStatus, addToast } = useTokenStore();
+  const {
+    currentOrg,
+    currentProject,
+    credentials,
+    setCredentials,
+    clearCredentials,
+    setRawTokens,
+    setSyncStatus,
+    addToast,
+  } = useTokenStore();
   const [modalTab, setModalTab] = useState<"git" | "apikeys" | "plugin">("git");
   const [form, setForm] = useState<GitCredentials>({ ...credentials });
   const [loading, setLoading] = useState(false);
@@ -48,8 +59,11 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
     }
   }, [isOpen, credentials]);
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     clearCredentials();
+    if (currentOrg && currentProject) {
+      await saveProjectGitConfig(currentOrg.id, currentProject.id, null);
+    }
     setForm({
       provider: "github",
       owner: "",
