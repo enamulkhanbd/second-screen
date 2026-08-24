@@ -113,13 +113,15 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
 
   const handleChoosePath = (path: "tokens" | "git" | "figma") => {
     if (path === "tokens") {
-      initializeBlankWorkspace();
+      setSidebarTab("tokens");
     } else if (path === "git") {
+      setSidebarTab("project-settings");
       if (onOpenSettings) onOpenSettings();
     } else if (path === "figma") {
       setSidebarTab("integrations");
       if (onOpenSettings) onOpenSettings();
     }
+    if (onClose) onClose();
   };
 
   return (
@@ -319,21 +321,21 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
             </div>
 
             <div className="space-y-2.5 pt-1">
-              {/* Option A: Blank Tokens */}
+              {/* Option A: Git Sync */}
               <div
-                onClick={() => handleChoosePath("tokens")}
+                onClick={() => handleChoosePath("git")}
                 className="p-3.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer flex items-start gap-3 group"
               >
                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                  <FileCode className="w-4 h-4" />
+                  <GitBranch className="w-4 h-4" />
                 </div>
                 <div className="space-y-0.5 flex-1">
                   <div className="font-semibold text-xs text-foreground flex items-center justify-between">
-                    <span>Start with Starter Design Tokens</span>
+                    <span>Connect Git Repository</span>
                     <Badge variant="violet" className="text-[9px] px-1 py-0">Recommended</Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Instantly load clean color, typography, dimension, and theme collections.
+                    Pull tokens dynamically from your GitHub or Azure DevOps repository branches.
                   </p>
                 </div>
               </div>
@@ -343,7 +345,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
                 onClick={() => handleChoosePath("figma")}
                 className="p-3.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer flex items-start gap-3 group"
               >
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
                   <Zap className="w-4 h-4" />
                 </div>
                 <div className="space-y-0.5 flex-1">
@@ -356,20 +358,20 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
                 </div>
               </div>
 
-              {/* Option C: Git Sync */}
+              {/* Option C: Clean Canvas */}
               <div
-                onClick={() => handleChoosePath("git")}
+                onClick={() => handleChoosePath("tokens")}
                 className="p-3.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer flex items-start gap-3 group"
               >
                 <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                  <GitBranch className="w-4 h-4 text-foreground" />
+                  <FileCode className="w-4 h-4 text-foreground" />
                 </div>
                 <div className="space-y-0.5 flex-1">
                   <div className="font-semibold text-xs text-foreground">
-                    Connect Git Repository
+                    Start with Empty Canvas
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Sync directly with GitHub, GitLab, Azure DevOps, or Bitbucket.
+                    Open an empty workspace and define your design token hierarchy manually.
                   </p>
                 </div>
               </div>

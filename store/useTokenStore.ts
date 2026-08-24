@@ -50,6 +50,7 @@ import {
   acceptOrganizationInvitation,
   revokeInvitation,
   removeOrgMember,
+  deleteProject,
 } from "@/services/organizationService";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -74,6 +75,7 @@ interface TokenStoreState {
   loadTenantData: (uid: string, email?: string) => Promise<void>;
   createOrgAction: (name: string) => Promise<Organization | null>;
   createProjectAction: (name: string, description?: string) => Promise<Project | null>;
+  deleteProjectAction: (orgId: string, projectId: string) => Promise<void>;
   loadInvitations: (orgId: string) => Promise<void>;
   sendInvitationAction: (email: string, role: UserRole) => Promise<OrganizationInvitation | null>;
   acceptInvitationAction: (token: string) => Promise<boolean>;
@@ -521,6 +523,20 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     } catch (e) {
       console.warn("Failed creating project:", e);
       return null;
+    }
+  },
+
+  deleteProjectAction: async (orgId, projectId) => {
+    try {
+      await deleteProject(orgId, projectId);
+      const remaining = get().orgProjects.filter((p) => p.id !== projectId);
+      set({ orgProjects: remaining });
+      if (get().currentProject?.id === projectId) {
+        get().setCurrentProject(remaining[0] || null);
+      }
+    } catch (e) {
+      console.warn("Failed deleting project:", e);
+      throw e;
     }
   },
 

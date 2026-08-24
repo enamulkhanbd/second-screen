@@ -2,41 +2,54 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { Project, Organization } from "@/types/tenant";
 import {
-  LayoutDashboard,
-  Palette,
-  Layers,
-  GitBranch,
-  CheckCircle2,
-  ShieldCheck,
-  RefreshCw,
-  AlertTriangle,
-  Eye,
-  ChevronRight,
-  SlidersHorizontal,
-  Sparkles,
+  Building2,
   FolderGit2,
+  Plus,
+  Search,
+  Layers,
+  Sparkles,
   ArrowRight,
-  Globe,
-  Code,
-  PlusCircle,
+  Settings,
+  Users,
+  CheckCircle2,
+  ExternalLink,
+  Trash2,
+  GitBranch,
+  Zap,
+  MoreVertical,
+  Edit2,
+  Share2,
+  Clock,
+  Shield,
+  Palette,
+  Sliders,
+  Check,
+  ChevronDown,
+  RefreshCw,
 } from "lucide-react";
-import {
-  scanTokenHealth,
-  auditSystemAccessibility,
-  computeThemeCoverage,
-} from "@/utils/dashboardHelpers";
-import { OnboardingModal } from "@/components/OnboardingModal";
+import { CreateProjectModal } from "@/components/CreateProjectModal";
+import { ManageOrgModal } from "@/components/ManageOrgModal";
 import { AuthModal } from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface DashboardViewProps {
   onOpenSettings?: () => void;
@@ -44,768 +57,567 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) => {
   const {
-    rawTokens,
-    resolvedTokens,
-    themeGroups,
-    credentials,
-    syncStatus,
-    setSidebarTab,
-    fetchLiveTokens,
-    setActiveSet,
-    initializeBlankWorkspace,
     currentUser,
+    userOrgs,
+    currentOrg,
+    orgProjects,
+    currentProject,
+    setCurrentOrg,
+    setCurrentProject,
+    createOrgAction,
+    deleteProjectAction,
+    getCurrentUserRole,
+    setSidebarTab,
+    addToast,
   } = useTokenStore();
 
-  const [selectedIssueTab, setSelectedIssueTab] = useState<"all" | "errors" | "warnings">("all");
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showManageOrg, setShowManageOrg] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
-  const setNames = useMemo(
-    () => Object.keys(rawTokens).filter((k) => !k.startsWith("$")),
-    [rawTokens]
-  );
-  const totalTokens = resolvedTokens.length;
-  const isConnected = Boolean(credentials.repo && credentials.owner);
+  // Project deletion confirmation
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
-  // 1. Dynamic Health Report
-  const healthReport = useMemo(
-    () => scanTokenHealth(rawTokens, resolvedTokens),
-    [rawTokens, resolvedTokens]
-  );
+  const userRole = getCurrentUserRole();
 
-  // 2. Dynamic Accessibility Audit Report
-  const a11yReport = useMemo(
-    () => auditSystemAccessibility(rawTokens, themeGroups, resolvedTokens),
-    [rawTokens, themeGroups, resolvedTokens]
-  );
-
-  // 3. Dynamic Theme Coverage Matrix
-  const themeCoverage = useMemo(
-    () => computeThemeCoverage(rawTokens, themeGroups),
-    [rawTokens, themeGroups]
-  );
-
-  // Filter issues based on tab
-  const filteredIssues = useMemo(() => {
-    if (selectedIssueTab === "errors") {
-      return healthReport.issues.filter((i) => i.severity === "error");
-    }
-    if (selectedIssueTab === "warnings") {
-      return healthReport.issues.filter((i) => i.severity !== "error");
-    }
-    return healthReport.issues;
-  }, [healthReport.issues, selectedIssueTab]);
-
-  // Category counts
-  const colorCount = resolvedTokens.filter((t) => t.type === "color").length;
-  const typoCount = resolvedTokens.filter((t) => t.type === "typography").length;
-  const spacingCount = resolvedTokens.filter(
-    (t) => t.type === "spacing" || t.type === "sizing" || t.type === "dimension"
-  ).length;
-  const radiusCount = resolvedTokens.filter((t) => t.type === "borderRadius").length;
-  const otherCount = totalTokens - (colorCount + typoCount + spacingCount + radiusCount);
-
-  const handleJumpToToken = (setName: string) => {
-    setActiveSet(setName);
-    setSidebarTab("tokens");
-  };
-
-  const handleCreateTokensClick = () => {
-    if (!currentUser) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    initializeBlankWorkspace();
-  };
-
-  // If no tokens or sync provider is connected, render Welcome Wizard
-  if (totalTokens === 0) {
-    return (
-      <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-[#09090d] p-6 lg:p-12 flex flex-col justify-center max-w-5xl mx-auto space-y-8 font-sans select-none">
-        <div className="text-center space-y-3">
-          <Badge variant="violet" className="gap-1.5 px-3 py-1 text-xs">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Welcome to Tokens Platform</span>
-          </Badge>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
-            Connect your design system
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Connect your Git repository (GitHub / Azure DevOps), sync with our companion Figma plugin, and manage multi-theme design tokens.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Card 1: Connect Git Provider */}
-          <Card
-            onClick={onOpenSettings}
-            className="cursor-pointer hover:border-primary transition-all flex flex-col justify-between"
-          >
-            <CardHeader className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <FolderGit2 className="w-6 h-6" />
-              </div>
-              <div>
-                <CardTitle className="text-base">1. Connect Git Provider</CardTitle>
-                <CardDescription className="text-xs mt-1">
-                  Sync tokens directly with <strong>Azure DevOps</strong> or <strong>GitHub</strong> branches.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button size="sm" className="w-full gap-1.5">
-                <span>Configure Git</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Figma Plugin Sync */}
-          <Card
-            onClick={onOpenSettings}
-            className="cursor-pointer hover:border-primary transition-all flex flex-col justify-between"
-          >
-            <CardHeader className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <Globe className="w-6 h-6" />
-              </div>
-              <div>
-                <CardTitle className="text-base">2. Figma Plugin Sync</CardTitle>
-                <CardDescription className="text-xs mt-1">
-                  Connect our desktop companion plugin to sync Figma Variables and Theme Modes.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="sm" className="w-full gap-1.5">
-                <span>Setup Plugin</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Card 3: Start Blank / Create Tokens */}
-          <Card
-            onClick={handleCreateTokensClick}
-            className="cursor-pointer hover:border-primary transition-all flex flex-col justify-between"
-          >
-            <CardHeader className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <PlusCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <CardTitle className="text-base">3. Create Design Tokens</CardTitle>
-                <CardDescription className="text-xs mt-1">
-                  Start blank and create custom colors, typography, and spacing tokens in our visual editor.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="sm" className="w-full gap-1.5">
-                <span>Create Blank Tokens</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <OnboardingModal
-          isOpen={isOnboardingOpen}
-          onClose={() => setIsOnboardingOpen(false)}
-          onOpenSettings={onOpenSettings || (() => {})}
-        />
-
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          title="Sign in to Create Tokens"
-          subtitle="Please sign in or create a free workspace to start creating design tokens."
-          onSuccess={() => {
-            initializeBlankWorkspace();
-          }}
-        />
-      </div>
+  // Filter projects by search query
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return orgProjects;
+    const q = searchQuery.toLowerCase();
+    return orgProjects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (p.slug && p.slug.toLowerCase().includes(q))
     );
-  }
+  }, [orgProjects, searchQuery]);
+
+  // Handle creating a new Workspace (Organization)
+  const handleCreateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrgName.trim()) return;
+
+    setIsCreatingOrg(true);
+    try {
+      const org = await createOrgAction(newOrgName.trim());
+      if (org) {
+        addToast({
+          type: "success",
+          title: "Workspace Created",
+          message: `Created workspace "${org.name}".`,
+        });
+        setNewOrgName("");
+        setShowCreateOrgModal(false);
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Creation Failed",
+        message: err.message || "Failed to create workspace.",
+      });
+    } finally {
+      setIsCreatingOrg(false);
+    }
+  };
+
+  // Handle opening a project
+  const handleOpenProject = (project: Project) => {
+    setCurrentProject(project);
+    setSidebarTab("tokens");
+    addToast({
+      type: "success",
+      title: "Project Opened",
+      message: `Active project: ${project.name}`,
+    });
+  };
+
+  // Handle project settings navigation
+  const handleOpenProjectSettings = (project: Project) => {
+    setCurrentProject(project);
+    setSidebarTab("project-settings");
+    if (onOpenSettings) onOpenSettings();
+  };
+
+  // Handle project deletion
+  const handleConfirmDeleteProject = async () => {
+    if (!projectToDelete || !currentOrg) return;
+    setIsDeletingProject(true);
+
+    try {
+      await deleteProjectAction(currentOrg.id, projectToDelete.id);
+      addToast({
+        type: "info",
+        title: "Project Deleted",
+        message: `Removed project "${projectToDelete.name}".`,
+      });
+      setProjectToDelete(null);
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Could not delete project.",
+      });
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
+  // Format relative time helper
+  const formatTimeAgo = (isoString?: string) => {
+    if (!isoString) return "Recently";
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffDays > 0) return `${diffDays}d ago`;
+      if (diffHours > 0) return `${diffHours}h ago`;
+      return "Just now";
+    } catch {
+      return "Recently";
+    }
+  };
+
+  // Count active stats across current workspace
+  const totalProjectsCount = orgProjects.length;
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-background p-6 lg:p-8 space-y-8 font-sans select-none">
-      {/* 1. Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Design Tokens Intelligence</span>
+    <div className="flex-1 flex flex-col min-w-0 bg-background overflow-y-auto select-none">
+      {/* Top Workspace Header & Actions Banner */}
+      <div className="border-b border-border bg-card/60 backdrop-blur-md px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0 transition-colors">
+        {/* Left: Active Workspace Brand & Switcher */}
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md flex-shrink-0">
+            {currentOrg?.name?.[0]?.toUpperCase() || "W"}
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            System Dashboard
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Live analytics, token health diagnostics, WCAG accessibility audit, and multi-theme coverage.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchLiveTokens()}
-            disabled={syncStatus === "fetching"}
-            className="gap-2 text-xs h-9"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${syncStatus === "fetching" ? "animate-spin text-primary" : ""}`}
-            />
-            <span>Refresh</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSidebarTab("exports")}
-            className="gap-2 text-xs h-9"
-          >
-            <Code className="w-3.5 h-3.5" />
-            <span>Export Code</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setSidebarTab("themes")}
-            className="gap-2 text-xs h-9 font-semibold"
-          >
-            <Palette className="w-3.5 h-3.5" />
-            <span>Open Themes</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. Top 4 Live Dynamic KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: System Health Score */}
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>System Health</span>
-            <div
-              className={`p-2 rounded-lg ${
-                healthReport.overallScore >= 90
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : healthReport.overallScore >= 75
-                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                  : "bg-destructive/10 text-destructive"
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold font-mono text-foreground">
-                {healthReport.overallScore}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono">/ 100</span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-              {healthReport.brokenAliasesCount === 0 ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ 0 broken aliases
-                </span>
-              ) : (
-                <span className="text-destructive font-medium">
-                  ⚠ {healthReport.brokenAliasesCount} broken alias issues
-                </span>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        {/* KPI 2: WCAG Accessibility Pass Rate */}
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>WCAG AA Compliance</span>
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Eye className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold font-mono text-foreground">
-                {a11yReport.passRateAA}%
-              </span>
-              <span className="text-xs text-primary font-medium">
-                (AAA: {a11yReport.passRateAAA}%)
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {a11yReport.failingPairsCount === 0 ? (
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  All evaluated text/bg pairs pass
-                </span>
-              ) : (
-                <span className="text-amber-600 dark:text-amber-400 font-medium">
-                  {a11yReport.failingPairsCount} pairs need contrast review
-                </span>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        {/* KPI 3: Total Tokens & Semantic Adherence */}
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Tokens & Adherence</span>
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Layers className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold font-mono text-foreground">
-                {totalTokens}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono">
-                in {setNames.length} sets
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              <span className="font-semibold text-primary">
-                {healthReport.semanticAdherenceRate}%
-              </span>{" "}
-              semantic aliasing rate
-            </div>
-          </div>
-        </Card>
-
-        {/* KPI 4: Git Connection & Branch */}
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Git Repository</span>
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <GitBranch className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-sm font-bold font-mono text-foreground truncate">
-              {isConnected ? `${credentials.owner}/${credentials.repo}` : "Disconnected"}
-            </div>
-            <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
-              {isConnected ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Branch: {credentials.branch || "main"}</span>
-                </>
-              ) : (
-                <button
-                  onClick={onOpenSettings}
-                  className="text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-                >
-                  Click to connect repo
-                </button>
-              )}
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* 3. Middle Grid: Token Linter (Left) + Accessibility Audit (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Token Health & Linter */}
-        <Card className="p-6 flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-foreground">
-                  Token Linter & Issues
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {healthReport.issues.length} detected integrity issues
-                </p>
-              </div>
-            </div>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">
+                {currentOrg?.name || "My Workspace"}
+              </h1>
 
-            {/* Filter Tabs */}
-            <div className="flex items-center bg-muted p-0.5 rounded-lg text-xs font-medium border border-border">
-              <button
-                onClick={() => setSelectedIssueTab("all")}
-                className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  selectedIssueTab === "all"
-                    ? "bg-background text-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                All ({healthReport.issues.length})
-              </button>
-              <button
-                onClick={() => setSelectedIssueTab("errors")}
-                className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  selectedIssueTab === "errors"
-                    ? "bg-background text-destructive font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Errors ({healthReport.brokenAliasesCount})
-              </button>
-            </div>
-          </div>
-
-          {/* Issue List */}
-          <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-            {filteredIssues.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground text-xs">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500 opacity-80" />
-                <p className="font-semibold text-foreground">
-                  No token issues detected!
-                </p>
-                <p className="text-[11px] mt-0.5">
-                  All aliases resolve cleanly to real leaf nodes.
-                </p>
-              </div>
-            ) : (
-              filteredIssues.map((issue) => (
-                <div
-                  key={issue.id}
-                  onClick={() => handleJumpToToken(issue.setName)}
-                  className="group p-3 rounded-lg bg-card border border-border hover:border-primary/50 transition-all cursor-pointer flex items-start justify-between gap-3"
-                >
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={issue.severity === "error" ? "destructive" : "warning"}
-                        className="text-[10px] font-mono font-bold uppercase"
+              {/* Workspace Selector Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                    title="Switch Workspace"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-60">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Your Workspaces
+                  </div>
+                  {userOrgs.map((org) => {
+                    const isSelected = org.id === currentOrg?.id;
+                    return (
+                      <DropdownMenuItem
+                        key={org.id}
+                        onClick={() => setCurrentOrg(org)}
+                        className="flex items-center justify-between text-xs py-2 cursor-pointer"
                       >
-                        {issue.type.replace("_", " ")}
-                      </Badge>
-                      <span className="font-mono text-xs font-semibold text-foreground truncate">
-                        {issue.tokenKey}
-                      </span>
-                      <span className="text-[11px] font-mono text-muted-foreground">
-                        in {issue.setName}.json
-                      </span>
-                    </div>
-                    <p className="text-xs text-foreground/80">
-                      {issue.message}
-                    </p>
-                    {issue.suggestedFix && (
-                      <p className="text-[11px] text-muted-foreground italic">
-                        Tip: {issue.suggestedFix}
-                      </p>
-                    )}
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform flex-shrink-0 mt-1" />
-                </div>
-              ))
-            )}
-          </div>
+                        <div className="flex items-center gap-2 truncate">
+                          <div className="w-5 h-5 rounded-md bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                            {org.name[0]?.toUpperCase()}
+                          </div>
+                          <span className="font-medium truncate">{org.name}</span>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
 
-          {/* Semantic Adherence Bar */}
-          <div className="pt-2 border-t border-border space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-              <span>Semantic Adherence Level</span>
-              <span className="font-mono">{healthReport.semanticAdherenceRate}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${healthReport.semanticAdherenceRate}%` }}
-              />
-            </div>
-          </div>
-        </Card>
+                  <DropdownMenuSeparator />
 
-        {/* Right Column: Accessibility & Contrast Scorecard */}
-        <Card className="p-6 flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Eye className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-foreground">
-                  Accessibility & Contrast Matrix
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Evaluated across active themes (WCAG 2.1)
-                </p>
-              </div>
-            </div>
+                  <DropdownMenuItem
+                    onClick={() => setShowCreateOrgModal(true)}
+                    className="gap-2 text-xs text-primary font-semibold py-2 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create New Workspace</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <Badge variant="success" className="font-mono text-xs font-bold">
-              {a11yReport.passRateAA}% AA Pass
-            </Badge>
-          </div>
-
-          {/* Failing Pairs or All Pass */}
-          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-            {a11yReport.failingPairs.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground text-xs">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500 opacity-80" />
-                <p className="font-semibold text-foreground">
-                  Great contrast compliance!
-                </p>
-                <p className="text-[11px] mt-0.5">
-                  All evaluated text/background token combinations meet minimum WCAG AA standards (4.5:1).
-                </p>
-              </div>
-            ) : (
-              a11yReport.failingPairs.map((pair, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-lg bg-card border border-border flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0 font-mono">
-                    <div
-                      className="w-5 h-5 rounded-md border border-black/20 dark:border-white/20 shadow-xs flex-shrink-0"
-                      style={{ backgroundColor: pair.fgColor }}
-                      title={`FG: ${pair.fgColor}`}
-                    />
-                    <span className="text-muted-foreground">on</span>
-                    <div
-                      className="w-5 h-5 rounded-md border border-black/20 dark:border-white/20 shadow-xs flex-shrink-0"
-                      style={{ backgroundColor: pair.bgColor }}
-                      title={`BG: ${pair.bgColor}`}
-                    />
-                    <span className="truncate text-foreground font-medium">
-                      {pair.fgToken} / {pair.bgToken}
-                    </span>
-                  </div>
-
-                  <Badge variant="destructive" className="font-mono font-bold text-[11px] flex-shrink-0">
-                    {pair.contrastRatio}:1 (Fail)
-                  </Badge>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* CVD Simulation Live Strip */}
-          {a11yReport.corePaletteCvd.length > 0 && (
-            <div className="pt-3 border-t border-border space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-                <span>Color Vision Deficiency (CVD) Simulation</span>
-                <span className="text-[11px] text-muted-foreground font-normal">
-                  Protanopia · Deuteranopia · Tritanopia
-                </span>
-              </div>
-
-              <div className="grid grid-cols-6 gap-2">
-                {a11yReport.corePaletteCvd.map((item, idx) => (
-                  <div key={idx} className="space-y-1 text-center">
-                    <div
-                      className="w-full h-7 rounded-lg border border-black/15 dark:border-white/20 shadow-xs"
-                      style={{ backgroundColor: item.originalHex }}
-                      title={`Original: ${item.name} (${item.originalHex})`}
-                    />
-                    <div className="grid grid-cols-3 gap-0.5 h-3">
-                      <div
-                        className="rounded-xs"
-                        style={{ backgroundColor: item.protanopia }}
-                        title={`Protanopia: ${item.protanopia}`}
-                      />
-                      <div
-                        className="rounded-xs"
-                        style={{ backgroundColor: item.deuteranopia }}
-                        title={`Deuteranopia: ${item.deuteranopia}`}
-                      />
-                      <div
-                        className="rounded-xs"
-                        style={{ backgroundColor: item.tritanopia }}
-                        title={`Tritanopia: ${item.tritanopia}`}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* 4. Bottom Grid: Theme Coverage (Left) + Distribution & Quick Tools (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Theme Completeness Matrix */}
-        <Card className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Palette className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-foreground">
-                  Multi-Theme Coverage
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {themeCoverage.length} configured theme options
-                </p>
-              </div>
-            </div>
-
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => setSidebarTab("themes")}
-              className="text-xs gap-1"
-            >
-              <span>Manage Themes</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            {themeCoverage.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground text-xs">
-                No theme groups configured yet.
-              </div>
-            ) : (
-              themeCoverage.map((theme) => (
-                <div
-                  key={theme.id}
-                  className="p-3.5 rounded-lg bg-muted/40 border border-border space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: theme.color || "#7c3aed" }}
-                      />
-                      <span className="font-bold text-foreground">
-                        {theme.name}
-                      </span>
-                      <span className="text-muted-foreground font-mono text-[11px]">
-                        ({theme.groupName})
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 font-mono text-xs">
-                      <span className="text-muted-foreground">
-                        {theme.overriddenTokensCount} / {theme.totalTokensCount} tokens
-                      </span>
-                      <span className="font-bold text-foreground">
-                        {theme.completenessPercent}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${theme.completenessPercent}%`,
-                        backgroundColor: theme.color || "#7c3aed",
-                      }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Right: Token Distribution */}
-        <Card className="p-6 space-y-5 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <SlidersHorizontal className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-foreground">
-                    Category Breakdown
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Distribution of active token types
-                  </p>
-                </div>
-              </div>
-
-              <Badge variant="outline" className="font-mono text-xs">
-                {totalTokens} total
+              {/* Role Badge */}
+              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5">
+                {userRole}
               </Badge>
             </div>
 
-            {/* Category Progress Bar */}
-            {totalTokens > 0 && (
-              <div className="space-y-2">
-                <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
-                  <div
-                    style={{ width: `${(colorCount / totalTokens) * 100}%` }}
-                    className="bg-amber-500 h-full"
-                    title={`Colors: ${colorCount}`}
-                  />
-                  <div
-                    style={{ width: `${(typoCount / totalTokens) * 100}%` }}
-                    className="bg-primary h-full"
-                    title={`Typography: ${typoCount}`}
-                  />
-                  <div
-                    style={{ width: `${(spacingCount / totalTokens) * 100}%` }}
-                    className="bg-blue-500 h-full"
-                    title={`Spacing & Sizing: ${spacingCount}`}
-                  />
-                  <div
-                    style={{ width: `${(radiusCount / totalTokens) * 100}%` }}
-                    className="bg-rose-500 h-full"
-                    title={`Border Radius: ${radiusCount}`}
-                  />
-                  <div
-                    style={{ width: `${(otherCount / totalTokens) * 100}%` }}
-                    className="bg-muted-foreground h-full"
-                    title={`Other: ${otherCount}`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                  <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-xs">
-                    <div className="text-muted-foreground flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" /> Color
-                    </div>
-                    <div className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {colorCount}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-xs">
-                    <div className="text-muted-foreground flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-primary" /> Typography
-                    </div>
-                    <div className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {typoCount}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-xs">
-                    <div className="text-muted-foreground flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" /> Spacing
-                    </div>
-                    <div className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {spacingCount}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-xs">
-                    <div className="text-muted-foreground flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-rose-500" /> Radius
-                    </div>
-                    <div className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {radiusCount}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                {currentOrg?.members?.length || 1} {currentOrg?.members?.length === 1 ? "member" : "members"}
+              </span>
+              <span>•</span>
+              <span>{totalProjectsCount} {totalProjectsCount === 1 ? "project" : "projects"}</span>
+            </div>
           </div>
-        </Card>
+        </div>
+
+        {/* Right: Workspace Management & Project Actions */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowManageOrg(true)}
+            className="gap-1.5 text-xs font-medium"
+          >
+            <Users className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>Manage Team</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setShowCreateProject(true)}
+            className="gap-1.5 text-xs font-semibold shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Project</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Onboarding Modal */}
-      {isOnboardingOpen && (
-        <OnboardingModal
-          isOpen={isOnboardingOpen}
-          onClose={() => setIsOnboardingOpen(false)}
-          onOpenSettings={onOpenSettings || (() => {})}
-        />
+      {/* Main Workspace Body */}
+      <div className="flex-1 p-8 space-y-6 max-w-7xl w-full mx-auto">
+        {/* Workspace Summary Stats & Search Toolbar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-foreground tracking-tight">Projects</h2>
+            <Badge variant="secondary" className="font-mono text-xs">
+              {filteredProjects.length}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 text-xs h-8 bg-card border-border"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Projects Grid */}
+        {filteredProjects.length === 0 ? (
+          /* Empty State for Projects */
+          <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border bg-card/40 space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+              <FolderGit2 className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-1 max-w-sm">
+              <h3 className="text-base font-bold text-foreground">
+                {searchQuery ? "No matching projects found" : "No projects in this workspace yet"}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {searchQuery
+                  ? "Try searching for a different project name or clear the filter."
+                  : "Create a project to manage tokens, configure Git sync providers, or pair with the Figma Companion Plugin."}
+              </p>
+            </div>
+
+            {!searchQuery && (
+              <Button
+                onClick={() => setShowCreateProject(true)}
+                size="sm"
+                className="gap-2 text-xs font-semibold mt-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Your First Project</span>
+              </Button>
+            )}
+          </div>
+        ) : (
+          /* Responsive Projects Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredProjects.map((proj) => {
+              const hasGit = Boolean(proj.gitConfig?.repo);
+              const hasFigma = Boolean(
+                proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0
+              );
+              const rawTokensCount = proj.rawTokens
+                ? Object.keys(proj.rawTokens).filter((k) => !k.startsWith("$")).length
+                : 0;
+              const themeGroupsCount = proj.themeGroups?.length || 0;
+              const isActive = currentProject?.id === proj.id;
+
+              return (
+                <div
+                  key={proj.id}
+                  className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
+                    isActive
+                      ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
+                      : "border-border hover:border-border/80"
+                  }`}
+                >
+                  {/* Top: Project Info & Menu */}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">
+                          {proj.name[0]?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                            {proj.name}
+                          </h3>
+                          <span className="text-[10px] font-mono text-muted-foreground block truncate">
+                            {proj.slug || proj.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Project Options Menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem
+                            onClick={() => handleOpenProjectSettings(proj)}
+                            className="gap-2 text-xs cursor-pointer"
+                          >
+                            <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>Project Settings</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => setProjectToDelete(proj)}
+                            className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete Project</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed min-h-[32px]">
+                      {proj.description || "Design tokens and multi-theme configuration."}
+                    </p>
+
+                    {/* Sync Providers Status Chips */}
+                    <div className="space-y-1.5 pt-1">
+                      {/* Git Provider Chip */}
+                      <div className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-muted/40 border border-border/50">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                          {hasGit ? (
+                            <span className="font-mono truncate text-foreground font-medium">
+                              {proj.gitConfig?.repo}
+                              <span className="text-muted-foreground">@{proj.gitConfig?.branch || "main"}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">No Git Sync</span>
+                          )}
+                        </div>
+
+                        {hasGit ? (
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="Connected" />
+                        ) : (
+                          <button
+                            onClick={() => handleOpenProjectSettings(proj)}
+                            className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Figma Companion Sync Chip */}
+                      <div className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-muted/40 border border-border/50">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          {hasFigma ? (
+                            <span className="font-mono truncate text-foreground font-medium">
+                              Figma Synced
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">No Figma Variables</span>
+                          )}
+                        </div>
+
+                        {hasFigma ? (
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {formatTimeAgo(proj.figmaUpdatedAt)}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setCurrentProject(proj);
+                              setSidebarTab("integrations");
+                            }}
+                            className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                          >
+                            Pair Plugin
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Bottom: Stats & Open Button */}
+                  <div className="pt-4 border-t border-border mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                      <span>{rawTokensCount} {rawTokensCount === 1 ? "set" : "sets"}</span>
+                      <span>•</span>
+                      <span>{themeGroupsCount} {themeGroupsCount === 1 ? "theme" : "themes"}</span>
+                    </div>
+
+                    <Button
+                      onClick={() => handleOpenProject(proj)}
+                      size="sm"
+                      className="gap-1 text-xs font-semibold h-7 px-3 shadow-xs cursor-pointer"
+                    >
+                      <span>Open</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+      />
+
+      {/* Manage Workspace / Members Modal */}
+      <ManageOrgModal
+        isOpen={showManageOrg}
+        onClose={() => setShowManageOrg(false)}
+      />
+
+      {/* Create New Workspace Modal */}
+      <Dialog open={showCreateOrgModal} onOpenChange={setShowCreateOrgModal}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="gap-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <DialogTitle>Create Workspace</DialogTitle>
+            </div>
+            <DialogDescription>
+              Create a new workspace (e.g. JustGo, Design Team) to manage isolated projects.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateWorkspace} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Input
+                placeholder="e.g. JustGo, Core Systems, Acme"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                autoFocus
+                required
+                className="text-xs"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCreateOrgModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isCreatingOrg || !newOrgName.trim()}
+                className="gap-1.5"
+              >
+                <span>{isCreatingOrg ? "Creating..." : "Create Workspace"}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Project Confirmation Modal */}
+      {projectToDelete && (
+        <Dialog open={Boolean(projectToDelete)} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader className="gap-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <DialogTitle>Delete Project</DialogTitle>
+              </div>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">
+                  &ldquo;{projectToDelete.name}&rdquo;
+                </span>
+                ? All associated tokens, sync credentials, and Figma variable mappings for this project will be removed.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setProjectToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={isDeletingProject}
+                onClick={handleConfirmDeleteProject}
+              >
+                {isDeletingProject ? "Deleting..." : "Delete Project"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
+
+      {/* Auth Modal Trigger */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 };
