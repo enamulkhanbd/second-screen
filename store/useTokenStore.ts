@@ -272,6 +272,29 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           }
         });
       }
+    } else {
+      // Complete state sanitization on logout
+      set({
+        userOrgs: [],
+        currentOrg: null,
+        orgProjects: [],
+        currentProject: null,
+        pendingInvitations: [],
+        pendingInvitePrompt: null,
+        rawTokens: {},
+        resolvedTokens: [],
+        figmaVariables: null,
+        figmaResolvedVariables: [],
+        credentials: DEFAULT_CREDENTIALS,
+      });
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.removeItem("ts_tokens_platform_pat");
+          localStorage.removeItem("ts_tokens_platform_pat_enc");
+          localStorage.removeItem("ts_active_org_id");
+          localStorage.removeItem("ts_active_project_id");
+        } catch {}
+      }
     }
   },
 

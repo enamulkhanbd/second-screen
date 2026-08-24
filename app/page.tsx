@@ -24,6 +24,7 @@ import { MembersView } from "@/components/MembersView";
 import { OrgSettingsView } from "@/components/OrgSettingsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
+import { AuthGatewayView } from "@/components/AuthGatewayView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 
@@ -58,6 +59,31 @@ export default function Home() {
     !pendingInvitePrompt &&
     !isWizardDismissed
   );
+
+  // Model A: Dedicated Sign In / Welcome Gateway for signed-out users
+  if (!currentUser && !isLoadingTenant) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <AuthGatewayView />
+        <AcceptInviteModal />
+        <ToastContainer />
+      </main>
+    );
+  }
+
+  // Loading Screen while resolving authentication & tenancy
+  if (isLoadingTenant) {
+    return (
+      <main className="h-screen w-screen flex flex-col items-center justify-center bg-background text-foreground space-y-3 select-none font-sans">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center animate-pulse">
+          <div className="w-5 h-5 rounded-md bg-primary" />
+        </div>
+        <span className="text-xs font-mono text-muted-foreground animate-pulse">
+          Loading Tokens Platform...
+        </span>
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
