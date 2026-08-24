@@ -73,11 +73,27 @@ export function sanitizeGitCredentials(rawCreds: GitCredentials): GitCredentials
       if (legacyUrlMatch[3] && !repo) repo = legacyUrlMatch[3];
     }
 
-    owner = owner
-      .replace(/^https?:\/\//i, "")
-      .replace(/^dev\.azure\.com\//i, "")
-      .replace(/\.visualstudio\.com\/?/i, "")
-      .split("/")[0] || owner;
+    // If owner contains "org/project" e.g. "azolvedevops/JustGo"
+    if (owner.includes("/")) {
+      const parts = owner
+        .replace(/^https?:\/\//i, "")
+        .replace(/^dev\.azure\.com\//i, "")
+        .replace(/\.visualstudio\.com\/?/i, "")
+        .split("/")
+        .filter(Boolean);
+      if (parts.length >= 2) {
+        owner = parts[0];
+        if (!project) project = parts[1];
+      } else if (parts.length === 1) {
+        owner = parts[0];
+      }
+    } else {
+      owner = owner
+        .replace(/^https?:\/\//i, "")
+        .replace(/^dev\.azure\.com\//i, "")
+        .replace(/\.visualstudio\.com\/?/i, "")
+        .trim();
+    }
 
     if (project.includes("dev.azure.com") || project.includes("http")) {
       const parts = project.split("/").filter(Boolean);
@@ -88,7 +104,16 @@ export function sanitizeGitCredentials(rawCreds: GitCredentials): GitCredentials
       repo = repo.split("/_git/")[1] || repo;
     } else if (repo.includes("/")) {
       const parts = repo.split("/").filter(Boolean);
-      repo = parts[parts.length - 1] || repo;
+      if (parts.length >= 3) {
+        if (!owner) owner = parts[0];
+        if (!project) project = parts[1];
+        repo = parts[2];
+      } else if (parts.length === 2) {
+        if (!project) project = parts[0];
+        repo = parts[1];
+      } else {
+        repo = parts[parts.length - 1] || repo;
+      }
     }
   }
 
@@ -104,9 +129,9 @@ export function sanitizeGitCredentials(rawCreds: GitCredentials): GitCredentials
 
   return {
     provider,
-    owner: owner || repo.split("/")[0] || "",
-    project: project || owner,
-    repo: repo.includes("/") ? repo.split("/")[1] : repo,
+    owner: owner || "",
+    project: project || owner || "",
+    repo: repo || "",
     branch: branch || "main",
     path: path || "",
     pat,

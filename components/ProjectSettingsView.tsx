@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { GitProvider } from "@/types/tokens";
 import { saveProjectGitConfig } from "@/services/organizationService";
+import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import {
   FolderGit2,
   GitBranch,
@@ -94,6 +95,7 @@ export const ProjectSettingsView: React.FC = () => {
   // Git State
   const [provider, setProvider] = useState<GitProvider>(credentials.provider || "github");
   const [owner, setOwner] = useState(credentials.owner || "");
+  const [gitProject, setGitProject] = useState(credentials.project || "");
   const [repo, setRepo] = useState(credentials.repo || "");
   const [branch, setBranch] = useState(credentials.branch || "main");
   const [filePath, setFilePath] = useState(credentials.filePath || "tokens/tokens.json");
@@ -152,6 +154,7 @@ export const ProjectSettingsView: React.FC = () => {
   useEffect(() => {
     setProvider(credentials.provider || "github");
     setOwner(credentials.owner || "");
+    setGitProject(credentials.project || "");
     setRepo(credentials.repo || "");
     setBranch(credentials.branch || "main");
     setFilePath(credentials.filePath || "tokens/tokens.json");
@@ -179,15 +182,17 @@ export const ProjectSettingsView: React.FC = () => {
 
     setIsSavingGit(true);
     try {
-      const updatedCreds = {
+      const rawCreds = {
         provider,
         owner: owner.trim(),
+        project: gitProject.trim(),
         repo: repo.trim(),
         branch: branch.trim() || "main",
         path: filePath.trim() || "tokens/tokens.json",
         filePath: filePath.trim() || "tokens/tokens.json",
         pat: pat.trim(),
       };
+      const updatedCreds = sanitizeGitCredentials(rawCreds);
 
       setCredentials(updatedCreds, rememberPat);
       await saveProjectGitConfig(currentOrg.id, currentProject.id, updatedCreds);
@@ -220,15 +225,17 @@ export const ProjectSettingsView: React.FC = () => {
 
     setIsTestingGit(true);
     try {
-      const testCreds = {
+      const rawCreds = {
         provider,
         owner: owner.trim(),
+        project: gitProject.trim(),
         repo: repo.trim(),
         branch: branch.trim() || "main",
         path: filePath.trim() || "tokens/tokens.json",
         filePath: filePath.trim() || "tokens/tokens.json",
         pat: pat.trim(),
       };
+      const testCreds = sanitizeGitCredentials(rawCreds);
 
       const res = await fetch("/api/git/branches", {
         method: "POST",
@@ -501,26 +508,50 @@ export const ProjectSettingsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Repo Owner & Repo Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Repo Owner, Azure Project (if Azure), and Repo Name */}
+            <div className={`grid grid-cols-1 ${provider === "azure" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Repository Owner / Organization</Label>
+                <Label className="text-xs font-semibold">
+                  {provider === "azure" ? "Azure Organization" : "Repository Owner / Organization"}
+                </Label>
                 <Input
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
-                  placeholder="e.g. acme-corp or username"
+                  placeholder={
+                    provider === "azure"
+                      ? "e.g. azolvedevops"
+                      : "e.g. acme-corp or username"
+                  }
                   disabled={!canEditSettings}
                   required
                   className="h-9 text-xs"
                 />
               </div>
 
+              {provider === "azure" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Project Name</Label>
+                  <Input
+                    value={gitProject}
+                    onChange={(e) => setGitProject(e.target.value)}
+                    placeholder="e.g. JustGo"
+                    disabled={!canEditSettings}
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Repository Name</Label>
                 <Input
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
-                  placeholder="e.g. design-system or mobile-tokens"
+                  placeholder={
+                    provider === "azure"
+                      ? "e.g. planet"
+                      : "e.g. design-system or mobile-tokens"
+                  }
                   disabled={!canEditSettings}
                   required
                   className="h-9 text-xs"
