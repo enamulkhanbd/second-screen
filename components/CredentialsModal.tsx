@@ -243,7 +243,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     <Input
                       id="gh-repo"
                       type="text"
-                      placeholder="e.g. acme-corp/design-tokens"
+                      placeholder="e.g. your-org/design-tokens"
                       value={form.repo}
                       onChange={(e) => setForm({ ...form, repo: e.target.value })}
                       required
@@ -257,7 +257,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       <Input
                         id="gh-branch"
                         type="text"
-                        placeholder="main"
+                        placeholder="e.g. main"
                         value={form.branch}
                         onChange={(e) => setForm({ ...form, branch: e.target.value })}
                         required
@@ -269,7 +269,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       <Input
                         id="gh-path"
                         type="text"
-                        placeholder="tokens or tokens.json"
+                        placeholder="e.g. tokens.json or tokens/"
                         value={form.path}
                         onChange={(e) => setForm({ ...form, path: e.target.value })}
                         className="font-mono text-xs"
@@ -298,7 +298,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       <Input
                         id="az-org"
                         type="text"
-                        placeholder="e.g. my-org"
+                        placeholder="e.g. your-organization"
                         value={form.owner}
                         onChange={(e) => setForm({ ...form, owner: e.target.value })}
                         required
@@ -310,7 +310,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       <Input
                         id="az-project"
                         type="text"
-                        placeholder="e.g. DesignSystem"
+                        placeholder="e.g. your-project-name"
                         value={form.project}
                         onChange={(e) => setForm({ ...form, project: e.target.value })}
                         required
@@ -325,7 +325,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       <Input
                         id="az-repo"
                         type="text"
-                        placeholder="e.g. tokens-repo"
+                        placeholder="e.g. design-tokens or repo-name"
                         value={form.repo}
                         onChange={(e) => setForm({ ...form, repo: e.target.value })}
                         required
@@ -337,7 +337,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                       <Input
                         id="az-branch"
                         type="text"
-                        placeholder="main"
+                        placeholder="e.g. main"
                         value={form.branch}
                         onChange={(e) => setForm({ ...form, branch: e.target.value })}
                         required
@@ -351,7 +351,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     <Input
                       id="az-pat"
                       type="password"
-                      placeholder="Azure PAT..."
+                      placeholder="Paste your Azure DevOps PAT here..."
                       value={form.pat}
                       onChange={(e) => setForm({ ...form, pat: e.target.value })}
                       required

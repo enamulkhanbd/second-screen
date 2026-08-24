@@ -99,8 +99,8 @@ export const ProjectSettingsView: React.FC = () => {
   const [owner, setOwner] = useState(credentials.owner || "");
   const [gitProject, setGitProject] = useState(credentials.project || "");
   const [repo, setRepo] = useState(credentials.repo || "");
-  const [branch, setBranch] = useState(credentials.branch || "main");
-  const [filePath, setFilePath] = useState(credentials.filePath || "tokens/tokens.json");
+  const [branch, setBranch] = useState(credentials.branch || "");
+  const [filePath, setFilePath] = useState(credentials.filePath || credentials.path || "");
   const [pat, setPat] = useState(credentials.pat || "");
   const [showPat, setShowPat] = useState(false);
   const [rememberPat, setRememberPat] = useState(true);
@@ -160,8 +160,8 @@ export const ProjectSettingsView: React.FC = () => {
     setOwner(credentials.owner || "");
     setGitProject(credentials.project || "");
     setRepo(credentials.repo || "");
-    setBranch(credentials.branch || "main");
-    setFilePath(credentials.filePath || "tokens/tokens.json");
+    setBranch(credentials.branch || "");
+    setFilePath(credentials.filePath || credentials.path || "");
     setPat(credentials.pat || "");
   }, [credentials]);
 
@@ -191,9 +191,9 @@ export const ProjectSettingsView: React.FC = () => {
         owner: owner.trim(),
         project: gitProject.trim(),
         repo: repo.trim(),
-        branch: branch.trim() || "main",
-        path: filePath.trim() || "tokens/tokens.json",
-        filePath: filePath.trim() || "tokens/tokens.json",
+        branch: branch.trim(),
+        path: filePath.trim(),
+        filePath: filePath.trim(),
         pat: pat.trim(),
       };
       const updatedCreds = sanitizeGitCredentials(rawCreds);
@@ -234,9 +234,9 @@ export const ProjectSettingsView: React.FC = () => {
         owner: owner.trim(),
         project: gitProject.trim(),
         repo: repo.trim(),
-        branch: branch.trim() || "main",
-        path: filePath.trim() || "tokens/tokens.json",
-        filePath: filePath.trim() || "tokens/tokens.json",
+        branch: branch.trim(),
+        path: filePath.trim(),
+        filePath: filePath.trim(),
         pat: pat.trim(),
       };
       const testCreds = sanitizeGitCredentials(rawCreds);
@@ -278,8 +278,8 @@ export const ProjectSettingsView: React.FC = () => {
       setOwner("");
       setGitProject("");
       setRepo("");
-      setBranch("main");
-      setFilePath("tokens/tokens.json");
+      setBranch("");
+      setFilePath("");
       setPat("");
       setShowDisconnectGitModal(false);
       addToast({
@@ -567,8 +567,8 @@ export const ProjectSettingsView: React.FC = () => {
                   onChange={(e) => setOwner(e.target.value)}
                   placeholder={
                     provider === "azure"
-                      ? "e.g. azolvedevops"
-                      : "e.g. acme-corp or username"
+                      ? "e.g. your-organization"
+                      : "e.g. your-org or username"
                   }
                   disabled={!canEditSettings}
                   required
@@ -582,7 +582,7 @@ export const ProjectSettingsView: React.FC = () => {
                   <Input
                     value={gitProject}
                     onChange={(e) => setGitProject(e.target.value)}
-                    placeholder="e.g. JustGo"
+                    placeholder="e.g. your-project-name"
                     disabled={!canEditSettings}
                     required
                     className="h-9 text-xs"
@@ -595,11 +595,7 @@ export const ProjectSettingsView: React.FC = () => {
                 <Input
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
-                  placeholder={
-                    provider === "azure"
-                      ? "e.g. planet"
-                      : "e.g. design-system or mobile-tokens"
-                  }
+                  placeholder="e.g. design-tokens or repository-name"
                   disabled={!canEditSettings}
                   required
                   className="h-9 text-xs"
@@ -614,7 +610,7 @@ export const ProjectSettingsView: React.FC = () => {
                 <Input
                   value={branch}
                   onChange={(e) => setBranch(e.target.value)}
-                  placeholder="main"
+                  placeholder="e.g. main"
                   disabled={!canEditSettings}
                   required
                   className="h-9 text-xs font-mono"
@@ -626,7 +622,7 @@ export const ProjectSettingsView: React.FC = () => {
                 <Input
                   value={filePath}
                   onChange={(e) => setFilePath(e.target.value)}
-                  placeholder="tokens/tokens.json"
+                  placeholder="e.g. assets/tokens/platforms/web or tokens.json"
                   disabled={!canEditSettings}
                   required
                   className="h-9 text-xs font-mono"
