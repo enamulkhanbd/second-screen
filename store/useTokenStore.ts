@@ -51,6 +51,8 @@ import {
   revokeInvitation,
   removeOrgMember,
   deleteProject,
+  updateOrganization,
+  updateProject,
 } from "@/services/organizationService";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -74,7 +76,9 @@ interface TokenStoreState {
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
   createOrgAction: (name: string) => Promise<Organization | null>;
+  updateOrgAction: (orgId: string, name: string) => Promise<Organization | null>;
   createProjectAction: (name: string, description?: string) => Promise<Project | null>;
+  updateProjectAction: (orgId: string, projectId: string, updates: { name: string; description?: string }) => Promise<Project | null>;
   deleteProjectAction: (orgId: string, projectId: string) => Promise<void>;
   loadInvitations: (orgId: string) => Promise<void>;
   sendInvitationAction: (email: string, role: UserRole) => Promise<OrganizationInvitation | null>;
@@ -505,6 +509,24 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
+  updateOrgAction: async (orgId, name) => {
+    try {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      await updateOrganization(orgId, { name, slug });
+      const updatedOrgs = get().userOrgs.map((o) =>
+        o.id === orgId ? { ...o, name, slug, updatedAt: new Date().toISOString() } : o
+      );
+      set({ userOrgs: updatedOrgs });
+      if (get().currentOrg?.id === orgId) {
+        set({ currentOrg: { ...get().currentOrg!, name, slug, updatedAt: new Date().toISOString() } });
+      }
+      return get().currentOrg;
+    } catch (e) {
+      console.warn("Failed updating org:", e);
+      throw e;
+    }
+  },
+
   createProjectAction: async (name, description) => {
     const { currentOrg, currentUser } = get();
     if (!currentOrg) return null;
@@ -523,6 +545,29 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     } catch (e) {
       console.warn("Failed creating project:", e);
       return null;
+    }
+  },
+
+  updateProjectAction: async (orgId, projectId, updates) => {
+    try {
+      const slug = updates.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      const projectUpdates = {
+        name: updates.name,
+        description: updates.description || "",
+        slug,
+      };
+      await updateProject(orgId, projectId, projectUpdates);
+      const updatedProjects = get().orgProjects.map((p) =>
+        p.id === projectId ? { ...p, ...projectUpdates, updatedAt: new Date().toISOString() } : p
+      );
+      set({ orgProjects: updatedProjects });
+      if (get().currentProject?.id === projectId) {
+        set({ currentProject: { ...get().currentProject!, ...projectUpdates, updatedAt: new Date().toISOString() } });
+      }
+      return get().currentProject;
+    } catch (e) {
+      console.warn("Failed updating project:", e);
+      throw e;
     }
   },
 

@@ -78,6 +78,7 @@ export const ProjectSettingsView: React.FC = () => {
   const {
     currentOrg,
     currentProject,
+    updateProjectAction,
     credentials,
     setCredentials,
     clearCredentials,
@@ -93,6 +94,7 @@ export const ProjectSettingsView: React.FC = () => {
   const [projectName, setProjectName] = useState(currentProject?.name || "");
   const [projectDescription, setProjectDescription] = useState(currentProject?.description || "");
   const [copiedId, setCopiedId] = useState(false);
+  const [isSavingGeneral, setIsSavingGeneral] = useState(false);
 
   // Git State
   const [provider, setProvider] = useState<GitProvider>(credentials.provider || "github");
@@ -121,6 +123,32 @@ export const ProjectSettingsView: React.FC = () => {
   // Danger Zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const handleSaveGeneralInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg || !currentProject || !projectName.trim()) return;
+
+    setIsSavingGeneral(true);
+    try {
+      await updateProjectAction(currentOrg.id, currentProject.id, {
+        name: projectName.trim(),
+        description: projectDescription.trim(),
+      });
+      addToast({
+        type: "success",
+        title: "Project Updated",
+        message: `Saved project as "${projectName.trim()}".`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Update Failed",
+        message: err.message || "Failed to update project details.",
+      });
+    } finally {
+      setIsSavingGeneral(false);
+    }
+  };
 
   const fetchPluginStatus = async () => {
     if (!currentProject) return;
@@ -423,7 +451,7 @@ export const ProjectSettingsView: React.FC = () => {
       {/* Main Container */}
       <div className="max-w-4xl w-full mx-auto p-8 space-y-8">
         {/* Section 1: General Project Information */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
+        <form onSubmit={handleSaveGeneralInfo} className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-border/70 pb-3">
             <div>
               <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -446,6 +474,7 @@ export const ProjectSettingsView: React.FC = () => {
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 disabled={!canEditSettings}
+                required
                 className="h-9 text-xs"
               />
             </div>
@@ -481,6 +510,7 @@ export const ProjectSettingsView: React.FC = () => {
                   className="h-9 text-xs font-mono bg-muted/50 flex-1"
                 />
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleCopyProjectId}
@@ -492,7 +522,21 @@ export const ProjectSettingsView: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+
+          {canEditSettings && (
+            <div className="flex justify-end pt-2 border-t border-border/60">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSavingGeneral || !projectName.trim()}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{isSavingGeneral ? "Saving..." : "Save Project Details"}</span>
+              </Button>
+            </div>
+          )}
+        </form>
 
         {/* Section 2: Git Provider Synchronization */}
         <form onSubmit={handleSaveGitConfig} className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">

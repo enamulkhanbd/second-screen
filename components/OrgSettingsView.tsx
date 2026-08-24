@@ -35,6 +35,7 @@ export const OrgSettingsView: React.FC = () => {
     currentOrg,
     currentUser,
     orgProjects,
+    updateOrgAction,
     addToast,
     getCurrentUserRole,
     setSidebarTab,
@@ -46,6 +47,13 @@ export const OrgSettingsView: React.FC = () => {
   const [orgName, setOrgName] = useState(currentOrg?.name || "");
   const [copiedId, setCopiedId] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync state when currentOrg changes
+  React.useEffect(() => {
+    if (currentOrg?.name) {
+      setOrgName(currentOrg.name);
+    }
+  }, [currentOrg]);
 
   // Danger Zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -70,21 +78,12 @@ export const OrgSettingsView: React.FC = () => {
 
     setIsSaving(true);
     try {
-      const updatedOrg = {
-        ...currentOrg,
-        name: orgName.trim(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      useTokenStore.setState((state) => ({
-        currentOrg: updatedOrg,
-        userOrgs: state.userOrgs.map((o) => (o.id === updatedOrg.id ? updatedOrg : o)),
-      }));
+      await updateOrgAction(currentOrg.id, orgName.trim());
 
       addToast({
         type: "success",
         title: "Organization Updated",
-        message: `Saved organization name as "${orgName.trim()}".`,
+        message: `Saved workspace name as "${orgName.trim()}".`,
       });
     } catch (err: any) {
       addToast({

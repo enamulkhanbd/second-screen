@@ -28,6 +28,7 @@ import {
   Check,
   ChevronDown,
   RefreshCw,
+  Save,
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
@@ -35,6 +36,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +67,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
     setCurrentOrg,
     setCurrentProject,
     createOrgAction,
+    updateOrgAction,
+    updateProjectAction,
     deleteProjectAction,
     getCurrentUserRole,
     setSidebarTab,
@@ -79,11 +83,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
   const [newOrgName, setNewOrgName] = useState("");
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
+  // Edit Workspace State
+  const [showEditOrgModal, setShowEditOrgModal] = useState(false);
+  const [editOrgName, setEditOrgName] = useState("");
+  const [isUpdatingOrg, setIsUpdatingOrg] = useState(false);
+
+  // Edit Project State
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
+  const [editProjectName, setEditProjectName] = useState("");
+  const [editProjectDescription, setEditProjectDescription] = useState("");
+  const [isUpdatingProject, setIsUpdatingProject] = useState(false);
+
   // Project deletion confirmation
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   const userRole = getCurrentUserRole();
+  const canEdit = userRole === "owner" || userRole === "admin";
 
   // Filter projects by search query
   const filteredProjects = useMemo(() => {
@@ -125,6 +141,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
     }
   };
 
+  // Handle updating Workspace name
+  const handleUpdateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg || !editOrgName.trim()) return;
+
+    setIsUpdatingOrg(true);
+    try {
+      await updateOrgAction(currentOrg.id, editOrgName.trim());
+      addToast({
+        type: "success",
+        title: "Workspace Renamed",
+        message: `Workspace renamed to "${editOrgName.trim()}".`,
+      });
+      setShowEditOrgModal(false);
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Update Failed",
+        message: err.message || "Could not update workspace name.",
+      });
+    } finally {
+      setIsUpdatingOrg(false);
+    }
+  };
+
   // Handle opening a project
   const handleOpenProject = (project: Project) => {
     setCurrentProject(project);
@@ -141,6 +182,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
     setCurrentProject(project);
     setSidebarTab("project-settings");
     if (onOpenSettings) onOpenSettings();
+  };
+
+  // Handle editing a project details
+  const handleOpenEditProject = (project: Project) => {
+    setProjectToEdit(project);
+    setEditProjectName(project.name);
+    setEditProjectDescription(project.description || "");
+  };
+
+  const handleUpdateProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg || !projectToEdit || !editProjectName.trim()) return;
+
+    setIsUpdatingProject(true);
+    try {
+      await updateProjectAction(currentOrg.id, projectToEdit.id, {
+        name: editProjectName.trim(),
+        description: editProjectDescription.trim(),
+      });
+      addToast({
+        type: "success",
+        title: "Project Updated",
+        message: `Updated project "${editProjectName.trim()}".`,
+      });
+      setProjectToEdit(null);
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Update Failed",
+        message: err.message || "Could not update project.",
+      });
+    } finally {
+      setIsUpdatingProject(false);
+    }
   };
 
   // Handle project deletion
@@ -199,10 +274,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl font-bold text-foreground tracking-tight">
                 {currentOrg?.name || "My Workspace"}
               </h1>
+
+              {/* Edit Workspace Pencil Button */}
+              {canEdit && currentOrg && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => {
+                    setEditOrgName(currentOrg.name);
+                    setShowEditOrgModal(true);
+                  }}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  title="Rename Workspace"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
 
               {/* Workspace Selector Dropdown */}
               <DropdownMenu>
@@ -397,7 +488,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
                             <MoreVertical className="w-3.5 h-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => handleOpenEditProject(proj)}
+                            className="gap-2 text-xs cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>Edit Project Details</span>
+                          </DropdownMenuItem>
+
                           <DropdownMenuItem
                             onClick={() => handleOpenProjectSettings(proj)}
                             className="gap-2 text-xs cursor-pointer"
@@ -519,6 +618,120 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
         isOpen={showManageOrg}
         onClose={() => setShowManageOrg(false)}
       />
+
+      {/* Edit Workspace (Organization) Modal */}
+      <Dialog open={showEditOrgModal} onOpenChange={setShowEditOrgModal}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="gap-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <DialogTitle>Rename Workspace</DialogTitle>
+            </div>
+            <DialogDescription>
+              Update your workspace identity.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateWorkspace} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Workspace Name</Label>
+              <Input
+                placeholder="e.g. JustGo, Core Design, Studio"
+                value={editOrgName}
+                onChange={(e) => setEditOrgName(e.target.value)}
+                autoFocus
+                required
+                className="text-xs"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditOrgModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isUpdatingOrg || !editOrgName.trim()}
+                className="gap-1.5"
+              >
+                <span>{isUpdatingOrg ? "Saving..." : "Save Changes"}</span>
+                <Save className="w-3.5 h-3.5" />
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Modal */}
+      {projectToEdit && (
+        <Dialog open={Boolean(projectToEdit)} onOpenChange={(open) => !open && setProjectToEdit(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader className="gap-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <FolderGit2 className="w-4 h-4" />
+                </div>
+                <DialogTitle>Edit Project Details</DialogTitle>
+              </div>
+              <DialogDescription>
+                Update project name and description.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleUpdateProjectSubmit} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Project Name</Label>
+                <Input
+                  value={editProjectName}
+                  onChange={(e) => setEditProjectName(e.target.value)}
+                  placeholder="e.g. Core Design System, Web Tokens"
+                  autoFocus
+                  required
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Description</Label>
+                <Input
+                  value={editProjectDescription}
+                  onChange={(e) => setEditProjectDescription(e.target.value)}
+                  placeholder="e.g. Multi-brand cross-platform tokens"
+                  className="text-xs"
+                />
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setProjectToEdit(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isUpdatingProject || !editProjectName.trim()}
+                  className="gap-1.5"
+                >
+                  <span>{isUpdatingProject ? "Saving..." : "Save Project"}</span>
+                  <Save className="w-3.5 h-3.5" />
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Create New Workspace Modal */}
       <Dialog open={showCreateOrgModal} onOpenChange={setShowCreateOrgModal}>

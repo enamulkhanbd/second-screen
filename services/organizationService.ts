@@ -129,6 +129,26 @@ export async function createOrganization(
 }
 
 /**
+ * Updates Organization metadata (e.g. name, slug) in Firestore
+ */
+export async function updateOrganization(
+  orgId: string,
+  updates: Partial<{ name: string; slug: string }>
+): Promise<void> {
+  if (!orgId || !isFirebaseConfigured || !db) return;
+  try {
+    const orgRef = doc(db, "organizations", orgId);
+    await updateDoc(orgRef, {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Firestore error updating organization:", e);
+    throw e;
+  }
+}
+
+/**
  * Adds or updates a member in an Organization in Firestore
  */
 export async function updateOrgMember(
@@ -411,6 +431,27 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
     await deleteDoc(doc(db, "organizations", orgId, "projects", projectId));
   } catch (e) {
     console.warn("Firestore error deleting project:", e);
+  }
+}
+
+/**
+ * Updates Project metadata (name, description, slug) in Firestore
+ */
+export async function updateProject(
+  orgId: string,
+  projectId: string,
+  updates: Partial<{ name: string; description: string; slug: string }>
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await updateDoc(projRef, {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Firestore error updating project:", e);
+    throw e;
   }
 }
 
