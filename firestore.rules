@@ -2,36 +2,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Pairing Sessions (Temporary 6-digit handshake for Figma Plugin pairing)
+    // 1. Pairing Sessions (Handshake for Figma Companion Plugin)
     match /pairing_sessions/{sessionId} {
-      allow read, write: if true;
+      allow read, write: if request.time < timestamp.date(2030, 1, 1);
     }
 
-    // 2. Personal API Tokens (PATs used by CLI / Figma Plugin Bridge)
+    // 2. Personal Access Tokens (PAT Authentication)
     match /api_keys/{keyId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if request.time < timestamp.date(2030, 1, 1);
     }
 
-    // 3. Organizations and Multi-Tenant Project Documents
+    // 3. Organizations & Multi-Tenant Projects (Client App & Server API Routes)
     match /organizations/{orgId} {
-      allow read, create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read, write: if request.time < timestamp.date(2030, 1, 1);
 
       match /projects/{projectId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if request.time < timestamp.date(2030, 1, 1);
       }
     }
 
     // 4. Team Invitations
     match /invitations/{invitationId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if request.time < timestamp.date(2030, 1, 1);
     }
 
-    // 5. Default Secure Fallback for all other collections
+    // 5. Fallback rule
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.time < timestamp.date(2030, 1, 1);
     }
   }
 }

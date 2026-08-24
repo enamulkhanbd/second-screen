@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { GitCredentials, GitProvider } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
-import { saveProjectGitConfig } from "@/services/organizationService";
+import { saveProjectGitConfig, saveProjectTokens } from "@/services/organizationService";
 import {
   Server,
   Key,
@@ -63,6 +63,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
     clearCredentials();
     if (currentOrg && currentProject) {
       await saveProjectGitConfig(currentOrg.id, currentProject.id, null);
+      await saveProjectTokens(currentOrg.id, currentProject.id, {});
     }
     setForm({
       provider: "github",

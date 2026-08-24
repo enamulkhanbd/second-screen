@@ -51,11 +51,8 @@ import {
   revokeInvitation,
   removeOrgMember,
 } from "@/services/organizationService";
-import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-
-let activeProjectUnsubscribe: (() => void) | null = null;
 
 interface TokenStoreState {
   // Multi-Tenant Identity & Scope
@@ -305,12 +302,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setCurrentProject: (proj) => {
     set({ currentProject: proj });
 
-    // Clean up previous real-time snapshot listener
-    if (activeProjectUnsubscribe) {
-      activeProjectUnsubscribe();
-      activeProjectUnsubscribe = null;
-    }
-
     if (proj) {
       if (typeof window !== "undefined") {
         try {
@@ -318,37 +309,25 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
 
-      // 1. Initial Load project tokens and git config (only if no unsaved local modifications)
-      const isCurrentDirty = get().isDirty;
-      const currentTokens = get().rawTokens;
-      const hasCurrentTokens = Object.keys(currentTokens).length > 0;
-
-      if (!isCurrentDirty || !hasCurrentTokens) {
+      // 1. Git Connection & Token Dictionary (Dynamic-only on explicit Pull)
+      if (proj.gitConfig && proj.gitConfig.repo) {
+        get().setCredentials(proj.gitConfig);
         if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
           get().setRawTokens(proj.rawTokens);
-        } else if (typeof window !== "undefined") {
-          fetch(`/api/v1/tokens?projectId=${encodeURIComponent(proj.id)}&orgId=${encodeURIComponent(proj.orgId || "")}`, {
-            headers: { "x-internal-client": "tokens-platform" },
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0 && !get().isDirty) {
-                get().setRawTokens(data.rawTokens);
-              }
-              if (data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
-                const resolved = flattenAndResolveTokens(data.figmaVariables, "ALL");
-                set({
-                  figmaVariables: data.figmaVariables,
-                  figmaResolvedVariables: resolved,
-                  figmaUpdatedAt: data.figmaUpdatedAt || null,
-                });
-              }
-            })
-            .catch(() => {});
         }
+      } else {
+        get().clearCredentials();
+        set({
+          rawTokens: {},
+          resolvedTokens: [],
+          themeGroups: [],
+          activeThemeGroupId: "",
+          activeThemeOptionId: "",
+          syncMeta: null,
+        });
       }
 
-      // Load Figma variables if present on project
+      // 2. Figma Variables (Explicitly pushed from Figma Plugin)
       if (proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0) {
         const resolvedFigma = flattenAndResolveTokens(proj.figmaVariables, "ALL");
         set({
@@ -366,53 +345,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
       }
 
-      if (proj.themeGroups && proj.themeGroups.length > 0) {
+      if (proj.themeGroups && proj.themeGroups.length > 0 && proj.gitConfig?.repo) {
         set({
           themeGroups: proj.themeGroups,
           activeThemeGroupId: proj.themeGroups[0].id,
           activeThemeOptionId: proj.themeGroups[0].options[0]?.id || "",
         });
-      }
-      if (proj.gitConfig) {
-        get().setCredentials(proj.gitConfig);
-      }
-
-      // 2. Real-Time Firestore onSnapshot Listener (live syncing tokens from Figma or cloud)
-      if (isFirebaseConfigured && db && proj.orgId && proj.id && typeof window !== "undefined") {
-        try {
-          const projRef = doc(db, "organizations", proj.orgId, "projects", proj.id);
-          activeProjectUnsubscribe = onSnapshot(projRef, (snap) => {
-            if (snap.exists()) {
-              // Ignore snapshot if it has pending local writes or if the user has unsaved edits
-              if (snap.metadata?.hasPendingWrites || get().isDirty) {
-                return;
-              }
-              const liveData = snap.data() as Project;
-              if (liveData.rawTokens && Object.keys(liveData.rawTokens).length > 0) {
-                const currentRaw = get().rawTokens;
-                if (JSON.stringify(currentRaw) !== JSON.stringify(liveData.rawTokens)) {
-                  get().setRawTokens(liveData.rawTokens);
-                  if (liveData.themeGroups && liveData.themeGroups.length > 0) {
-                    set({ themeGroups: liveData.themeGroups });
-                  }
-                }
-              }
-              if (liveData.figmaVariables) {
-                const resolvedFigma = Object.keys(liveData.figmaVariables).length > 0
-                  ? flattenAndResolveTokens(liveData.figmaVariables, "ALL")
-                  : [];
-                set({
-                  figmaVariables: Object.keys(liveData.figmaVariables).length > 0 ? liveData.figmaVariables : null,
-                  figmaResolvedVariables: resolvedFigma,
-                  figmaUpdatedAt: liveData.figmaUpdatedAt || null,
-                  figmaMeta: liveData.figmaMeta || null,
-                });
-              }
-            }
-          });
-        } catch (err) {
-          console.warn("Real-time project listener error:", err);
-        }
       }
     }
   },
@@ -642,6 +580,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       syncError: null,
       isDirty: false,
     });
+    const { currentOrg, currentProject } = get();
+    if (currentOrg && currentProject) {
+      saveProjectGitConfig(currentOrg.id, currentProject.id, null).catch(() => {});
+      saveProjectTokens(currentOrg.id, currentProject.id, {}).catch(() => {});
+    }
   },
 
   rawTokens: {},
@@ -1198,7 +1141,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         set({ isLoadingTenant: false });
       }
 
-      // 5. Automatically fetch fresh live tokens from remote git repository or Cloud API
+      // 5. Automatically fetch fresh live tokens from remote git repository only if fully configured
       if (
         parsedCreds.provider &&
         parsedCreds.owner &&
@@ -1207,18 +1150,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         parsedCreds.pat
       ) {
         get().fetchLiveTokens(parsedCreds);
-      } else if (typeof window !== "undefined" && get().currentUser) {
-        // Fetch latest synced tokens from Tokens Platform Cloud API if user is authenticated
-        fetch("/api/v1/tokens", {
-          headers: { "x-internal-client": "tokens-platform" },
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success && data.rawTokens && Object.keys(data.rawTokens).length > 0) {
-              get().setRawTokens(data.rawTokens);
-            }
-          })
-          .catch(() => {});
       }
     } catch {
       // ignore storage parsing error
@@ -1236,25 +1167,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       groups.find((g) => g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // Automatically synchronize loaded tokens with active Project & Tokens Platform Cloud API
+    // Synchronize loaded tokens with active Project in Cloud Firestore
     const { currentOrg, currentProject } = get();
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
-    }
-
-    if (typeof window !== "undefined" && doc && typeof doc === "object") {
-      const query =
-        currentOrg && currentProject
-          ? `?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`
-          : "";
-      fetch(`/api/v1/tokens${query}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-client": "tokens-platform",
-        },
-        body: JSON.stringify({ rawTokens: doc }),
-      }).catch(() => { });
     }
 
     set({

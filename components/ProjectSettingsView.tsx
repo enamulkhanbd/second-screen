@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { GitProvider } from "@/types/tokens";
-import { saveProjectGitConfig } from "@/services/organizationService";
+import { saveProjectGitConfig, saveProjectTokens } from "@/services/organizationService";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import {
   FolderGit2,
@@ -274,6 +274,7 @@ export const ProjectSettingsView: React.FC = () => {
     try {
       clearCredentials();
       await saveProjectGitConfig(currentOrg.id, currentProject.id, null);
+      await saveProjectTokens(currentOrg.id, currentProject.id, {});
       setOwner("");
       setGitProject("");
       setRepo("");

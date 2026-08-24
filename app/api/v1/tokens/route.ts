@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const orgId = searchParams.get("orgId") || auth.record?.orgId;
     const projectId = searchParams.get("projectId") || auth.record?.projectId;
 
-    let targetDoc: Record<string, any> = { global: {} };
+    let targetDoc: Record<string, any> = {};
     let figmaVariables: Record<string, any> = {};
     let figmaUpdatedAt: string | null = null;
 

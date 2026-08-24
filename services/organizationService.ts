@@ -375,7 +375,7 @@ export async function createProject(
 ): Promise<Project> {
   const projId = `proj_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : { global: {} };
+  const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : {};
   const themeGroups = extractThemeGroups(rawTokens);
 
   const newProject: Project = {
