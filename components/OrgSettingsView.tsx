@@ -78,7 +78,7 @@ export const OrgSettingsView: React.FC = () => {
 
     setIsSaving(true);
     try {
-      await updateOrgAction(currentOrg.id, orgName.trim());
+      await updateOrgAction(currentOrg.id, { name: orgName.trim() });
 
       addToast({
         type: "success",

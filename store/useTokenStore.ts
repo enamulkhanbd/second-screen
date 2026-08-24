@@ -50,6 +50,7 @@ import {
   acceptOrganizationInvitation,
   revokeInvitation,
   removeOrgMember,
+  deleteOrganization,
   deleteProject,
   updateOrganization,
   updateProject,
@@ -75,10 +76,11 @@ interface TokenStoreState {
   setActiveInviteToken: (token: string | null) => void;
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
-  createOrgAction: (name: string) => Promise<Organization | null>;
-  updateOrgAction: (orgId: string, name: string) => Promise<Organization | null>;
-  createProjectAction: (name: string, description?: string) => Promise<Project | null>;
-  updateProjectAction: (orgId: string, projectId: string, updates: { name: string; description?: string }) => Promise<Project | null>;
+  createOrgAction: (name: string, icon?: string, color?: string, logoUrl?: string) => Promise<Organization | null>;
+  updateOrgAction: (orgId: string, updates: { name: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
+  deleteOrgAction: (orgId: string) => Promise<void>;
+  createProjectAction: (name: string, description?: string, icon?: string, color?: string, logoUrl?: string) => Promise<Project | null>;
+  updateProjectAction: (orgId: string, projectId: string, updates: { name: string; description?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Project | null>;
   deleteProjectAction: (orgId: string, projectId: string) => Promise<void>;
   loadInvitations: (orgId: string) => Promise<void>;
   sendInvitationAction: (email: string, role: UserRole) => Promise<OrganizationInvitation | null>;
@@ -490,15 +492,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  createOrgAction: async (name) => {
+  createOrgAction: async (name, icon, color, logoUrl) => {
     const { currentUser } = get();
     if (!currentUser) return null;
     try {
-      const newOrg = await createOrganization(name, {
-        uid: currentUser.uid,
-        email: currentUser.email,
-        displayName: currentUser.displayName,
-      });
+      const newOrg = await createOrganization(
+        name,
+        {
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName,
+        },
+        icon,
+        color,
+        logoUrl
+      );
       const orgs = [...get().userOrgs, newOrg];
       set({ userOrgs: orgs });
       get().setCurrentOrg(newOrg);
@@ -509,16 +517,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  updateOrgAction: async (orgId, name) => {
+  updateOrgAction: async (orgId, updates) => {
     try {
-      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
-      await updateOrganization(orgId, { name, slug });
+      const slug = updates.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      const orgUpdates = {
+        name: updates.name,
+        slug,
+        ...(updates.icon ? { icon: updates.icon } : {}),
+        ...(updates.color ? { color: updates.color } : {}),
+        ...(updates.logoUrl !== undefined ? { logoUrl: updates.logoUrl } : {}),
+      };
+      await updateOrganization(orgId, orgUpdates);
       const updatedOrgs = get().userOrgs.map((o) =>
-        o.id === orgId ? { ...o, name, slug, updatedAt: new Date().toISOString() } : o
+        o.id === orgId ? { ...o, ...orgUpdates, updatedAt: new Date().toISOString() } : o
       );
       set({ userOrgs: updatedOrgs });
       if (get().currentOrg?.id === orgId) {
-        set({ currentOrg: { ...get().currentOrg!, name, slug, updatedAt: new Date().toISOString() } });
+        set({ currentOrg: { ...get().currentOrg!, ...orgUpdates, updatedAt: new Date().toISOString() } });
       }
       return get().currentOrg;
     } catch (e) {
@@ -527,7 +542,22 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  createProjectAction: async (name, description) => {
+  deleteOrgAction: async (orgId) => {
+    try {
+      await deleteOrganization(orgId);
+      const remaining = get().userOrgs.filter((o) => o.id !== orgId);
+      set({ userOrgs: remaining });
+      if (get().currentOrg?.id === orgId) {
+        const nextOrg = remaining[0] || null;
+        get().setCurrentOrg(nextOrg);
+      }
+    } catch (e) {
+      console.warn("Failed deleting org:", e);
+      throw e;
+    }
+  },
+
+  createProjectAction: async (name, description, icon, color, logoUrl) => {
     const { currentOrg, currentUser } = get();
     if (!currentOrg) return null;
     try {
@@ -536,7 +566,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         name,
         description,
         get().rawTokens,
-        currentUser?.displayName
+        currentUser?.displayName,
+        icon,
+        color,
+        logoUrl
       );
       const projs = [...get().orgProjects, newProj];
       set({ orgProjects: projs });
@@ -555,6 +588,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         name: updates.name,
         description: updates.description || "",
         slug,
+        ...(updates.icon ? { icon: updates.icon } : {}),
+        ...(updates.color ? { color: updates.color } : {}),
+        ...(updates.logoUrl !== undefined ? { logoUrl: updates.logoUrl } : {}),
       };
       await updateProject(orgId, projectId, projectUpdates);
       const updatedProjects = get().orgProjects.map((p) =>

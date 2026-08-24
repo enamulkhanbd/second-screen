@@ -38,6 +38,9 @@ export interface Organization {
   name: string;
   slug: string;
   avatarUrl?: string;
+  icon?: string;
+  color?: string;
+  logoUrl?: string;
   ownerUid: string;
   members: OrganizationMember[];
   createdAt: string;
@@ -50,6 +53,9 @@ export interface Project {
   name: string;
   slug: string;
   description?: string;
+  icon?: string;
+  color?: string;
+  logoUrl?: string;
   gitConfig?: GitCredentials | null;
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];

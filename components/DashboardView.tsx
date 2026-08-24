@@ -148,7 +148,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
 
     setIsUpdatingOrg(true);
     try {
-      await updateOrgAction(currentOrg.id, editOrgName.trim());
+      await updateOrgAction(currentOrg.id, { name: editOrgName.trim() });
       addToast({
         type: "success",
         title: "Workspace Renamed",

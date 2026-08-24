@@ -94,7 +94,10 @@ export async function getOrganization(orgId: string): Promise<Organization | nul
  */
 export async function createOrganization(
   name: string,
-  owner: { uid: string; email: string; displayName?: string }
+  owner: { uid: string; email: string; displayName?: string },
+  icon?: string,
+  color?: string,
+  logoUrl?: string
 ): Promise<Organization> {
   const orgId = `org_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -103,6 +106,9 @@ export async function createOrganization(
     id: orgId,
     name,
     slug,
+    icon: icon || "🏢",
+    color: color || "#6366f1",
+    logoUrl: logoUrl || "",
     ownerUid: owner.uid,
     members: [
       {
@@ -129,11 +135,11 @@ export async function createOrganization(
 }
 
 /**
- * Updates Organization metadata (e.g. name, slug) in Firestore
+ * Updates Organization metadata (e.g. name, slug, icon, color, logoUrl) in Firestore
  */
 export async function updateOrganization(
   orgId: string,
-  updates: Partial<{ name: string; slug: string }>
+  updates: Partial<{ name: string; slug: string; icon: string; color: string; logoUrl: string; avatarUrl: string }>
 ): Promise<void> {
   if (!orgId || !isFirebaseConfigured || !db) return;
   try {
@@ -144,6 +150,24 @@ export async function updateOrganization(
     });
   } catch (e) {
     console.warn("Firestore error updating organization:", e);
+    throw e;
+  }
+}
+
+/**
+ * Deletes an Organization and its projects from Firestore
+ */
+export async function deleteOrganization(orgId: string): Promise<void> {
+  if (!orgId || !isFirebaseConfigured || !db) return;
+  try {
+    const projsRef = collection(db, "organizations", orgId, "projects");
+    const snap = await getDocs(projsRef);
+    const deletePromises = snap.docs.map((docSnap) => deleteDoc(docSnap.ref));
+    await Promise.all(deletePromises);
+
+    await deleteDoc(doc(db, "organizations", orgId));
+  } catch (e) {
+    console.warn("Firestore error deleting organization:", e);
     throw e;
   }
 }
@@ -391,7 +415,10 @@ export async function createProject(
   name: string,
   description?: string,
   initialTokens?: RawTokensDocument,
-  createdByName?: string
+  createdByName?: string,
+  icon?: string,
+  color?: string,
+  logoUrl?: string
 ): Promise<Project> {
   const projId = `proj_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -404,6 +431,9 @@ export async function createProject(
     name,
     slug,
     description: description || "Design tokens project",
+    icon: icon || "🎯",
+    color: color || "#6366f1",
+    logoUrl: logoUrl || "",
     rawTokens,
     themeGroups,
     createdAt: new Date().toISOString(),
@@ -435,12 +465,12 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
 }
 
 /**
- * Updates Project metadata (name, description, slug) in Firestore
+ * Updates Project metadata (name, description, slug, icon, color, logoUrl) in Firestore
  */
 export async function updateProject(
   orgId: string,
   projectId: string,
-  updates: Partial<{ name: string; description: string; slug: string }>
+  updates: Partial<{ name: string; description: string; slug: string; icon: string; color: string; logoUrl: string }>
 ): Promise<void> {
   if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
   try {

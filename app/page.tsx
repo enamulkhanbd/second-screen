@@ -8,7 +8,9 @@ import { ThemeMatrix } from "@/components/ThemeMatrix";
 import { TokenFlow } from "@/components/TokenFlow";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
+import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
 import { DashboardView } from "@/components/DashboardView";
+import { SyncProvidersView } from "@/components/SyncProvidersView";
 import { VariablesView } from "@/components/VariablesView";
 import { ReleasesWorkspace } from "@/components/ReleasesWorkspace";
 import { DocumentationView } from "@/components/DocumentationView";
@@ -73,9 +75,9 @@ export default function Home() {
         {/* 3. Main Workspace Page Views */}
         {!isConfigured ? (
           /* Full-screen clean Onboarding Hub when unconfigured / empty */
-          <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
-        ) : sidebarTab === "dashboard" ? (
-          <DashboardView onOpenSettings={() => setIsSettingsOpen(true)} />
+          <WorkspacesProjectsView />
+        ) : sidebarTab === "dashboard" || (sidebarTab as string) === "workspaces" ? (
+          <WorkspacesProjectsView />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "documentation" ? (
@@ -88,8 +90,8 @@ export default function Home() {
           <ReleasesWorkspace />
         ) : sidebarTab === "activity" ? (
           <ActivityView />
-        ) : sidebarTab === "integrations" ? (
-          <IntegrationsView onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : sidebarTab === "integrations" || (sidebarTab as string) === "sync" ? (
+          <SyncProvidersView />
         ) : sidebarTab === "mcp" ? (
           <McpCliView />
         ) : sidebarTab === "project-settings" ? (
