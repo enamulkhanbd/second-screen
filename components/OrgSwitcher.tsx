@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Layers,
   Plus,
-  Users,
   Check,
   Sparkles,
 } from "lucide-react";
@@ -167,19 +166,6 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                 );
               })}
             </div>
-
-            {currentOrg && (
-              <button
-                onClick={() => {
-                  setSidebarTab("members");
-                  setIsOpen(false);
-                }}
-                className="mt-1.5 w-full flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Users className="w-3 h-3 text-primary" />
-                <span>Manage Members & Roles ({currentOrg.members?.length || 1})</span>
-              </button>
-            )}
           </div>
 
           {/* Projects Section */}
