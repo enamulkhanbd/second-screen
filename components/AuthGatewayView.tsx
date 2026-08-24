@@ -133,19 +133,6 @@ export const AuthGatewayView: React.FC = () => {
     }
   };
 
-  const handleDemoSignIn = () => {
-    setCurrentUser({
-      uid: "usr_demo_lead",
-      email: "designer@planet.design",
-      displayName: "Design Lead",
-    });
-    addToast({
-      type: "success",
-      title: "Demo Mode Activated",
-      message: "Exploring Tokens Platform as Design Lead.",
-    });
-  };
-
   return (
     <div className="min-h-screen w-full flex flex-col justify-between bg-[#fbfbfe] dark:bg-[#08080c] text-foreground font-sans relative overflow-hidden select-none transition-colors">
       {/* Background Subtle Gradient Blobs */}
@@ -392,17 +379,6 @@ export const AuthGatewayView: React.FC = () => {
                     Don&apos;t have an account? <strong className="text-primary font-semibold">Create one for free</strong>
                   </span>
                 )}
-              </button>
-            </div>
-
-            {/* Instant Demo Sandbox Access */}
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={handleDemoSignIn}
-                className="text-[11px] text-muted-foreground hover:text-foreground font-mono underline decoration-dotted cursor-pointer"
-              >
-                Explore interactive sandbox demo &rarr;
               </button>
             </div>
           </div>
