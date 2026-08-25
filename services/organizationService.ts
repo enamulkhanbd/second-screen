@@ -16,6 +16,8 @@ import {
   OrganizationMember,
   OrganizationInvitation,
   UserRole,
+  ProjectAsset,
+  AssetGitConfig,
 } from "@/types/tenant";
 import { RawTokensDocument, ThemeGroup, GitCredentials } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
@@ -611,4 +613,53 @@ export async function saveProjectFigmaVariables(
     console.warn("Firestore error saving figma variables:", e);
   }
 }
+
+/**
+ * Dynamically saves SVG assets for a specific Project in Firestore
+ */
+export async function saveProjectAssets(
+  orgId: string,
+  projectId: string,
+  assets: ProjectAsset[]
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        assets,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving project assets:", e);
+  }
+}
+
+/**
+ * Dynamically saves independent Git asset configuration for a specific Project in Firestore
+ */
+export async function saveProjectAssetGitConfig(
+  orgId: string,
+  projectId: string,
+  assetGitConfig: AssetGitConfig | null
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        assetGitConfig: assetGitConfig || null,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving project asset git config:", e);
+  }
+}
+
 

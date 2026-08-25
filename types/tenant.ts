@@ -47,6 +47,29 @@ export interface Organization {
   updatedAt: string;
 }
 
+export interface ProjectAsset {
+  id: string;
+  name: string;
+  title?: string;
+  type?: string;
+  tag?: string;
+  category?: string;
+  svg: string;
+  path?: string;
+  updatedAt: string;
+  source: "upload" | "git";
+}
+
+export interface AssetGitConfig {
+  provider: "github" | "azure" | "gitlab" | "bitbucket";
+  owner: string;
+  project?: string;
+  repo: string;
+  branch: string;
+  assetFolder?: string; // e.g. "icons" or "assets/icons"
+  pat: string;
+}
+
 export interface Project {
   id: string;
   orgId: string;
@@ -57,6 +80,8 @@ export interface Project {
   color?: string;
   logoUrl?: string;
   gitConfig?: GitCredentials | null;
+  assetGitConfig?: AssetGitConfig | null;
+  assets?: ProjectAsset[];
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];
   figmaVariables?: RawTokensDocument;

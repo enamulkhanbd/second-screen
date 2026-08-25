@@ -34,6 +34,8 @@ import {
   OrganizationInvitation,
   UserRole,
   ROLE_DEFINITIONS,
+  ProjectAsset,
+  AssetGitConfig,
 } from "@/types/tenant";
 import {
   getUserOrganizations,
@@ -43,6 +45,8 @@ import {
   saveProjectTokens,
   saveProjectGitConfig,
   saveProjectFigmaVariables,
+  saveProjectAssets,
+  saveProjectAssetGitConfig,
   createOrganizationInvitation,
   getOrganizationInvitations,
   getPendingInvitationsForEmail,
@@ -112,6 +116,19 @@ interface TokenStoreState {
   desyncFigmaVariablesAction: () => Promise<void>;
   deleteFigmaVariableAction: (setName: string, tokenPath: string[]) => Promise<void>;
   deleteFigmaCollectionAction: (setName: string) => Promise<void>;
+
+  // Assets & SVG Icons State (Independent Sync)
+  assets: ProjectAsset[];
+  assetGitConfig: AssetGitConfig | null;
+  isSyncingAssets: boolean;
+  setAssets: (assets: ProjectAsset[]) => void;
+  uploadAssets: (newAssets: Array<{ name: string; title?: string; type?: string; tag?: string; category?: string; svg: string }>) => Promise<void>;
+  applyMetadataToAssets: (metadataMap: Map<string, { name?: string; title?: string; type?: string; tag?: string; category?: string }>) => Promise<void>;
+  updateAsset: (id: string, updates: Partial<ProjectAsset>) => Promise<void>;
+  deleteAsset: (id: string) => Promise<void>;
+  deleteAssets: (ids: string[]) => Promise<void>;
+  setAssetGitConfig: (config: AssetGitConfig | null) => Promise<void>;
+  syncAssetsFromGit: () => Promise<boolean>;
 
   // Theme Groups Architecture
   themeGroups: ThemeGroup[];
@@ -396,6 +413,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           activeThemeOptionId: proj.themeGroups[0].options[0]?.id || "",
         });
       }
+
+      // 3. Independent Assets & SVG Icons
+      set({
+        assets: proj.assets || [],
+        assetGitConfig: proj.assetGitConfig || null,
+        isSyncingAssets: false,
+      });
     }
   },
 
@@ -845,6 +869,190 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       title: "Collection Deleted",
       message: `Deleted Figma collection "${setName}".`,
     });
+  },
+
+  // Assets & SVG Icons Implementation (Independent Sync)
+  assets: [],
+  assetGitConfig: null,
+  isSyncingAssets: false,
+
+  setAssets: (assets) => set({ assets }),
+
+  uploadAssets: async (newAssets) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    const now = new Date().toISOString();
+    const created: ProjectAsset[] = newAssets.map((a) => ({
+      id: `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: a.name,
+      title: a.title || a.name,
+      type: a.type || undefined,
+      tag: a.tag || undefined,
+      category: a.category || "general",
+      svg: a.svg,
+      updatedAt: now,
+      source: "upload",
+    }));
+    const updated = [...created, ...assets];
+    set({ assets: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "success",
+      title: "Assets Uploaded",
+      message: `Added ${created.length} SVG vector asset${created.length > 1 ? "s" : ""}.`,
+    });
+  },
+
+  applyMetadataToAssets: async (metadataMap) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    let updatedCount = 0;
+    const normalize = (s: string) => s.toLowerCase().replace(/^icon[-_]?/i, "").replace(/[^a-z0-9]/g, "");
+
+    const updated = assets.map((asset) => {
+      const stem = asset.name;
+      const typeKey = (asset.type || "").toLowerCase();
+      const matched =
+        (typeKey ? metadataMap.get(`${normalize(typeKey)}::${normalize(stem)}`) : undefined) ||
+        metadataMap.get(normalize(stem)) ||
+        metadataMap.get(stem.toLowerCase()) ||
+        metadataMap.get(normalize(asset.title || ""));
+
+      if (matched) {
+        updatedCount++;
+        return {
+          ...asset,
+          title: matched.title || asset.title || asset.name,
+          type: matched.type || asset.type,
+          category: matched.category || asset.category,
+          tag: matched.tag || asset.tag,
+          name: matched.name || asset.name,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return asset;
+    });
+
+    if (updatedCount > 0) {
+      set({ assets: updated });
+      if (currentOrg && currentProject) {
+        await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+      }
+      addToast({
+        type: "success",
+        title: "Metadata Applied",
+        message: `Updated metadata for ${updatedCount} icon${updatedCount > 1 ? "s" : ""}.`,
+      });
+    }
+  },
+
+  updateAsset: async (id, updates) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    const updated = assets.map((a) =>
+      a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
+    );
+    set({ assets: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "success",
+      title: "Asset Updated",
+      message: "Saved changes to icon.",
+    });
+  },
+
+  deleteAsset: async (id) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    const updated = assets.filter((a) => a.id !== id);
+    set({ assets: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "info",
+      title: "Asset Deleted",
+      message: "Icon removed from project assets.",
+    });
+  },
+
+  deleteAssets: async (ids: string[]) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    const idSet = new Set(ids);
+    const updated = assets.filter((a) => !idSet.has(a.id));
+    set({ assets: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "info",
+      title: "Assets Removed",
+      message: `Deleted ${ids.length} icon${ids.length > 1 ? "s" : ""} from project assets.`,
+    });
+  },
+
+  setAssetGitConfig: async (config) => {
+    const { currentOrg, currentProject, addToast } = get();
+    set({ assetGitConfig: config });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetGitConfig(currentOrg.id, currentProject.id, config);
+    }
+    addToast({
+      type: "success",
+      title: "Asset Git Config Saved",
+      message: config ? `Connected to ${config.repo} (${config.assetFolder || "root"})` : "Disconnected asset Git sync.",
+    });
+  },
+
+  syncAssetsFromGit: async () => {
+    const { currentOrg, currentProject, assetGitConfig, assets, addToast } = get();
+    if (!assetGitConfig || !assetGitConfig.owner || !assetGitConfig.repo || !assetGitConfig.pat) {
+      addToast({
+        type: "error",
+        title: "Asset Sync Failed",
+        message: "Please configure Git provider and Personal Access Token for assets.",
+      });
+      return false;
+    }
+
+    set({ isSyncingAssets: true });
+    try {
+      const res = await fetch("/api/git/fetch-assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assetGitConfig),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch assets from Git repository.");
+      }
+
+      const fetchedAssets: ProjectAsset[] = data.assets || [];
+      const uploadedAssets = assets.filter((a) => a.source === "upload");
+      const merged = [...fetchedAssets, ...uploadedAssets];
+
+      set({ assets: merged });
+      if (currentOrg && currentProject) {
+        await saveProjectAssets(currentOrg.id, currentProject.id, merged);
+      }
+
+      addToast({
+        type: "success",
+        title: "Assets Synchronized",
+        message: `Successfully synchronized ${fetchedAssets.length} SVG icon${fetchedAssets.length === 1 ? "" : "s"} from Git.`,
+      });
+      return true;
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Asset Sync Failed",
+        message: err.message || "Could not sync assets from repository.",
+      });
+      return false;
+    } finally {
+      set({ isSyncingAssets: false });
+    }
   },
 
   themeGroups: [],
