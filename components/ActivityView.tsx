@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { GitCommitHistoryItem } from "@/app/api/git/history/route";
+import { CommitDetailsResponse } from "@/app/api/git/commit-details/route";
 import {
   Clock,
   GitBranch,
@@ -18,9 +19,12 @@ import {
   ChevronDown,
   ChevronRight,
   FileCode,
+  FileText,
   Layers,
   Sparkles,
   ArrowRight,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
   const [expandedSha, setExpandedSha] = useState<string | null>(null);
+
+  // Commit Details cache
+  const [detailsCache, setDetailsCache] = useState<Record<string, CommitDetailsResponse>>({});
+  const [loadingDetailsSha, setLoadingDetailsSha] = useState<string | null>(null);
 
   const isGitConfigured = Boolean(
     credentials.provider &&
@@ -89,6 +97,39 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
       fetchCommitHistory();
     }
   }, [credentials.provider, credentials.owner, credentials.repo, credentials.branch, credentials.pat]);
+
+  const loadCommitDetails = async (sha: string) => {
+    if (detailsCache[sha] || loadingDetailsSha === sha || !isGitConfigured) return;
+    setLoadingDetailsSha(sha);
+    try {
+      const res = await fetch("/api/git/commit-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...credentials,
+          commitSha: sha,
+        }),
+      });
+
+      if (res.ok) {
+        const data: CommitDetailsResponse = await res.json();
+        setDetailsCache((prev) => ({ ...prev, [sha]: data }));
+      }
+    } catch (err) {
+      // Fallback
+    } finally {
+      setLoadingDetailsSha(null);
+    }
+  };
+
+  const handleToggleExpand = (sha: string) => {
+    if (expandedSha === sha) {
+      setExpandedSha(null);
+    } else {
+      setExpandedSha(sha);
+      loadCommitDetails(sha);
+    }
+  };
 
   const filteredCommits = useMemo(() => {
     if (!searchQuery.trim()) return commits;
@@ -217,8 +258,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
         ) : (
           /* Live Git Commits Timeline */
           <div className="space-y-3">
-            {filteredCommits.map((commit, idx) => {
+            {filteredCommits.map((commit) => {
               const isExpanded = expandedSha === commit.sha;
+              const details = detailsCache[commit.sha];
+              const isLoadingDetails = loadingDetailsSha === commit.sha;
 
               return (
                 <div
@@ -292,8 +335,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
                         {/* Expand Details Toggle */}
                         <button
                           type="button"
-                          onClick={() => setExpandedSha(isExpanded ? null : commit.sha)}
-                          className="ml-auto text-primary hover:underline inline-flex items-center gap-0.5 text-xs font-sans cursor-pointer"
+                          onClick={() => handleToggleExpand(commit.sha)}
+                          className="ml-auto text-primary hover:underline inline-flex items-center gap-0.5 text-xs font-sans cursor-pointer font-medium"
                         >
                           <span>{isExpanded ? "Hide Details" : "Details"}</span>
                           <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
@@ -304,17 +347,103 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
 
                   {/* Expandable Details Section */}
                   {isExpanded && (
-                    <div className="px-4 py-3 bg-muted/30 border-t border-border text-xs space-y-2 font-mono">
+                    <div className="px-4 py-3 bg-muted/30 border-t border-border text-xs space-y-3 font-mono">
+                      {/* Full Commit Message */}
                       <div className="space-y-1">
                         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                           Full Commit Message
                         </div>
-                        <pre className="text-xs whitespace-pre-wrap font-mono text-foreground/90 bg-muted/60 p-2 rounded-md border border-border">
+                        <pre className="text-xs whitespace-pre-wrap font-mono text-foreground/90 bg-muted/60 p-2.5 rounded-md border border-border">
                           {commit.message}
                         </pre>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                      {/* Changed Files Section */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                          <span className="flex items-center gap-1.5 text-foreground font-mono">
+                            <FileCode className="w-3.5 h-3.5 text-primary" />
+                            <span>Changed Files {details ? `(${details.files.length})` : ""}</span>
+                          </span>
+                          {details?.stats && (
+                            <div className="flex items-center gap-1.5 font-mono lowercase">
+                              {details.stats.additions > 0 && (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  +{details.stats.additions}
+                                </span>
+                              )}
+                              {details.stats.deletions > 0 && (
+                                <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                                  -{details.stats.deletions}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {isLoadingDetails ? (
+                          <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                            <span>Loading changed files...</span>
+                          </div>
+                        ) : details && details.files.length > 0 ? (
+                          <div className="border border-border rounded-lg bg-card divide-y divide-border overflow-hidden">
+                            {details.files.map((file) => (
+                              <div key={file.filename} className="p-2.5 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                    <span className="font-mono text-xs font-semibold text-foreground truncate">
+                                      {file.filename}
+                                    </span>
+                                    <Badge
+                                      variant={
+                                        file.status === "added"
+                                          ? "success"
+                                          : file.status === "deleted"
+                                          ? "destructive"
+                                          : "outline"
+                                      }
+                                      className="text-[9px] font-mono py-0 px-1 capitalize"
+                                    >
+                                      {file.status}
+                                    </Badge>
+                                  </div>
+
+                                  {(file.additions !== undefined || file.deletions !== undefined) && (
+                                    <div className="flex items-center gap-1 font-mono text-[10px]">
+                                      {file.additions !== undefined && file.additions > 0 && (
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                          +{file.additions}
+                                        </span>
+                                      )}
+                                      {file.deletions !== undefined && file.deletions > 0 && (
+                                        <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                                          -{file.deletions}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Code diff patch if available */}
+                                {file.patch && (
+                                  <pre className="text-[10px] leading-[15px] bg-muted/60 p-2 rounded border border-border/80 overflow-x-auto font-mono whitespace-pre text-foreground/90 max-h-40 scrollbar-thin">
+                                    {file.patch}
+                                  </pre>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3 text-center text-xs text-muted-foreground bg-muted/20 border border-border rounded-lg">
+                            No individual file changes recorded for this commit.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Author & Timestamp Meta */}
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/60">
                         <div>
                           Author: <span className="text-foreground font-semibold">{commit.author.name}</span> &lt;{commit.author.email || "noreply"}&gt;
                         </div>
