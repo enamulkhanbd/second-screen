@@ -107,6 +107,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     checkRemoteUpdates,
     getDiffSummary,
     logUserActivity,
+    setFigmaVariables,
+    loadTenantData,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -337,8 +339,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const handleCloudSync = async () => {
     setIsPulling(true);
     try {
-      const orgId = useTokenStore.getState().currentOrg?.id;
-      const projectId = useTokenStore.getState().currentProject?.id;
+      const currentOrg = useTokenStore.getState().currentOrg;
+      const currentProj = useTokenStore.getState().currentProject;
+      const orgId = currentOrg?.id;
+      const projectId = currentProj?.id;
       const query = orgId && projectId ? `?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}` : "";
       const res = await fetch(`/api/v1/tokens${query}`, {
         headers: { "x-internal-client": "tokens-platform" },
@@ -346,6 +350,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       const data = await res.json();
       if (data.success && data.rawTokens) {
         setRawTokens(data.rawTokens);
+        if (data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
+          setFigmaVariables(data.figmaVariables, data.metadata);
+        }
+        if (currentUser?.uid) {
+          loadTenantData(currentUser.uid, currentUser.email);
+        }
+        logUserActivity({
+          type: "figma",
+          title: "Synced Tokens from Cloud",
+          description: `Synced ${data.resolvedTokens?.length || 0} tokens (${currentProj?.name || "Project"}) from Cloud Workspace.`,
+          actor: {
+            name: currentUser?.displayName || "User",
+            email: currentUser?.email || "user@example.com",
+            avatarUrl: currentUser?.avatarUrl,
+          },
+          metadata: { orgId, projectId, tokenCount: data.resolvedTokens?.length || 0 },
+        });
         addToast({
           type: "success",
           title: "Figma Cloud Synced",
