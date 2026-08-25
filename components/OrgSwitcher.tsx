@@ -88,24 +88,24 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
       {/* Trigger Pill */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-secondary/80 border border-border hover:bg-secondary text-foreground transition-all cursor-pointer shadow-xs text-xs font-medium"
+        className="flex items-center gap-2 px-2.5 py-1 rounded-md border border-border/60 bg-muted/30 hover:bg-muted/70 text-foreground transition-colors cursor-pointer shadow-2xs text-xs font-medium"
       >
         {/* Org Icon */}
-        <div className="w-5 h-5 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
+        <div className="w-4 h-4 rounded bg-primary text-primary-foreground flex items-center justify-center font-bold text-[9px] shadow-2xs">
           {currentOrg?.name?.[0]?.toUpperCase() || "O"}
         </div>
 
-        <div className="flex items-center gap-1.5 font-semibold">
-          <span className="truncate max-w-[100px] text-foreground">
+        <div className="flex items-center gap-1.5 font-medium">
+          <span className="truncate max-w-[110px] text-foreground font-semibold">
             {currentOrg?.name || "Personal Workspace"}
           </span>
-          <span className="text-muted-foreground font-normal">/</span>
+          <span className="text-muted-foreground/40 font-normal">/</span>
           <span className="truncate max-w-[120px] text-primary font-medium">
             {currentProject?.name || "Default Project"}
           </span>
         </div>
 
-        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {/* Dropdown Menu */}

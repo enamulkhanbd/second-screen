@@ -11,21 +11,42 @@ import {
   Search,
   Check,
   RefreshCw,
-  FolderGit2,
   LayoutGrid,
   Workflow,
   Sun,
   Moon,
   Layers,
   User,
+  Users,
+  LogOut,
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuGroup,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +90,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     setSidebarTab,
     activeSet,
     currentUser,
+    setCurrentUser,
     getCurrentUserRole,
+    figmaVariables,
+    figmaResolvedVariables,
+    figmaUpdatedAt,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -87,13 +112,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
   const hasTokens = Object.keys(rawTokens).length > 0;
   const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
-  const isConfigured = Boolean(
-    currentUser && ((credentials.repo && credentials.owner) || hasTokens)
+
+  // Specific Showing Logic:
+  // 1. Git Sync is configured -> show Git Pull, Push, and Branch dropdown
+  const isGitConfigured = Boolean(
+    currentUser && credentials.repo && credentials.owner
+  );
+
+  // 2. Figma Plugin is connected -> show Sync Figma button
+  const isFigmaConnected = Boolean(
+    currentUser &&
+      (figmaUpdatedAt ||
+        (figmaVariables && Object.keys(figmaVariables).length > 0) ||
+        (figmaResolvedVariables && figmaResolvedVariables.length > 0))
   );
 
   // Fetch branch list whenever branch dropdown is opened
   useEffect(() => {
-    if (!showBranchMenu || !isConfigured || !credentials.pat) return;
+    if (!showBranchMenu || !isGitConfigured || !credentials.pat) return;
 
     let isMounted = true;
     const fetchBranches = async () => {
@@ -121,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     return () => {
       isMounted = false;
     };
-  }, [showBranchMenu, isConfigured, credentials]);
+  }, [showBranchMenu, isGitConfigured, credentials]);
 
   const filteredBranches = useMemo(() => {
     if (!branchSearch.trim()) return branches;
@@ -149,25 +185,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         body: JSON.stringify(updatedCreds),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || `Fetch failed (${res.status})`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to fetch from branch");
       }
 
-      setRawTokens(data.tokens, data.syncMeta);
-      setSyncStatus("success");
+      const data = await res.json();
+      setRawTokens(data.tokens);
+      resetDirtyState();
       setShowBranchMenu(false);
-
+      setSyncStatus("success");
       addToast({
         type: "success",
-        title: `Switched & Fetched ${targetBranch}`,
-        message: `Loaded tokens from branch "${targetBranch}".`,
+        title: "Switched & Pulled Branch",
+        message: `Active branch is now ${targetBranch}.`,
       });
     } catch (err: any) {
       setSyncStatus("error", err.message);
       addToast({
         type: "error",
-        title: "Branch Switch Failed",
+        title: "Switch Branch Failed",
         message: err.message,
       });
     } finally {
@@ -191,12 +228,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         body: JSON.stringify(credentials),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || `Fetch failed (${res.status})`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to fetch tokens");
       }
 
-      setRawTokens(data.tokens, data.syncMeta);
+      const data = await res.json();
+      setRawTokens(data.tokens);
+      resetDirtyState();
       setSyncStatus("success");
       addToast({
         type: "success",
@@ -260,16 +299,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          credentials,
-          rawTokens,
+          ...credentials,
+          tokens: rawTokens,
           syncMeta,
-          commitMessage: commitMessage.trim() || undefined,
+          commitMessage: commitMessage || `chore(tokens): sync via tokens platform [${new Date().toLocaleTimeString()}]`,
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || `Push failed (${res.status})`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to push tokens directly");
       }
 
       resetDirtyState();
@@ -294,188 +333,157 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      if (auth) {
+        await signOut(auth);
+      }
+    } catch { }
+    setCurrentUser(null);
+    addToast({
+      type: "info",
+      title: "Signed Out",
+      message: "You have been safely signed out.",
+    });
+  };
+
   return (
     <TooltipProvider>
-      <header className="h-12 border-b border-border bg-background/95 backdrop-blur px-4 flex items-center justify-between text-xs select-none relative z-30 transition-colors">
-        {/* Left: App Logo & System Name */}
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 text-xs select-none transition-colors">
+        {/* Left: Brand + Breadcrumbs */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Tokens Platform Logo & Brand -> Redirects to Dashboard */}
-          <div
+          <button
             onClick={() => setSidebarTab("dashboard")}
-            className="flex items-center gap-2 cursor-pointer group"
+            className="flex items-center gap-2 cursor-pointer group focus-visible:outline-none"
             title="Dashboard (Home)"
           >
-            <div className="w-5 h-5 rounded-md bg-primary text-primary-foreground flex items-center justify-center shadow-sm group-hover:opacity-90 transition-opacity">
-              <Layers className="w-3 h-3" />
+            <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <Layers className="w-3.5 h-3.5" />
             </div>
             <span className="font-semibold text-foreground text-xs tracking-tight group-hover:text-primary transition-colors hidden md:inline">
               Tokens Platform
             </span>
-          </div>
+          </button>
 
-          {/* Multi-Tenant Organization & Project Switcher & Breadcrumbs (Only when configured / logged in) */}
-          {isConfigured && (
+          {/* Breadcrumb Hierarchy */}
+          {Boolean(currentUser) && (
             <>
-              <div className="w-[1px] h-4 bg-border mx-0.5" />
-              <OrgSwitcher onOpenAuth={() => setIsAuthOpen(true)} />
+              <Separator orientation="vertical" className="h-4 mx-1 hidden sm:block opacity-60" />
 
-              {/* Interactive Breadcrumb Hierarchy */}
-              <span className="text-muted-foreground font-mono text-[11px]">/</span>
-              <nav className="flex items-center gap-1.5 text-muted-foreground font-mono text-[11px]">
-                {credentials.repo && (
-                  <>
-                    <span
-                      onClick={onOpenSettings}
-                      className="hover:text-foreground cursor-pointer transition-colors font-medium text-foreground"
-                    >
-                      {credentials.repo}
-                    </span>
-                    <span className="text-muted-foreground/50">/</span>
-                  </>
-                )}
+              <Breadcrumb className="hidden sm:flex">
+                <BreadcrumbList>
+                  {/* Org / Project Switcher as Breadcrumb Item */}
+                  <BreadcrumbItem>
+                    <OrgSwitcher onOpenAuth={() => setIsAuthOpen(true)} />
+                  </BreadcrumbItem>
 
-                {sidebarTab === "dashboard" && (
-                  <span className="font-semibold text-foreground">
-                    Dashboard
-                  </span>
-                )}
+                  {/* Git Repo Name if configured */}
+                  {credentials.repo && (
+                    <>
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem>
+                        <BreadcrumbLink onClick={onOpenSettings} className="font-medium text-foreground/80 hover:text-foreground">
+                          {credentials.repo}
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                    </>
+                  )}
 
-                {sidebarTab === "documentation" && (
-                  <span className="font-semibold text-foreground">
-                    Documentation
-                  </span>
-                )}
+                  {/* Active Page / Section */}
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    {sidebarTab === "dashboard" && <BreadcrumbPage>Dashboard</BreadcrumbPage>}
+                    {sidebarTab === "documentation" && <BreadcrumbPage>Documentation</BreadcrumbPage>}
+                    {sidebarTab === "assets" && <BreadcrumbPage>Assets</BreadcrumbPage>}
+                    {sidebarTab === "exports" && <BreadcrumbPage>Exports</BreadcrumbPage>}
+                    {sidebarTab === "releases" && <BreadcrumbPage>Releases</BreadcrumbPage>}
+                    {sidebarTab === "activity" && <BreadcrumbPage>Activity</BreadcrumbPage>}
+                    {sidebarTab === "integrations" && <BreadcrumbPage>Integrations</BreadcrumbPage>}
+                    {sidebarTab === "mcp" && <BreadcrumbPage>MCP &amp; CLI</BreadcrumbPage>}
+                    {sidebarTab === "members" && <BreadcrumbPage>Team Members</BreadcrumbPage>}
+                    {sidebarTab === "org-settings" && <BreadcrumbPage>Organization Settings</BreadcrumbPage>}
+                    {sidebarTab === "project-settings" && <BreadcrumbPage>Project Settings</BreadcrumbPage>}
 
-                {sidebarTab === "assets" && (
-                  <span className="font-semibold text-foreground">
-                    Assets
-                  </span>
-                )}
+                    {(sidebarTab === "variables" || sidebarTab === "tokens") && (
+                      <div className="flex items-center gap-1.5">
+                        <BreadcrumbLink onClick={() => setSidebarTab("tokens")}>Tokens</BreadcrumbLink>
+                        <span className="text-muted-foreground/40 font-normal">/</span>
+                        <BreadcrumbPage className="truncate max-w-[140px]">{activeSet}</BreadcrumbPage>
+                      </div>
+                    )}
 
-                {sidebarTab === "exports" && (
-                  <span className="font-semibold text-foreground">
-                    Exports
-                  </span>
-                )}
-
-                {sidebarTab === "releases" && (
-                  <span className="font-semibold text-foreground">
-                    Releases
-                  </span>
-                )}
-
-                {sidebarTab === "activity" && (
-                  <span className="font-semibold text-foreground">
-                    Activity
-                  </span>
-                )}
-
-                {sidebarTab === "integrations" && (
-                  <span className="font-semibold text-foreground">
-                    Integrations
-                  </span>
-                )}
-
-                {sidebarTab === "mcp" && (
-                  <span className="font-semibold text-foreground">
-                    MCP &amp; CLI
-                  </span>
-                )}
-
-                {(sidebarTab === "variables" || sidebarTab === "tokens") && (
-                  <>
-                    <button
-                      onClick={() => setSidebarTab("tokens")}
-                      className="hover:text-foreground cursor-pointer font-medium"
-                    >
-                      Tokens
-                    </button>
-                    <span className="text-muted-foreground/50">/</span>
-                    <span className="font-semibold text-foreground truncate max-w-[140px]">
-                      {activeSet}
-                    </span>
-                  </>
-                )}
-
-                {sidebarTab === "themes" && (
-                  <>
-                    <button
-                      onClick={() => setSidebarTab("themes")}
-                      className="hover:text-foreground cursor-pointer font-medium"
-                    >
-                      Themes
-                    </button>
-                    <span className="text-muted-foreground/50">/</span>
-
-                    {/* Active Theme Group Selector */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                        className="flex items-center gap-1 font-semibold text-foreground hover:text-primary transition-colors py-0.5 px-1 rounded hover:bg-muted"
-                      >
-                        <span>{activeGroup?.name || "Theme"}</span>
-                        <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                      </button>
-
-                      {/* Theme Group Menu Dropdown */}
-                      {showThemeGroupMenu && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => setShowThemeGroupMenu(false)}
-                          />
-                          <div className="absolute left-0 top-full mt-1 w-48 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                            <div className="px-3 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                              Theme Groups
-                            </div>
-                            {themeGroups.map((grp) => (
-                              <button
-                                key={grp.id}
-                                onClick={() => {
-                                  setActiveThemeGroup(grp.id);
-                                  setShowThemeGroupMenu(false);
-                                }}
-                                className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${
-                                  grp.id === activeGroup?.id
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "text-foreground hover:bg-muted"
-                                }`}
-                              >
-                                <span
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: grp.color }}
-                                />
-                                <span className="truncate">{grp.name}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </nav>
+                    {sidebarTab === "themes" && (
+                      <div className="flex items-center gap-1.5">
+                        <BreadcrumbLink onClick={() => setSidebarTab("themes")}>Themes</BreadcrumbLink>
+                        <span className="text-muted-foreground/40 font-normal">/</span>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
+                            className="flex items-center gap-1 font-semibold text-foreground hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-muted/70 cursor-pointer"
+                          >
+                            <span>{activeGroup?.name || "Theme"}</span>
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                          {showThemeGroupMenu && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setShowThemeGroupMenu(false)}
+                              />
+                              <div className="absolute left-0 top-full mt-1 w-48 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                <div className="px-3 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                                  Theme Groups
+                                </div>
+                                {themeGroups.map((grp) => (
+                                  <button
+                                    key={grp.id}
+                                    onClick={() => {
+                                      setActiveThemeGroup(grp.id);
+                                      setShowThemeGroupMenu(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer ${
+                                      grp.id === activeThemeGroupId
+                                        ? "bg-primary/10 text-primary font-semibold"
+                                        : "text-foreground hover:bg-muted"
+                                    }`}
+                                  >
+                                    <span>{grp.name}</span>
+                                    {grp.id === activeThemeGroupId && (
+                                      <Check className="w-3 h-3 text-primary" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </>
           )}
         </div>
 
         {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
-          {/* Dirty changes indicator tag */}
+          {/* Unsaved changes badge */}
           {isDirty && (
-            <Badge variant="warning" className="animate-pulse">
+            <Badge variant="warning" className="animate-pulse text-[10px] py-0 px-2">
               unsaved changes
             </Badge>
           )}
 
-          {/* View Mode Switcher: Matrix vs Flow */}
+          {/* Matrix vs Flow Switcher */}
           {hasTokens && sidebarTab === "themes" && (
-            <div className="flex items-center bg-muted p-0.5 rounded-lg border border-border text-[11px] font-medium">
+            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium">
               <button
                 onClick={() => setViewMode("matrix")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "matrix"
-                    ? "bg-background text-foreground font-semibold shadow-xs"
+                    ? "bg-background text-foreground font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="Theme Matrix Comparison Grid"
@@ -488,7 +496,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 onClick={() => setViewMode("flow")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                   viewMode === "flow"
-                    ? "bg-background text-primary font-semibold shadow-xs"
+                    ? "bg-background text-primary font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="Visual Token Flow & Dependency Graph"
@@ -499,60 +507,57 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             </div>
           )}
 
-          {isConfigured ? (
-            <>
-              {/* Sync from Figma Cloud Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCloudSync}
-                disabled={isPulling}
-                className="h-8 gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                title="Pull changes pushed from Figma Plugin"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isPulling ? "animate-spin" : ""}`} />
-                <span>Sync Figma</span>
-              </Button>
+          {/* 1. Sync from Figma Cloud Button - ONLY if Figma Plugin is connected */}
+          {isFigmaConnected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCloudSync}
+              disabled={isPulling}
+              className="h-8 gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer shadow-2xs"
+              title="Pull changes pushed from Figma Plugin"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isPulling ? "animate-spin" : ""}`} />
+              <span>Sync Figma</span>
+            </Button>
+          )}
 
-              {/* 1. Pull Button */}
+          {/* 2. Git Pull & Push & Branch Switcher - ONLY if Git Sync is configured */}
+          {isGitConfigured && (
+            <>
+              {/* Git Pull Button */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handlePull}
                 disabled={isPulling}
-                className="h-8 gap-1.5 text-xs"
+                className="h-8 gap-1.5 text-xs cursor-pointer shadow-2xs"
                 title="Pull latest tokens from current branch"
               >
                 <DownloadCloud className={`w-3.5 h-3.5 text-muted-foreground ${isPulling ? "animate-bounce" : ""}`} />
                 <span>Git Pull</span>
               </Button>
 
-              {/* 2. Push Button */}
+              {/* Push Button */}
               <Button
                 variant={isDirty ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowPushModal(true)}
                 disabled={isPushing}
-                className="h-8 gap-1.5 text-xs"
+                className="h-8 gap-1.5 text-xs cursor-pointer shadow-2xs font-medium"
                 title="Push changes directly to branch"
               >
                 <UploadCloud className="w-3.5 h-3.5" />
                 <span>Push</span>
               </Button>
 
-              {/* 3. Branch Pill Dropdown */}
+              {/* Branch Pill Dropdown */}
               <div className="relative">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    if (!isConfigured) {
-                      onOpenSettings();
-                    } else {
-                      setShowBranchMenu(!showBranchMenu);
-                    }
-                  }}
-                  className="h-8 gap-1.5 font-mono text-xs"
+                  onClick={() => setShowBranchMenu(!showBranchMenu)}
+                  className="h-8 gap-1.5 font-mono text-xs cursor-pointer shadow-2xs"
                 >
                   <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="max-w-[130px] truncate">
@@ -569,7 +574,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                       onClick={() => setShowBranchMenu(false)}
                     />
                     <div className="absolute right-0 top-full mt-1.5 w-64 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-[85vh] flex flex-col">
-                      {/* Repository Name Information */}
                       <div className="px-2.5 py-2 bg-muted/60 border border-border rounded-lg">
                         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                           Repository Name
@@ -579,84 +583,70 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                         </div>
                       </div>
 
-                      {/* Switch Branch Section */}
-                      <div className="flex-1 flex flex-col min-h-0 pt-0.5">
-                        <div className="flex items-center justify-between px-1 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                          <span>Switch Branch</span>
-                          {loadingBranches && (
-                            <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />
-                          )}
-                        </div>
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Search branch..."
+                          value={branchSearch}
+                          onChange={(e) => setBranchSearch(e.target.value)}
+                          className="h-8 pl-8 text-xs font-mono"
+                          autoFocus
+                        />
+                      </div>
 
-                        {/* Search Branch Input */}
-                        {branches.length > 5 && (
-                          <div className="py-1">
-                            <div className="relative">
-                              <Search className="w-3 h-3 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
-                              <Input
-                                type="text"
-                                placeholder="Filter branches..."
-                                value={branchSearch}
-                                onChange={(e) => setBranchSearch(e.target.value)}
-                                className="h-7 pl-6 text-xs font-mono"
-                              />
-                            </div>
+                      <div className="flex-1 overflow-y-auto max-h-48 space-y-0.5 pr-0.5">
+                        {loadingBranches ? (
+                          <div className="flex items-center justify-center py-6 text-muted-foreground gap-2">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                            <span className="text-xs">Fetching branches...</span>
                           </div>
+                        ) : filteredBranches.length === 0 ? (
+                          <div className="py-4 text-center text-xs text-muted-foreground">
+                            {branches.length === 0 ? "No branches available" : "No matching branch"}
+                          </div>
+                        ) : (
+                          filteredBranches.map((b) => {
+                            const isCurrent = b === credentials.branch;
+                            return (
+                              <button
+                                key={b}
+                                onClick={() => handlePullForBranch(b)}
+                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${
+                                  isCurrent
+                                    ? "bg-primary/10 text-primary font-semibold"
+                                    : "text-foreground hover:bg-muted"
+                                }`}
+                              >
+                                <span className="truncate">{b}</span>
+                                {isCurrent && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                              </button>
+                            );
+                          })
                         )}
-
-                        {/* Branch List */}
-                        <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 mt-0.5">
-                          {filteredBranches.length === 0 && !loadingBranches ? (
-                            <div className="px-2.5 py-2 text-[11px] text-muted-foreground italic">
-                              {branches.length === 0
-                                ? `Current: ${credentials.branch || "main"}`
-                                : "No matching branches"}
-                            </div>
-                          ) : (
-                            filteredBranches.map((b) => {
-                              const isCurrent = b === (credentials.branch || "main");
-
-                              return (
-                                <button
-                                  key={b}
-                                  onClick={() => handlePullForBranch(b)}
-                                  disabled={isPulling}
-                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-colors ${
-                                    isCurrent
-                                      ? "bg-primary/10 text-primary font-semibold"
-                                      : "text-foreground hover:bg-muted"
-                                  }`}
-                                >
-                                  <span className="truncate">{b}</span>
-                                  {isCurrent && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
                       </div>
                     </div>
                   </>
                 )}
               </div>
             </>
-          ) : null}
+          )}
 
-          {/* Divider before far-right theme switcher */}
-          <div className="w-[1px] h-4 bg-border mx-0.5" />
+          {/* Subtle Vertical Divider */}
+          <Separator orientation="vertical" className="h-4 mx-1 opacity-60" />
 
-          {/* Theme Mode Toggle on the Far Right */}
+          {/* Theme Mode Toggle (Light/Dark) */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="outline"
-                size="icon-sm"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
                 onClick={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
               >
                 {themeMode === "dark" ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  <Sun className="w-4 h-4 text-amber-400" />
                 ) : (
-                  <Moon className="w-3.5 h-3.5 text-primary" />
+                  <Moon className="w-4 h-4 text-primary" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -665,39 +655,94 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             </TooltipContent>
           </Tooltip>
 
-          {/* User Account / Profile Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAuthOpen(true)}
-                className="h-8 gap-1.5 px-2"
-              >
-                {currentUser ? (
-                  <>
-                    <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] flex items-center justify-center shadow-xs">
-                      {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email[0].toUpperCase()}
+          {/* User Profile Avatar Dropdown Menu */}
+          {currentUser ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center justify-center rounded-lg border border-border/80 bg-muted/40 hover:bg-muted p-1 transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  title={`Signed in as ${currentUser.displayName || currentUser.email}`}
+                >
+                  <div className="relative">
+                    <Avatar className="h-7 w-7 rounded-md">
+                      {currentUser.avatarUrl && (
+                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.displayName || "User"} />
+                      )}
+                      <AvatarFallback className="rounded-md bg-primary text-primary-foreground text-[11px] font-bold">
+                        {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    {/* Online Status Indicator */}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-background" />
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-60 p-1.5 text-xs shadow-xl">
+                {/* User Header Profile Card */}
+                <div className="flex items-center gap-3 p-2">
+                  <div className="relative flex-shrink-0">
+                    <Avatar className="h-9 w-9 rounded-lg">
+                      {currentUser.avatarUrl && (
+                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.displayName || "User"} />
+                      )}
+                      <AvatarFallback className="rounded-lg bg-primary text-primary-foreground text-xs font-bold">
+                        {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-background" />
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-bold text-foreground text-xs truncate">
+                        {currentUser.displayName || currentUser.email.split("@")[0]}
+                      </span>
+                      <Badge variant="secondary" className="text-[9px] font-mono py-0 px-1 capitalize">
+                        {ROLE_DEFINITIONS[getCurrentUserRole()].title}
+                      </Badge>
                     </div>
-                    <Badge variant="violet" className="text-[10px] py-0 px-1.5 font-bold gap-1 capitalize hidden sm:inline-flex">
-                      <span>{ROLE_DEFINITIONS[getCurrentUserRole()].icon}</span>
-                      <span>{ROLE_DEFINITIONS[getCurrentUserRole()].title}</span>
-                    </Badge>
-                  </>
-                ) : (
-                  <>
-                    <User className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="hidden sm:inline text-xs">Sign In</span>
-                  </>
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {currentUser
-                ? `Signed in as ${currentUser.displayName || currentUser.email} (${ROLE_DEFINITIONS[getCurrentUserRole()].title})`
-                : "Sign In / Free Workspace Setup"}
-            </TooltipContent>
-          </Tooltip>
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      {currentUser.email}
+                    </span>
+                  </div>
+                </div>
+
+                <DropdownMenuSeparator />
+
+                {/* Team Members */}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() => setSidebarTab("members")}
+                    className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
+                  >
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span>Team members</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator />
+
+                {/* Logout */}
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="gap-2.5 px-2.5 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer text-xs font-medium"
+                >
+                  <LogOut className="w-4 h-4 text-destructive" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAuthOpen(true)}
+              className="h-8 gap-1.5 px-2.5 rounded-md shadow-2xs cursor-pointer font-medium"
+            >
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Sign In</span>
+            </Button>
+          )}
         </div>
       </header>
 
