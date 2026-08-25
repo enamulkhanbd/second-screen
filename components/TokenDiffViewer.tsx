@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   DocumentDiffSummary,
   FileDiffItem,
   TokenDiffItem,
   LineDiffChunk,
+  computeSideBySideDiff,
+  SideBySideHunk,
 } from "@/utils/tokenDiff";
 import {
   FileCode,
@@ -18,6 +20,8 @@ import {
   Sparkles,
   ArrowRight,
   Code2,
+  Columns,
+  AlignJustify,
   FileText,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +38,7 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
   className = "",
   maxHeight = "max-h-[380px]",
 }) => {
-  const [activeTab, setActiveTab] = useState<"semantic" | "raw">("semantic");
+  const [activeTab, setActiveTab] = useState<"semantic" | "side-by-side" | "inline">("semantic");
   const [selectedFileIdx, setSelectedFileIdx] = useState<number>(0);
 
   if (!diff.hasChanges || diff.files.length === 0) {
@@ -50,6 +54,11 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
   }
 
   const currentFile = diff.files[selectedFileIdx] || diff.files[0];
+
+  const hunks: SideBySideHunk[] = useMemo(() => {
+    if (!currentFile) return [];
+    return computeSideBySideDiff(currentFile.oldJson || "", currentFile.newJson || "", 4);
+  }, [currentFile]);
 
   return (
     <div className={`flex flex-col border border-border rounded-xl bg-card overflow-hidden shadow-xs text-xs select-none ${className}`}>
@@ -78,7 +87,7 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
           )}
         </div>
 
-        {/* Right: Semantic vs Raw Code Toggle */}
+        {/* Right: Mode Toggle Buttons */}
         <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium">
           <button
             type="button"
@@ -95,15 +104,28 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTab("raw")}
+            onClick={() => setActiveTab("side-by-side")}
             className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
-              activeTab === "raw"
+              activeTab === "side-by-side"
                 ? "bg-background text-foreground font-semibold shadow-2xs"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Code2 className="w-3.5 h-3.5 text-primary" />
-            <span>Raw Code</span>
+            <Columns className="w-3.5 h-3.5 text-primary" />
+            <span>Side-by-side</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("inline")}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
+              activeTab === "inline"
+                ? "bg-background text-foreground font-semibold shadow-2xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <AlignJustify className="w-3.5 h-3.5 text-primary" />
+            <span>Inline</span>
           </button>
         </div>
       </div>
@@ -136,12 +158,12 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
       )}
 
       {/* 3. Diff Content Body */}
-      <div className={`flex-1 overflow-y-auto ${maxHeight}`}>
+      <div className={`flex-1 overflow-x-auto overflow-y-auto ${maxHeight}`}>
         {activeTab === "semantic" ? (
           /* Semantic Token Diff View */
           currentFile.tokens.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground text-xs">
-              File structure updated (metadata or theme options). View in Raw Code mode.
+            <div className="p-6 text-center text-muted-foreground text-xs font-mono">
+              File structure updated (metadata or theme options). View in Side-by-side mode.
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -150,9 +172,70 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
               ))}
             </div>
           )
+        ) : activeTab === "side-by-side" ? (
+          /* Side-by-Side Split View */
+          <div className="min-w-[650px] font-mono text-[11px] leading-[19px] divide-y divide-border/60 select-text">
+            {hunks.map((hunk, hunkIdx) => (
+              <div key={hunkIdx} className="divide-y divide-border/30">
+                {hunk.header && (
+                  <div className="px-3 py-1 bg-muted/40 text-[10px] text-muted-foreground font-mono font-bold tracking-wider select-none border-b border-border/50">
+                    {hunk.header}
+                  </div>
+                )}
+                {hunk.rows.map((row, rowIdx) => {
+                  const isLeftRemoved = row.left?.type === "removed";
+                  const isRightAdded = row.right?.type === "added";
+
+                  return (
+                    <div key={rowIdx} className="grid grid-cols-2 divide-x divide-border">
+                      <div
+                        className={`flex items-start px-2 py-0.5 overflow-hidden ${
+                          isLeftRemoved
+                            ? "bg-rose-500/15 text-rose-800 dark:text-rose-200"
+                            : row.left?.type === "empty"
+                            ? "bg-muted/15"
+                            : "text-foreground/80"
+                        }`}
+                      >
+                        <span className="w-8 text-right pr-2 text-muted-foreground/60 select-none flex-shrink-0 text-[10px]">
+                          {row.left?.lineNumber || ""}
+                        </span>
+                        <span className="w-3 text-center text-rose-600 dark:text-rose-400 font-bold select-none flex-shrink-0">
+                          {isLeftRemoved ? "-" : " "}
+                        </span>
+                        <span className="flex-1 whitespace-pre-wrap break-all pl-1">
+                          {row.left?.content || ""}
+                        </span>
+                      </div>
+
+                      <div
+                        className={`flex items-start px-2 py-0.5 overflow-hidden ${
+                          isRightAdded
+                            ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+                            : row.right?.type === "empty"
+                            ? "bg-muted/15"
+                            : "text-foreground/80"
+                        }`}
+                      >
+                        <span className="w-8 text-right pr-2 text-muted-foreground/60 select-none flex-shrink-0 text-[10px]">
+                          {row.right?.lineNumber || ""}
+                        </span>
+                        <span className="w-3 text-center text-emerald-600 dark:text-emerald-400 font-bold select-none flex-shrink-0">
+                          {isRightAdded ? "+" : " "}
+                        </span>
+                        <span className="flex-1 whitespace-pre-wrap break-all pl-1">
+                          {row.right?.content || ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         ) : (
-          /* Raw Line Diff View */
-          <div className="font-mono text-[11px] leading-[18px] select-text">
+          /* Inline Unified Line Diff View */
+          <div className="font-mono text-[11px] leading-[18px] select-text min-w-[550px]">
             {currentFile.lineDiff.map((chunk, idx) => (
               <RawLineDiffRow key={idx} chunk={chunk} />
             ))}

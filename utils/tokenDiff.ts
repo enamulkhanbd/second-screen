@@ -32,6 +32,24 @@ export interface LineDiffChunk {
   newLineNumber?: number;
 }
 
+export interface SideBySideRow {
+  left?: {
+    lineNumber?: number;
+    content: string;
+    type: "removed" | "context" | "empty";
+  };
+  right?: {
+    lineNumber?: number;
+    content: string;
+    type: "added" | "context" | "empty";
+  };
+}
+
+export interface SideBySideHunk {
+  header?: string;
+  rows: SideBySideRow[];
+}
+
 export interface DocumentDiffSummary {
   files: FileDiffItem[];
   totalAdded: number;
@@ -280,4 +298,181 @@ export function computeTokensDiff(
     totalDeleted,
     hasChanges: fileDiffs.length > 0,
   };
+}
+
+/**
+ * Computes side-by-side aligned diff rows with context folding from old and new text.
+ */
+export function computeSideBySideDiff(
+  oldStr: string,
+  newStr: string,
+  contextLines: number = 4
+): SideBySideHunk[] {
+  const lineDiff = computeLineDiff(oldStr, newStr);
+  if (lineDiff.length === 0) return [];
+
+  // Identify changed indices
+  const changedIndices: number[] = [];
+  lineDiff.forEach((c, idx) => {
+    if (c.type === "added" || c.type === "removed") {
+      changedIndices.push(idx);
+    }
+  });
+
+  if (changedIndices.length === 0) {
+    // No changes, return entire context or empty
+    return [
+      {
+        header: `1 - ${lineDiff.length}`,
+        rows: lineDiff.slice(0, 15).map((c) => ({
+          left: { lineNumber: c.oldLineNumber, content: c.content, type: "context" },
+          right: { lineNumber: c.newLineNumber, content: c.content, type: "context" },
+        })),
+      },
+    ];
+  }
+
+  // Create ranges with context
+  const ranges: [number, number][] = [];
+  changedIndices.forEach((idx) => {
+    const start = Math.max(0, idx - contextLines);
+    const end = Math.min(lineDiff.length - 1, idx + contextLines);
+
+    if (ranges.length === 0) {
+      ranges.push([start, end]);
+    } else {
+      const last = ranges[ranges.length - 1];
+      if (start <= last[1] + 1) {
+        last[1] = Math.max(last[1], end);
+      } else {
+        ranges.push([start, end]);
+      }
+    }
+  });
+
+  const hunks: SideBySideHunk[] = [];
+
+  for (const [start, end] of ranges) {
+    const slice = lineDiff.slice(start, end + 1);
+    const rows: SideBySideRow[] = [];
+
+    let i = 0;
+    while (i < slice.length) {
+      const chunk = slice[i];
+
+      if (chunk.type === "unchanged") {
+        rows.push({
+          left: { lineNumber: chunk.oldLineNumber, content: chunk.content, type: "context" },
+          right: { lineNumber: chunk.newLineNumber, content: chunk.content, type: "context" },
+        });
+        i++;
+      } else {
+        // Collect consecutive removed and added chunks
+        const removed: LineDiffChunk[] = [];
+        const added: LineDiffChunk[] = [];
+
+        while (i < slice.length && slice[i].type === "removed") {
+          removed.push(slice[i]);
+          i++;
+        }
+        while (i < slice.length && slice[i].type === "added") {
+          added.push(slice[i]);
+          i++;
+        }
+
+        const maxLen = Math.max(removed.length, added.length);
+        for (let k = 0; k < maxLen; k++) {
+          const r = removed[k];
+          const a = added[k];
+
+          rows.push({
+            left: r
+              ? { lineNumber: r.oldLineNumber, content: r.content, type: "removed" }
+              : { content: "", type: "empty" },
+            right: a
+              ? { lineNumber: a.newLineNumber, content: a.content, type: "added" }
+              : { content: "", type: "empty" },
+          });
+        }
+      }
+    }
+
+    const firstOld = slice.find((s) => s.oldLineNumber)?.oldLineNumber || 1;
+    const firstNew = slice.find((s) => s.newLineNumber)?.newLineNumber || 1;
+
+    hunks.push({
+      header: `@@ -${firstOld} +${firstNew} @@`,
+      rows,
+    });
+  }
+
+  return hunks;
+}
+
+/**
+ * Parses a standard Git unified patch string (e.g. from GitHub/GitLab) into SideBySideHunks.
+ */
+export function parseUnifiedPatchToSideBySide(patchStr: string): SideBySideHunk[] {
+  if (!patchStr || !patchStr.trim()) return [];
+
+  const lines = patchStr.split("\n");
+  const hunks: SideBySideHunk[] = [];
+  let currentHunk: SideBySideHunk | null = null;
+
+  let oldLine = 1;
+  let newLine = 1;
+
+  let removedBuffer: { lineNum: number; content: string }[] = [];
+  let addedBuffer: { lineNum: number; content: string }[] = [];
+
+  const flushBuffers = () => {
+    if (!currentHunk) return;
+    const maxLen = Math.max(removedBuffer.length, addedBuffer.length);
+    for (let i = 0; i < maxLen; i++) {
+      const r = removedBuffer[i];
+      const a = addedBuffer[i];
+      currentHunk.rows.push({
+        left: r ? { lineNumber: r.lineNum, content: r.content, type: "removed" } : { content: "", type: "empty" },
+        right: a ? { lineNumber: a.lineNum, content: a.content, type: "added" } : { content: "", type: "empty" },
+      });
+    }
+    removedBuffer = [];
+    addedBuffer = [];
+  };
+
+  for (const line of lines) {
+    if (line.startsWith("@@")) {
+      flushBuffers();
+      const match = line.match(/@@\s*-(\d+)(?:,\d+)?\s*\+(\d+)(?:,\d+)?\s*@@/);
+      if (match) {
+        oldLine = parseInt(match[1], 10);
+        newLine = parseInt(match[2], 10);
+      }
+      currentHunk = {
+        header: line,
+        rows: [],
+      };
+      hunks.push(currentHunk);
+    } else if (currentHunk) {
+      if (line.startsWith("-")) {
+        removedBuffer.push({ lineNum: oldLine, content: line.substring(1) });
+        oldLine++;
+      } else if (line.startsWith("+")) {
+        addedBuffer.push({ lineNum: newLine, content: line.substring(1) });
+        newLine++;
+      } else {
+        flushBuffers();
+        const content = line.startsWith(" ") ? line.substring(1) : line;
+        currentHunk.rows.push({
+          left: { lineNumber: oldLine, content, type: "context" },
+          right: { lineNumber: newLine, content, type: "context" },
+        });
+        oldLine++;
+        newLine++;
+      }
+    }
+  }
+
+  flushBuffers();
+  return hunks;
 }

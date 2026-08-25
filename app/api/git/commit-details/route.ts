@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
+import { computeLineDiff } from "@/utils/tokenDiff";
 
 export interface CommitFileChange {
   filename: string;
@@ -8,12 +9,97 @@ export interface CommitFileChange {
   additions?: number;
   deletions?: number;
   patch?: string;
+  oldContent?: string;
+  newContent?: string;
 }
 
 export interface CommitDetailsResponse {
   sha: string;
   stats?: { additions: number; deletions: number; total: number };
   files: CommitFileChange[];
+}
+
+/**
+ * Normalizes text content: if it's JSON tokens, formats it with standard 2-space indentation
+ * to guarantee clear line-by-line diffs.
+ */
+function normalizeFileText(raw: string): string {
+  if (!raw || !raw.trim()) return "";
+  try {
+    const parsed = JSON.parse(raw);
+    // Reject Azure DevOps metadata envelope if accidentally returned
+    if (parsed.objectId && parsed.gitObjectType && (parsed.url || parsed._links)) {
+      return "";
+    }
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Robustly fetches raw file content from Azure DevOps using blob objectId or path
+ */
+async function fetchAzureRawContent(
+  azOrg: string,
+  azProject: string,
+  azRepo: string,
+  basicAuth: string,
+  objectId?: string,
+  path?: string,
+  versionSha?: string
+): Promise<string> {
+  const headers = {
+    Authorization: `Basic ${basicAuth}`,
+    Accept: "application/octet-stream, text/plain, */*",
+  };
+
+  // 1. If objectId is available, fetch blob directly (fastest and purest raw content)
+  if (objectId) {
+    try {
+      const blobUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/blobs/${objectId}?api-version=7.0`;
+      const res = await fetch(blobUrl, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const text = await res.text();
+        return normalizeFileText(text);
+      }
+    } catch {}
+  }
+
+  // 2. Fetch by path & version
+  if (path && versionSha) {
+    try {
+      const itemUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/items?path=${encodeURIComponent(
+        path
+      )}&versionDescriptor.version=${encodeURIComponent(versionSha)}&versionDescriptor.versionType=commit&includeContent=true&$format=octetStream&api-version=7.0`;
+      const res = await fetch(itemUrl, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const text = await res.text();
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.content && typeof parsed.content === "string") {
+            return normalizeFileText(parsed.content);
+          }
+          if (parsed.objectId) {
+            return await fetchAzureRawContent(azOrg, azProject, azRepo, basicAuth, parsed.objectId);
+          }
+        } catch {
+          return normalizeFileText(text);
+        }
+        return normalizeFileText(text);
+      }
+    } catch {}
+  }
+
+  return "";
 }
 
 export async function POST(req: NextRequest) {
@@ -95,17 +181,31 @@ export async function POST(req: NextRequest) {
       const azRepo = encodeURIComponent(repo);
       const basicAuth = Buffer.from(`:${pat}`).toString("base64");
 
-      const headers = {
+      const jsonHeaders = {
         Authorization: `Basic ${basicAuth}`,
         Accept: "application/json",
       };
 
-      const url = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/commits/${encodeURIComponent(
+      // 1. Fetch Commit metadata to get parent commit SHA
+      let parentSha: string | null = null;
+      try {
+        const commitInfoUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/commits/${encodeURIComponent(
+          commitSha
+        )}?api-version=7.0`;
+        const cRes = await fetch(commitInfoUrl, { headers: jsonHeaders, cache: "no-store", signal: AbortSignal.timeout(10000) });
+        if (cRes.ok) {
+          const cData = await cRes.json();
+          parentSha = cData.parents?.[0] || null;
+        }
+      } catch {}
+
+      // 2. Fetch list of changes
+      const changesUrl = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/commits/${encodeURIComponent(
         commitSha
       )}/changes?api-version=7.0`;
 
-      const res = await fetch(url, {
-        headers,
+      const res = await fetch(changesUrl, {
+        headers: jsonHeaders,
         cache: "no-store",
         signal: AbortSignal.timeout(15000),
       });
@@ -121,7 +221,13 @@ export async function POST(req: NextRequest) {
       const data = await res.json();
       const changes: any[] = Array.isArray(data.changes) ? data.changes : [];
 
+      let totalAdd = 0;
+      let totalDel = 0;
+
       for (const ch of changes) {
+        if (ch.item?.isFolder || ch.item?.gitObjectType === "tree") {
+          continue;
+        }
         const path = (ch.item?.path || "").replace(/^\/+/, "");
         if (!path) continue;
 
@@ -131,11 +237,64 @@ export async function POST(req: NextRequest) {
         else if (ct.includes("delete")) status = "deleted";
         else if (ct.includes("rename")) status = "renamed";
 
+        let oldContent = "";
+        let newContent = "";
+
+        // Fetch new content at this commit using blob objectId or path
+        if (status !== "deleted") {
+          newContent = await fetchAzureRawContent(
+            azOrg,
+            azProject,
+            azRepo,
+            basicAuth,
+            ch.item?.objectId,
+            path,
+            commitSha
+          );
+        }
+
+        // Fetch old content at parent commit
+        if (parentSha && status !== "added") {
+          oldContent = await fetchAzureRawContent(
+            azOrg,
+            azProject,
+            azRepo,
+            basicAuth,
+            undefined,
+            path,
+            parentSha
+          );
+        }
+
+        // Calculate line differences
+        let additions = 0;
+        let deletions = 0;
+        if (oldContent || newContent) {
+          const lineDiff = computeLineDiff(oldContent, newContent);
+          for (const chunk of lineDiff) {
+            if (chunk.type === "added") additions++;
+            else if (chunk.type === "removed") deletions++;
+          }
+        }
+
+        totalAdd += additions;
+        totalDel += deletions;
+
         files.push({
           filename: path,
           status,
+          oldContent,
+          newContent,
+          additions,
+          deletions,
         });
       }
+
+      stats = {
+        additions: totalAdd,
+        deletions: totalDel,
+        total: totalAdd + totalDel,
+      };
     }
 
     // -------------------------------------------------------------
