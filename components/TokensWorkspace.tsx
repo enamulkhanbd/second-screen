@@ -80,16 +80,38 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
 
+  // Tokens in active set
+  const setTokens = useMemo(() => {
+    return resolvedTokens.filter((token) => {
+      if (activeSet && activeSet !== "ALL") {
+        return token.setName === activeSet || token.setName.endsWith(`.${activeSet}`);
+      }
+      return true;
+    });
+  }, [resolvedTokens, activeSet]);
+
+  // Dynamic counts per category
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      color: 0,
+      typography: 0,
+      spacing: 0,
+      borderRadius: 0,
+      boxShadow: 0,
+    };
+    for (const t of setTokens) {
+      if (t.type === "color") counts.color++;
+      else if (t.type === "typography" || t.type.toLowerCase().includes("font")) counts.typography++;
+      else if (t.type === "spacing" || t.type === "sizing" || t.type === "dimension") counts.spacing++;
+      else if (t.type === "borderRadius") counts.borderRadius++;
+      else if (t.type === "boxShadow") counts.boxShadow++;
+    }
+    return counts;
+  }, [setTokens]);
+
   // Filter tokens strictly for the active set (or all sets if 'ALL')
   const displayedTokens = useMemo(() => {
-    return resolvedTokens.filter((token) => {
-      // Set filter
-      if (activeSet && activeSet !== "ALL") {
-        if (token.setName !== activeSet && !token.setName.endsWith(`.${activeSet}`)) {
-          return false;
-        }
-      }
-
+    return setTokens.filter((token) => {
       // Type filter
       if (selectedType !== "all") {
         if (selectedType === "color" && token.type !== "color") return false;
@@ -111,7 +133,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
 
       return true;
     });
-  }, [resolvedTokens, activeSet, selectedType, searchQuery]);
+  }, [setTokens, selectedType, searchQuery]);
 
   // -------------------------------------------------------------
   // JSON CODE EDITOR STATE
@@ -152,25 +174,43 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   }, [code, currentSetKey, rawTokens]);
 
   const handleSave = () => {
+    if (!canUserEdit()) {
+      addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot modify tokens.",
+      });
+      return;
+    }
+
     try {
       const parsed = JSON.parse(code);
       updateSetJson(currentSetKey, parsed);
       setJsonError(null);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 2000);
+      addToast({
+        type: "success",
+        title: "Tokens Saved",
+        message: `Saved changes to "${currentSetKey}".`,
+      });
     } catch (err: any) {
-      setJsonError(err.message || "Invalid JSON syntax");
+      setJsonError(`Invalid JSON: ${err.message}`);
+      addToast({
+        type: "error",
+        title: "Save Failed",
+        message: "Please fix JSON syntax errors before saving.",
+      });
     }
   };
 
   const handleFormat = () => {
     try {
       const parsed = JSON.parse(code);
-      const pretty = JSON.stringify(parsed, null, 2);
-      setCode(pretty);
+      setCode(JSON.stringify(parsed, null, 2));
       setJsonError(null);
     } catch (err: any) {
-      setJsonError(err.message || "Cannot format invalid JSON");
+      setJsonError(`Cannot format: ${err.message}`);
     }
   };
 
@@ -203,34 +243,27 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   const relativeFileName = `${currentSetKey}.json`;
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-background font-sans">
-      {/* 1. Main Workspace Top Header Toolbar with View Switcher */}
-      <div className="h-13 border-b border-border px-5 flex items-center justify-between bg-card select-none flex-shrink-0">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-background font-sans select-none">
+      {/* 1. Main Workspace Top Header Toolbar with View Switcher (Matches Themes tab design) */}
+      <div className="h-12 px-6 border-b border-border bg-muted/20 flex items-center justify-between flex-shrink-0 transition-colors">
         {/* Left: Active Set Title & Badge */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex items-center gap-2 font-mono">
-            {tokensViewMode === "preview" ? (
-              <Layers className="w-4 h-4 text-primary flex-shrink-0" />
-            ) : (
-              <FileCode className="w-4 h-4 text-primary flex-shrink-0" />
-            )}
-            <span className="text-sm font-bold text-foreground truncate">
-              {activeSet === "ALL" ? "All Token Sets" : relativeFileName}
-            </span>
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="font-semibold text-sm text-foreground truncate">
+            {activeSet === "ALL" ? "All Token Sets" : relativeFileName}
+          </span>
 
-          <Badge variant="outline" className="text-xs font-mono">
+          <Badge variant="outline" className="text-[11px] font-mono py-0 px-2">
             {displayedTokens.length} tokens
           </Badge>
 
           {tokensViewMode === "json" && hasUnsavedChanges && (
-            <Badge variant="warning" className="text-[11px] font-mono animate-pulse">
+            <Badge variant="warning" className="text-[10px] font-mono animate-pulse py-0 px-1.5">
               Unsaved
             </Badge>
           )}
 
           {tokensViewMode === "json" && isSaved && (
-            <Badge variant="success" className="text-[11px] font-mono gap-1">
+            <Badge variant="success" className="text-[10px] font-mono gap-1 py-0 px-1.5">
               <Check className="w-3 h-3" />
               <span>Saved</span>
             </Badge>
@@ -238,7 +271,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         </div>
 
         {/* Right: Actions + Switcher aligned on the right */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Sync Provider Badge */}
           {credentials.repo && (
             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
@@ -257,7 +290,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                   placeholder="Search tokens..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-xs w-44"
+                  className="pl-8 h-8 text-xs font-mono w-52"
                 />
               </div>
 
@@ -319,32 +352,32 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           )}
 
           {/* Divider */}
-          <div className="h-5 w-px bg-border" />
+          <div className="h-5 w-px bg-border mx-0.5" />
 
           {/* Switcher Button [ Lines (Preview) | {} (JSON) ] */}
-          <div className="flex items-center bg-muted p-0.5 rounded-lg border border-border">
+          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
             <button
               onClick={() => setTokensViewMode("preview")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 tokensViewMode === "preview"
-                  ? "bg-background text-foreground font-semibold shadow-xs"
+                  ? "bg-background text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Preview Tokens (Table View)"
             >
-              <AlignLeft className="w-4 h-4 stroke-[2.2]" />
+              <AlignLeft className="w-3.5 h-3.5" />
             </button>
 
             <button
               onClick={() => setTokensViewMode("json")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 tokensViewMode === "json"
-                  ? "bg-background text-foreground font-semibold shadow-xs"
+                  ? "bg-background text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="JSON Code Editor"
             >
-              <Braces className="w-4 h-4 stroke-[2.2]" />
+              <Braces className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -352,7 +385,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
 
       {/* Sync Provider Notification Banner when unlinked */}
       {!credentials.repo && (
-        <div className="px-5 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
+        <div className="px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
           <div className="flex items-center gap-2">
             <FolderGit2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
             <span>
@@ -375,35 +408,51 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
       {/* 2. Workspace Body: PREVIEW vs JSON */}
       {tokensViewMode === "preview" ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
-          {/* Category Filter Chips Bar */}
-          <div className="h-10 px-5 border-b border-border bg-muted/30 flex items-center gap-1.5 overflow-x-auto select-none flex-shrink-0">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground mr-1 flex-shrink-0" />
+          {/* Category Filter Chips Bar (Matches ThemeMatrix) */}
+          <div className="h-11 px-6 border-b border-border bg-muted/30 flex items-center gap-2 overflow-x-auto scrollbar-none select-none flex-shrink-0 transition-colors">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Type:</span>
+            </span>
+
             {[
-              { id: "all", label: "All Types" },
-              { id: "color", label: "Color" },
-              { id: "typography", label: "Typography" },
-              { id: "spacing", label: "Spacing & Sizing" },
-              { id: "borderRadius", label: "Border Radius" },
-              { id: "boxShadow", label: "Shadow" },
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedType(cat.id)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-                  selectedType === cat.id
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+              { id: "all", label: "All Types", count: setTokens.length },
+              { id: "color", label: "Color", count: typeCounts.color },
+              { id: "typography", label: "Typography", count: typeCounts.typography },
+              { id: "spacing", label: "Spacing & Sizing", count: typeCounts.spacing },
+              { id: "borderRadius", label: "Border Radius", count: typeCounts.borderRadius },
+              { id: "boxShadow", label: "Shadow", count: typeCounts.boxShadow },
+            ].map((cat) => {
+              const isSelected = selectedType === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedType(cat.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-background text-foreground font-semibold shadow-2xs border border-border"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  <span
+                    className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected
+                        ? "bg-muted text-foreground"
+                        : "bg-muted/80 text-muted-foreground"
+                    }`}
+                  >
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Table Content */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Table Content with generous top/bottom padding */}
+          <div className="flex-1 overflow-y-auto pb-8">
             {displayedTokens.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-80 text-center p-6 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center py-24 text-center select-none text-muted-foreground">
                 <SearchX className="w-10 h-10 mb-3 opacity-40" />
                 <p className="text-sm font-semibold text-foreground">
                   No matching tokens in this set
@@ -417,10 +466,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 <table className="w-full min-w-[960px] text-left border-collapse text-xs">
                   <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                     <tr>
-                      <th className="py-3 px-5 w-64 min-w-[200px]">Token Name</th>
-                      <th className="py-3 px-5 min-w-[360px]">Raw Value / Properties</th>
-                      <th className="py-3 px-5 min-w-[280px]">Visual Preview</th>
-                      <th className="py-3 px-5 w-44 min-w-[130px] text-right">Set / Type</th>
+                      <th className="py-3.5 px-6 w-64 min-w-[200px]">Token Name</th>
+                      <th className="py-3.5 px-6 min-w-[360px]">Raw Value / Properties</th>
+                      <th className="py-3.5 px-6 min-w-[280px]">Visual Preview</th>
+                      <th className="py-3.5 px-6 w-44 min-w-[130px] text-right">Set / Type</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border font-mono">
@@ -445,7 +494,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
           {/* Syntax Error Banner */}
           {jsonError && (
-            <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/30 text-destructive text-xs flex items-center gap-2 font-mono select-text flex-shrink-0">
+            <div className="px-6 py-2 bg-destructive/10 border-b border-destructive/30 text-destructive text-xs flex items-center gap-2 font-mono select-text flex-shrink-0">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{jsonError}</span>
             </div>
@@ -482,7 +531,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           </div>
 
           {/* Footer Status */}
-          <div className="h-8 border-t border-border px-4 flex items-center justify-between text-xs text-muted-foreground bg-muted/40 select-none flex-shrink-0 font-mono">
+          <div className="h-8 border-t border-border px-6 flex items-center justify-between text-xs text-muted-foreground bg-muted/40 select-none flex-shrink-0 font-mono">
             <div className="flex items-center gap-3">
               <span>JSON</span>
               <span>•</span>
@@ -498,7 +547,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                   <span>Syntax Error</span>
                 </span>
               ) : (
-                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                <span className="text-emerald-500 flex items-center gap-1 font-medium">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Valid JSON</span>
                 </span>
@@ -508,13 +557,23 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         </div>
       )}
 
-      {/* Edit Token Slide-Over Right Drawer */}
-      <EditTokenDrawer
-        token={editingToken}
-        isOpen={Boolean(editingToken)}
-        onClose={() => setEditingToken(null)}
-        onSave={updateSingleToken}
-      />
+      {/* Edit Token Drawer */}
+      {editingToken && (
+        <EditTokenDrawer
+          isOpen={Boolean(editingToken)}
+          onClose={() => setEditingToken(null)}
+          token={editingToken}
+          onSave={(path, newValue) => {
+            updateSingleToken(path, newValue);
+            setEditingToken(null);
+            addToast({
+              type: "success",
+              title: "Token Updated",
+              message: `Updated token "${editingToken.name}".`,
+            });
+          }}
+        />
+      )}
 
       {/* Add Token Modal */}
       {isAddTokenOpen && (
@@ -560,7 +619,7 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
   return (
     <tr className="hover:bg-muted/40 transition-colors group">
       {/* Token Name & Description */}
-      <td className="py-3 px-5 align-middle w-64 min-w-[200px]">
+      <td className="py-3 px-6 align-middle w-64 min-w-[200px]">
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
             {token.name}
@@ -574,17 +633,17 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
       </td>
 
       {/* Raw Value / Structured Composite Properties */}
-      <td className="py-2.5 px-5 align-middle min-w-[360px]">
+      <td className="py-3 px-6 align-middle min-w-[360px]">
         <TokenRawValueCell token={token} onUpdate={onUpdate} />
       </td>
 
       {/* Rich Visual Specimen / Swatch Preview */}
-      <td className="py-2.5 px-5 align-middle min-w-[280px]">
+      <td className="py-3 px-6 align-middle min-w-[280px]">
         <TokenVisualPreviewCell token={token} />
       </td>
 
       {/* Set, Type Badges & 3-Dots Context Menu */}
-      <td className="py-2.5 px-5 align-middle text-right w-48 min-w-[150px]">
+      <td className="py-3 px-6 align-middle text-right w-48 min-w-[150px]">
         <div className="flex items-center justify-end gap-2 relative">
           <Badge variant="outline" className="text-[10px] font-mono">
             {token.setName}
@@ -622,41 +681,31 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
                 }}
                 className="gap-2 text-xs"
               >
-                <CopyPlus className="w-3.5 h-3.5 text-indigo-500" />
+                <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Duplicate token</span>
               </DropdownMenuItem>
 
               <DropdownMenuItem
-                onClick={() => handleCopy(cssVarName, "css")}
-                className="gap-2 text-xs font-mono justify-between"
+                onClick={() => handleCopy(cssVarName, "var")}
+                className="gap-2 text-xs"
               >
-                <div className="flex items-center gap-2">
-                  <Copy className="w-3 h-3 text-muted-foreground" />
-                  <span>Copy CSS Var</span>
-                </div>
-                {copiedType === "css" && (
-                  <Check className="w-3 h-3 text-emerald-500" />
-                )}
+                <Copy className="w-3.5 h-3.5 text-blue-500" />
+                <span>Copy CSS Var ({cssVarName})</span>
               </DropdownMenuItem>
 
               <DropdownMenuItem
-                onClick={() => handleCopy(token.resolvedValue, "resolved")}
-                className="gap-2 text-xs font-mono justify-between"
+                onClick={() => handleCopy(token.name, "name")}
+                className="gap-2 text-xs"
               >
-                <div className="flex items-center gap-2">
-                  <Copy className="w-3 h-3 text-muted-foreground" />
-                  <span>Copy Value</span>
-                </div>
-                {copiedType === "resolved" && (
-                  <Check className="w-3 h-3 text-emerald-500" />
-                )}
+                <Copy className="w-3.5 h-3.5 text-amber-500" />
+                <span>Copy token name</span>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 onClick={() => {
-                  if (confirm(`Delete token "${token.name}" from set "${token.setName}"?`)) {
+                  if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
                     onDelete();
                   }
                 }}
