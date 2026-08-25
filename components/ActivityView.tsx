@@ -275,7 +275,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
             </div>
 
             {/* Commit List Scroll Area */}
-            <div className="flex-1 overflow-y-auto divide-y divide-border/60">
+            <div className="flex-1 overflow-y-auto">
               {isLoading && commits.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center gap-2.5 text-muted-foreground">
                   <RefreshCw className="w-5 h-5 animate-spin text-primary" />
@@ -294,10 +294,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
                   return (
                     <div
                       key={commit.sha}
-                      className={`transition-all border-l-4 ${
+                      className={`transition-all border-b border-border/60 ${
                         isSelected
-                          ? "bg-background border-primary shadow-2xs"
-                          : "border-transparent hover:border-primary/40 hover:bg-muted/30"
+                          ? "bg-background border-l-4 border-l-primary shadow-2xs"
+                          : "border-l-4 border-l-transparent hover:bg-muted/30"
                       }`}
                     >
                       {/* Commit Card Header */}
