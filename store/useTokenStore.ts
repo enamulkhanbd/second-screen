@@ -368,7 +368,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // 1. Git Connection & Token Dictionary
       if (proj.gitConfig && proj.gitConfig.repo) {
-        set({ credentials: { ...DEFAULT_CREDENTIALS, ...proj.gitConfig } });
+        let branchToUse = proj.gitConfig.branch;
+        if (typeof window !== "undefined") {
+          const savedBranch = localStorage.getItem(`ts_project_branch_${proj.id}`);
+          if (savedBranch) {
+            branchToUse = savedBranch;
+          }
+        }
+        const activeCreds = {
+          ...DEFAULT_CREDENTIALS,
+          ...proj.gitConfig,
+          branch: branchToUse || proj.gitConfig.branch || DEFAULT_CREDENTIALS.branch,
+        };
+        set({ credentials: activeCreds });
         if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
           get().setRawTokens(proj.rawTokens);
         } else {
@@ -458,14 +470,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
         if (activeProj) {
           get().setCurrentProject(activeProj);
+          const activeCreds = get().credentials;
           if (
-            activeProj.gitConfig?.provider &&
-            activeProj.gitConfig?.owner &&
-            activeProj.gitConfig?.repo &&
-            activeProj.gitConfig?.branch &&
-            activeProj.gitConfig?.pat
+            activeCreds?.provider &&
+            activeCreds?.owner &&
+            activeCreds?.repo &&
+            activeCreds?.branch &&
+            activeCreds?.pat
           ) {
-            get().fetchLiveTokens(activeProj.gitConfig);
+            get().fetchLiveTokens(activeCreds);
           }
         }
         get().loadInvitations(activeOrg.id);
@@ -748,6 +761,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           const { pat, ...safeCreds } = updated;
           localStorage.setItem("ts_tokens_platform_creds", JSON.stringify(safeCreds));
 
+          if (state.currentProject?.id && updated.branch) {
+            localStorage.setItem(`ts_project_branch_${state.currentProject.id}`, updated.branch);
+          }
+
           // Save PAT in sessionStorage (secure tab lifecycle) and localStorage if requested
           if (updated.pat) {
             sessionStorage.setItem("ts_tokens_platform_pat", updated.pat);
@@ -759,6 +776,20 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           // Storage error
         }
       }
+
+      // Persist to project in Firestore if available
+      if (state.currentOrg && state.currentProject) {
+        const updatedProject = {
+          ...state.currentProject,
+          gitConfig: {
+            ...(state.currentProject.gitConfig || {}),
+            ...updated,
+          },
+        };
+        saveProjectGitConfig(state.currentOrg.id, state.currentProject.id, updatedProject.gitConfig);
+        return { credentials: updated, currentProject: updatedProject };
+      }
+
       return { credentials: updated };
     }),
 
@@ -1403,6 +1434,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         parsedCreds = { ...JSON.parse(savedCreds), pat: sessionPat };
       } else if (sessionPat) {
         parsedCreds = { ...DEFAULT_CREDENTIALS, pat: sessionPat };
+      }
+
+      const activeProjId = localStorage.getItem("ts_active_project_id");
+      if (activeProjId) {
+        const projBranch = localStorage.getItem(`ts_project_branch_${activeProjId}`);
+        if (projBranch) {
+          parsedCreds.branch = projBranch;
+        }
       }
 
       // 3. Restore User Profile & View Mode
