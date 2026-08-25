@@ -50,6 +50,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
 import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 
 // Preset icon choices
 const ICON_PRESETS = [
@@ -530,145 +538,140 @@ export const WorkspacesProjectsView: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         {activeTab === "projects" && (
           <div className="space-y-6">
-            {/* In-Page Create / Edit Project Form */}
-            {isProjectFormOpen && (
-              <form
-                onSubmit={handleSaveProject}
-                className="p-6 rounded-2xl border-2 border-primary/40 bg-card/90 shadow-md space-y-5 animate-in fade-in duration-200"
-              >
-                <div className="flex items-center justify-between border-b border-border/80 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-base shadow-xs"
-                      style={{ backgroundColor: projectFormColor }}
+            {/* Right Drawer for Create / Edit Project */}
+            <Sheet
+              open={isProjectFormOpen}
+              onOpenChange={(open) => {
+                setIsProjectFormOpen(open);
+                if (!open) setEditingProjectId(null);
+              }}
+            >
+              <SheetContent side="right" className="flex flex-col h-full bg-background border-l border-border sm:max-w-md md:max-w-lg p-0">
+                <form onSubmit={handleSaveProject} className="flex flex-col h-full overflow-hidden">
+                  <SheetHeader className="px-6 py-5 border-b border-border/80 bg-card/50 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-xs flex-shrink-0 transition-colors"
+                        style={{ backgroundColor: projectFormColor }}
+                      >
+                        {projectFormLogoUrl ? (
+                          <img src={projectFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <span>{projectFormIcon}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 pr-6">
+                        <SheetTitle className="text-base font-bold text-foreground">
+                          {editingProjectId ? "Edit Project" : "New Project"}
+                        </SheetTitle>
+                        <SheetDescription className="text-xs text-muted-foreground truncate">
+                          Workspace: <span className="font-semibold text-foreground">{currentOrg?.name}</span>
+                        </SheetDescription>
+                      </div>
+                    </div>
+                  </SheetHeader>
+
+                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                    {/* Basic Info */}
+                    <div className="space-y-3.5">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-foreground">Project Name *</Label>
+                        <Input
+                          value={projectFormName}
+                          onChange={(e) => setProjectFormName(e.target.value)}
+                          placeholder="e.g. Web Tokens, Mobile Palette, Core"
+                          required
+                          autoFocus
+                          className="h-9 text-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-foreground">Description (Optional)</Label>
+                        <Input
+                          value={projectFormDescription}
+                          onChange={(e) => setProjectFormDescription(e.target.value)}
+                          placeholder="Short summary of this project..."
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Icon Selection */}
+                    <div className="space-y-2 pt-1 border-t border-border/60">
+                      <div className="flex items-center justify-between text-xs font-medium text-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <Smile className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Icon / Emoji</span>
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-mono">{projectFormIcon}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 p-1.5 rounded-xl bg-muted/30 border border-border/70">
+                        {ICON_PRESETS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => setProjectFormIcon(emoji)}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
+                              projectFormIcon === emoji
+                                ? "bg-primary/20 ring-2 ring-primary scale-110 shadow-xs"
+                                : "hover:bg-muted/80 opacity-80 hover:opacity-100 hover:scale-105"
+                            }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color Accent Selection */}
+                    <div className="pt-1 border-t border-border/60">
+                      <ColorPickerWithShades
+                        value={projectFormColor}
+                        onChange={setProjectFormColor}
+                      />
+                    </div>
+
+                    {/* Custom Logo URL */}
+                    <div className="space-y-1.5 pt-1 border-t border-border/60">
+                      <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Custom Logo URL (Optional)</span>
+                      </Label>
+                      <Input
+                        value={projectFormLogoUrl}
+                        onChange={(e) => setProjectFormLogoUrl(e.target.value)}
+                        placeholder="https://example.com/logo.png"
+                        className="h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <SheetFooter className="px-6 py-3.5 border-t border-border/80 bg-muted/20 flex-shrink-0 flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsProjectFormOpen(false);
+                        setEditingProjectId(null);
+                      }}
                     >
-                      {projectFormLogoUrl ? (
-                        <img src={projectFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <span>{projectFormIcon}</span>
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-bold text-foreground">
-                        {editingProjectId ? "Edit Project Details" : "Create New Project"}
-                      </h2>
-                      <p className="text-[11px] text-muted-foreground">
-                        Under workspace: <span className="font-semibold text-foreground">{currentOrg?.name}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => {
-                      setIsProjectFormOpen(false);
-                      setEditingProjectId(null);
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Project Name *</Label>
-                    <Input
-                      value={projectFormName}
-                      onChange={(e) => setProjectFormName(e.target.value)}
-                      placeholder="e.g. Web Tokens, Mobile Palette, Brand Core"
-                      required
-                      autoFocus
-                      className="text-xs h-9"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Project Description</Label>
-                    <Input
-                      value={projectFormDescription}
-                      onChange={(e) => setProjectFormDescription(e.target.value)}
-                      placeholder="e.g. Cross-platform tokens and theme variants"
-                      className="text-xs h-9"
-                    />
-                  </div>
-
-                  {/* Icon / Emoji Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Smile className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Choose Project Icon / Emoji</span>
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-muted/40 border border-border">
-                      {ICON_PRESETS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setProjectFormIcon(emoji)}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
-                            projectFormIcon === emoji
-                              ? "bg-primary/20 ring-2 ring-primary scale-110"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Color Accent Selection with Tints & Shades */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Choose Project Accent Color, Tints &amp; Shades</span>
-                    </Label>
-                    <ColorPickerWithShades
-                      value={projectFormColor}
-                      onChange={setProjectFormColor}
-                    />
-                  </div>
-
-                  {/* Optional Custom Logo URL */}
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Custom Logo URL (Optional)</span>
-                    </Label>
-                    <Input
-                      value={projectFormLogoUrl}
-                      onChange={(e) => setProjectFormLogoUrl(e.target.value)}
-                      placeholder="https://example.com/logo.png"
-                      className="text-xs h-9 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3 border-t border-border">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsProjectFormOpen(false);
-                      setEditingProjectId(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isSavingProject || !projectFormName.trim()}
-                    className="gap-1.5 font-semibold"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>{isSavingProject ? "Saving..." : editingProjectId ? "Save Changes" : "Create Project"}</span>
-                  </Button>
-                </div>
-              </form>
-            )}
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isSavingProject || !projectFormName.trim()}
+                      className="gap-1.5 font-semibold shadow-xs"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSavingProject ? "Saving..." : editingProjectId ? "Save Changes" : "Create Project"}</span>
+                    </Button>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
 
             {/* Projects Grid */}
             {filteredProjects.length === 0 ? (
@@ -915,135 +918,128 @@ export const WorkspacesProjectsView: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         {activeTab === "workspaces" && (
           <div className="space-y-6">
-            {/* In-Page Create / Edit Workspace Form */}
-            {isWorkspaceFormOpen && (
-              <form
-                onSubmit={handleSaveWorkspace}
-                className="p-6 rounded-2xl border-2 border-violet-500/40 bg-card/90 shadow-md space-y-5 animate-in fade-in duration-200"
-              >
-                <div className="flex items-center justify-between border-b border-border/80 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-base shadow-xs"
-                      style={{ backgroundColor: orgFormColor }}
+            {/* Right Drawer for Create / Edit Workspace */}
+            <Sheet
+              open={isWorkspaceFormOpen}
+              onOpenChange={(open) => {
+                setIsWorkspaceFormOpen(open);
+                if (!open) setEditingOrgId(null);
+              }}
+            >
+              <SheetContent side="right" className="flex flex-col h-full bg-background border-l border-border sm:max-w-md md:max-w-lg p-0">
+                <form onSubmit={handleSaveWorkspace} className="flex flex-col h-full overflow-hidden">
+                  <SheetHeader className="px-6 py-5 border-b border-border/80 bg-card/50 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-xs flex-shrink-0 transition-colors"
+                        style={{ backgroundColor: orgFormColor }}
+                      >
+                        {orgFormLogoUrl ? (
+                          <img src={orgFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <span>{orgFormIcon}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 pr-6">
+                        <SheetTitle className="text-base font-bold text-foreground">
+                          {editingOrgId ? "Edit Workspace" : "New Workspace"}
+                        </SheetTitle>
+                        <SheetDescription className="text-xs text-muted-foreground truncate">
+                          Configure workspace brand and identity
+                        </SheetDescription>
+                      </div>
+                    </div>
+                  </SheetHeader>
+
+                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                    {/* Basic Info */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-foreground">Workspace Name *</Label>
+                      <Input
+                        value={orgFormName}
+                        onChange={(e) => setOrgFormName(e.target.value)}
+                        placeholder="e.g. JustGo, Core Systems, Acme Design"
+                        required
+                        autoFocus
+                        className="h-9 text-xs"
+                      />
+                    </div>
+
+                    {/* Icon Selection */}
+                    <div className="space-y-2 pt-1 border-t border-border/60">
+                      <div className="flex items-center justify-between text-xs font-medium text-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <Smile className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Icon / Emoji</span>
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-mono">{orgFormIcon}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 p-1.5 rounded-xl bg-muted/30 border border-border/70">
+                        {ICON_PRESETS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => setOrgFormIcon(emoji)}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
+                              orgFormIcon === emoji
+                                ? "bg-violet-500/20 ring-2 ring-violet-500 scale-110 shadow-xs"
+                                : "hover:bg-muted/80 opacity-80 hover:opacity-100 hover:scale-105"
+                            }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color Accent Selection */}
+                    <div className="pt-1 border-t border-border/60">
+                      <ColorPickerWithShades
+                        value={orgFormColor}
+                        onChange={setOrgFormColor}
+                      />
+                    </div>
+
+                    {/* Custom Logo URL */}
+                    <div className="space-y-1.5 pt-1 border-t border-border/60">
+                      <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Custom Organization Logo URL (Optional)</span>
+                      </Label>
+                      <Input
+                        value={orgFormLogoUrl}
+                        onChange={(e) => setOrgFormLogoUrl(e.target.value)}
+                        placeholder="https://example.com/org-logo.png"
+                        className="h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <SheetFooter className="px-6 py-3.5 border-t border-border/80 bg-muted/20 flex-shrink-0 flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsWorkspaceFormOpen(false);
+                        setEditingOrgId(null);
+                      }}
                     >
-                      {orgFormLogoUrl ? (
-                        <img src={orgFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <span>{orgFormIcon}</span>
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-bold text-foreground">
-                        {editingOrgId ? "Edit Workspace Identity" : "Create New Workspace"}
-                      </h2>
-                      <p className="text-[11px] text-muted-foreground">
-                        Configure brand color, icon, and name for this organization.
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => {
-                      setIsWorkspaceFormOpen(false);
-                      setEditingOrgId(null);
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs font-semibold">Workspace Name *</Label>
-                    <Input
-                      value={orgFormName}
-                      onChange={(e) => setOrgFormName(e.target.value)}
-                      placeholder="e.g. JustGo, Core Systems, Acme Design"
-                      required
-                      autoFocus
-                      className="text-xs h-9"
-                    />
-                  </div>
-
-                  {/* Icon / Emoji Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Smile className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Choose Workspace Icon</span>
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-muted/40 border border-border">
-                      {ICON_PRESETS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setOrgFormIcon(emoji)}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
-                            orgFormIcon === emoji
-                              ? "bg-violet-500/20 ring-2 ring-violet-500 scale-110"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Color Accent Selection with Tints & Shades */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Choose Brand Color, Tints &amp; Shades</span>
-                    </Label>
-                    <ColorPickerWithShades
-                      value={orgFormColor}
-                      onChange={setOrgFormColor}
-                    />
-                  </div>
-
-                  {/* Custom Logo URL */}
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Custom Organization Logo URL (Optional)</span>
-                    </Label>
-                    <Input
-                      value={orgFormLogoUrl}
-                      onChange={(e) => setOrgFormLogoUrl(e.target.value)}
-                      placeholder="https://example.com/org-logo.png"
-                      className="text-xs h-9 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3 border-t border-border">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsWorkspaceFormOpen(false);
-                      setEditingOrgId(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isSavingOrg || !orgFormName.trim()}
-                    className="gap-1.5 font-semibold bg-violet-600 hover:bg-violet-700 text-white"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>{isSavingOrg ? "Saving..." : editingOrgId ? "Save Workspace" : "Create Workspace"}</span>
-                  </Button>
-                </div>
-              </form>
-            )}
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isSavingOrg || !orgFormName.trim()}
+                      className="gap-1.5 font-semibold bg-violet-600 hover:bg-violet-700 text-white shadow-xs"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSavingOrg ? "Saving..." : editingOrgId ? "Save Changes" : "Create Workspace"}</span>
+                    </Button>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
 
             {/* Workspaces Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
