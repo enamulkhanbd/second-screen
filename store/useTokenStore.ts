@@ -13,6 +13,7 @@ import {
   ReleasePackage,
   CompilerConfig,
   DEFAULT_COMPILER_CONFIG,
+  UserActivityItem,
 } from "@/types/tokens";
 import {
   flattenAndResolveTokens,
@@ -181,6 +182,8 @@ interface TokenStoreState {
       | "members"
       | "org-settings"
   ) => void;
+  membersSubTab: "members" | "invites" | "activity";
+  setMembersSubTab: (tab: "members" | "invites" | "activity") => void;
 
   // Releases, Compilers & Distribution Targets
   releases: ReleasePackage[];
@@ -230,6 +233,9 @@ interface TokenStoreState {
   addToast: (toast: Omit<ToastMessage, "id" | "timestamp">) => void;
   removeToast: (id: string) => void;
   resetDirtyState: () => void;
+  userActivities: UserActivityItem[];
+  logUserActivity: (activity: Omit<UserActivityItem, "id" | "timestamp">) => void;
+  clearUserActivities: () => void;
   addThemeOption: (params: {
     groupId: string;
     name: string;
@@ -1161,6 +1167,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
+  membersSubTab: "members",
+  setMembersSubTab: (tab) => set({ membersSubTab: tab }),
+
   // Releases & Distribution Targets State
   releases: [],
   activeReleaseId: null,
@@ -1517,6 +1526,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         if (rawCfg) savedConfig = { ...DEFAULT_COMPILER_CONFIG, ...JSON.parse(rawCfg) };
       } catch { }
 
+      let savedActivities: UserActivityItem[] = [];
+      try {
+        const rawAct = localStorage.getItem("ts_user_activities");
+        if (rawAct) savedActivities = JSON.parse(rawAct);
+      } catch { }
+
       set({
         credentials: parsedCreds,
         userProfile,
@@ -1528,6 +1543,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         activeReleaseId: savedReleases[0]?.id || null,
         distributionTargets: savedTargets,
         compilerConfig: savedConfig,
+        userActivities: savedActivities,
         rawTokens: {},
         resolvedTokens: [],
         themeGroups: [],
@@ -2166,6 +2182,34 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       title: "Workspace Initialized",
       message: "Started with clean design token workspace. Add your tokens or connect a repository.",
     });
+  },
+
+  userActivities: [],
+
+  logUserActivity: (act) => {
+    const newActivity: UserActivityItem = {
+      ...act,
+      id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: new Date().toISOString(),
+    };
+    set((state) => {
+      const updated = [newActivity, ...state.userActivities].slice(0, 100);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_user_activities", JSON.stringify(updated));
+        } catch {}
+      }
+      return { userActivities: updated };
+    });
+  },
+
+  clearUserActivities: () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("ts_user_activities");
+      } catch {}
+    }
+    set({ userActivities: [] });
   },
 };
 });

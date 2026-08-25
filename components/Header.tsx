@@ -21,11 +21,13 @@ import {
   LogOut,
   FileCode,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { TokenDiffViewer } from "@/components/TokenDiffViewer";
+import { UserActivityDrawer } from "@/components/UserActivityDrawer";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -91,6 +93,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     // Active tab and set
     sidebarTab,
     setSidebarTab,
+    membersSubTab,
+    setMembersSubTab,
     activeSet,
     currentUser,
     setCurrentUser,
@@ -102,6 +106,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     hasRemoteChanges,
     checkRemoteUpdates,
     getDiffSummary,
+    logUserActivity,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -112,6 +117,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const [commitMessage, setCommitMessage] = useState("");
   const [showPushModal, setShowPushModal] = useState(false);
   const [showPullModal, setShowPullModal] = useState(false);
+  const [showActivityDrawer, setShowActivityDrawer] = useState(false);
 
   // Branch list state
   const [branches, setBranches] = useState<string[]>([]);
@@ -135,9 +141,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   // 2. Figma Plugin is connected -> show Sync Figma button
   const isFigmaConnected = Boolean(
     currentUser &&
-      (figmaUpdatedAt ||
-        (figmaVariables && Object.keys(figmaVariables).length > 0) ||
-        (figmaResolvedVariables && figmaResolvedVariables.length > 0))
+    (figmaUpdatedAt ||
+      (figmaVariables && Object.keys(figmaVariables).length > 0) ||
+      (figmaResolvedVariables && figmaResolvedVariables.length > 0))
   );
 
   // Auto-generate commit message when opening push modal
@@ -254,6 +260,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       });
       setShowBranchMenu(false);
       setSyncStatus("success");
+      logUserActivity({
+        type: "git",
+        title: `Switched Branch to ${targetBranch}`,
+        description: `Pulled latest tokens from branch "${targetBranch}" on ${credentials.repo || "repository"}.`,
+        actor: {
+          name: currentUser?.displayName || "User",
+          email: currentUser?.email || "user@example.com",
+          avatarUrl: currentUser?.avatarUrl,
+        },
+        metadata: { branch: targetBranch, repo: credentials.repo },
+      });
       addToast({
         type: "success",
         title: "Switched & Pulled Branch",
@@ -378,6 +395,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       setSyncStatus("success");
       setShowPushModal(false);
       setShowBranchMenu(false);
+      const pushedBranch = credentials.branch || "main";
+      const pushedRepo = credentials.repo || "repository";
+      const userCommitMsg = commitMessage || "Updated design tokens and synced changes.";
+      logUserActivity({
+        type: "git",
+        title: `Pushed Commit to ${pushedBranch}`,
+        description: userCommitMsg,
+        actor: {
+          name: currentUser?.displayName || "User",
+          email: currentUser?.email || "user@example.com",
+          avatarUrl: currentUser?.avatarUrl,
+        },
+        metadata: { branch: pushedBranch, repo: pushedRepo },
+      });
       setCommitMessage("");
       addToast({
         type: "success",
@@ -461,7 +492,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                     {sidebarTab === "assets" && <BreadcrumbPage>Assets</BreadcrumbPage>}
                     {sidebarTab === "exports" && <BreadcrumbPage>Exports</BreadcrumbPage>}
                     {sidebarTab === "releases" && <BreadcrumbPage>Releases</BreadcrumbPage>}
-                    {sidebarTab === "activity" && <BreadcrumbPage>Activity &amp; Change Log</BreadcrumbPage>}
+                    {sidebarTab === "activity" && <BreadcrumbPage>Change Log</BreadcrumbPage>}
                     {sidebarTab === "integrations" && <BreadcrumbPage>Integrations</BreadcrumbPage>}
                     {sidebarTab === "mcp" && <BreadcrumbPage>MCP &amp; CLI</BreadcrumbPage>}
                     {sidebarTab === "members" && <BreadcrumbPage>Team Members</BreadcrumbPage>}
@@ -505,11 +536,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                                       setActiveThemeGroup(grp.id);
                                       setShowThemeGroupMenu(false);
                                     }}
-                                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer ${
-                                      grp.id === activeThemeGroupId
+                                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer ${grp.id === activeThemeGroupId
                                         ? "bg-primary/10 text-primary font-semibold"
                                         : "text-foreground hover:bg-muted"
-                                    }`}
+                                      }`}
                                   >
                                     <span>{grp.name}</span>
                                     {grp.id === activeThemeGroupId && (
@@ -544,11 +574,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
             <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium">
               <button
                 onClick={() => setViewMode("matrix")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  viewMode === "matrix"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${viewMode === "matrix"
                     ? "bg-background text-foreground font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
                 title="Theme Matrix Comparison Grid"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -557,11 +586,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
               <button
                 onClick={() => setViewMode("flow")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  viewMode === "flow"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${viewMode === "flow"
                     ? "bg-background text-primary font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
                 title="Visual Token Flow & Dependency Graph"
               >
                 <Workflow className="w-3.5 h-3.5" />
@@ -601,11 +629,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                     }
                   }}
                   disabled={isPulling}
-                  className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${
-                    hasRemoteChanges
+                  className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${hasRemoteChanges
                       ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
                       : ""
-                  }`}
+                    }`}
                   title={
                     hasRemoteChanges
                       ? "Remote changes detected on repository branch - click to review and pull"
@@ -613,9 +640,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   }
                 >
                   <DownloadCloud
-                    className={`w-3.5 h-3.5 ${
-                      hasRemoteChanges ? "text-blue-500" : "text-muted-foreground"
-                    } ${isPulling ? "animate-bounce" : ""}`}
+                    className={`w-3.5 h-3.5 ${hasRemoteChanges ? "text-blue-500" : "text-muted-foreground"
+                      } ${isPulling ? "animate-bounce" : ""}`}
                   />
                   <span>Git Pull</span>
                 </Button>
@@ -638,11 +664,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 size="sm"
                 onClick={() => setShowPushModal(true)}
                 disabled={!isDirty || isPushing}
-                className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${
-                  !isDirty
+                className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
-                }`}
+                  }`}
                 title={
                   isDirty
                     ? `Review diff and push changes directly to ${credentials.branch || "branch"}`
@@ -713,11 +738,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                               <button
                                 key={b}
                                 onClick={() => handlePullForBranch(b)}
-                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${
-                                  isCurrent
+                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
                                     ? "bg-primary/10 text-primary font-semibold"
                                     : "text-foreground hover:bg-muted"
-                                }`}
+                                  }`}
                               >
                                 <span className="truncate">{b}</span>
                                 {isCurrent && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
@@ -811,14 +835,28 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
                 <DropdownMenuSeparator />
 
-                {/* Team Members */}
+                {/* Activity Log & Team Members */}
                 <DropdownMenuGroup>
                   <DropdownMenuItem
-                    onClick={() => setSidebarTab("members")}
+                    onClick={() => {
+                      setSidebarTab("members");
+                      setMembersSubTab("activity");
+                    }}
+                    className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
+                  >
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span>Activity log</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSidebarTab("members");
+                      setMembersSubTab("members");
+                    }}
                     className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
                   >
                     <Users className="w-4 h-4 text-muted-foreground" />
-                    <span>Team members</span>
+                    <span>Manage Team</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
 
@@ -830,7 +868,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   className="gap-2.5 px-2.5 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer text-xs font-medium"
                 >
                   <LogOut className="w-4 h-4 text-destructive" />
-                  <span>Logout</span>
+                  <span>Log Out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -847,6 +885,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
           )}
         </div>
       </header>
+
+      {/* User Activity Log Right Drawer */}
+      <UserActivityDrawer
+        isOpen={showActivityDrawer}
+        onClose={() => setShowActivityDrawer(false)}
+      />
 
       {/* Accept Invite Modal (Triggered automatically on invite detection) */}
       <AcceptInviteModal />

@@ -49,6 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
+import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
 
 // Preset icon choices
 const ICON_PRESETS = [
@@ -617,27 +618,16 @@ export const WorkspacesProjectsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Color Accent Selection */}
-                  <div className="space-y-2">
+                  {/* Color Accent Selection with Tints & Shades */}
+                  <div className="space-y-2 md:col-span-2">
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
                       <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Choose Accent Color</span>
+                      <span>Choose Project Accent Color, Tints &amp; Shades</span>
                     </Label>
-                    <div className="flex flex-wrap gap-2 p-2 rounded-xl bg-muted/40 border border-border items-center">
-                      {COLOR_PRESETS.map((c) => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          onClick={() => setProjectFormColor(c.value)}
-                          className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${c.bgClass} ${
-                            projectFormColor === c.value
-                              ? "ring-3 ring-offset-2 ring-primary scale-110"
-                              : "hover:scale-105"
-                          }`}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
+                    <ColorPickerWithShades
+                      value={projectFormColor}
+                      onChange={setProjectFormColor}
+                    />
                   </div>
 
                   {/* Optional Custom Logo URL */}
@@ -1003,27 +993,16 @@ export const WorkspacesProjectsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Color Accent Selection */}
-                  <div className="space-y-2">
+                  {/* Color Accent Selection with Tints & Shades */}
+                  <div className="space-y-2 md:col-span-2">
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
                       <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>Choose Brand Color</span>
+                      <span>Choose Brand Color, Tints &amp; Shades</span>
                     </Label>
-                    <div className="flex flex-wrap gap-2 p-2 rounded-xl bg-muted/40 border border-border items-center">
-                      {COLOR_PRESETS.map((c) => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          onClick={() => setOrgFormColor(c.value)}
-                          className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${c.bgClass} ${
-                            orgFormColor === c.value
-                              ? "ring-3 ring-offset-2 ring-violet-500 scale-110"
-                              : "hover:scale-105"
-                          }`}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
+                    <ColorPickerWithShades
+                      value={orgFormColor}
+                      onChange={setOrgFormColor}
+                    />
                   </div>
 
                   {/* Custom Logo URL */}

@@ -63,6 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     figmaResolvedVariables,
     sidebarTab,
     setSidebarTab,
+    setMembersSubTab,
     credentials,
     releases,
     addToast,
@@ -499,7 +500,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
           {/* Members */}
           <button
-            onClick={() => setSidebarTab("members")}
+            onClick={() => {
+              setSidebarTab("members");
+              setMembersSubTab("members");
+            }}
             title="Team Members"
             className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
               sidebarTab === "members"

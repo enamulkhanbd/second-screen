@@ -203,3 +203,17 @@ export interface ReleasePackage {
     androidDimensXml: string;
   };
 }
+
+export interface UserActivityItem {
+  id: string;
+  type: "token" | "git" | "release" | "team" | "figma" | "project";
+  title: string;
+  description: string;
+  timestamp: string;
+  actor: {
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  metadata?: Record<string, any>;
+}

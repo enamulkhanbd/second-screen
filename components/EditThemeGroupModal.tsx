@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
 
 interface EditThemeGroupModalProps {
   isOpen: boolean;
@@ -108,35 +109,13 @@ export const EditThemeGroupModal: React.FC<EditThemeGroupModalProps> = ({
             />
           </div>
 
-          {/* Group Color Dot */}
+          {/* Group Color Dot with Tints & Shades */}
           <div className="space-y-1.5">
-            <Label>Indicator Color</Label>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {GROUP_PALETTE.map((preset) => (
-                  <button
-                    type="button"
-                    key={preset}
-                    onClick={() => setColor(preset)}
-                    className={`w-6 h-6 rounded-full border transition-transform ${
-                      color === preset
-                        ? "scale-110 ring-2 ring-primary border-transparent"
-                        : "border-black/20 dark:border-white/20 hover:scale-105"
-                    }`}
-                    style={{ backgroundColor: preset }}
-                  />
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1.5 pl-2 border-l border-border">
-                <Input
-                  type="text"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-20 h-7 text-[11px] font-mono"
-                />
-              </div>
-            </div>
+            <Label>Indicator Color, Tints &amp; Shades</Label>
+            <ColorPickerWithShades
+              value={color}
+              onChange={setColor}
+            />
           </div>
 
           <DialogFooter className="pt-2">

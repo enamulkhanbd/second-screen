@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
 
 interface AddThemeOptionModalProps {
   isOpen: boolean;
@@ -239,35 +240,13 @@ export const AddThemeOptionModal: React.FC<AddThemeOptionModalProps> = ({
             />
           </div>
 
-          {/* Accent Color */}
+          {/* Accent Color with Tints & Shades */}
           <div className="space-y-1.5">
-            <Label>Accent Color</Label>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {COLOR_PRESETS.map((preset) => (
-                  <button
-                    type="button"
-                    key={preset}
-                    onClick={() => setColor(preset)}
-                    className={`w-6 h-6 rounded-full border transition-transform ${
-                      color === preset
-                        ? "scale-110 ring-2 ring-primary border-transparent"
-                        : "border-black/20 dark:border-white/20 hover:scale-105"
-                    }`}
-                    style={{ backgroundColor: preset }}
-                  />
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1.5 pl-2 border-l border-border">
-                <Input
-                  type="text"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-20 h-7 text-[11px] font-mono"
-                />
-              </div>
-            </div>
+            <Label>Accent Color, Tints &amp; Shades</Label>
+            <ColorPickerWithShades
+              value={color}
+              onChange={setColor}
+            />
           </div>
 
           {/* Token Sets Configuration */}
