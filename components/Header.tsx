@@ -108,7 +108,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     getDiffSummary,
     logUserActivity,
     setFigmaVariables,
-    loadTenantData,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -352,9 +351,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         setRawTokens(data.rawTokens);
         if (data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
           setFigmaVariables(data.figmaVariables, data.metadata);
-        }
-        if (currentUser?.uid) {
-          loadTenantData(currentUser.uid, currentUser.email);
         }
         logUserActivity({
           type: "figma",
