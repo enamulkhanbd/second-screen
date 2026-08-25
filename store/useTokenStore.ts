@@ -106,6 +106,10 @@ interface TokenStoreState {
   rawTokens: RawTokensDocument;
   resolvedTokens: FlattenedToken[];
   isDirty: boolean;
+  lastFetchedSha: string | null;
+  hasRemoteChanges: boolean;
+  setHasRemoteChanges: (has: boolean) => void;
+  checkRemoteUpdates: () => Promise<boolean>;
 
   // Figma Variables State
   figmaVariables: RawTokensDocument | null;
@@ -1296,6 +1300,38 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   syncMeta: null,
   toasts: [],
 
+  lastFetchedSha: null,
+  hasRemoteChanges: false,
+  setHasRemoteChanges: (has) => set({ hasRemoteChanges: has }),
+
+  checkRemoteUpdates: async () => {
+    const creds = get().credentials;
+    if (!creds.provider || !creds.owner || !creds.repo || !creds.branch || !creds.pat) {
+      return false;
+    }
+
+    try {
+      const res = await fetch("/api/git/check-updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creds),
+      });
+
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.success && data.latestSha) {
+        const currentSha = get().lastFetchedSha;
+        if (currentSha && data.latestSha !== currentSha) {
+          set({ hasRemoteChanges: true });
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
   // Live Git Fetcher (Memory-only, 100% fresh)
   fetchLiveTokens: async (customCreds) => {
     const creds = customCreds || get().credentials;
@@ -1321,7 +1357,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       get().setRawTokens(data.tokens, data.syncMeta);
-      set({ syncStatus: "success", syncError: null });
+      set({
+        syncStatus: "success",
+        syncError: null,
+        lastFetchedSha: data.commitSha || null,
+        hasRemoteChanges: false,
+      });
       return true;
     } catch (err: any) {
       set({ syncStatus: "error", syncError: err.message });

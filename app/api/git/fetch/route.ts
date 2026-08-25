@@ -327,6 +327,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
               tokens: scoped.tokens,
               userProfile,
+              commitSha: treeData.sha || "",
               syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
             });
           }
@@ -493,6 +494,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         tokens: scoped.tokens,
         userProfile,
+        commitSha: targetJsonItems[0]?.commitId || "",
         syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
       });
     }

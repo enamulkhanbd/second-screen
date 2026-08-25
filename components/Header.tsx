@@ -95,6 +95,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     figmaVariables,
     figmaResolvedVariables,
     figmaUpdatedAt,
+    // Remote Git updates tracking
+    hasRemoteChanges,
+    checkRemoteUpdates,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -126,6 +129,30 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         (figmaVariables && Object.keys(figmaVariables).length > 0) ||
         (figmaResolvedVariables && figmaResolvedVariables.length > 0))
   );
+
+  // Periodically check for remote updates in Git repository
+  useEffect(() => {
+    if (!isGitConfigured || !credentials.pat) return;
+
+    // Initial check
+    checkRemoteUpdates();
+
+    // Periodic poll every 45s
+    const interval = setInterval(() => {
+      checkRemoteUpdates();
+    }, 45000);
+
+    // Immediate check on tab focus
+    const handleFocus = () => {
+      checkRemoteUpdates();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [isGitConfigured, credentials.owner, credentials.repo, credentials.branch, credentials.pat, checkRemoteUpdates]);
 
   // Fetch branch list whenever branch dropdown is opened
   useEffect(() => {
@@ -193,6 +220,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       const data = await res.json();
       setRawTokens(data.tokens);
       resetDirtyState();
+      useTokenStore.setState({
+        lastFetchedSha: data.commitSha || null,
+        hasRemoteChanges: false,
+      });
       setShowBranchMenu(false);
       setSyncStatus("success");
       addToast({
@@ -236,6 +267,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       const data = await res.json();
       setRawTokens(data.tokens);
       resetDirtyState();
+      useTokenStore.setState({
+        lastFetchedSha: data.commitSha || null,
+        hasRemoteChanges: false,
+      });
       setSyncStatus("success");
       addToast({
         type: "success",
@@ -525,27 +560,60 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
           {/* 2. Git Pull & Push & Branch Switcher - ONLY if Git Sync is configured */}
           {isGitConfigured && (
             <>
-              {/* Git Pull Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePull}
-                disabled={isPulling}
-                className="h-8 gap-1.5 text-xs cursor-pointer shadow-2xs"
-                title="Pull latest tokens from current branch"
-              >
-                <DownloadCloud className={`w-3.5 h-3.5 text-muted-foreground ${isPulling ? "animate-bounce" : ""}`} />
-                <span>Git Pull</span>
-              </Button>
+              {/* Git Pull Button with Remote Changes Indicator */}
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePull}
+                  disabled={isPulling}
+                  className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${
+                    hasRemoteChanges
+                      ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
+                      : ""
+                  }`}
+                  title={
+                    hasRemoteChanges
+                      ? "Remote changes detected on repository branch - click to pull"
+                      : "Pull latest tokens from current branch"
+                  }
+                >
+                  <DownloadCloud
+                    className={`w-3.5 h-3.5 ${
+                      hasRemoteChanges ? "text-blue-500" : "text-muted-foreground"
+                    } ${isPulling ? "animate-bounce" : ""}`}
+                  />
+                  <span>Git Pull</span>
+                </Button>
 
-              {/* Push Button */}
+                {/* Pulsating Remote Updates Notification Badge */}
+                {hasRemoteChanges && (
+                  <span
+                    className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none"
+                    title="Remote updates available"
+                  >
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600 ring-2 ring-background" />
+                  </span>
+                )}
+              </div>
+
+              {/* Push Button - Disabled when there are no local changes */}
               <Button
                 variant={isDirty ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowPushModal(true)}
-                disabled={isPushing}
-                className="h-8 gap-1.5 text-xs cursor-pointer shadow-2xs font-medium"
-                title="Push changes directly to branch"
+                disabled={!isDirty || isPushing}
+                className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${
+                  !isDirty
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
+                title={
+                  isDirty
+                    ? `Push changes directly to ${credentials.branch || "branch"}`
+                    : "No local changes to push"
+                }
               >
                 <UploadCloud className="w-3.5 h-3.5" />
                 <span>Push</span>
