@@ -41,7 +41,14 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
   const [activeTab, setActiveTab] = useState<"semantic" | "side-by-side" | "inline">("semantic");
   const [selectedFileIdx, setSelectedFileIdx] = useState<number>(0);
 
-  if (!diff.hasChanges || diff.files.length === 0) {
+  const currentFile = diff.files?.[selectedFileIdx] || diff.files?.[0];
+
+  const hunks: SideBySideHunk[] = useMemo(() => {
+    if (!currentFile) return [];
+    return computeSideBySideDiff(currentFile.oldJson || "", currentFile.newJson || "", 4);
+  }, [currentFile]);
+
+  if (!diff.hasChanges || !diff.files || diff.files.length === 0 || !currentFile) {
     return (
       <div className={`p-8 text-center bg-muted/20 border border-border rounded-xl text-muted-foreground ${className}`}>
         <Check className="w-8 h-8 mx-auto mb-2 text-emerald-500 opacity-80" />
@@ -52,13 +59,6 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
       </div>
     );
   }
-
-  const currentFile = diff.files[selectedFileIdx] || diff.files[0];
-
-  const hunks: SideBySideHunk[] = useMemo(() => {
-    if (!currentFile) return [];
-    return computeSideBySideDiff(currentFile.oldJson || "", currentFile.newJson || "", 4);
-  }, [currentFile]);
 
   return (
     <div className={`flex flex-col border border-border rounded-xl bg-card overflow-hidden shadow-xs text-xs select-none ${className}`}>

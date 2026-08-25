@@ -362,8 +362,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...credentials,
-          tokens: rawTokens,
+          credentials,
+          rawTokens,
           syncMeta,
           commitMessage: commitMessage || `chore(tokens): sync via tokens platform [${new Date().toLocaleTimeString()}]`,
         }),

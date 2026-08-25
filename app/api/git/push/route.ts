@@ -11,10 +11,21 @@ interface PushRequestBody {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: PushRequestBody = await req.json();
-    const { credentials: rawCreds, rawTokens, commitMessage, syncMeta } = body;
+    const body = await req.json();
+    const rawTokens: RawTokensDocument = body.rawTokens || body.tokens;
+    const rawCreds: GitCredentials = body.credentials || {
+      provider: body.provider,
+      owner: body.owner,
+      project: body.project,
+      repo: body.repo,
+      branch: body.branch,
+      path: body.path,
+      pat: body.pat,
+      baseUrl: body.baseUrl,
+    };
+    const { commitMessage, syncMeta } = body;
 
-    if (!rawCreds || !rawTokens) {
+    if (!rawCreds || !rawTokens || Object.keys(rawTokens).length === 0) {
       return NextResponse.json(
         { error: "Missing required credentials or token payload." },
         { status: 400 }
@@ -53,12 +64,12 @@ export async function POST(req: NextRequest) {
 
       const isFolderMode = syncMeta?.mode === "folder" && syncMeta?.files;
 
-      if (isFolderMode && syncMeta.files) {
-        for (const [setName, setFilePath] of Object.entries(syncMeta.files)) {
+      if (isFolderMode && syncMeta?.files) {
+        for (const [setName, setFilePath] of Object.entries(syncMeta.files as Record<string, string>)) {
           if (setName.startsWith("$") && !rawTokens[setName]) continue;
           const contentObj = rawTokens[setName];
           if (contentObj !== undefined) {
-            const normalizedPath = setFilePath.replace(/^\/+/, "");
+            const normalizedPath = String(setFilePath).replace(/^\/+/, "");
             pathToContentMap.set(normalizedPath, JSON.stringify(contentObj, null, 2));
           }
         }
@@ -182,12 +193,12 @@ export async function POST(req: NextRequest) {
 
       const isFolderMode = syncMeta?.mode === "folder" && syncMeta?.files;
 
-      if (isFolderMode && syncMeta.files) {
-        for (const [setName, setFilePath] of Object.entries(syncMeta.files)) {
+      if (isFolderMode && syncMeta?.files) {
+        for (const [setName, setFilePath] of Object.entries(syncMeta.files as Record<string, string>)) {
           if (setName.startsWith("$") && !rawTokens[setName]) continue;
           const contentObj = rawTokens[setName];
           if (contentObj !== undefined) {
-            const normalizedPath = setFilePath.startsWith("/") ? setFilePath : "/" + setFilePath;
+            const normalizedPath = String(setFilePath).startsWith("/") ? String(setFilePath) : "/" + String(setFilePath);
             pathToContentMap.set(normalizedPath, JSON.stringify(contentObj, null, 2));
           }
         }
