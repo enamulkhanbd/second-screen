@@ -294,10 +294,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
                   return (
                     <div
                       key={commit.sha}
-                      className={`transition-all ${
+                      className={`transition-all border-l-4 ${
                         isSelected
-                          ? "bg-background border-l-4 border-primary shadow-2xs"
-                          : "hover:bg-muted/30"
+                          ? "bg-background border-primary shadow-2xs"
+                          : "border-transparent hover:border-primary/40 hover:bg-muted/30"
                       }`}
                     >
                       {/* Commit Card Header */}
