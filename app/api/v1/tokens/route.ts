@@ -4,6 +4,7 @@ import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { getOrgProjects, saveProjectTokens, saveProjectFigmaVariables } from "@/services/organizationService";
+import { computeTokensDiff } from "@/utils/tokenDiff";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +112,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/v1/tokens
- * Push token updates directly to Firestore dynamically
+ * Smart Delta Push: Calculates token-level diffs and only updates changed/new tokens
  */
 export async function POST(req: NextRequest) {
   try {
@@ -191,11 +192,20 @@ export async function POST(req: NextRequest) {
       mergedDoc["$metadata"] = currentDoc["$metadata"] || currentDoc["$metadata.json"];
     }
 
+    // Compute exact token delta between current Cloud tokens and incoming tokens
+    const diff = computeTokensDiff(currentDoc, mergedDoc);
+    const allChangedTokens = diff.files.flatMap((f) => f.tokens);
+    const totalChanges = diff.totalAdded + diff.totalModified + diff.totalDeleted;
+    const hasExistingTokens = Object.keys(currentDoc).filter((k) => !k.startsWith("$")).length > 0;
+
     if (orgId && projectId) {
       try {
-        await saveProjectTokens(orgId, projectId, mergedDoc);
-        if (isFromFigma) {
-          await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
+        // Save only if changes exist or during initial import
+        if (diff.hasChanges || !hasExistingTokens) {
+          await saveProjectTokens(orgId, projectId, mergedDoc);
+          if (isFromFigma) {
+            await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
+          }
         }
       } catch (err) {
         console.warn("Error saving project tokens:", err);
@@ -204,12 +214,39 @@ export async function POST(req: NextRequest) {
 
     const resolved = flattenAndResolveTokens(mergedDoc, "ALL");
 
+    // Format top changed token samples for response and plugin feedback
+    const changedSamples = allChangedTokens.slice(0, 15).map((t) => ({
+      key: t.key,
+      name: t.name,
+      setName: t.setName,
+      changeType: t.changeType,
+      oldValue: t.oldValue,
+      newValue: t.newValue,
+    }));
+
+    let message = "Cloud tokens are already in sync. 0 changes detected.";
+    if (!hasExistingTokens) {
+      message = `Initial import: Published all ${resolved.length} tokens to Cloud.`;
+    } else if (totalChanges === 1) {
+      const sample = changedSamples[0];
+      const detail = sample ? ` (${sample.setName}/${sample.key})` : "";
+      message = `Published 1 changed token${detail} to Cloud.`;
+    } else if (totalChanges > 1) {
+      message = `Published ${totalChanges} changed tokens (${diff.totalModified} modified, ${diff.totalAdded} added) to Cloud.`;
+    }
+
     return jsonWithCors({
       success: true,
-      message: isFromFigma
-        ? "Figma Variables synced successfully to Tokens Platform."
-        : "Tokens updated successfully in Tokens Platform Cloud.",
-      tokenCount: resolved.length,
+      message,
+      hasChanges: diff.hasChanges || !hasExistingTokens,
+      changedCount: hasExistingTokens ? totalChanges : resolved.length,
+      totalTokens: resolved.length,
+      diffSummary: {
+        added: diff.totalAdded,
+        modified: diff.totalModified,
+        deleted: diff.totalDeleted,
+        changedTokens: changedSamples,
+      },
       timestamp: new Date().toISOString(),
       updatedBy: auth.record.name,
     });

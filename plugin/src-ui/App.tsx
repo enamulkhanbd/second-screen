@@ -267,7 +267,7 @@ export const App: React.FC = () => {
 
       if (msg.type === "EXPORTED_TOKENS") {
         const sUrl = getServerUrl();
-        addLog(`Publishing scanned tokens to Cloud Workspace [${config.orgId || "active"}]...`, "normal");
+        addLog(`Analyzing Figma Variables vs Cloud Workspace [${config.orgId || "active"}]...`, "normal");
         try {
           const query =
             config.orgId && config.projectId
@@ -290,7 +290,36 @@ export const App: React.FC = () => {
 
           const data = await res.json();
           if (data.success) {
-            addLog(`✓ Successfully published ${data.tokenCount || "all"} tokens to Cloud!`, "success");
+            if (data.hasChanges === false || data.changedCount === 0) {
+              addLog(`✓ Everything is already in sync with Cloud (0 changes detected).`, "success");
+              parent.postMessage(
+                { pluginMessage: { type: "NOTIFY", payload: "Cloud is already up to date (0 changes)" } },
+                "*"
+              );
+            } else {
+              const changedTokens = data.diffSummary?.changedTokens || [];
+              if (changedTokens.length > 0 && changedTokens.length <= 5) {
+                changedTokens.forEach((t: any) => {
+                  const oldVal = typeof t.oldValue === "object" ? JSON.stringify(t.oldValue) : String(t.oldValue ?? "");
+                  const newVal = typeof t.newValue === "object" ? JSON.stringify(t.newValue) : String(t.newValue ?? "");
+                  if (t.changeType === "modified") {
+                    addLog(`• [${t.setName}] ${t.key}: ${oldVal} → ${newVal}`, "normal");
+                  } else if (t.changeType === "added") {
+                    addLog(`• [${t.setName}] + Added ${t.key}: ${newVal}`, "normal");
+                  } else if (t.changeType === "deleted") {
+                    addLog(`• [${t.setName}] - Removed ${t.key}`, "normal");
+                  }
+                });
+              } else if (changedTokens.length > 5) {
+                addLog(`• ${data.changedCount} changed tokens detected across collections`, "normal");
+              }
+
+              addLog(`✓ ${data.message || `Successfully published ${data.changedCount} changed token(s) to Cloud!`}`, "success");
+              parent.postMessage(
+                { pluginMessage: { type: "NOTIFY", payload: data.message || `Published ${data.changedCount} changed token(s)` } },
+                "*"
+              );
+            }
           } else {
             addLog(`Push failed: ${data.error}`, "error");
           }

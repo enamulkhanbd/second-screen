@@ -127,14 +127,44 @@ export const SyncProvidersView: React.FC = () => {
   const [isPushingGit, setIsPushingGit] = useState(false);
 
   // -------------------------------------------------------------
+  // -------------------------------------------------------------
   // Figma Companion Plugin State
   // -------------------------------------------------------------
   const [pairCode, setPairCode] = useState("");
+  const [pairCodeInput, setPairCodeInput] = useState("");
+  const [showPairInput, setShowPairInput] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
+  const [isPairSuccess, setIsPairSuccess] = useState(false);
   const [copiedPairCode, setCopiedPairCode] = useState(false);
   const [activePluginKey, setActivePluginKey] = useState<any | null>(null);
   const [isLoadingPluginStatus, setIsLoadingPluginStatus] = useState(false);
   const [isUnlinkingPlugin, setIsUnlinkingPlugin] = useState(false);
+
+  const fetchPluginStatus = async () => {
+    if (!currentProject) return;
+    setIsLoadingPluginStatus(true);
+    try {
+      const res = await fetch("/api/v1/auth/pat");
+      if (res.ok) {
+        const data = await res.json();
+        const keys = data.keys || [];
+        const match = keys.find(
+          (k: any) =>
+            k.projectId === currentProject.id ||
+            (k.name && k.name.toLowerCase().includes("figma"))
+        );
+        setActivePluginKey(match || null);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingPluginStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPluginStatus();
+  }, [currentProject?.id]);
 
   useEffect(() => {
     setProvider(credentials.provider || "github");
@@ -170,6 +200,86 @@ export const SyncProvidersView: React.FC = () => {
       title: "Pair Code Copied",
       message: `Code ${pairCode} copied. Paste into the Figma companion plugin.`,
     });
+  };
+
+  const handleApprovePairCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = pairCodeInput.trim().toUpperCase();
+    if (!cleanCode) return;
+
+    if (!currentOrg || !currentProject) {
+      addToast({
+        type: "error",
+        title: "No Active Project",
+        message: "Please select an organization and project before pairing.",
+      });
+      return;
+    }
+
+    setIsPairing(true);
+    try {
+      const res = await fetch("/api/v1/auth/pair", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: cleanCode,
+          orgId: currentOrg.id,
+          projectId: currentProject.id,
+          orgName: currentOrg.name,
+          projectName: currentProject.name,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Pairing code not found or expired.");
+      }
+
+      setIsPairSuccess(true);
+      setPairCodeInput("");
+      setShowPairInput(false);
+      await fetchPluginStatus();
+      addToast({
+        type: "success",
+        title: "Figma Plugin Paired Successfully!",
+        message: `Connected to ${currentProject.name}. You can now push tokens from Figma!`,
+      });
+      setTimeout(() => setIsPairSuccess(false), 5000);
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Pairing Failed",
+        message: err.message || "Invalid pairing code. Please try again.",
+      });
+    } finally {
+      setIsPairing(false);
+    }
+  };
+
+  const handleUnlinkPlugin = async () => {
+    if (!activePluginKey?.id) return;
+    setIsUnlinkingPlugin(true);
+    try {
+      const res = await fetch(`/api/v1/auth/pat?id=${encodeURIComponent(activePluginKey.id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setActivePluginKey(null);
+        addToast({
+          type: "success",
+          title: "Plugin Unlinked",
+          message: "Figma Companion Plugin disconnected successfully.",
+        });
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Unlink Failed",
+        message: err.message || "Failed to disconnect plugin.",
+      });
+    } finally {
+      setIsUnlinkingPlugin(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -684,111 +794,168 @@ export const SyncProvidersView: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         {activeSyncTab === "figma" && (
           <div className="space-y-6">
-            {/* Figma Pairing Card */}
-            <div className="p-6 rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-500/5 to-card shadow-xs space-y-6">
-              <div className="flex items-center justify-between border-b border-border/80 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center font-bold text-lg">
-                    <Zap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-foreground">Figma Companion Plugin</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Sync Figma native variables, modes, and typography straight to this project.
-                    </p>
-                  </div>
-                </div>
+            <div className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
+              <div className="flex items-center justify-between border-b border-border/70 pb-3">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      <span>Figma Companion Plugin</span>
+                    </h2>
 
-                <Badge variant="violet" className="font-mono text-xs">
-                  {figmaResolvedVariables.length > 0 ? "Synced & Ready" : "Pairing Ready"}
-                </Badge>
-              </div>
-
-              {/* Magic 6-Character Pair Code Display */}
-              <div className="p-5 rounded-xl bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Project Pair Code
-                  </span>
-                  <div className="text-2xl font-extrabold font-mono text-primary tracking-widest">
-                    {pairCode}
+                    {/* Live Connection Status Badge */}
+                    {activePluginKey ? (
+                      <Badge variant="success" className="gap-1.5 text-[10px] px-2 py-0.5 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Connected</span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 text-muted-foreground font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                        <span>Not Connected</span>
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Enter this code inside the companion plugin window in Figma.
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pair your desktop Figma canvas to push &amp; pull 2,400+ variables with zero manual exports.
                   </p>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={handleCopyPairCode}
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 text-xs h-9 font-semibold"
-                  >
-                    {copiedPairCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedPairCode ? "Copied" : "Copy Code"}</span>
-                  </Button>
-
-                  <Button
-                    onClick={handleGeneratePairCode}
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-9 text-muted-foreground hover:text-foreground"
-                    title="Generate New Code"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Step-by-step Setup */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Quick 3-Step Setup
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1.5">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                      1
-                    </div>
-                    <span className="font-bold text-foreground block">Download Manifest</span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Download the companion plugin manifest bundle to install in Figma.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1.5">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                      2
-                    </div>
-                    <span className="font-bold text-foreground block">Load in Figma Desktop</span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Plugins &rarr; Development &rarr; Import plugin from manifest...
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1.5">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                      3
-                    </div>
-                    <span className="font-bold text-foreground block">Paste Pair Code</span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Paste <code className="font-bold text-primary">{pairCode}</code> to link variables.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Download Plugin Button */}
-              <div className="flex justify-end pt-3 border-t border-border">
-                <Button
-                  onClick={handleDownloadManifest}
-                  size="sm"
-                  className="gap-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white"
+                <a
+                  href="/api/v1/plugin/download"
+                  download="tokens-platform-figma-plugin.zip"
+                  className="inline-flex"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Plugin Bundle</span>
-                </Button>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Plugin (.ZIP)</span>
+                  </Button>
+                </a>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* Left Box: Active Bridge Card or Quick 6-Digit Pair Widget */}
+                {activePluginKey && !showPairInput ? (
+                  <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <span>Active Companion Bridge</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {activePluginKey.name || "Figma Desktop Companion"}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        {activePluginKey.keyPrefix || "sec_pat_..."}
+                      </Badge>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-background/80 border border-border/80 text-[11px] space-y-1.5">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Target Project:</span>
+                        <span className="font-semibold text-foreground">{currentProject.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Connection Status:</span>
+                        <span className="text-emerald-500 font-medium flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live &amp; Ready
+                        </span>
+                      </div>
+                      {activePluginKey.createdAt && (
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Paired Date:</span>
+                          <span className="font-mono text-[10px]">
+                            {new Date(activePluginKey.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPairInput(true)}
+                        className="flex-1 h-8 text-xs font-medium"
+                      >
+                        Pair Another Canvas
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleUnlinkPlugin}
+                        disabled={isUnlinkingPlugin}
+                        className="h-8 text-xs px-3"
+                      >
+                        {isUnlinkingPlugin ? "Unlinking..." : "Unlink"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApprovePairCode} className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-primary" />
+                        <span>Quick 6-Digit Code Pairing</span>
+                      </span>
+                      {activePluginKey && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPairInput(false)}
+                          className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                        >
+                          Back to status
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground">
+                      Open the plugin in Figma, grab the 6-character code (e.g. <code>TK-8492</code>), and approve it below:
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={pairCodeInput}
+                        onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
+                        placeholder="TK-XXXX"
+                        maxLength={7}
+                        className="h-9 text-xs font-mono uppercase tracking-wider"
+                      />
+                      <Button
+                        type="submit"
+                        disabled={isPairing || pairCodeInput.length < 4}
+                        className="h-9 text-xs font-bold gap-1.5 px-4"
+                      >
+                        <span>{isPairing ? "Pairing..." : "Connect"}</span>
+                      </Button>
+                    </div>
+
+                    {isPairSuccess && (
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>Plugin paired to {currentProject.name}!</span>
+                      </div>
+                    )}
+                  </form>
+                )}
+
+                {/* Quick Instructions */}
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <div className="font-semibold text-foreground">How to Install Plugin in Figma:</div>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed">
+                    <li>Download and extract <strong>tokens-platform-figma-plugin.zip</strong>.</li>
+                    <li>In Figma Desktop, go to <strong>Plugins &gt; Development &gt; Import plugin from manifest...</strong></li>
+                    <li>Select the <code>manifest.json</code> file inside the extracted folder.</li>
+                    <li>Click <strong>Run</strong> and enter the 6-digit code above!</li>
+                  </ol>
+                </div>
               </div>
             </div>
           </div>

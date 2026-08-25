@@ -75,7 +75,10 @@ export async function saveApiKey(record: ApiKeyRecord): Promise<void> {
   inMemoryApiKeys.set(record.id, record);
   if (isFirebaseConfigured && db) {
     try {
-      await setDoc(doc(db, "api_keys", record.id), record);
+      const sanitized = Object.fromEntries(
+        Object.entries(record).filter(([_, v]) => v !== undefined)
+      );
+      await setDoc(doc(db, "api_keys", record.id), sanitized);
     } catch (e) {
       console.warn("Firestore error saving api key:", e);
     }
