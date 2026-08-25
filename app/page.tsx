@@ -112,7 +112,7 @@ export default function Home() {
         ) : sidebarTab === "releases" ? (
           <ReleasesWorkspace />
         ) : sidebarTab === "activity" ? (
-          <ActivityView />
+          <ActivityView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "integrations" || (sidebarTab as string) === "sync" ? (
           <SyncProvidersView />
         ) : sidebarTab === "mcp" ? (

@@ -27,6 +27,7 @@ import {
   compileStyleDictionary,
 } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
+import { computeTokensDiff, DocumentDiffSummary } from "@/utils/tokenDiff";
 import {
   Organization,
   Project,
@@ -104,12 +105,14 @@ interface TokenStoreState {
 
   // Dual State
   rawTokens: RawTokensDocument;
+  originalTokens: RawTokensDocument;
   resolvedTokens: FlattenedToken[];
   isDirty: boolean;
   lastFetchedSha: string | null;
   hasRemoteChanges: boolean;
   setHasRemoteChanges: (has: boolean) => void;
   checkRemoteUpdates: () => Promise<boolean>;
+  getDiffSummary: () => DocumentDiffSummary;
 
   // Figma Variables State
   figmaVariables: RawTokensDocument | null;
@@ -785,8 +788,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   rawTokens: {},
+  originalTokens: {},
   resolvedTokens: [],
   isDirty: false,
+  lastFetchedSha: null,
+  hasRemoteChanges: false,
+  setHasRemoteChanges: (has) => set({ hasRemoteChanges: has }),
+  getDiffSummary: () =>
+    computeTokensDiff(
+      get().originalTokens || {},
+      get().rawTokens || {},
+      get().syncMeta?.files
+    ),
 
   figmaVariables: null,
   figmaResolvedVariables: [],
@@ -1300,10 +1313,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   syncMeta: null,
   toasts: [],
 
-  lastFetchedSha: null,
-  hasRemoteChanges: false,
-  setHasRemoteChanges: (has) => set({ hasRemoteChanges: has }),
-
   checkRemoteUpdates: async () => {
     const creds = get().credentials;
     if (!creds.provider || !creds.owner || !creds.repo || !creds.branch || !creds.pat) {
@@ -1565,6 +1574,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     set({
       rawTokens: doc,
+      originalTokens: JSON.parse(JSON.stringify(doc)),
       resolvedTokens: resolved,
       themeGroups: groups,
       activeThemeGroupId: defaultGroup?.id || "",
@@ -1646,7 +1656,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
 
-  resetDirtyState: () => set({ isDirty: false }),
+  resetDirtyState: () =>
+    set({
+      isDirty: false,
+      hasRemoteChanges: false,
+      originalTokens: JSON.parse(JSON.stringify(get().rawTokens)),
+    }),
 
   addThemeOption: (params) => {
     const { rawTokens, themeGroups, activeSet } = get();

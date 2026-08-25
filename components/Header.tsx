@@ -19,10 +19,13 @@ import {
   User,
   Users,
   LogOut,
+  FileCode,
+  Sparkles,
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
+import { TokenDiffViewer } from "@/components/TokenDiffViewer";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -98,6 +101,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     // Remote Git updates tracking
     hasRemoteChanges,
     checkRemoteUpdates,
+    getDiffSummary,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
@@ -107,6 +111,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const [showThemeGroupMenu, setShowThemeGroupMenu] = useState(false);
   const [commitMessage, setCommitMessage] = useState("");
   const [showPushModal, setShowPushModal] = useState(false);
+  const [showPullModal, setShowPullModal] = useState(false);
 
   // Branch list state
   const [branches, setBranches] = useState<string[]>([]);
@@ -115,6 +120,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
   const hasTokens = Object.keys(rawTokens).length > 0;
   const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
+
+  // Compute live diff summary between baseline and current state
+  const diffSummary = useMemo(() => {
+    return getDiffSummary();
+  }, [getDiffSummary, rawTokens, isDirty]);
 
   // Specific Showing Logic:
   // 1. Git Sync is configured -> show Git Pull, Push, and Branch dropdown
@@ -129,6 +139,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
         (figmaVariables && Object.keys(figmaVariables).length > 0) ||
         (figmaResolvedVariables && figmaResolvedVariables.length > 0))
   );
+
+  // Auto-generate commit message when opening push modal
+  useEffect(() => {
+    if (showPushModal && !commitMessage) {
+      if (diffSummary.files.length > 0) {
+        const fileNames = diffSummary.files.map((f) => f.fileName).join(", ");
+        if (diffSummary.totalModified > 0 || diffSummary.totalAdded > 0 || diffSummary.totalDeleted > 0) {
+          setCommitMessage(
+            `chore(tokens): update ${diffSummary.totalAdded + diffSummary.totalModified} tokens in ${fileNames}`
+          );
+        } else {
+          setCommitMessage(`chore(tokens): sync design tokens on ${credentials.branch || "main"}`);
+        }
+      } else {
+        setCommitMessage(`chore(tokens): update tokens on ${credentials.branch || "main"}`);
+      }
+    }
+  }, [showPushModal, commitMessage, diffSummary, credentials.branch]);
 
   // Periodically check for remote updates in Git repository
   useEffect(() => {
@@ -433,7 +461,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                     {sidebarTab === "assets" && <BreadcrumbPage>Assets</BreadcrumbPage>}
                     {sidebarTab === "exports" && <BreadcrumbPage>Exports</BreadcrumbPage>}
                     {sidebarTab === "releases" && <BreadcrumbPage>Releases</BreadcrumbPage>}
-                    {sidebarTab === "activity" && <BreadcrumbPage>Activity</BreadcrumbPage>}
+                    {sidebarTab === "activity" && <BreadcrumbPage>Activity &amp; Change Log</BreadcrumbPage>}
                     {sidebarTab === "integrations" && <BreadcrumbPage>Integrations</BreadcrumbPage>}
                     {sidebarTab === "mcp" && <BreadcrumbPage>MCP &amp; CLI</BreadcrumbPage>}
                     {sidebarTab === "members" && <BreadcrumbPage>Team Members</BreadcrumbPage>}
@@ -565,7 +593,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handlePull}
+                  onClick={() => {
+                    if (hasRemoteChanges) {
+                      setShowPullModal(true);
+                    } else {
+                      handlePull();
+                    }
+                  }}
                   disabled={isPulling}
                   className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${
                     hasRemoteChanges
@@ -574,7 +608,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   }`}
                   title={
                     hasRemoteChanges
-                      ? "Remote changes detected on repository branch - click to pull"
+                      ? "Remote changes detected on repository branch - click to review and pull"
                       : "Pull latest tokens from current branch"
                   }
                 >
@@ -611,7 +645,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 }`}
                 title={
                   isDirty
-                    ? `Push changes directly to ${credentials.branch || "branch"}`
+                    ? `Review diff and push changes directly to ${credentials.branch || "branch"}`
                     : "No local changes to push"
                 }
               >
@@ -820,28 +854,152 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       {/* Auth Modal */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
-      {/* Push Direct Commit Modal */}
-      <Dialog open={showPushModal} onOpenChange={setShowPushModal}>
+      {/* Incoming Remote Changes & Pull Modal */}
+      <Dialog open={showPullModal} onOpenChange={setShowPullModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="gap-1">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <UploadCloud className="w-5 h-5" />
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                <DownloadCloud className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle>Direct Commit to Branch</DialogTitle>
+                <DialogTitle>Incoming Remote Changes</DialogTitle>
                 <DialogDescription className="font-mono text-xs">
-                  {credentials.repo} @ {credentials.branch}
+                  {credentials.repo} @ {credentials.branch || "main"}
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
           <div className="space-y-3 pt-2">
+            <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-foreground flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                  </span>
+                  New Remote Commits Detected
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">Remote Branch</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Your remote branch has fresh updates. Pulling will load the latest design tokens and theme sets into your active workspace.
+              </p>
+            </div>
+
+            <div className="bg-muted/60 p-3 rounded-lg border border-border text-xs text-muted-foreground space-y-1">
+              <p className="flex items-center gap-1.5 text-foreground font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Safe Merge
+              </p>
+              <p className="text-[11px] leading-relaxed">
+                Tokens will be cleanly fetched and alias dependencies recalculated automatically.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPullModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setShowPullModal(false);
+                handlePull();
+              }}
+              disabled={isPulling}
+              className="gap-1.5 font-semibold"
+            >
+              <DownloadCloud className="w-3.5 h-3.5" />
+              <span>Pull &amp; Apply Changes</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enhanced Push Direct Commit & Diff Review Modal */}
+      <Dialog open={showPushModal} onOpenChange={setShowPushModal}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="gap-1 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <DialogTitle>Review &amp; Commit Token Changes</DialogTitle>
+                  <DialogDescription className="font-mono text-xs">
+                    {credentials.repo} @ {credentials.branch || "main"}
+                  </DialogDescription>
+                </div>
+              </div>
+
+              {diffSummary.files.length > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                  {diffSummary.totalAdded > 0 && (
+                    <Badge variant="success" className="text-[10px] py-0 px-1.5">
+                      +{diffSummary.totalAdded}
+                    </Badge>
+                  )}
+                  {diffSummary.totalModified > 0 && (
+                    <Badge variant="warning" className="text-[10px] py-0 px-1.5">
+                      ~{diffSummary.totalModified}
+                    </Badge>
+                  )}
+                  {diffSummary.totalDeleted > 0 && (
+                    <Badge variant="destructive" className="text-[10px] py-0 px-1.5">
+                      -{diffSummary.totalDeleted}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3.5 pt-2 flex-1 overflow-y-auto">
+            {/* Visual Token Diff Viewer */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <FileCode className="w-3.5 h-3.5 text-primary" />
+                  <span>Changed Files &amp; Tokens ({diffSummary.files.length})</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Review before pushing
+                </span>
+              </div>
+              <TokenDiffViewer diff={diffSummary} maxHeight="max-h-[240px]" />
+            </div>
+
+            {/* Commit Message Input */}
             <div>
-              <label className="block text-xs font-medium text-foreground mb-1.5">
-                Commit Message
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Commit Message
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (diffSummary.files.length > 0) {
+                      const fileNames = diffSummary.files.map((f) => f.fileName).join(", ");
+                      setCommitMessage(
+                        `chore(tokens): update ${diffSummary.totalAdded + diffSummary.totalModified} tokens in ${fileNames}`
+                      );
+                    }
+                  }}
+                  className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>Auto-generate</span>
+                </button>
+              </div>
               <textarea
                 rows={2}
                 placeholder="chore(tokens): update theme matrix tokens"
@@ -856,12 +1014,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Direct Branch Rule
               </p>
               <p className="text-[11px] leading-relaxed">
-                Tokens will be committed directly to <span className="font-mono text-primary">{credentials.branch}</span> preserving all raw alias references.
+                Tokens will be committed directly to <span className="font-mono text-primary">{credentials.branch || "main"}</span> preserving all raw alias references.
               </p>
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 flex-shrink-0">
             <Button
               type="button"
               variant="outline"
@@ -875,8 +1033,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
               size="sm"
               onClick={handleDirectPush}
               disabled={isPushing}
+              className="gap-1.5 font-semibold"
             >
-              {isPushing ? "Pushing..." : "Confirm & Commit"}
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>{isPushing ? "Pushing..." : "Confirm & Commit"}</span>
             </Button>
           </DialogFooter>
         </DialogContent>

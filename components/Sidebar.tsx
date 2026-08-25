@@ -419,10 +419,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             {!isCollapsed && <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">Beta</Badge>}
           </button>
 
-          {/* Activity */}
+          {/* Activity & Change Log */}
           <button
             onClick={() => setSidebarTab("activity")}
-            title="Activity"
+            title="Activity & Git Change Log"
             className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
               sidebarTab === "activity"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
@@ -430,7 +430,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             }`}
           >
             <Clock className="size-4 flex-shrink-0 text-muted-foreground" />
-            {!isCollapsed && <span>Activity</span>}
+            {!isCollapsed && <span>Change Log</span>}
           </button>
         </div>
 
