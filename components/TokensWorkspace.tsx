@@ -100,8 +100,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
       boxShadow: 0,
     };
     for (const t of setTokens) {
+      const typeStr = String(t.type || "").toLowerCase();
       if (t.type === "color") counts.color++;
-      else if (t.type === "typography" || t.type.toLowerCase().includes("font")) counts.typography++;
+      else if (t.type === "typography" || typeStr.includes("font")) counts.typography++;
       else if (t.type === "spacing" || t.type === "sizing" || t.type === "dimension") counts.spacing++;
       else if (t.type === "borderRadius") counts.borderRadius++;
       else if (t.type === "boxShadow") counts.boxShadow++;
@@ -112,10 +113,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   // Filter tokens strictly for the active set (or all sets if 'ALL')
   const displayedTokens = useMemo(() => {
     return setTokens.filter((token) => {
+      const typeStr = String(token.type || "").toLowerCase();
       // Type filter
       if (selectedType !== "all") {
         if (selectedType === "color" && token.type !== "color") return false;
-        if (selectedType === "typography" && token.type !== "typography" && !token.type.toLowerCase().includes("font")) return false;
+        if (selectedType === "typography" && token.type !== "typography" && !typeStr.includes("font")) return false;
         if (selectedType === "spacing" && token.type !== "spacing" && token.type !== "sizing" && token.type !== "dimension") return false;
         if (selectedType === "borderRadius" && token.type !== "borderRadius") return false;
         if (selectedType === "boxShadow" && token.type !== "boxShadow") return false;
@@ -124,10 +126,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = token.name.toLowerCase().includes(q);
-        const matchRaw = token.rawValue.toLowerCase().includes(q);
-        const matchResolved = token.resolvedValue.toLowerCase().includes(q);
-        const matchSet = token.setName.toLowerCase().includes(q);
+        const matchName = String(token.name || "").toLowerCase().includes(q);
+        const matchRaw = String(token.rawValue || "").toLowerCase().includes(q);
+        const matchResolved = String(token.resolvedValue || "").toLowerCase().includes(q);
+        const matchSet = String(token.setName || "").toLowerCase().includes(q);
         return matchName || matchRaw || matchResolved || matchSet;
       }
 
@@ -622,11 +624,11 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
       <td className="py-3 px-6 align-middle w-64 min-w-[200px]">
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-            {token.name}
+            {typeof token.name === "string" ? token.name : String(token.name || "")}
           </span>
           {token.description && (
             <span className="text-[11px] text-muted-foreground font-sans truncate max-w-xs mt-0.5">
-              {token.description}
+              {typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
             </span>
           )}
         </div>
@@ -646,10 +648,10 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
       <td className="py-3 px-6 align-middle text-right w-48 min-w-[150px]">
         <div className="flex items-center justify-end gap-2 relative">
           <Badge variant="outline" className="text-[10px] font-mono">
-            {token.setName}
+            {typeof token.setName === "string" ? token.setName : String(token.setName || "")}
           </Badge>
           <Badge variant="violet" className="text-[10px] font-mono">
-            {token.type}
+            {typeof token.type === "string" ? token.type : String(token.type || "")}
           </Badge>
 
           <DropdownMenu>

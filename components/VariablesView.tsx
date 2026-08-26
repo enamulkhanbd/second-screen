@@ -118,10 +118,10 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
       // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = item.name.toLowerCase().includes(q);
-        const matchValue = String(item.resolvedValue || item.rawValue).toLowerCase().includes(q);
-        const matchSet = item.setName.toLowerCase().includes(q);
-        const matchAlias = (item.aliasTarget || "").toLowerCase().includes(q);
+        const matchName = String(item.name || "").toLowerCase().includes(q);
+        const matchValue = String(item.resolvedValue || item.rawValue || "").toLowerCase().includes(q);
+        const matchSet = String(item.setName || "").toLowerCase().includes(q);
+        const matchAlias = String(item.aliasTarget || "").toLowerCase().includes(q);
         if (!matchName && !matchValue && !matchSet && !matchAlias) return false;
       }
 
@@ -575,10 +575,10 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                           <div className="flex items-center gap-2.5 p-2 rounded-lg bg-muted/40 border border-border/80">
                             <div
                               className="w-7 h-7 rounded-md border border-black/10 shadow-xs flex-shrink-0"
-                              style={{ backgroundColor: item.resolvedValue || item.rawValue }}
+                              style={{ backgroundColor: typeof (item.resolvedValue || item.rawValue) === "string" ? (item.resolvedValue || item.rawValue) : undefined }}
                             />
                             <div className="truncate font-mono text-xs font-semibold text-foreground">
-                              {item.resolvedValue || item.rawValue}
+                              {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
                             </div>
                           </div>
                         ) : (
@@ -587,7 +587,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                               {item.type}
                             </span>
                             <span className="font-mono text-xs font-bold text-foreground">
-                              {item.resolvedValue || item.rawValue}
+                              {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
                             </span>
                           </div>
                         )}
@@ -596,7 +596,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                         {item.isAlias && (
                           <div className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono truncate">
                             <span className="text-primary font-bold">↳</span>
-                            <span className="truncate">{item.aliasTarget || item.rawValue}</span>
+                            <span className="truncate">{typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")}</span>
                           </div>
                         )}
                       </CardContent>
@@ -637,14 +637,14 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                             {isColor ? (
                               <div
                                 className="w-5 h-5 rounded border border-black/10 shadow-xs"
-                                style={{ backgroundColor: item.resolvedValue || item.rawValue }}
+                                style={{ backgroundColor: typeof (item.resolvedValue || item.rawValue) === "string" ? (item.resolvedValue || item.rawValue) : undefined }}
                               />
                             ) : (
                               <span className="font-mono text-[11px] text-muted-foreground">—</span>
                             )}
                           </td>
                           <td className="py-2.5 px-4 font-mono text-foreground">
-                            {item.resolvedValue || item.rawValue}
+                            {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
                           </td>
                           <td className="py-2.5 px-4">
                             <Badge variant="secondary" className="text-[9px] capitalize">
@@ -652,7 +652,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                             </Badge>
                           </td>
                           <td className="py-2.5 px-4 font-mono text-[10px] text-muted-foreground truncate max-w-[150px]">
-                            {item.isAlias ? item.aliasTarget || item.rawValue : "—"}
+                            {item.isAlias ? (typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")) : "—"}
                           </td>
                           <td className="py-2.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

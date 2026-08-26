@@ -13,16 +13,18 @@ interface ColorSwatchProps {
 export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) => {
   const [copied, setCopied] = useState(false);
 
+  const valStr = typeof value === "object" && value !== null ? JSON.stringify(value) : String(value ?? "");
+
   const isColor =
     type === "color" ||
-    /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value.trim()) ||
-    /^rgba?\(.+\)$/i.test(value.trim()) ||
-    /^hsla?\(.+\)$/i.test(value.trim());
+    /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(valStr.trim()) ||
+    /^rgba?\(.+\)$/i.test(valStr.trim()) ||
+    /^hsla?\(.+\)$/i.test(valStr.trim());
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(value);
+      navigator.clipboard.writeText(valStr);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }
@@ -32,15 +34,15 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
     return (
       <div
         onClick={handleCopy}
-        title={`Click to copy: ${value}`}
+        title={`Click to copy: ${valStr}`}
         className="group relative flex items-center gap-2 cursor-pointer select-none"
       >
         <div
           className="relative w-6 h-6 rounded-md border border-black/20 dark:border-white/20 shadow-inner flex-shrink-0 transition-transform group-hover:scale-105"
-          style={{ backgroundColor: value }}
+          style={{ backgroundColor: valStr }}
         />
         <span className="font-mono text-xs text-zinc-300 group-hover:text-white transition-colors truncate max-w-[130px]">
-          {value}
+          {valStr}
         </span>
         <button
           className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-zinc-400 hover:text-white"
@@ -57,10 +59,10 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
       <div className="flex items-center gap-2">
         <div
           className="w-6 h-6 border-2 border-violet-400/70 bg-violet-500/10 flex-shrink-0"
-          style={{ borderRadius: value || "0px" }}
-          title={`Radius: ${value}`}
+          style={{ borderRadius: valStr || "0px" }}
+          title={`Radius: ${valStr}`}
         />
-        <span className="font-mono text-xs text-zinc-300 truncate max-w-[120px]">{value}</span>
+        <span className="font-mono text-xs text-zinc-300 truncate max-w-[120px]">{valStr}</span>
       </div>
     );
   }
@@ -72,19 +74,19 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
           <div
             className="bg-violet-400 max-w-[18px] max-h-[18px] min-w-[2px] min-h-[2px] rounded-sm"
             style={{
-              width: value.includes("px") ? Math.min(parseInt(value) || 6, 18) : "10px",
-              height: value.includes("px") ? Math.min(parseInt(value) || 6, 18) : "10px",
+              width: valStr.includes("px") ? Math.min(parseInt(valStr) || 6, 18) : "10px",
+              height: valStr.includes("px") ? Math.min(parseInt(valStr) || 6, 18) : "10px",
             }}
           />
         </div>
-        <span className="font-mono text-xs text-zinc-300 truncate max-w-[120px]">{value}</span>
+        <span className="font-mono text-xs text-zinc-300 truncate max-w-[120px]">{valStr}</span>
       </div>
     );
   }
 
   return (
     <div className="flex items-center gap-1.5 font-mono text-xs text-zinc-300 truncate max-w-[150px]">
-      <span>{value}</span>
+      <span>{valStr}</span>
     </div>
   );
 };

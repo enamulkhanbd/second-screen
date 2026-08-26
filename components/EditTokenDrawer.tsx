@@ -49,15 +49,23 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
 
     if (token.type === "typography") {
       const parsed = safeParseObject(token.rawValue) || {};
+      const getScalar = (v: any): string => {
+        if (!v && v !== 0) return "";
+        while (typeof v === "object" && v !== null && ("value" in v || "$value" in v)) {
+          v = v.value !== undefined ? v.value : v.$value;
+        }
+        return typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+      };
+
       setTypographyFields({
-        fontFamily: String(parsed.fontFamily || ""),
-        fontWeight: String(parsed.fontWeight || ""),
-        fontSize: String(parsed.fontSize || ""),
-        lineHeight: String(parsed.lineHeight || ""),
-        letterSpacing: String(parsed.letterSpacing || ""),
-        paragraphSpacing: String(parsed.paragraphSpacing || ""),
-        textCase: String(parsed.textCase || "none"),
-        textDecoration: String(parsed.textDecoration || "none"),
+        fontFamily: getScalar(parsed.fontFamily),
+        fontWeight: getScalar(parsed.fontWeight),
+        fontSize: getScalar(parsed.fontSize),
+        lineHeight: getScalar(parsed.lineHeight),
+        letterSpacing: getScalar(parsed.letterSpacing),
+        paragraphSpacing: getScalar(parsed.paragraphSpacing),
+        textCase: getScalar(parsed.textCase || "none"),
+        textDecoration: getScalar(parsed.textDecoration || "none"),
       });
     }
   }, [token]);

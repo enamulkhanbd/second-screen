@@ -8,7 +8,10 @@ export function isTokenLeaf(node: any): node is RawTokenLeaf {
 
 // Extract the raw value string or object from a token leaf
 export function getLeafValue(leaf: RawTokenLeaf): string {
-  const val = leaf.value !== undefined ? leaf.value : leaf.$value;
+  let val = leaf.value !== undefined ? leaf.value : leaf.$value;
+  while (typeof val === "object" && val !== null && ("value" in val || "$value" in val)) {
+    val = (val as any).value !== undefined ? (val as any).value : (val as any).$value;
+  }
   if (typeof val === "object" && val !== null) {
     return JSON.stringify(val);
   }
@@ -17,7 +20,8 @@ export function getLeafValue(leaf: RawTokenLeaf): string {
 
 // Extract the token type from a token leaf
 export function getLeafType(leaf: RawTokenLeaf, parentGroupOrPath?: string | string[]): TokenType {
-  const type = (leaf.type || leaf.$type || "") as string;
+  const rawType = leaf.type !== undefined ? leaf.type : leaf.$type;
+  const type = typeof rawType === "string" ? rawType.trim() : (rawType ? String(rawType).trim() : "");
   if (type) {
     const t = type.toLowerCase();
     if (t === "color" || t === "colors") return "color";
@@ -45,8 +49,8 @@ export function getLeafType(leaf: RawTokenLeaf, parentGroupOrPath?: string | str
 
   // Infer type from group / path naming heuristics
   const fullPathStr = Array.isArray(parentGroupOrPath)
-    ? parentGroupOrPath.join(".").toLowerCase()
-    : (parentGroupOrPath || "").toLowerCase();
+    ? parentGroupOrPath.map((p) => String(p || "")).join(".").toLowerCase()
+    : String(parentGroupOrPath || "").toLowerCase();
 
   if (fullPathStr) {
     if (fullPathStr.includes("color") || fullPathStr.includes("bg") || fullPathStr.includes("text") || fullPathStr.includes("border") || fullPathStr.includes("icon") || fullPathStr.includes("palette") || fullPathStr.includes("fill") || fullPathStr.includes("stroke") || fullPathStr.includes("brand")) return "color";
@@ -84,8 +88,12 @@ export function resolveTokenAlias(
 ): string {
   if (aliasValue === null || aliasValue === undefined) return "";
 
-  // Handle composite object values (e.g. typography)
-  if (typeof aliasValue === "object") {
+  // Handle composite object values (e.g. typography) or leaf objects
+  if (typeof aliasValue === "object" && aliasValue !== null) {
+    if ("value" in aliasValue || "$value" in aliasValue) {
+      const inner = aliasValue.value !== undefined ? aliasValue.value : aliasValue.$value;
+      return resolveTokenAlias(inner, allTokens, currentSet, visited);
+    }
     const resolvedObj: Record<string, any> = {};
     for (const [k, v] of Object.entries(aliasValue)) {
       resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited);
@@ -98,6 +106,10 @@ export function resolveTokenAlias(
     try {
       const parsed = JSON.parse(aliasValue);
       if (typeof parsed === "object" && parsed !== null) {
+        if ("value" in parsed || "$value" in parsed) {
+          const inner = parsed.value !== undefined ? parsed.value : parsed.$value;
+          return resolveTokenAlias(inner, allTokens, currentSet, visited);
+        }
         const resolvedObj: Record<string, any> = {};
         for (const [k, v] of Object.entries(parsed)) {
           resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited);
@@ -406,7 +418,10 @@ export function formatTypographySummary(
   // Helper to resolve alias to concrete value
   const resolveProp = (propVal: any): string => {
     if (!propVal && propVal !== 0) return "";
-    let str = String(propVal).trim();
+    while (typeof propVal === "object" && propVal !== null && ("value" in propVal || "$value" in propVal)) {
+      propVal = propVal.value !== undefined ? propVal.value : propVal.$value;
+    }
+    let str = typeof propVal === "object" && propVal !== null ? JSON.stringify(propVal) : String(propVal).trim();
     if (rawDoc && str.includes("{")) {
       str = resolveTokenAlias(str, rawDoc, currentSet);
     }
@@ -451,13 +466,22 @@ export function flattenAndResolveTokens(
 
       if (isTokenLeaf(node)) {
         const rawValue = getLeafValue(node);
-        const group = currentPath[0] || "general";
-        const subgroup = currentPath.length > 2 ? currentPath[1] : undefined;
+        const group = String(currentPath[0] || "general");
+        const subgroup = currentPath.length > 2 ? String(currentPath[1]) : undefined;
         const id = `${setName}.${currentPath.join(".")}`;
         const name = currentPath.join(".");
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
         const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
         const resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName);
+        const rawDesc = node.description ?? node.$description;
+        const description =
+          typeof rawDesc === "string"
+            ? rawDesc
+            : rawDesc !== undefined && rawDesc !== null
+            ? typeof rawDesc === "object"
+              ? JSON.stringify(rawDesc)
+              : String(rawDesc)
+            : undefined;
 
         result.push({
           id,
@@ -465,19 +489,19 @@ export function flattenAndResolveTokens(
           path: [setName, ...currentPath],
           group,
           subgroup,
-          setName,
+          setName: String(setName),
           type: getLeafType(node, group),
-          rawValue,
-          resolvedValue,
+          rawValue: typeof rawValue === "string" ? rawValue : JSON.stringify(rawValue),
+          resolvedValue: typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
           isAlias,
-          aliasTarget: aliasMatch ? aliasMatch[1] : undefined,
-          description: node.description || node.$description,
+          aliasTarget: aliasMatch ? String(aliasMatch[1]) : undefined,
+          description,
         });
         return;
       }
 
       for (const [key, child] of Object.entries(node)) {
-        if (key.startsWith("$") && key !== "$value" && key !== "$type" && key !== "$description") {
+        if (key.startsWith("$")) {
           continue;
         }
         walk(child, [...currentPath, key]);

@@ -333,7 +333,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (!currentOrg || !currentUser) return "viewer";
     if (currentOrg.ownerUid === currentUser.uid) return "owner";
     const member = currentOrg.members?.find(
-      (m) => m.uid === currentUser.uid || (currentUser.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
+      (m) => m.uid === currentUser.uid || (currentUser.email && m?.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
     );
     return member?.role || "viewer";
   },
@@ -501,11 +501,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const invs = await getOrganizationInvitations(orgId);
       const { currentOrg } = get();
       const memberEmails = new Set(
-        (currentOrg?.members || []).map((m) => m.email.toLowerCase())
+        (currentOrg?.members || []).map((m) => String(m?.email || "").toLowerCase()).filter(Boolean)
       );
       // Filter out any invitation where invitee is already an active member or not pending
       const pendingOnly = invs.filter(
-        (i) => i.status === "pending" && !memberEmails.has(i.inviteeEmail.toLowerCase())
+        (i) => i.status === "pending" && !memberEmails.has(String(i?.inviteeEmail || "").toLowerCase())
       );
       set({ pendingInvitations: pendingOnly });
     } catch (e) {
@@ -524,20 +524,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         {
           uid: currentUser.uid,
           name: currentUser.displayName,
-          email: currentUser.email,
+          email: currentUser.email || "",
         },
         email,
         role
       );
-
       set((state) => ({
         pendingInvitations: [inv, ...state.pendingInvitations.filter((i) => i.id !== inv.id)],
       }));
-
       return inv;
     } catch (e) {
       console.warn("Error sending invitation:", e);
-      return null;
+      throw e;
     }
   },
 
@@ -559,7 +557,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           pendingInvitePrompt: null,
           activeInviteToken: null,
           pendingInvitations: state.pendingInvitations.filter(
-            (i) => i.token !== token && i.inviteeEmail.toLowerCase() !== currentUser.email.toLowerCase()
+            (i) => i.token !== token && String(i?.inviteeEmail || "").toLowerCase() !== String(currentUser.email || "").toLowerCase()
           ),
         }));
         get().setCurrentOrg(updatedOrg);
@@ -607,7 +605,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     try {
       await removeOrgMember(currentOrg.id, memberEmailOrUid);
       const updatedMembers = (currentOrg.members || []).filter(
-        (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
+        (m) => m.uid !== memberEmailOrUid && String(m?.email || "").toLowerCase() !== String(memberEmailOrUid || "").toLowerCase()
       );
       const updatedOrg = { ...currentOrg, members: updatedMembers };
       set((state) => ({
@@ -646,7 +644,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   updateOrgAction: async (orgId, updates) => {
     try {
-      const slug = updates.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      const slug = updates.name ? String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") : "";
       const orgUpdates = {
         name: updates.name,
         slug,
@@ -710,7 +708,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   updateProjectAction: async (orgId, projectId, updates) => {
     try {
-      const slug = updates.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      const slug = updates.name ? String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") : "";
       const projectUpdates = {
         name: updates.name,
         description: updates.description || "",
@@ -740,7 +738,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const remaining = get().orgProjects.filter((p) => p.id !== projectId);
       set({ orgProjects: remaining });
       if (get().currentProject?.id === projectId) {
-        get().setCurrentProject(remaining[0] || null);
+        const nextProj = remaining[0] || null;
+        get().setCurrentProject(nextProj);
       }
     } catch (e) {
       console.warn("Failed deleting project:", e);
@@ -961,15 +960,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   applyMetadataToAssets: async (metadataMap) => {
     const { currentOrg, currentProject, assets, addToast } = get();
     let updatedCount = 0;
-    const normalize = (s: string) => s.toLowerCase().replace(/^icon[-_]?/i, "").replace(/[^a-z0-9]/g, "");
+    const normalize = (s: any) => String(s || "").toLowerCase().replace(/^icon[-_]?/i, "").replace(/[^a-z0-9]/g, "");
 
     const updated = assets.map((asset) => {
       const stem = asset.name;
-      const typeKey = (asset.type || "").toLowerCase();
+      const typeKey = String(asset.type || "").toLowerCase();
       const matched =
         (typeKey ? metadataMap.get(`${normalize(typeKey)}::${normalize(stem)}`) : undefined) ||
         metadataMap.get(normalize(stem)) ||
-        metadataMap.get(stem.toLowerCase()) ||
+        metadataMap.get(String(stem || "").toLowerCase()) ||
         metadataMap.get(normalize(asset.title || ""));
 
       if (matched) {
@@ -1616,9 +1615,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const groups = extractThemeGroups(doc);
     const savedGroupId = typeof window !== "undefined" ? localStorage.getItem("ts_active_group_id") : null;
     const defaultGroup =
-      groups.find((g) => g.id === activeThemeGroupId) ||
-      (savedGroupId ? groups.find((g) => g.id === savedGroupId) : null) ||
-      groups.find((g) => g.name.toLowerCase() === "theme") ||
+      groups.find((g) => g && g.id === activeThemeGroupId) ||
+      (savedGroupId ? groups.find((g) => g && g.id === savedGroupId) : null) ||
+      groups.find((g) => g && typeof g.name === "string" && g.name.toLowerCase() === "theme") ||
       groups[0];
 
     // Synchronize loaded tokens with active Project in Cloud Firestore

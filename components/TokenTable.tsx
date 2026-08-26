@@ -97,23 +97,24 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
 
   const filteredTokens = useMemo(() => {
     return resolvedTokens.filter((token) => {
+      const groupStr = String(token.group || "").toLowerCase();
       // Group filter
       if (activeGroup !== "all") {
-        if (activeGroup === "colors" && token.type !== "color" && !token.group.toLowerCase().includes("color")) {
+        if (activeGroup === "colors" && token.type !== "color" && !groupStr.includes("color")) {
           return false;
         }
         if (
           activeGroup === "spacing" &&
           token.type !== "spacing" &&
           token.type !== "sizing" &&
-          !token.group.toLowerCase().includes("spacing")
+          !groupStr.includes("spacing")
         ) {
           return false;
         }
         if (
           activeGroup === "borderRadius" &&
           token.type !== "borderRadius" &&
-          !token.group.toLowerCase().includes("radius")
+          !groupStr.includes("radius")
         ) {
           return false;
         }
@@ -122,14 +123,14 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
           token.type !== "typography" &&
           token.type !== "fontFamilies" &&
           token.type !== "fontSizes" &&
-          !token.group.toLowerCase().includes("typography")
+          !groupStr.includes("typography")
         ) {
           return false;
         }
-        if (activeGroup === "components" && !token.group.toLowerCase().includes("component")) {
+        if (activeGroup === "components" && !groupStr.includes("component")) {
           return false;
         }
-        if (activeGroup === "semantic" && !token.group.toLowerCase().includes("semantic")) {
+        if (activeGroup === "semantic" && !groupStr.includes("semantic")) {
           return false;
         }
       }
@@ -137,11 +138,11 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
       // Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = token.name.toLowerCase().includes(q);
-        const matchRaw = token.rawValue.toLowerCase().includes(q);
-        const matchResolved = token.resolvedValue.toLowerCase().includes(q);
-        const matchSet = token.setName.toLowerCase().includes(q);
-        const matchDesc = token.description ? token.description.toLowerCase().includes(q) : false;
+        const matchName = String(token.name || "").toLowerCase().includes(q);
+        const matchRaw = String(token.rawValue || "").toLowerCase().includes(q);
+        const matchResolved = String(token.resolvedValue || "").toLowerCase().includes(q);
+        const matchSet = String(token.setName || "").toLowerCase().includes(q);
+        const matchDesc = token.description ? String(token.description).toLowerCase().includes(q) : false;
         return matchName || matchRaw || matchResolved || matchSet || matchDesc;
       }
 
@@ -310,11 +311,11 @@ const TokenRow: React.FC<TokenRowProps> = ({
       <td className="py-3 px-5 align-middle">
         <div className="flex flex-col">
           <span className="font-mono text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-            {token.name}
+            {typeof token.name === "string" ? token.name : String(token.name || "")}
           </span>
           {token.description && (
             <span className="text-[11px] text-muted-foreground truncate max-w-xs mt-0.5">
-              {token.description}
+              {typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
             </span>
           )}
         </div>
@@ -337,7 +338,7 @@ const TokenRow: React.FC<TokenRowProps> = ({
             />
             {token.isAlias && (
               <span
-                title={`Resolves to: ${token.resolvedValue}`}
+                title={`Resolves to: ${typeof token.resolvedValue === "object" ? JSON.stringify(token.resolvedValue) : String(token.resolvedValue || "")}`}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-primary font-mono pointer-events-none"
               >
                 <Link2 className="w-3 h-3" />
@@ -362,10 +363,10 @@ const TokenRow: React.FC<TokenRowProps> = ({
       <td className="py-2.5 px-5 align-middle text-right">
         <div className="flex items-center justify-end gap-1.5 relative">
           <Badge variant="outline" className="text-[10px] font-mono">
-            {token.setName}
+            {typeof token.setName === "string" ? token.setName : String(token.setName || "")}
           </Badge>
           <Badge variant="violet" className="text-[10px] font-mono">
-            {token.type}
+            {typeof token.type === "string" ? token.type : String(token.type || "")}
           </Badge>
 
           {/* 3-Dots Action Button & Dropdown */}

@@ -13,14 +13,35 @@ import { Badge } from "@/components/ui/badge";
 
 export function safeParseObject(val: any): Record<string, any> | null {
   if (!val) return null;
-  if (typeof val === "object") return val;
+  let parsed: any = val;
   if (typeof val === "string" && val.trim().startsWith("{") && val.trim().endsWith("}")) {
     try {
-      const parsed = JSON.parse(val);
-      if (typeof parsed === "object" && parsed !== null) return parsed;
+      parsed = JSON.parse(val);
     } catch {
       return null;
     }
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  while (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    ("$value" in parsed || "value" in parsed) &&
+    !("fontFamily" in parsed) &&
+    !("fontSize" in parsed) &&
+    !("fontWeight" in parsed) &&
+    !("lineHeight" in parsed)
+  ) {
+    parsed = parsed.value !== undefined ? parsed.value : parsed.$value;
+    if (typeof parsed === "string" && parsed.trim().startsWith("{") && parsed.trim().endsWith("}")) {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        return null;
+      }
+    }
+  }
+  if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+    return parsed;
   }
   return null;
 }
@@ -56,7 +77,11 @@ export const TokenRawValueCell: React.FC<{
         <div className="pl-3 space-y-0.5">
           {entries.map(([key, val], idx) => {
             const isLast = idx === entries.length - 1;
-            const strVal = String(val);
+            let rawScalar = val;
+            while (typeof rawScalar === "object" && rawScalar !== null && ("value" in rawScalar || "$value" in rawScalar)) {
+              rawScalar = rawScalar.value !== undefined ? rawScalar.value : rawScalar.$value;
+            }
+            const strVal = typeof rawScalar === "object" && rawScalar !== null ? JSON.stringify(rawScalar) : String(rawScalar ?? "");
             const isAlias = strVal.startsWith("{") && strVal.endsWith("}");
 
             return (
@@ -140,11 +165,19 @@ export const TokenVisualPreviewCell: React.FC<{
 
   // 1. TYPOGRAPHY COMPOSITE
   if (token.type === "typography" && resolvedObj) {
-    const rawFamily = resolvedObj.fontFamily || "inherit";
+    const getScalar = (v: any): string => {
+      if (!v && v !== 0) return "";
+      while (typeof v === "object" && v !== null && ("value" in v || "$value" in v)) {
+        v = v.value !== undefined ? v.value : v.$value;
+      }
+      return typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+    };
+
+    const rawFamily = getScalar(resolvedObj.fontFamily || "inherit");
     const family = rawFamily.replace(/[{}]/g, "");
-    const weight = resolvedObj.fontWeight || "normal";
-    const rawSize = String(resolvedObj.fontSize || "16");
-    const rawLineHeight = String(resolvedObj.lineHeight || "normal");
+    const weight = getScalar(resolvedObj.fontWeight || "normal");
+    const rawSize = getScalar(resolvedObj.fontSize || "16");
+    const rawLineHeight = getScalar(resolvedObj.lineHeight || "normal");
 
     const size = evaluateTokenMath(rawSize);
     const lineHeight = evaluateTokenMath(rawLineHeight);
@@ -167,10 +200,13 @@ export const TokenVisualPreviewCell: React.FC<{
 
   // 2. SINGLE FONT PROPERTY
   if (token.type === "typography") {
+    const textVal = typeof token.resolvedValue === "object" && token.resolvedValue !== null
+      ? JSON.stringify(token.resolvedValue)
+      : String(token.resolvedValue ?? "");
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-foreground">
-          {token.resolvedValue}
+          {textVal}
         </span>
       </div>
     );
@@ -268,9 +304,12 @@ export const TokenVisualPreviewCell: React.FC<{
   }
 
   // Default fallback
+  const fallbackVal = typeof token.resolvedValue === "object" && token.resolvedValue !== null
+    ? JSON.stringify(token.resolvedValue)
+    : String(token.resolvedValue ?? "");
   return (
     <div className="flex items-center gap-2 font-mono text-xs text-foreground truncate">
-      <span>{token.resolvedValue}</span>
+      <span>{fallbackVal}</span>
     </div>
   );
 };

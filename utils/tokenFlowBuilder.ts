@@ -78,8 +78,9 @@ export function extractAliasReferences(rawValue: string): string[] {
 /**
  * Normalizes token paths and names for flexible dependency matching
  */
-function normalizePath(p: string): string {
-  return p.toLowerCase().replace(/^[./\s]+|[./\s]+$/g, "").replace(/[/\\]/g, ".");
+function normalizePath(p: any): string {
+  const str = typeof p === "string" ? p : String(p || "");
+  return str.toLowerCase().replace(/^[./\s]+|[./\s]+$/g, "").replace(/[/\\]/g, ".");
 }
 
 /**
@@ -116,8 +117,8 @@ export function buildTokenFlowGraph(
   const allDocKeys = Object.keys(rawDoc).filter(
     (k) =>
       !k.startsWith("$") &&
-      !k.toLowerCase().includes("metadata") &&
-      !k.toLowerCase().includes("$themes") &&
+      !String(k).toLowerCase().includes("metadata") &&
+      !String(k).toLowerCase().includes("$themes") &&
       typeof rawDoc[k] === "object" &&
       rawDoc[k] !== null &&
       !Array.isArray(rawDoc[k])
@@ -152,8 +153,8 @@ export function buildTokenFlowGraph(
 
         // Determine tier
         let tier: "foundation" | "alias" | "component" = "foundation";
-        const lowerKey = fullKey.toLowerCase();
-        const lowerSet = setName.toLowerCase();
+        const lowerKey = String(fullKey || "").toLowerCase();
+        const lowerSet = String(setName || "").toLowerCase();
 
         if (
           lowerKey.includes("component") ||
@@ -220,7 +221,7 @@ export function buildTokenFlowGraph(
       }
 
       for (const [key, child] of Object.entries(node)) {
-        if (key.startsWith("$") && key !== "$value" && key !== "$type") continue;
+        if (key.startsWith("$")) continue;
         traverse(child, [...currentPath, key]);
       }
     };
@@ -238,10 +239,10 @@ export function buildTokenFlowGraph(
     const q = searchQuery.toLowerCase();
     filteredTokens = filteredTokens.filter(
       (t) =>
-        t.key.toLowerCase().includes(q) ||
-        t.setName.toLowerCase().includes(q) ||
-        t.rawValue.toLowerCase().includes(q) ||
-        t.resolvedValue.toLowerCase().includes(q)
+        String(t.key || "").toLowerCase().includes(q) ||
+        String(t.setName || "").toLowerCase().includes(q) ||
+        String(t.rawValue || "").toLowerCase().includes(q) ||
+        String(t.resolvedValue || "").toLowerCase().includes(q)
     );
   }
 
@@ -277,7 +278,7 @@ export function buildTokenFlowGraph(
   // Re-evaluate tier for each node group based on actual token alias composition
   groupMap.forEach((group) => {
     const aliasCount = group.tokens.filter((t) => t.isAlias).length;
-    const lowerSet = group.setName.toLowerCase();
+    const lowerSet = String(group.setName || "").toLowerCase();
     if (
       lowerSet.includes("component") ||
       lowerSet.includes("button") ||

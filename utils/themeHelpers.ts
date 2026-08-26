@@ -26,8 +26,9 @@ export const GROUP_PALETTE = [
 /**
  * Normalizes set names for comparison (strips leading/trailing slashes, dots, lowercase)
  */
-function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/^[./\s]+|[./\s]+$/g, "").replace(/[/\\]/g, ".");
+function normalizeName(name: any): string {
+  const str = typeof name === "string" ? name : String(name || "");
+  return str.toLowerCase().replace(/^[./\s]+|[./\s]+$/g, "").replace(/[/\\]/g, ".");
 }
 
 /**
@@ -37,7 +38,7 @@ export function findSetsInDoc(
   setName: string,
   rawDoc: RawTokensDocument
 ): Array<{ setTree: any; actualKey: string }> {
-  if (!rawDoc || typeof rawDoc !== "object") return [];
+  if (!rawDoc || typeof rawDoc !== "object" || setName === undefined || setName === null) return [];
 
   const results: Array<{ setTree: any; actualKey: string }> = [];
   const visitedKeys = new Set<string>();
@@ -49,6 +50,7 @@ export function findSetsInDoc(
   }
 
   const norm = normalizeName(setName);
+  if (!norm) return results;
 
   for (const [key, val] of Object.entries(rawDoc)) {
     if (key.startsWith("$") || visitedKeys.has(key)) continue;
@@ -106,12 +108,15 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
     const groupMap = new Map<string, ThemeOption[]>();
 
     themesRaw.forEach((item: any, idx: number) => {
-      const groupName = item.group || "Theme";
+      if (!item || typeof item !== "object") return;
+      const groupName = typeof item.group === "string" && item.group.trim() ? item.group.trim() : "Theme";
+      const optionName = typeof item.name === "string" && item.name.trim() ? item.name.trim() : `Option ${idx + 1}`;
+      const optionId = typeof item.id === "string" && item.id.trim() ? item.id.trim() : `opt-${idx}`;
       const option: ThemeOption = {
-        id: item.id || `opt-${idx}`,
-        name: item.name || `Option ${idx + 1}`,
+        id: optionId,
+        name: optionName,
         group: groupName,
-        selectedTokenSets: item.selectedTokenSets || {},
+        selectedTokenSets: item.selectedTokenSets && typeof item.selectedTokenSets === "object" ? item.selectedTokenSets : {},
         color:
           item.color ||
           (groupName.toLowerCase() === "theme" || groupName.toLowerCase() === "mode"
@@ -127,8 +132,8 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
 
     let colorIdx = 0;
     return Array.from(groupMap.entries()).map(([name, options]) => ({
-      id: `grp-${name.toLowerCase().replace(/\s+/g, "-")}`,
-      name,
+      id: `grp-${String(name).toLowerCase().replace(/\s+/g, "-")}`,
+      name: String(name),
       color: GROUP_PALETTE[colorIdx++ % GROUP_PALETTE.length],
       options,
     }));
@@ -137,8 +142,8 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   // 2. Fallback: Infer Theme Groups from existing token sets
   const setNames = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
 
-  const hasDark = setNames.some((s) => s.toLowerCase().includes("dark"));
-  const hasLight = setNames.some((s) => s.toLowerCase().includes("light"));
+  const hasDark = setNames.some((s) => typeof s === "string" && s.toLowerCase().includes("dark"));
+  const hasLight = setNames.some((s) => typeof s === "string" && s.toLowerCase().includes("light"));
 
   const groups: ThemeGroup[] = [];
 
@@ -175,9 +180,10 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   // Typography Group
   const typoSets = setNames.filter(
     (s) =>
-      s.toLowerCase().includes("typography") ||
-      s.toLowerCase().includes("font") ||
-      s.toLowerCase().includes("text")
+      typeof s === "string" &&
+      (s.toLowerCase().includes("typography") ||
+        s.toLowerCase().includes("font") ||
+        s.toLowerCase().includes("text"))
   );
   if (typoSets.length > 0) {
     groups.push({
@@ -196,7 +202,7 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
 
   // Brands Group
   const brandSets = setNames.filter(
-    (s) => s.toLowerCase().includes("brand")
+    (s) => typeof s === "string" && s.toLowerCase().includes("brand")
   );
   if (brandSets.length > 0) {
     groups.push({
@@ -220,7 +226,7 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
       color: "#f97316",
       options: setNames.map((setName, idx) => ({
         id: `opt-${setName}`,
-        name: setName.toUpperCase(),
+        name: String(setName).toUpperCase(),
         group: "Theme",
         selectedTokenSets: { [setName]: "enabled" },
         color: GROUP_PALETTE[idx % GROUP_PALETTE.length],
@@ -241,8 +247,8 @@ export type TokenCategory =
   | "opacity"
   | "other";
 
-export function getCategoryForType(type: TokenType | string): TokenCategory {
-  const t = (type || "").toLowerCase();
+export function getCategoryForType(type: TokenType | string | any): TokenCategory {
+  const t = typeof type === "string" ? type.toLowerCase() : String(type || "").toLowerCase();
   if (t === "color" || t === "colors") return "color";
   if (
     t === "typography" ||
@@ -360,15 +366,17 @@ export function buildThemeMatrix(
       });
     } else {
       // Fallback only if NO selectedTokenSets was configured at all in $themes.json
-      const matches = findSetsInDoc(option.name, rawDoc);
-      const fallbackMatches = matches.length > 0 ? matches : findSetsInDoc(group.name, rawDoc);
+      const optionName = String(option?.name || "");
+      const groupName = String(group?.name || "");
+      const matches = optionName ? findSetsInDoc(optionName, rawDoc) : [];
+      const fallbackMatches = matches.length > 0 ? matches : (groupName ? findSetsInDoc(groupName, rawDoc) : []);
       fallbackMatches.forEach((matched) => {
         groupSetKeys.add(matched.actualKey);
         enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
       });
     }
 
-    optionSetsMap.set(option.name, { enabledSets, sourceSets });
+    optionSetsMap.set(String(option?.name || ""), { enabledSets, sourceSets });
   });
 
   // If no enabled sets were specified for this group, matrix is empty (do not scan source sets)
@@ -404,7 +412,7 @@ export function buildThemeMatrix(
       }
 
       for (const [key, child] of Object.entries(node)) {
-        if (key.startsWith("$") && key !== "$value" && key !== "$type") continue;
+        if (key.startsWith("$")) continue;
         collectKeys(child, [...currentPath, key]);
       }
     };
@@ -548,7 +556,7 @@ export function getValidTokenSetNames(rawDoc: RawTokensDocument): string[] {
   // 3. Fallback: Filter all non-system keys, rejecting non-token files
   return rawKeys
     .filter((key) => {
-      const lower = key.toLowerCase();
+      const lower = String(key || "").toLowerCase();
       const fileName = lower.split("/").pop() || "";
       const baseName = fileName.replace(/\.json$/i, "");
 

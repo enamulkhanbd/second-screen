@@ -353,8 +353,9 @@ export function compileCssVariables(
 
   themeGroups.forEach((group) => {
     group.options.forEach((opt) => {
-      const selectorClass = `.theme-${opt.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-      const dataSelector = `[data-theme="${opt.name.toLowerCase()}"]`;
+      const optName = String(opt?.name || "");
+      const selectorClass = `.theme-${optName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+      const dataSelector = `[data-theme="${optName.toLowerCase()}"]`;
 
       const themeLines: string[] = [];
       const enabledSetNames = Object.entries(opt.selectedTokenSets || {})

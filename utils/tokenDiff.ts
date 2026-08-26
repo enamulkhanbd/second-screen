@@ -69,7 +69,7 @@ function extractTokensFlat(
   if (!obj || typeof obj !== "object") return result;
 
   for (const [key, val] of Object.entries(obj)) {
-    if (key.startsWith("$") && key !== "$type" && key !== "$value" && key !== "$description") continue;
+    if (key.startsWith("$")) continue;
     if (val && typeof val === "object") {
       const isToken = "value" in val || "$value" in val;
       if (isToken) {

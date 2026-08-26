@@ -536,7 +536,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
                     </span>
                   </div>
                   <span className="text-xs text-foreground font-mono truncate max-w-[150px] text-right bg-muted px-2.5 py-1 rounded border border-border font-medium">
-                    {dt.rawValue}
+                    {typeof dt.rawValue === "object" ? JSON.stringify(dt.rawValue) : String(dt.rawValue ?? "")}
                   </span>
                 </div>
               ))}

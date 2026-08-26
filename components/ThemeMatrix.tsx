@@ -225,11 +225,11 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       const q = searchQuery.toLowerCase();
       list = list.filter(
         (r) =>
-          r.tokenKey.toLowerCase().includes(q) ||
+          String(r.tokenKey || "").toLowerCase().includes(q) ||
           Object.values(r.cells).some(
             (c) =>
-              c?.rawValue?.toLowerCase().includes(q) ||
-              c?.resolvedValue?.toLowerCase().includes(q)
+              String(c?.rawValue || "").toLowerCase().includes(q) ||
+              String(c?.resolvedValue || "").toLowerCase().includes(q)
           )
       );
     }
@@ -336,7 +336,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       <div className="h-12 px-6 border-b border-border bg-muted/20 flex items-center justify-between flex-shrink-0 transition-colors">
         {/* Left: Active Theme Group Badge & Actions */}
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm text-foreground">{activeGroup?.name || "Theme"}</span>
+          <span className="font-semibold text-sm text-foreground">{typeof activeGroup?.name === "string" ? activeGroup.name : String(activeGroup?.name || "Theme")}</span>
           <span
             className="w-2.5 h-2.5 rounded-full"
             style={{ backgroundColor: activeGroup?.color || "#7c3aed" }}
@@ -361,7 +361,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                     style={{ backgroundColor: activeGroup?.color || "#7c3aed" }}
                   />
                   <span className="font-semibold text-xs text-foreground truncate">
-                    {activeGroup?.name}
+                    {typeof activeGroup?.name === "string" ? activeGroup.name : String(activeGroup?.name || "")}
                   </span>
                 </div>
                 <span className="text-[10px] text-muted-foreground font-mono">
@@ -568,7 +568,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                     className="py-3 px-6 font-bold uppercase text-foreground"
                   >
                     <div className="flex items-center gap-1.5">
-                      <span>{option.name}</span>
+                      <span>{typeof option.name === "string" ? option.name : String(option.name || "")}</span>
                       <Settings className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>
                   </th>
@@ -582,7 +582,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               {displayRows.map((row) => {
                 const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
                 const isHighlighted = highlightedTokenKey === row.tokenKey;
-                const rowId = `token-row-${row.tokenKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+                const rowId = `token-row-${String(row.tokenKey || "").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
                 return (
                   <tr
@@ -601,7 +601,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dotColor}`}
                           title={`Type: ${config.label}`}
                         />
-                        <span className="truncate font-medium">{row.tokenKey}</span>
+                        <span className="truncate font-medium">{typeof row.tokenKey === "string" ? row.tokenKey : String(row.tokenKey || "")}</span>
                       </div>
                     </td>
 
@@ -759,7 +759,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               <DialogDescription>
                 Are you sure you want to delete{" "}
                 <span className="font-semibold text-foreground">
-                  "{activeGroup.name}"
+                  "{typeof activeGroup.name === "string" ? activeGroup.name : String(activeGroup.name || "")}"
                 </span>
                 ? This will remove all {activeGroup.options.length} options configured for this group.
               </DialogDescription>
@@ -1090,7 +1090,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = React.memo(({
           className="flex-1 font-mono text-[13px] text-foreground group-hover:text-primary truncate cursor-text select-text font-medium"
           title={`Raw: ${cellData.rawValue} | Computed: ${cellData.resolvedValue}`}
         >
-          {cellData.rawValue}
+          {typeof cellData.rawValue === "object" ? JSON.stringify(cellData.rawValue) : String(cellData.rawValue ?? "")}
         </span>
       )}
     </div>
@@ -1112,15 +1112,23 @@ const TypographyModal: React.FC<TypographyModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const extractField = (v: any): string => {
+    if (!v && v !== 0) return "";
+    while (typeof v === "object" && v !== null && ("value" in v || "$value" in v)) {
+      v = v.value !== undefined ? v.value : v.$value;
+    }
+    return typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+  };
+
   const [form, setForm] = useState<Record<string, string>>({
-    fontFamily: typoObj.fontFamily || "",
-    fontWeight: typoObj.fontWeight || "",
-    fontSize: typoObj.fontSize || "",
-    lineHeight: typoObj.lineHeight || "",
-    letterSpacing: typoObj.letterSpacing || "",
-    paragraphSpacing: typoObj.paragraphSpacing || "",
-    textCase: typoObj.textCase || "",
-    textDecoration: typoObj.textDecoration || "",
+    fontFamily: extractField(typoObj.fontFamily),
+    fontWeight: extractField(typoObj.fontWeight),
+    fontSize: extractField(typoObj.fontSize),
+    lineHeight: extractField(typoObj.lineHeight),
+    letterSpacing: extractField(typoObj.letterSpacing),
+    paragraphSpacing: extractField(typoObj.paragraphSpacing),
+    textCase: extractField(typoObj.textCase),
+    textDecoration: extractField(typoObj.textDecoration),
   });
 
   const fields = [

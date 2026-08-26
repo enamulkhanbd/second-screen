@@ -185,7 +185,7 @@ export const FlowNodeCard: React.FC<FlowNodeCardProps> = ({
                   <Link2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 flex-shrink-0" />
                 )}
                 <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 truncate max-w-[85px]">
-                  {token.rawValue}
+                  {typeof token.rawValue === "object" ? JSON.stringify(token.rawValue) : String(token.rawValue ?? "")}
                 </span>
               </div>
 

@@ -49,25 +49,27 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
   // Extract query from value (e.g. "{font-families.pri" -> "font-families.pri")
   const currentQuery = useMemo(() => {
     if (!value) return "";
-    const lastOpenBrace = value.lastIndexOf("{");
+    const str = String(value);
+    const lastOpenBrace = str.lastIndexOf("{");
     if (lastOpenBrace !== -1) {
-      const afterBrace = value.slice(lastOpenBrace + 1);
+      const afterBrace = str.slice(lastOpenBrace + 1);
       return afterBrace.replace(/\}.*$/, "").trim().toLowerCase();
     }
-    return value.trim().toLowerCase();
+    return str.trim().toLowerCase();
   }, [value]);
 
   // Suggestions filtered and ranked
   const suggestions = useMemo(() => {
     if (!resolvedTokens || resolvedTokens.length === 0) return [];
 
-    const query = currentQuery.toLowerCase();
+    const query = String(currentQuery || "").toLowerCase();
 
     // Score and filter tokens
     const scored = resolvedTokens.map((token) => {
-      const name = token.name.toLowerCase();
-      const type = (token.type || "").toLowerCase();
-      const group = (token.group || "").toLowerCase();
+      const name = String(token.name || "").toLowerCase();
+      const type = String(token.type || "").toLowerCase();
+      const group = String(token.group || "").toLowerCase();
+      const resolved = String(token.resolvedValue || "").toLowerCase();
 
       let score = 0;
 
@@ -75,9 +77,9 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
       if (targetCategories.length > 0) {
         const matchesCategory = targetCategories.some(
           (cat) =>
-            type.includes(cat.toLowerCase()) ||
-            group.includes(cat.toLowerCase()) ||
-            name.includes(cat.toLowerCase())
+            type.includes(String(cat || "").toLowerCase()) ||
+            group.includes(String(cat || "").toLowerCase()) ||
+            name.includes(String(cat || "").toLowerCase())
         );
         if (matchesCategory) score += 20;
       }
@@ -91,7 +93,7 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
         score += 50;
       } else if (name.includes(query)) {
         score += 25;
-      } else if (type.includes(query) || token.resolvedValue.toLowerCase().includes(query)) {
+      } else if (type.includes(query) || resolved.includes(query)) {
         score += 10;
       } else {
         score = 0; // No match
@@ -214,7 +216,7 @@ export const TokenAliasInput: React.FC<TokenAliasInputProps> = ({
                       </span>
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate mt-0.5 font-sans">
-                      {token.resolvedValue || token.rawValue}
+                      {typeof (token.resolvedValue || token.rawValue) === "object" ? JSON.stringify(token.resolvedValue || token.rawValue) : String(token.resolvedValue || token.rawValue || "")}
                     </div>
                   </div>
 
