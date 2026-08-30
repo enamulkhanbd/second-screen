@@ -9,6 +9,7 @@ import {
   getLeafValue,
   getLeafType,
   resolveTokenAlias,
+  naturalCompareTokenKeys,
 } from "@/utils/transformTokens";
 
 // Palette colors for theme groups
@@ -65,9 +66,13 @@ export function findSetsInDoc(
       normKey.endsWith(`.${norm}`) ||
       norm.endsWith(`.${normKey}`) ||
       normKey.includes(`.${norm}.`) ||
+      norm.includes(`.${normKey}.`) ||
       normKey.startsWith(`${norm}.`) ||
+      norm.startsWith(`${normKey}.`) ||
       normKey.includes(`.${norm}`) ||
-      norm.includes(`.${normKey}`)
+      norm.includes(`.${normKey}`) ||
+      normKey.includes(norm) ||
+      norm.includes(normKey)
     ) {
       results.push({ setTree: val, actualKey: key });
       visitedKeys.add(key);
@@ -102,9 +107,13 @@ export function findSetInDoc(
 
 /**
  * Extracts or synthesizes theme groups from rawTokens (including $themes.json if present).
+ * Also discovers and exposes Foundation, Alias, Semantic, and Component layers.
  */
 export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   if (!rawDoc || typeof rawDoc !== "object") return [];
+
+  const groups: ThemeGroup[] = [];
+  const coveredSetNames = new Set<string>();
 
   // 1. Check if $themes.json exists in rawDoc (or $themes)
   const themesRaw = rawDoc["$themes"] || rawDoc["$themes.json"];
@@ -116,11 +125,16 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
       const groupName = typeof item.group === "string" && item.group.trim() ? item.group.trim() : "Theme";
       const optionName = typeof item.name === "string" && item.name.trim() ? item.name.trim() : `Option ${idx + 1}`;
       const optionId = typeof item.id === "string" && item.id.trim() ? item.id.trim() : `opt-${idx}`;
+      const selectedSets = item.selectedTokenSets && typeof item.selectedTokenSets === "object" ? item.selectedTokenSets : {};
+
+      // Track all sets covered by this theme group
+      Object.keys(selectedSets).forEach((s) => coveredSetNames.add(normalizeName(s)));
+
       const option: ThemeOption = {
         id: optionId,
         name: optionName,
         group: groupName,
-        selectedTokenSets: item.selectedTokenSets && typeof item.selectedTokenSets === "object" ? item.selectedTokenSets : {},
+        selectedTokenSets: selectedSets,
         color:
           item.color ||
           (groupName.toLowerCase() === "theme" || groupName.toLowerCase() === "mode"
@@ -135,107 +149,163 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
     });
 
     let colorIdx = 0;
-    return Array.from(groupMap.entries()).map(([name, options]) => ({
-      id: `grp-${String(name).toLowerCase().replace(/\s+/g, "-")}`,
-      name: String(name),
-      color: GROUP_PALETTE[colorIdx++ % GROUP_PALETTE.length],
-      options,
-    }));
-  }
-
-  // 2. Fallback: Infer Theme Groups from existing token sets
-  const setNames = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
-
-  const hasDark = setNames.some((s) => typeof s === "string" && s.toLowerCase().includes("dark"));
-  const hasLight = setNames.some((s) => typeof s === "string" && s.toLowerCase().includes("light"));
-
-  const groups: ThemeGroup[] = [];
-
-  // Theme / Mode Group (Dark / Light)
-  const themeOptions: ThemeOption[] = [];
-  if (hasDark) {
-    themeOptions.push({
-      id: "opt-dark",
-      name: "Dark",
-      group: "Mode",
-      selectedTokenSets: { global: "source", dark: "enabled" },
-      color: "#ffffff",
-    });
-  }
-  if (hasLight) {
-    themeOptions.push({
-      id: "opt-light",
-      name: "Light",
-      group: "Mode",
-      selectedTokenSets: { global: "source", light: "enabled" },
-      color: "#ffffff",
+    groupMap.forEach((options, name) => {
+      groups.push({
+        id: `grp-${String(name).toLowerCase().replace(/\s+/g, "-")}`,
+        name: String(name),
+        color: GROUP_PALETTE[colorIdx++ % GROUP_PALETTE.length],
+        options,
+      });
     });
   }
 
-  if (themeOptions.length > 0) {
-    groups.push({
-      id: "grp-mode",
-      name: "Mode",
-      color: "#10b981",
-      options: themeOptions,
-    });
-  }
+  // 2. Discover Foundation, Alias, Brand, and other orphan layers if they exist in rawDoc
+  const allRawSetKeys = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
 
-  // Typography Group
-  const typoSets = setNames.filter(
+  // Check for Foundation sets
+  const foundationSets = allRawSetKeys.filter(
     (s) =>
       typeof s === "string" &&
-      (s.toLowerCase().includes("typography") ||
-        s.toLowerCase().includes("font") ||
-        s.toLowerCase().includes("text"))
+      (s.toLowerCase().startsWith("foundation") ||
+        s.toLowerCase().includes("/foundation") ||
+        s.toLowerCase().startsWith("base") ||
+        s.toLowerCase().startsWith("core") ||
+        s.toLowerCase().startsWith("primitives") ||
+        s.toLowerCase().startsWith("global"))
   );
-  if (typoSets.length > 0) {
-    groups.push({
-      id: "grp-typography",
-      name: "Typography",
-      color: "#3b82f6",
-      options: typoSets.map((s) => ({
-        id: `opt-typo-${s}`,
+
+  const hasFoundationGroup = groups.some((g) => g.name.toLowerCase().includes("foundation"));
+  if (!hasFoundationGroup && foundationSets.length > 0) {
+    groups.unshift({
+      id: "grp-foundation",
+      name: "Foundation",
+      color: "#f59e0b",
+      options: foundationSets.map((s) => ({
+        id: `opt-foundation-${s.replace(/[/\\]/g, "-")}`,
         name: s.split(/[/.]/).pop() || s,
-        group: "Typography",
+        group: "Foundation",
         selectedTokenSets: { [s]: "enabled" },
-        color: "#3b82f6",
+        color: "#f59e0b",
       })),
     });
   }
 
-  // Brands Group
-  const brandSets = setNames.filter(
-    (s) => typeof s === "string" && s.toLowerCase().includes("brand")
+  // Check for Alias / Semantic sets
+  const aliasSets = allRawSetKeys.filter(
+    (s) =>
+      typeof s === "string" &&
+      (s.toLowerCase().startsWith("alias") ||
+        s.toLowerCase().includes("/alias") ||
+        s.toLowerCase().startsWith("semantic") ||
+        s.toLowerCase().includes("/semantic"))
   );
-  if (brandSets.length > 0) {
+
+  const hasAliasGroup = groups.some((g) => g.name.toLowerCase().includes("alias") || g.name.toLowerCase().includes("semantic"));
+  if (!hasAliasGroup && aliasSets.length > 0) {
     groups.push({
-      id: "grp-brands",
-      name: "Brand",
-      color: "#ef4444",
-      options: brandSets.map((b) => ({
-        id: `opt-brand-${b}`,
-        name: b.split(/[/.]/).pop() || b,
-        group: "Brand",
-        selectedTokenSets: { [b]: "enabled" },
-        color: "#a855f7",
+      id: "grp-alias",
+      name: "Alias",
+      color: "#8b5cf6",
+      options: aliasSets.map((s) => ({
+        id: `opt-alias-${s.replace(/[/\\]/g, "-")}`,
+        name: s.split(/[/.]/).pop() || s,
+        group: "Alias",
+        selectedTokenSets: { [s]: "enabled" },
+        color: "#8b5cf6",
       })),
     });
   }
 
-  if (groups.length === 0 && setNames.length > 0) {
-    groups.push({
-      id: "grp-default",
-      name: "Theme",
-      color: "#f97316",
-      options: setNames.map((setName, idx) => ({
-        id: `opt-${setName}`,
-        name: String(setName).toUpperCase(),
-        group: "Theme",
-        selectedTokenSets: { [setName]: "enabled" },
-        color: GROUP_PALETTE[idx % GROUP_PALETTE.length],
-      })),
-    });
+  // Fallback: If no theme groups created yet, infer from sets
+  if (groups.length === 0) {
+    const hasDark = allRawSetKeys.some((s) => typeof s === "string" && s.toLowerCase().includes("dark"));
+    const hasLight = allRawSetKeys.some((s) => typeof s === "string" && s.toLowerCase().includes("light"));
+
+    const themeOptions: ThemeOption[] = [];
+    if (hasDark) {
+      themeOptions.push({
+        id: "opt-dark",
+        name: "Dark",
+        group: "Mode",
+        selectedTokenSets: { global: "source", dark: "enabled" },
+        color: "#ffffff",
+      });
+    }
+    if (hasLight) {
+      themeOptions.push({
+        id: "opt-light",
+        name: "Light",
+        group: "Mode",
+        selectedTokenSets: { global: "source", light: "enabled" },
+        color: "#ffffff",
+      });
+    }
+
+    if (themeOptions.length > 0) {
+      groups.push({
+        id: "grp-mode",
+        name: "Mode",
+        color: "#10b981",
+        options: themeOptions,
+      });
+    }
+
+    // Typography Group
+    const typoSets = allRawSetKeys.filter(
+      (s) =>
+        typeof s === "string" &&
+        (s.toLowerCase().includes("typography") ||
+          s.toLowerCase().includes("font") ||
+          s.toLowerCase().includes("text"))
+    );
+    if (typoSets.length > 0) {
+      groups.push({
+        id: "grp-typography",
+        name: "Typography",
+        color: "#3b82f6",
+        options: typoSets.map((s) => ({
+          id: `opt-typo-${s}`,
+          name: s.split(/[/.]/).pop() || s,
+          group: "Typography",
+          selectedTokenSets: { [s]: "enabled" },
+          color: "#3b82f6",
+        })),
+      });
+    }
+
+    // Brands Group
+    const brandSets = allRawSetKeys.filter(
+      (s) => typeof s === "string" && s.toLowerCase().includes("brand")
+    );
+    if (brandSets.length > 0) {
+      groups.push({
+        id: "grp-brands",
+        name: "Brand",
+        color: "#ef4444",
+        options: brandSets.map((b) => ({
+          id: `opt-brand-${b}`,
+          name: b.split(/[/.]/).pop() || b,
+          group: "Brand",
+          selectedTokenSets: { [b]: "enabled" },
+          color: "#a855f7",
+        })),
+      });
+    }
+
+    if (groups.length === 0 && allRawSetKeys.length > 0) {
+      groups.push({
+        id: "grp-default",
+        name: "Theme",
+        color: "#f97316",
+        options: allRawSetKeys.map((setName, idx) => ({
+          id: `opt-${setName}`,
+          name: String(setName).toUpperCase(),
+          group: "Theme",
+          selectedTokenSets: { [setName]: "enabled" },
+          color: GROUP_PALETTE[idx % GROUP_PALETTE.length],
+        })),
+      });
+    }
   }
 
   return groups;
@@ -368,13 +438,17 @@ function findNodeByPath(tree: any, pathSegments: string[], setName?: string): an
  * Builds rows for the active Theme Group matrix.
  * Accurately scopes tokens to the token sets that belong to the active Theme Group.
  */
+/**
+ * Builds rows for the active Theme Group matrix.
+ * Accurately scopes tokens to the token sets that belong to the active Theme Group (including source foundation sets).
+ */
 export function buildThemeMatrix(
   rawDoc: RawTokensDocument,
   group: ThemeGroup
 ): MatrixRowData[] {
   if (!rawDoc || !group || group.options.length === 0) return [];
 
-  // 1. Resolve enabled token set trees for each option in this group
+  // 1. Resolve enabled and source token set trees for each option in this group
   const optionSetsMap = new Map<
     string,
     {
@@ -397,12 +471,11 @@ export function buildThemeMatrix(
       selectedEntries.forEach(([setName, status]) => {
         const matches = findSetsInDoc(setName, rawDoc);
         matches.forEach((matched) => {
+          // Include both enabled and source sets so Foundation & Alias tokens are visible in matrix
+          groupSetKeys.add(matched.actualKey);
           if (status === "enabled") {
-            // ONLY enabled sets define the token rows shown in the Theme Matrix
-            groupSetKeys.add(matched.actualKey);
             enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
           } else if (status === "source") {
-            // Source sets act strictly in the background for alias/reference lookup
             sourceSets.push({ setName: matched.actualKey, setTree: matched.setTree });
           }
         });
@@ -421,15 +494,6 @@ export function buildThemeMatrix(
 
     optionSetsMap.set(String(option?.name || ""), { enabledSets, sourceSets });
   });
-
-  // If no enabled sets were specified for this group, fallback to sourceSets if available
-  if (groupSetKeys.size === 0) {
-    optionSetsMap.forEach(({ sourceSets }) => {
-      sourceSets.forEach(({ setName }) => {
-        groupSetKeys.add(setName);
-      });
-    });
-  }
 
   if (groupSetKeys.size === 0) {
     return [];
@@ -495,10 +559,10 @@ export function buildThemeMatrix(
       let foundLeaf: any = undefined;
       let foundSetName: string = "";
 
-      const targetSets =
-        sets?.enabledSets && sets.enabledSets.length > 0
-          ? sets.enabledSets
-          : sets?.sourceSets || [];
+      const targetSets = [
+        ...(sets?.enabledSets || []),
+        ...(sets?.sourceSets || []),
+      ];
 
       for (const { setName, setTree } of targetSets) {
         const node = findNodeByPath(setTree, pathSegments, setName);
@@ -534,10 +598,98 @@ export function buildThemeMatrix(
     });
   });
 
-  // Sort rows alphabetically
-  rows.sort((a, b) => a.tokenKey.localeCompare(b.tokenKey));
+  // Sort rows naturally using numeric collation
+  rows.sort((a, b) => naturalCompareTokenKeys(a.tokenKey, b.tokenKey));
 
   return rows;
+}
+
+// -------------------------------------------------------------
+// MULTI-LEVEL TOKEN GROUP TREE DATA STRUCTURE & BUILDER
+// -------------------------------------------------------------
+
+export interface TokenGroupNode<T> {
+  id: string; // unique identifier (e.g. "grp-color", "grp-color.brand")
+  name: string; // group segment name (e.g. "color", "brand")
+  fullPath: string; // dot-separated group path (e.g. "color.brand")
+  level: number; // 1 for Level 1, 2 for Level 2, 3 for Level 3, 4 for Level 4...
+  totalTokenCount: number;
+  subgroups: TokenGroupNode<T>[];
+  items: T[]; // leaf token items belonging directly to this group level
+}
+
+/**
+ * Builds an N-level recursive hierarchical group tree from flat token items.
+ * Supports 1-level, 2-level, 3-level, 4-level and deeper groups.
+ * Applies natural numeric sorting at each level.
+ */
+export function buildTokenGroupTree<T>(
+  items: T[],
+  getPathSegments: (item: T) => string[]
+): TokenGroupNode<T>[] {
+  const rootMap = new Map<string, any>();
+
+  for (const item of items) {
+    const rawSegments = getPathSegments(item).filter(Boolean);
+    // If token key is "base.50" -> segments: ["base", "50"]. Group segments: ["base"]. Leaf: "50"
+    // If token key is "color.brand.primary.hover" -> Group segments: ["color", "brand", "primary"]. Leaf: "hover"
+    // If token key has only 1 segment (e.g. "spacing") -> Group: ["general"]. Leaf: "spacing"
+    const groupSegments = rawSegments.length > 1 ? rawSegments.slice(0, rawSegments.length - 1) : ["general"];
+
+    let currentMap = rootMap;
+    let currentPath = "";
+
+    for (let level = 1; level <= groupSegments.length; level++) {
+      const seg = groupSegments[level - 1];
+      currentPath = currentPath ? `${currentPath}.${seg}` : seg;
+
+      if (!currentMap.has(seg)) {
+        currentMap.set(seg, {
+          id: `grp-${currentPath}`,
+          name: seg,
+          fullPath: currentPath,
+          level,
+          subgroupsMap: new Map<string, any>(),
+          items: [] as T[],
+        });
+      }
+
+      const node = currentMap.get(seg)!;
+      if (level === groupSegments.length) {
+        node.items.push(item);
+      } else {
+        currentMap = node.subgroupsMap;
+      }
+    }
+  }
+
+  function convertNode(rawNode: any): TokenGroupNode<T> {
+    const subgroups: TokenGroupNode<T>[] = Array.from(rawNode.subgroupsMap.values())
+      .map(convertNode)
+      .sort((a, b) => naturalCompareTokenKeys(a.name, b.name));
+
+    const sortedItems: T[] = (rawNode.items as T[]).sort((a: any, b: any) => {
+      const pathA = getPathSegments(a).join(".");
+      const pathB = getPathSegments(b).join(".");
+      return naturalCompareTokenKeys(pathA, pathB);
+    });
+
+    const totalTokenCount = sortedItems.length + subgroups.reduce((acc, g) => acc + g.totalTokenCount, 0);
+
+    return {
+      id: rawNode.id,
+      name: rawNode.name,
+      fullPath: rawNode.fullPath,
+      level: rawNode.level,
+      totalTokenCount,
+      subgroups,
+      items: sortedItems,
+    };
+  }
+
+  return Array.from(rootMap.values())
+    .map(convertNode)
+    .sort((a, b) => naturalCompareTokenKeys(a.name, b.name));
 }
 
 export interface SetTreeNode {
@@ -566,20 +718,39 @@ export const NON_TOKEN_PATTERNS = [
 ];
 
 /**
- * Extracts the exact list of valid token sets defined by $metadata.json (tokenSetOrder)
- * or $themes.json (selectedTokenSets). If neither exists, returns cleaned token set keys.
+ * Extracts the exact list of valid token sets defined by $metadata.json (tokenSetOrder),
+ * $themes.json (selectedTokenSets), and any other valid token sets present in rawDoc.
  */
 export function getValidTokenSetNames(rawDoc: RawTokensDocument): string[] {
   if (!rawDoc || typeof rawDoc !== "object") return [];
 
   const rawKeys = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
+  const validOrdered: string[] = [];
+  const visited = new Set<string>();
+
+  // Helper to filter non-token keys
+  const isValidTokenKey = (key: string): boolean => {
+    const lower = String(key || "").toLowerCase();
+    const fileName = lower.split("/").pop() || "";
+    const baseName = fileName.replace(/\.json$/i, "");
+
+    if (NON_TOKEN_PATTERNS.includes(baseName)) return false;
+    if (
+      lower.startsWith("apps/") ||
+      lower.startsWith("assets/icons") ||
+      lower.startsWith("assets/illustrations") ||
+      lower.startsWith("assets/logos")
+    ) {
+      return false;
+    }
+
+    const val = rawDoc[key];
+    return val !== null && typeof val === "object" && Object.keys(val).length > 0;
+  };
 
   // 1. Check $metadata.json / $metadata for tokenSetOrder
   const meta = rawDoc["$metadata"] || rawDoc["$metadata.json"];
   if (meta && Array.isArray(meta.tokenSetOrder) && meta.tokenSetOrder.length > 0) {
-    const validOrdered: string[] = [];
-    const visited = new Set<string>();
-
     for (const declaredSet of meta.tokenSetOrder) {
       if (typeof declaredSet !== "string" || !declaredSet.trim()) continue;
       const match = findSetInDoc(declaredSet, rawDoc);
@@ -591,58 +762,36 @@ export function getValidTokenSetNames(rawDoc: RawTokensDocument): string[] {
         visited.add(declaredSet);
       }
     }
-
-    if (validOrdered.length > 0) {
-      return validOrdered;
-    }
   }
 
   // 2. Check $themes.json / $themes for selectedTokenSets across all themes
   const themesRaw = rawDoc["$themes"] || rawDoc["$themes.json"];
   if (themesRaw && Array.isArray(themesRaw) && themesRaw.length > 0) {
-    const themeSets = new Set<string>();
     for (const theme of themesRaw) {
       if (theme && theme.selectedTokenSets && typeof theme.selectedTokenSets === "object") {
         for (const setName of Object.keys(theme.selectedTokenSets)) {
           const match = findSetInDoc(setName, rawDoc);
-          if (match) {
-            themeSets.add(match.actualKey);
-          } else if (rawDoc[setName]) {
-            themeSets.add(setName);
+          if (match && !visited.has(match.actualKey)) {
+            validOrdered.push(match.actualKey);
+            visited.add(match.actualKey);
+          } else if (rawDoc[setName] && !visited.has(setName)) {
+            validOrdered.push(setName);
+            visited.add(setName);
           }
         }
       }
     }
+  }
 
-    if (themeSets.size > 0) {
-      return Array.from(themeSets).sort((a, b) => a.localeCompare(b));
+  // 3. Append all remaining valid token sets in rawDoc
+  for (const key of rawKeys) {
+    if (!visited.has(key) && isValidTokenKey(key)) {
+      validOrdered.push(key);
+      visited.add(key);
     }
   }
 
-  // 3. Fallback: Filter all non-system keys, rejecting non-token files
-  return rawKeys
-    .filter((key) => {
-      const lower = String(key || "").toLowerCase();
-      const fileName = lower.split("/").pop() || "";
-      const baseName = fileName.replace(/\.json$/i, "");
-
-      if (NON_TOKEN_PATTERNS.includes(baseName)) {
-        return false;
-      }
-
-      if (
-        lower.startsWith("apps/") ||
-        lower.startsWith("assets/icons") ||
-        lower.startsWith("assets/illustrations") ||
-        lower.startsWith("assets/logos")
-      ) {
-        return false;
-      }
-
-      const val = rawDoc[key];
-      return val !== null && typeof val === "object" && Object.keys(val).length > 0;
-    })
-    .sort((a, b) => a.localeCompare(b));
+  return validOrdered;
 }
 
 /**

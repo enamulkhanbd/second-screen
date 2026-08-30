@@ -65,6 +65,31 @@ export function getLeafType(leaf: RawTokenLeaf, parentGroupOrPath?: string | str
   return "other";
 }
 
+/**
+ * Natural numeric comparator for dot-separated token keys and paths.
+ * Ensures numbers sort naturally: e.g. blue.50 -> blue.100 -> blue.200 (not 100 before 50).
+ */
+export function naturalCompareTokenKeys(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return -1;
+  if (!b) return 1;
+
+  const aParts = String(a).split(/[./\\]/);
+  const bParts = String(b).split(/[./\\]/);
+  const minLen = Math.min(aParts.length, bParts.length);
+
+  for (let i = 0; i < minLen; i++) {
+    const aSeg = aParts[i];
+    const bSeg = bParts[i];
+    if (aSeg !== bSeg) {
+      const cmp = aSeg.localeCompare(bSeg, undefined, { numeric: true, sensitivity: "base" });
+      if (cmp !== 0) return cmp;
+    }
+  }
+
+  return aParts.length - bParts.length;
+}
+
 // Helper to look up a path in a nested object
 function getNestedValue(obj: any, path: string[]): any {
   let current = obj;
@@ -78,7 +103,7 @@ function getNestedValue(obj: any, path: string[]): any {
 }
 
 /**
- * Resolves a token alias string like "{colors.blue.500}" or composite objects
+ * Resolves a token alias string like "{colors.blue.500}", "{foundation.color.blue.100}", or composite objects
  */
 export function resolveTokenAlias(
   aliasValue: any,
@@ -129,7 +154,7 @@ export function resolveTokenAlias(
   let hasAliases = false;
   const replaced = aliasString.replace(aliasRegex, (match, pathString) => {
     hasAliases = true;
-    const cleanPath = pathString.trim();
+    const cleanPath = pathString.trim().replace(/^[./\s]+|[./\s]+$/g, "");
 
     if (visited.has(cleanPath)) {
       return match; // Circular reference guard
@@ -137,9 +162,10 @@ export function resolveTokenAlias(
     const newVisited = new Set(visited);
     newVisited.add(cleanPath);
 
-    const pathSegments = cleanPath.split(".");
+    const pathSegments = cleanPath.split(/[./\\]/).filter(Boolean);
+    if (pathSegments.length === 0) return match;
 
-    // Try finding within current set first
+    // 1. Try finding within current set first
     let foundLeaf: any = undefined;
 
     if (currentSet && allTokens[currentSet]) {
@@ -149,6 +175,7 @@ export function resolveTokenAlias(
       }
     }
 
+    // 2. Direct path lookup in root allTokens
     if (!foundLeaf) {
       const candidate = getNestedValue(allTokens, pathSegments);
       if (isTokenLeaf(candidate)) {
@@ -156,6 +183,7 @@ export function resolveTokenAlias(
       }
     }
 
+    // 3. Search each set in allTokens directly
     if (!foundLeaf) {
       for (const setName of Object.keys(allTokens)) {
         if (setName === currentSet || setName.startsWith("$")) continue;
@@ -164,6 +192,50 @@ export function resolveTokenAlias(
           foundLeaf = candidate;
           break;
         }
+      }
+    }
+
+    // 4. Flexible cross-layer alias resolution (handles {foundation.color.blue.100}, {foundation/color.blue.100}, {color.blue.100})
+    if (!foundLeaf) {
+      for (const [setName, setTree] of Object.entries(allTokens)) {
+        if (setName.startsWith("$") || !setTree || typeof setTree !== "object") continue;
+
+        // A. If path starts with set name or folder (e.g. path is "foundation.color.blue.100", setName is "foundation/color")
+        const normSet = setName.toLowerCase().replace(/\.json$/i, "").replace(/[/\\]/g, ".");
+        const setSegs = normSet.split(".").filter(Boolean);
+
+        if (pathSegments.length > setSegs.length) {
+          const prefixMatch = setSegs.every((seg, idx) => pathSegments[idx].toLowerCase() === seg);
+          if (prefixMatch) {
+            const subSegments = pathSegments.slice(setSegs.length);
+            const subCandidate = getNestedValue(setTree, subSegments);
+            if (isTokenLeaf(subCandidate)) {
+              foundLeaf = subCandidate;
+              break;
+            }
+          }
+        }
+
+        // B. If path has a category prefix that might or might not exist in setTree root
+        // e.g. path is ["color", "blue", "100"] vs setTree { "blue": { "100": ... } }
+        if (pathSegments.length > 1) {
+          const strippedFirst = pathSegments.slice(1);
+          const candidate2 = getNestedValue(setTree, strippedFirst);
+          if (isTokenLeaf(candidate2)) {
+            foundLeaf = candidate2;
+            break;
+          }
+        }
+
+        // C. Prepend category / parent if omitted in path (e.g. path is ["blue", "100"], setTree { "color": { "blue": { "100": ... } } })
+        for (const rootKey of ["color", "colors", "spacing", "sizing", "borderRadius", "typography", "shadow", "boxShadow"]) {
+          const candidate3 = getNestedValue(setTree, [rootKey, ...pathSegments]);
+          if (isTokenLeaf(candidate3)) {
+            foundLeaf = candidate3;
+            break;
+          }
+        }
+        if (foundLeaf) break;
       }
     }
 
@@ -510,6 +582,8 @@ export function flattenAndResolveTokens(
 
     walk(setTree, []);
   }
+
+  result.sort((a, b) => naturalCompareTokenKeys(a.name, b.name));
 
   return result;
 }

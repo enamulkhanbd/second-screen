@@ -10,6 +10,8 @@ import {
   CATEGORY_ORDER,
   CATEGORY_LABELS,
   getCategoryForType,
+  buildTokenGroupTree,
+  TokenGroupNode,
 } from "@/utils/themeHelpers";
 import { formatTypographySummary } from "@/utils/transformTokens";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
@@ -45,6 +47,10 @@ import {
   AlertTriangle,
   MoreHorizontal,
   Edit2,
+  FolderTree,
+  List,
+  ChevronsUpDown,
+  ChevronsDownUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -164,6 +170,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
 
+  // Grouping state for multi-level hierarchical tree view
+  const [isGroupedView, setIsGroupedView] = useState<boolean>(true);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
   // Pagination state for ultra-fast rendering with large token sets
   const [pageSize, setPageSize] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -236,10 +246,36 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     return list;
   }, [matrixRows, selectedCategory, searchQuery]);
 
+  // Multi-level recursive group tree from filtered rows
+  const groupTree = useMemo(() => {
+    return buildTokenGroupTree(filteredRows, (row) => row.tokenKey.split("."));
+  }, [filteredRows]);
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
+
+  const expandAllGroups = () => {
+    setCollapsedGroups({});
+  };
+
+  const collapseAllGroups = () => {
+    const allCollapsed: Record<string, boolean> = {};
+    const traverse = (node: TokenGroupNode<MatrixRowData>) => {
+      allCollapsed[node.id] = true;
+      node.subgroups.forEach(traverse);
+    };
+    groupTree.forEach(traverse);
+    setCollapsedGroups(allCollapsed);
+  };
+
   const totalFilteredCount = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
 
-  // Slice rows for the current page
+  // Slice rows for the current page in flat mode
   const displayRows = useMemo(() => {
     if (pageSize === 0) return filteredRows; // 0 = show all
     const start = (currentPage - 1) * pageSize;
@@ -287,6 +323,169 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     } finally {
       setIsPulling(false);
     }
+  };
+
+  const renderMatrixRow = (row: MatrixRowData, level: number = 0) => {
+    const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
+    const isHighlighted = highlightedTokenKey === row.tokenKey;
+    const rowId = `token-row-${String(row.tokenKey || "").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    const tokenParts = String(row.tokenKey || "").split(".");
+    const leafName = tokenParts[tokenParts.length - 1] || row.tokenKey;
+
+    return (
+      <tr
+        key={row.tokenKey}
+        id={rowId}
+        className={`transition-all duration-200 group ${
+          isHighlighted
+            ? "bg-primary/15 ring-1 ring-primary shadow-xs"
+            : "hover:bg-muted/40"
+        }`}
+      >
+        {/* Token Key Name + Type Icon */}
+        <td
+          className="py-2.5 px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed"
+          style={{ paddingLeft: isGroupedView ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dotColor}`}
+              title={`Type: ${config.label}`}
+            />
+            <div className="flex flex-col min-w-0">
+              <span className="truncate font-medium text-foreground group-hover:text-primary transition-colors">
+                {isGroupedView ? leafName : typeof row.tokenKey === "string" ? row.tokenKey : String(row.tokenKey || "")}
+              </span>
+              {isGroupedView && tokenParts.length > 1 && (
+                <span className="text-[10px] text-muted-foreground font-mono truncate opacity-60">
+                  {row.tokenKey}
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+
+        {/* Option Columns */}
+        {activeGroup?.options.map((option) => {
+          const cellData = row.cells[option.name];
+
+          return (
+            <td key={option.id} className="py-2 px-6 align-middle">
+              <MatrixPillCell
+                cellData={cellData}
+                rawTokens={rawTokens}
+                tokenType={row.type}
+                tokenCategory={row.category}
+                tokenKey={row.tokenKey}
+                optionName={option.name}
+                onUpdate={updateSingleToken}
+              />
+            </td>
+          );
+        })}
+
+        {/* Far Right Action Menu Column */}
+        <td className="py-2 px-4 text-right align-middle w-12">
+          <div className="flex items-center justify-end">
+            <MatrixRowActionMenu
+              row={row}
+              activeGroup={activeGroup}
+              onEdit={(token) => {
+                if (!canUserEdit()) {
+                  addToast({
+                    type: "info",
+                    title: "Read-Only Access",
+                    message: "Viewer role cannot edit design tokens.",
+                  });
+                  return;
+                }
+                setEditingToken(token);
+              }}
+              onDelete={(token) => {
+                if (!canUserEdit()) {
+                  addToast({
+                    type: "info",
+                    title: "Read-Only Access",
+                    message: "Viewer role cannot delete design tokens.",
+                  });
+                  return;
+                }
+                deleteToken(token.setName, token.name.split("."));
+              }}
+            />
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  const renderGroupTree = (node: TokenGroupNode<MatrixRowData>): React.ReactNode => {
+    const isCollapsed = Boolean(collapsedGroups[node.id]);
+    const totalCols = (activeGroup?.options?.length || 0) + 2;
+
+    const levelBg = [
+      "bg-muted/70 text-foreground font-bold border-t border-b border-border/80", // Level 1
+      "bg-muted/50 text-foreground font-semibold border-t border-b border-border/60", // Level 2
+      "bg-muted/30 text-foreground/90 font-medium border-t border-b border-border/40", // Level 3
+      "bg-muted/15 text-foreground/80 font-medium border-t border-border/20", // Level 4+
+    ];
+    const headerClass = levelBg[Math.min(node.level - 1, levelBg.length - 1)];
+
+    return (
+      <React.Fragment key={node.id}>
+        {/* Group Header Row */}
+        <tr
+          onClick={() => toggleGroup(node.id)}
+          className={`${headerClass} hover:bg-muted/90 transition-colors cursor-pointer select-none`}
+        >
+          <td
+            colSpan={totalCols}
+            className="py-2.5 px-6 align-middle"
+            style={{ paddingLeft: `${Math.max(20, (node.level - 1) * 20 + 20)}px` }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-muted-foreground p-0.5 rounded transition-transform">
+                  {isCollapsed ? (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </span>
+
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-background/80 border border-border/60 text-muted-foreground uppercase flex-shrink-0">
+                  L{node.level}
+                </span>
+
+                <span className="font-mono text-xs font-semibold text-foreground tracking-tight truncate">
+                  {node.name}
+                </span>
+
+                {node.level > 1 && (
+                  <span className="text-[11px] text-muted-foreground font-mono truncate hidden md:inline opacity-60">
+                    ({node.fullPath})
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge variant="outline" className="text-[10px] font-mono py-0 px-2 bg-background/60">
+                  {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
+                </Badge>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        {/* Group Contents */}
+        {!isCollapsed && (
+          <>
+            {node.subgroups.map((sub) => renderGroupTree(sub))}
+            {node.items.map((row) => renderMatrixRow(row, node.level))}
+          </>
+        )}
+      </React.Fragment>
+    );
   };
 
   // Empty state if no tokens loaded
@@ -481,75 +680,130 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         </div>
       )}
 
-      {/* Minimal Token Type Filter & Separation Sub-Bar */}
-      {availableCategories.length > 0 && (
-        <div className="h-11 px-6 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
-          {/* Left: Minimal Type Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Type:</span>
-            </span>
+      {/* Minimal Token Type Filter, Grouping Switcher & Actions Sub-Bar */}
+      <div className="h-11 px-6 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
+        {/* Left: Minimal Type Filter Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Type:</span>
+          </span>
 
-            {/* All Chips */}
-            <button
-              onClick={() => setSelectedCategory("all")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+          {/* All Chips */}
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              selectedCategory === "all"
+                ? "bg-background text-foreground font-semibold shadow-xs border border-border"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            <span>All Types</span>
+            <span
+              className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
                 selectedCategory === "all"
-                  ? "bg-background text-foreground font-semibold shadow-xs border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "bg-muted text-foreground"
+                  : "bg-muted/80 text-muted-foreground"
               }`}
             >
-              <span>All Types</span>
-              <span
-                className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
-                  selectedCategory === "all"
-                    ? "bg-muted text-foreground"
-                    : "bg-muted/80 text-muted-foreground"
+              {filteredRows.length}
+            </span>
+          </button>
+
+          {/* Individual Type Chips */}
+          {availableCategories.map((cat) => {
+            const count = categoryCounts[cat] || 0;
+            const config = CATEGORY_CONFIG[cat];
+            const Icon = config.icon;
+            const isSelected = selectedCategory === cat;
+
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  isSelected
+                    ? "bg-background text-foreground font-semibold shadow-xs border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                {filteredRows.length}
-              </span>
-            </button>
-
-            {/* Individual Type Chips */}
-            {availableCategories.map((cat) => {
-              const count = categoryCounts[cat] || 0;
-              const config = CATEGORY_CONFIG[cat];
-              const Icon = config.icon;
-              const isSelected = selectedCategory === cat;
-
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                <Icon className={`w-3.5 h-3.5 ${isSelected ? config.iconColor : "text-muted-foreground"}`} />
+                <span>{config.label}</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
                     isSelected
-                      ? "bg-background text-foreground font-semibold shadow-xs border border-border"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      ? "bg-muted text-foreground"
+                      : "bg-muted/80 text-muted-foreground"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isSelected ? config.iconColor : "text-muted-foreground"}`} />
-                  <span>{config.label}</span>
-                  <span
-                    className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
-                      isSelected
-                        ? "bg-muted text-foreground"
-                        : "bg-muted/80 text-muted-foreground"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: Grouped vs Flat View Toggle & Expand/Collapse Controls */}
+        <div className="flex items-center gap-2">
+          {isGroupedView && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={expandAllGroups}
+                className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground gap-1"
+                title="Expand All Groups"
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Expand All</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={collapseAllGroups}
+                className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground gap-1"
+                title="Collapse All Groups"
+              >
+                <ChevronsDownUp className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Collapse All</span>
+              </Button>
+              <div className="h-4 w-px bg-border mx-1" />
+            </div>
+          )}
+
+          {/* Grouped / Flat View Switcher */}
+          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
+            <button
+              onClick={() => setIsGroupedView(true)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                isGroupedView
+                  ? "bg-background text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Grouped View (Hierarchical Tree)"
+            >
+              <FolderTree className="w-3.5 h-3.5" />
+              <span>Grouped</span>
+            </button>
+            <button
+              onClick={() => setIsGroupedView(false)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                !isGroupedView
+                  ? "bg-background text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Flat List View"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Flat</span>
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Main Table Matrix */}
       <div className="flex-1 overflow-auto bg-background transition-colors">
-        {displayRows.length === 0 ? (
+        {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center select-none">
             <p className="text-base font-semibold text-foreground">No matching tokens found</p>
             <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search filter or selected token type.</p>
@@ -560,7 +814,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             <thead className="sticky top-0 z-20 bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider shadow-xs backdrop-blur-md">
               <tr>
                 <th className="py-3 px-6 w-1/3 font-bold uppercase text-muted-foreground">
-                  TOKEN
+                  TOKEN {isGroupedView && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                 </th>
                 {activeGroup?.options.map((option) => (
                   <th
@@ -577,87 +831,13 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               </tr>
             </thead>
 
-            {/* Table Body: Flat list of tokens */}
+            {/* Table Body: Grouped Hierarchical View vs Flat View */}
             <tbody className="divide-y divide-border font-mono">
-              {displayRows.map((row) => {
-                const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
-                const isHighlighted = highlightedTokenKey === row.tokenKey;
-                const rowId = `token-row-${String(row.tokenKey || "").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-
-                return (
-                  <tr
-                    key={row.tokenKey}
-                    id={rowId}
-                    className={`transition-all duration-300 group ${
-                      isHighlighted
-                        ? "bg-primary/15 ring-1 ring-primary shadow-xs"
-                        : "hover:bg-muted/40"
-                    }`}
-                  >
-                    {/* Token Key Name + Type Icon */}
-                    <td className="py-3 px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed">
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dotColor}`}
-                          title={`Type: ${config.label}`}
-                        />
-                        <span className="truncate font-medium">{typeof row.tokenKey === "string" ? row.tokenKey : String(row.tokenKey || "")}</span>
-                      </div>
-                    </td>
-
-                    {/* Option Columns */}
-                    {activeGroup?.options.map((option) => {
-                      const cellData = row.cells[option.name];
-
-                      return (
-                        <td key={option.id} className="py-2.5 px-6 align-middle">
-                          <MatrixPillCell
-                            cellData={cellData}
-                            rawTokens={rawTokens}
-                            tokenType={row.type}
-                            tokenCategory={row.category}
-                            tokenKey={row.tokenKey}
-                            optionName={option.name}
-                            onUpdate={updateSingleToken}
-                          />
-                        </td>
-                      );
-                    })}
-
-                    {/* Far Right Action Menu Column */}
-                    <td className="py-2.5 px-4 text-right align-middle w-12">
-                      <div className="flex items-center justify-end">
-                        <MatrixRowActionMenu
-                          row={row}
-                          activeGroup={activeGroup}
-                          onEdit={(token) => {
-                            if (!canUserEdit()) {
-                              addToast({
-                                type: "info",
-                                title: "Read-Only Access",
-                                message: "Viewer role cannot edit design tokens.",
-                              });
-                              return;
-                            }
-                            setEditingToken(token);
-                          }}
-                          onDelete={(token) => {
-                            if (!canUserEdit()) {
-                              addToast({
-                                type: "info",
-                                title: "Read-Only Access",
-                                message: "Viewer role cannot delete design tokens.",
-                              });
-                              return;
-                            }
-                            deleteToken(token.setName, token.name.split("."));
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {isGroupedView ? (
+                groupTree.map((node) => renderGroupTree(node))
+              ) : (
+                displayRows.map((row) => renderMatrixRow(row, 0))
+              )}
             </tbody>
           </table>
         )}

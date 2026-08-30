@@ -50,8 +50,7 @@ function scopeAggregatedTokens(
         fileName === "$themes.json" ||
         fileName === "$metadata.json" ||
         fileName === "$themes" ||
-        fileName === "$metadata" ||
-        fileName === "metadata.json"
+        fileName === "$metadata"
       ) {
         const parentDir = filePath.substring(0, filePath.lastIndexOf("/")).replace(/^\/+|\/+$/g, "");
         if (parentDir) {
