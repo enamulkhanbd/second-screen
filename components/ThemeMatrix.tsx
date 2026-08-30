@@ -170,8 +170,13 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
 
-  // Grouping state for multi-level hierarchical tree view
-  const [isGroupedView, setIsGroupedView] = useState<boolean>(true);
+  // Grouping depth state:
+  // 1 = Level 1 (Flat, no groups)
+  // 2 = Level 2 (Break 1 group level)
+  // 3 = Level 3 (Break 2 group levels)
+  // 4 = Level 4 (Break 3 group levels)
+  // 0 = All Levels (Deepest recursive grouping)
+  const [groupDepth, setGroupDepth] = useState<number>(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Pagination state for ultra-fast rendering with large token sets
@@ -246,10 +251,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     return list;
   }, [matrixRows, selectedCategory, searchQuery]);
 
-  // Multi-level recursive group tree from filtered rows
+  // Multi-level recursive group tree from filtered rows with chosen grouping depth
   const groupTree = useMemo(() => {
-    return buildTokenGroupTree(filteredRows, (row) => row.tokenKey.split("."));
-  }, [filteredRows]);
+    return buildTokenGroupTree(filteredRows, (row) => row.tokenKey.split("."), groupDepth);
+  }, [filteredRows, groupDepth]);
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => ({
@@ -325,12 +330,19 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     }
   };
 
-  const renderMatrixRow = (row: MatrixRowData, level: number = 0) => {
+  const renderMatrixRow = (row: MatrixRowData, level: number = 0, parentGroupPath?: string) => {
     const config = CATEGORY_CONFIG[row.category] || CATEGORY_CONFIG.other;
     const isHighlighted = highlightedTokenKey === row.tokenKey;
     const rowId = `token-row-${String(row.tokenKey || "").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
     const tokenParts = String(row.tokenKey || "").split(".");
-    const leafName = tokenParts[tokenParts.length - 1] || row.tokenKey;
+
+    const isGrouped = groupDepth !== 1;
+    let relativeName = String(row.tokenKey || "");
+    if (isGrouped && parentGroupPath && relativeName.startsWith(parentGroupPath + ".")) {
+      relativeName = relativeName.slice(parentGroupPath.length + 1);
+    } else if (isGrouped && tokenParts.length > 1) {
+      relativeName = tokenParts[tokenParts.length - 1];
+    }
 
     return (
       <tr
@@ -345,7 +357,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         {/* Token Key Name + Type Icon */}
         <td
           className="py-2.5 px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed"
-          style={{ paddingLeft: isGroupedView ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
+          style={{ paddingLeft: isGrouped ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
         >
           <div className="flex items-center gap-2.5">
             <span
@@ -354,9 +366,9 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             />
             <div className="flex flex-col min-w-0">
               <span className="truncate font-medium text-foreground group-hover:text-primary transition-colors">
-                {isGroupedView ? leafName : typeof row.tokenKey === "string" ? row.tokenKey : String(row.tokenKey || "")}
+                {isGrouped ? relativeName : typeof row.tokenKey === "string" ? row.tokenKey : String(row.tokenKey || "")}
               </span>
-              {isGroupedView && tokenParts.length > 1 && (
+              {isGrouped && relativeName !== row.tokenKey && (
                 <span className="text-[10px] text-muted-foreground font-mono truncate opacity-60">
                   {row.tokenKey}
                 </span>
@@ -424,10 +436,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
     const totalCols = (activeGroup?.options?.length || 0) + 2;
 
     const levelBg = [
-      "bg-muted/70 text-foreground font-bold border-t border-b border-border/80", // Level 1
-      "bg-muted/50 text-foreground font-semibold border-t border-b border-border/60", // Level 2
-      "bg-muted/30 text-foreground/90 font-medium border-t border-b border-border/40", // Level 3
-      "bg-muted/15 text-foreground/80 font-medium border-t border-border/20", // Level 4+
+      "bg-background text-foreground font-bold border-t border-b border-border", // Level 1
+      "bg-background text-foreground font-semibold border-t border-b border-border/80", // Level 2
+      "bg-background text-foreground/90 font-medium border-t border-b border-border/60", // Level 3
+      "bg-background text-foreground/80 font-medium border-t border-border/40", // Level 4+
     ];
     const headerClass = levelBg[Math.min(node.level - 1, levelBg.length - 1)];
 
@@ -436,7 +448,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         {/* Group Header Row */}
         <tr
           onClick={() => toggleGroup(node.id)}
-          className={`${headerClass} hover:bg-muted/90 transition-colors cursor-pointer select-none`}
+          className={`${headerClass} hover:bg-muted/40 transition-colors cursor-pointer select-none`}
         >
           <td
             colSpan={totalCols}
@@ -451,10 +463,6 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                   ) : (
                     <ChevronDown className="w-3.5 h-3.5" />
                   )}
-                </span>
-
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-background/80 border border-border/60 text-muted-foreground uppercase flex-shrink-0">
-                  L{node.level}
                 </span>
 
                 <span className="font-mono text-xs font-semibold text-foreground tracking-tight truncate">
@@ -481,7 +489,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         {!isCollapsed && (
           <>
             {node.subgroups.map((sub) => renderGroupTree(sub))}
-            {node.items.map((row) => renderMatrixRow(row, node.level))}
+            {node.items.map((row) => renderMatrixRow(row, node.level, node.fullPath))}
           </>
         )}
       </React.Fragment>
@@ -743,61 +751,134 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           })}
         </div>
 
-        {/* Right: Grouped vs Flat View Toggle & Expand/Collapse Controls */}
+        {/* Right: Grouping Level Dropdown Selector & Expand/Collapse Controls */}
         <div className="flex items-center gap-2">
-          {isGroupedView && (
-            <div className="flex items-center gap-1">
+          {groupDepth !== 1 && (
+            <div className="flex items-center gap-0.5">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-sm"
                 onClick={expandAllGroups}
-                className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground gap-1"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 title="Expand All Groups"
               >
                 <ChevronsUpDown className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Expand All</span>
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-sm"
                 onClick={collapseAllGroups}
-                className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground gap-1"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 title="Collapse All Groups"
               >
                 <ChevronsDownUp className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Collapse All</span>
               </Button>
               <div className="h-4 w-px bg-border mx-1" />
             </div>
           )}
 
-          {/* Grouped / Flat View Switcher */}
-          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
-            <button
-              onClick={() => setIsGroupedView(true)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                isGroupedView
-                  ? "bg-background text-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Grouped View (Hierarchical Tree)"
-            >
-              <FolderTree className="w-3.5 h-3.5" />
-              <span>Grouped</span>
-            </button>
-            <button
-              onClick={() => setIsGroupedView(false)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                !isGroupedView
-                  ? "bg-background text-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Flat List View"
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>Flat</span>
-            </button>
-          </div>
+          {/* Grouping Level Dropdown Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-[11px] font-medium gap-1.5 border-border bg-background hover:bg-muted/80 shadow-2xs cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5 text-primary" />
+                <span className="text-muted-foreground">Grouping:</span>
+                <span className="font-semibold text-foreground">
+                  {groupDepth === 1
+                    ? "Level 1 (Flat)"
+                    : groupDepth === 2
+                    ? "Level 2 (1 Group)"
+                    : groupDepth === 3
+                    ? "Level 3 (2 Groups)"
+                    : groupDepth === 4
+                    ? "Level 4 (3 Groups)"
+                    : "All Levels"}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-0.5 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lg border-border">
+              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Group By Level
+              </div>
+              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(1)}
+                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <List className="w-3.5 h-3.5 text-muted-foreground" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">Level 1 (Flat)</span>
+                    <span className="text-[10px] text-muted-foreground">No groups, flat token names</span>
+                  </div>
+                </div>
+                {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(2)}
+                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderTree className="w-3.5 h-3.5 text-blue-500" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">Level 2 (1 Group)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st segment</span>
+                  </div>
+                </div>
+                {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(3)}
+                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">Level 3 (2 Groups)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st & 2nd segments</span>
+                  </div>
+                </div>
+                {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(4)}
+                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">Level 4 (3 Groups)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd & 3rd</span>
+                  </div>
+                </div>
+                {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator className="my-1" />
+
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(0)}
+                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">All Levels (Deepest)</span>
+                    <span className="text-[10px] text-muted-foreground">Fully nested hierarchy</span>
+                  </div>
+                </div>
+                {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -814,7 +895,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             <thead className="sticky top-0 z-20 bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider shadow-xs backdrop-blur-md">
               <tr>
                 <th className="py-3 px-6 w-1/3 font-bold uppercase text-muted-foreground">
-                  TOKEN {isGroupedView && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
+                  TOKEN {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                 </th>
                 {activeGroup?.options.map((option) => (
                   <th
@@ -833,7 +914,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
             {/* Table Body: Grouped Hierarchical View vs Flat View */}
             <tbody className="divide-y divide-border font-mono">
-              {isGroupedView ? (
+              {groupDepth !== 1 ? (
                 groupTree.map((node) => renderGroupTree(node))
               ) : (
                 displayRows.map((row) => renderMatrixRow(row, 0))

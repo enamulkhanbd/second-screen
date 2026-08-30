@@ -144,14 +144,19 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     });
   }, [setTokens, selectedType, searchQuery]);
 
-  // Grouping state for multi-level hierarchical tree view
-  const [isGroupedView, setIsGroupedView] = useState<boolean>(true);
+  // Grouping depth state:
+  // 1 = Level 1 (Flat, no groups)
+  // 2 = Level 2 (Break 1 group level)
+  // 3 = Level 3 (Break 2 group levels)
+  // 4 = Level 4 (Break 3 group levels)
+  // 0 = All Levels (Deepest recursive grouping)
+  const [groupDepth, setGroupDepth] = useState<number>(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
-  // Multi-level recursive group tree from displayed tokens
+  // Multi-level recursive group tree from displayed tokens with chosen grouping depth
   const groupTree = useMemo(() => {
-    return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."));
-  }, [displayedTokens]);
+    return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."), groupDepth);
+  }, [displayedTokens, groupDepth]);
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => ({
@@ -177,10 +182,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   const renderWorkspaceGroupTree = (node: TokenGroupNode<FlattenedToken>): React.ReactNode => {
     const isCollapsed = Boolean(collapsedGroups[node.id]);
     const levelBg = [
-      "bg-muted/70 text-foreground font-bold border-t border-b border-border/80", // Level 1
-      "bg-muted/50 text-foreground font-semibold border-t border-b border-border/60", // Level 2
-      "bg-muted/30 text-foreground/90 font-medium border-t border-b border-border/40", // Level 3
-      "bg-muted/15 text-foreground/80 font-medium border-t border-border/20", // Level 4+
+      "bg-background text-foreground font-bold border-t border-b border-border", // Level 1
+      "bg-background text-foreground font-semibold border-t border-b border-border/80", // Level 2
+      "bg-background text-foreground/90 font-medium border-t border-b border-border/60", // Level 3
+      "bg-background text-foreground/80 font-medium border-t border-border/40", // Level 4+
     ];
     const headerClass = levelBg[Math.min(node.level - 1, levelBg.length - 1)];
 
@@ -188,7 +193,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
       <React.Fragment key={node.id}>
         <tr
           onClick={() => toggleGroup(node.id)}
-          className={`${headerClass} hover:bg-muted/90 transition-colors cursor-pointer select-none`}
+          className={`${headerClass} hover:bg-muted/40 transition-colors cursor-pointer select-none`}
         >
           <td
             colSpan={4}
@@ -203,10 +208,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                   ) : (
                     <ChevronDown className="w-3.5 h-3.5" />
                   )}
-                </span>
-
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-background/80 border border-border/60 text-muted-foreground uppercase flex-shrink-0">
-                  L{node.level}
                 </span>
 
                 <span className="font-mono text-xs font-semibold text-foreground tracking-tight truncate">
@@ -237,7 +238,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 key={token.id}
                 token={token}
                 level={node.level}
-                isGrouped={isGroupedView}
+                isGrouped={groupDepth !== 1}
+                parentGroupPath={node.fullPath}
                 onUpdate={updateSingleToken}
                 onEdit={() => setEditingToken(token)}
                 onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
@@ -566,61 +568,134 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
               })}
             </div>
 
-            {/* Right: Grouped vs Flat View Toggle & Expand/Collapse Controls */}
+            {/* Right: Grouping Level Dropdown Selector & Expand/Collapse Controls */}
             <div className="flex items-center gap-2">
-              {isGroupedView && (
-                <div className="flex items-center gap-1">
+              {groupDepth !== 1 && (
+                <div className="flex items-center gap-0.5">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon-sm"
                     onClick={expandAllGroups}
-                    className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground gap-1"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
                     title="Expand All Groups"
                   >
                     <ChevronsUpDown className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Expand All</span>
                   </Button>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon-sm"
                     onClick={collapseAllGroups}
-                    className="h-7 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground gap-1"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
                     title="Collapse All Groups"
                   >
                     <ChevronsDownUp className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Collapse All</span>
                   </Button>
                   <div className="h-4 w-px bg-border mx-1" />
                 </div>
               )}
 
-              {/* Grouped / Flat View Switcher */}
-              <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
-                <button
-                  onClick={() => setIsGroupedView(true)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    isGroupedView
-                      ? "bg-background text-foreground font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Grouped View (Hierarchical Tree)"
-                >
-                  <FolderTree className="w-3.5 h-3.5" />
-                  <span>Grouped</span>
-                </button>
-                <button
-                  onClick={() => setIsGroupedView(false)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    !isGroupedView
-                      ? "bg-background text-foreground font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Flat List View"
-                >
-                  <List className="w-3.5 h-3.5" />
-                  <span>Flat</span>
-                </button>
-              </div>
+              {/* Grouping Level Dropdown Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-[11px] font-medium gap-1.5 border-border bg-background hover:bg-muted/80 shadow-2xs cursor-pointer"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-muted-foreground">Grouping:</span>
+                    <span className="font-semibold text-foreground">
+                      {groupDepth === 1
+                        ? "Level 1 (Flat)"
+                        : groupDepth === 2
+                        ? "Level 2 (1 Group)"
+                        : groupDepth === 3
+                        ? "Level 3 (2 Groups)"
+                        : groupDepth === 4
+                        ? "Level 4 (3 Groups)"
+                        : "All Levels"}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-0.5 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lg border-border">
+                  <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Group By Level
+                  </div>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem
+                    onClick={() => setGroupDepth(1)}
+                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <List className="w-3.5 h-3.5 text-muted-foreground" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Level 1 (Flat)</span>
+                        <span className="text-[10px] text-muted-foreground">No groups, flat token names</span>
+                      </div>
+                    </div>
+                    {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setGroupDepth(2)}
+                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FolderTree className="w-3.5 h-3.5 text-blue-500" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Level 2 (1 Group)</span>
+                        <span className="text-[10px] text-muted-foreground">Break by 1st segment</span>
+                      </div>
+                    </div>
+                    {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setGroupDepth(3)}
+                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Level 3 (2 Groups)</span>
+                        <span className="text-[10px] text-muted-foreground">Break by 1st & 2nd segments</span>
+                      </div>
+                    </div>
+                    {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setGroupDepth(4)}
+                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">Level 4 (3 Groups)</span>
+                        <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd & 3rd</span>
+                      </div>
+                    </div>
+                    {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  <DropdownMenuItem
+                    onClick={() => setGroupDepth(0)}
+                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">All Levels (Deepest)</span>
+                        <span className="text-[10px] text-muted-foreground">Fully nested hierarchy</span>
+                      </div>
+                    </div>
+                    {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -642,7 +717,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                   <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                     <tr>
                       <th className="py-3.5 px-6 w-64 min-w-[200px]">
-                        Token Name {isGroupedView && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
+                        Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                       </th>
                       <th className="py-3.5 px-6 min-w-[360px]">Raw Value / Properties</th>
                       <th className="py-3.5 px-6 min-w-[280px]">Visual Preview</th>
@@ -650,7 +725,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border font-mono">
-                    {isGroupedView
+                    {groupDepth !== 1
                       ? groupTree.map((node) => renderWorkspaceGroupTree(node))
                       : displayedTokens.map((token) => (
                           <TokenPreviewRow
@@ -732,6 +807,7 @@ interface TokenPreviewRowProps {
   token: FlattenedToken;
   level?: number;
   isGrouped?: boolean;
+  parentGroupPath?: string;
   onUpdate: (path: string[], newValue: any) => void;
   onEdit: () => void;
   onDuplicate: (newName: string) => void;
@@ -742,6 +818,7 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
   token,
   level = 0,
   isGrouped = false,
+  parentGroupPath,
   onUpdate,
   onEdit,
   onDuplicate,
@@ -761,7 +838,13 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
 
   const cssVarName = `var(--${token.name.replace(/\./g, "-")})`;
   const tokenParts = String(token.name || "").split(".");
-  const leafName = tokenParts[tokenParts.length - 1] || token.name;
+
+  let relativeName = String(token.name || "");
+  if (isGrouped && parentGroupPath && relativeName.startsWith(parentGroupPath + ".")) {
+    relativeName = relativeName.slice(parentGroupPath.length + 1);
+  } else if (isGrouped && tokenParts.length > 1) {
+    relativeName = tokenParts[tokenParts.length - 1];
+  }
 
   return (
     <tr className="hover:bg-muted/40 transition-colors group">
@@ -772,9 +855,9 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
       >
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-            {isGrouped ? leafName : typeof token.name === "string" ? token.name : String(token.name || "")}
+            {isGrouped ? relativeName : typeof token.name === "string" ? token.name : String(token.name || "")}
           </span>
-          {isGrouped && tokenParts.length > 1 && (
+          {isGrouped && relativeName !== token.name && (
             <span className="text-[10px] text-muted-foreground font-mono truncate opacity-60">
               {token.name}
             </span>

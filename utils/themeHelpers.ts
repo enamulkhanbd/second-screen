@@ -620,21 +620,36 @@ export interface TokenGroupNode<T> {
 
 /**
  * Builds an N-level recursive hierarchical group tree from flat token items.
- * Supports 1-level, 2-level, 3-level, 4-level and deeper groups.
+ * Supports Level 1 (Flat), Level 2 (1 group), Level 3 (2 groups), Level 4 (3 groups), and All Levels.
  * Applies natural numeric sorting at each level.
  */
 export function buildTokenGroupTree<T>(
   items: T[],
-  getPathSegments: (item: T) => string[]
+  getPathSegments: (item: T) => string[],
+  maxGroupDepth?: number
 ): TokenGroupNode<T>[] {
+  // If maxGroupDepth is 1 (Level 1 / Flat), return empty tree so tokens render flat
+  if (maxGroupDepth === 1) {
+    return [];
+  }
+
   const rootMap = new Map<string, any>();
 
   for (const item of items) {
     const rawSegments = getPathSegments(item).filter(Boolean);
-    // If token key is "base.50" -> segments: ["base", "50"]. Group segments: ["base"]. Leaf: "50"
-    // If token key is "color.brand.primary.hover" -> Group segments: ["color", "brand", "primary"]. Leaf: "hover"
-    // If token key has only 1 segment (e.g. "spacing") -> Group: ["general"]. Leaf: "spacing"
-    const groupSegments = rawSegments.length > 1 ? rawSegments.slice(0, rawSegments.length - 1) : ["general"];
+    
+    // Determine how many parent segments should be grouped
+    let groupSegments: string[] = [];
+
+    if (maxGroupDepth && maxGroupDepth > 1) {
+      const allowedParents = maxGroupDepth - 1; // e.g. Level 2 -> 1 parent group; Level 3 -> 2 parent groups
+      const maxPossibleParents = Math.max(0, rawSegments.length - 1);
+      const parentCount = Math.min(allowedParents, maxPossibleParents);
+      groupSegments = parentCount > 0 ? rawSegments.slice(0, parentCount) : (rawSegments.length > 1 ? [rawSegments[0]] : ["general"]);
+    } else {
+      // Default: All levels (all parent segments except the leaf)
+      groupSegments = rawSegments.length > 1 ? rawSegments.slice(0, rawSegments.length - 1) : ["general"];
+    }
 
     let currentMap = rootMap;
     let currentPath = "";
