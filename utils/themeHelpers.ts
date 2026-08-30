@@ -24,11 +24,15 @@ export const GROUP_PALETTE = [
 ];
 
 /**
- * Normalizes set names for comparison (strips leading/trailing slashes, dots, lowercase)
+ * Normalizes set names for comparison (strips leading/trailing slashes, dots, .json, lowercase)
  */
 function normalizeName(name: any): string {
   const str = typeof name === "string" ? name : String(name || "");
-  return str.toLowerCase().replace(/^[./\s]+|[./\s]+$/g, "").replace(/[/\\]/g, ".");
+  return str
+    .toLowerCase()
+    .replace(/\.json$/i, "")
+    .replace(/^[./\s]+|[./\s]+$/g, "")
+    .replace(/[/\\]/g, ".");
 }
 
 /**
@@ -310,15 +314,54 @@ export interface MatrixRowData {
 }
 
 /**
- * Finds a token node by path segments in an object tree
+ * Finds a token node by path segments in an object tree with flexible root wrapper handling
  */
-function findNodeByPath(tree: any, pathSegments: string[]): any {
+function findNodeByPath(tree: any, pathSegments: string[], setName?: string): any {
+  if (!tree || typeof tree !== "object" || !pathSegments || pathSegments.length === 0) return undefined;
+
+  // 1. Direct path traversal
   let curr = tree;
+  let directMatch = true;
   for (const seg of pathSegments) {
-    if (!curr || typeof curr !== "object") return undefined;
+    if (!curr || typeof curr !== "object" || curr[seg] === undefined) {
+      directMatch = false;
+      break;
+    }
     curr = curr[seg];
   }
-  return curr;
+  if (directMatch && isTokenLeaf(curr)) {
+    return curr;
+  }
+
+  // 2. If tree has a root wrapper matching setName (e.g. tree["dark"][...pathSegments])
+  if (setName) {
+    const lastSeg = setName.split("/").pop()?.replace(/\.json$/i, "") || setName;
+    if (tree[lastSeg] && typeof tree[lastSeg] === "object") {
+      const matched = findNodeByPath(tree[lastSeg], pathSegments);
+      if (isTokenLeaf(matched)) return matched;
+    }
+    if (tree[setName] && typeof tree[setName] === "object") {
+      const matched = findNodeByPath(tree[setName], pathSegments);
+      if (isTokenLeaf(matched)) return matched;
+    }
+  }
+
+  // 3. Check if first segment of pathSegments is a root wrapper not present in this tree
+  if (pathSegments.length > 1) {
+    let subCurr = tree;
+    let subMatch = true;
+    for (let i = 1; i < pathSegments.length; i++) {
+      const seg = pathSegments[i];
+      if (!subCurr || typeof subCurr !== "object" || subCurr[seg] === undefined) {
+        subMatch = false;
+        break;
+      }
+      subCurr = subCurr[seg];
+    }
+    if (subMatch && isTokenLeaf(subCurr)) return subCurr;
+  }
+
+  return undefined;
 }
 
 /**
@@ -379,14 +422,22 @@ export function buildThemeMatrix(
     optionSetsMap.set(String(option?.name || ""), { enabledSets, sourceSets });
   });
 
-  // If no enabled sets were specified for this group, matrix is empty (do not scan source sets)
+  // If no enabled sets were specified for this group, fallback to sourceSets if available
+  if (groupSetKeys.size === 0) {
+    optionSetsMap.forEach(({ sourceSets }) => {
+      sourceSets.forEach(({ setName }) => {
+        groupSetKeys.add(setName);
+      });
+    });
+  }
+
   if (groupSetKeys.size === 0) {
     return [];
   }
 
   const setsToScanKeys = Array.from(groupSetKeys);
 
-  // 2. Gather unique token keys ONLY from the enabled sets belonging to this Theme Group
+  // 2. Gather unique token keys from the sets belonging to this Theme Group
   const groupTokensMap = new Map<
     string,
     { type: TokenType; group: string; pathSegments: string[] }
@@ -400,12 +451,25 @@ export function buildThemeMatrix(
       if (!node || typeof node !== "object") return;
 
       if (isTokenLeaf(node)) {
-        const tokenKey = currentPath.join(".");
+        // Strip leading set name wrapper if setTree wrapped tokens with set name
+        let logicalPath = currentPath;
+        const normSet = normalizeName(setName);
+        const firstSegNorm = currentPath.length > 1 ? normalizeName(currentPath[0]) : "";
+        if (
+          firstSegNorm &&
+          (firstSegNorm === normSet ||
+            normSet.endsWith(`.${firstSegNorm}`) ||
+            firstSegNorm === normalizeName(setName.split("/").pop() || ""))
+        ) {
+          logicalPath = currentPath.slice(1);
+        }
+
+        const tokenKey = logicalPath.join(".");
         if (!groupTokensMap.has(tokenKey)) {
           groupTokensMap.set(tokenKey, {
-            type: getLeafType(node, currentPath),
-            group: currentPath[0] || "general",
-            pathSegments: currentPath,
+            type: getLeafType(node, logicalPath),
+            group: logicalPath[0] || "general",
+            pathSegments: logicalPath,
           });
         }
         return;
@@ -420,7 +484,7 @@ export function buildThemeMatrix(
     collectKeys(setTree, []);
   });
 
-  // 3. For each token, populate cells for each option in this group from its enabled sets
+  // 3. For each token, populate cells for each option in this group from its enabled sets (or source sets)
   const rows: MatrixRowData[] = [];
 
   groupTokensMap.forEach(({ type, group: tokenGroup, pathSegments }, tokenKey) => {
@@ -431,15 +495,17 @@ export function buildThemeMatrix(
       let foundLeaf: any = undefined;
       let foundSetName: string = "";
 
-      // Search exclusively in the option's enabled token sets
-      if (sets?.enabledSets) {
-        for (const { setName, setTree } of sets.enabledSets) {
-          const node = findNodeByPath(setTree, pathSegments);
-          if (isTokenLeaf(node)) {
-            foundLeaf = node;
-            foundSetName = setName;
-            break;
-          }
+      const targetSets =
+        sets?.enabledSets && sets.enabledSets.length > 0
+          ? sets.enabledSets
+          : sets?.sourceSets || [];
+
+      for (const { setName, setTree } of targetSets) {
+        const node = findNodeByPath(setTree, pathSegments, setName);
+        if (isTokenLeaf(node)) {
+          foundLeaf = node;
+          foundSetName = setName;
+          break;
         }
       }
 

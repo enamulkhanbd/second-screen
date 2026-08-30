@@ -223,53 +223,64 @@ export const SecondarySidebar: React.FC = () => {
 
           {/* Theme Groups List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
-            {themeGroups.map((grp) => (
-              <div key={grp.id} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold text-foreground">
-                  <div className="flex items-center gap-2 truncate">
-                    <span
-                      className="size-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: grp.color }}
-                    />
-                    <span className="truncate uppercase tracking-wider text-[11px] text-muted-foreground">
-                      {grp.name}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setAddModalGroupId(grp.id)}
-                    className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    title="Add Theme Option / Mode"
+            {themeGroups.map((grp) => {
+              const isGroupActive = activeThemeGroupId === grp.id;
+              return (
+                <div key={grp.id} className="space-y-1.5">
+                  <div
+                    onClick={() => setActiveThemeGroup(grp.id)}
+                    className={`flex items-center justify-between text-xs font-bold rounded-md px-1.5 py-1 cursor-pointer transition-colors ${
+                      isGroupActive ? "bg-muted/70 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
                   >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
+                    <div className="flex items-center gap-2 truncate">
+                      <span
+                        className="size-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: grp.color }}
+                      />
+                      <span className="truncate uppercase tracking-wider text-[11px] font-bold">
+                        {grp.name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAddModalGroupId(grp.id);
+                      }}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      title="Add Theme Option / Mode"
+                    >
+                      <Plus className="size-3.5" />
+                    </button>
+                  </div>
 
-                <div className="space-y-1">
-                  {grp.options.map((opt) => {
-                    const isSelected = activeThemeGroupId === grp.id && activeThemeOptionId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => {
-                          setActiveThemeGroup(grp.id);
-                          setActiveThemeOption(opt.id);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
-                        }`}
-                      >
-                        <span className="truncate">{opt.name}</span>
-                        {isSelected && (
-                          <span className="size-1.5 rounded-full bg-primary-foreground flex-shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
+                  <div className="space-y-1">
+                    {grp.options.map((opt) => {
+                      const isSelected = activeThemeGroupId === grp.id && activeThemeOptionId === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => {
+                            setActiveThemeGroup(grp.id);
+                            setActiveThemeOption(opt.id);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+                          }`}
+                        >
+                          <span className="truncate">{opt.name}</span>
+                          {isSelected && (
+                            <span className="size-1.5 rounded-full bg-primary-foreground flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
