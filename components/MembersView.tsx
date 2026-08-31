@@ -90,11 +90,21 @@ export const MembersView: React.FC = () => {
 
   const userRole = getCurrentUserRole();
   const isOwner = currentOrg?.ownerUid === currentUser?.uid;
-  const canManageMembers = isOwner || userRole === "admin";
+  const canManageRoles = isOwner || userRole === "admin";
+  const canInvite = isOwner || userRole === "admin" || userRole === "editor";
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
+
+    if (!canInvite) {
+      addToast({
+        type: "error",
+        title: "Permission Denied",
+        message: "Viewer role cannot send invitations.",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -121,6 +131,14 @@ export const MembersView: React.FC = () => {
 
   const handleRoleChange = async (memberEmail: string, newRole: UserRole) => {
     if (!currentOrg) return;
+    if (!canManageRoles) {
+      addToast({
+        type: "error",
+        title: "Permission Denied",
+        message: "Only Admin and Owner can change member roles.",
+      });
+      return;
+    }
     const member = currentOrg.members?.find((m) => m.email === memberEmail);
     if (!member) return;
 
@@ -478,7 +496,7 @@ export const MembersView: React.FC = () => {
         {membersSubTab === "members" && (
           <div className="space-y-8">
             {/* Section 1: Invite New Member */}
-            {canManageMembers && (
+            {canInvite && (
               <form onSubmit={handleSendInvite} className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-border/70 pb-3">
                   <div>
@@ -515,9 +533,11 @@ export const MembersView: React.FC = () => {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">
-                          <span className="font-semibold text-xs">Admin</span>
-                        </SelectItem>
+                        {canManageRoles && (
+                          <SelectItem value="admin">
+                            <span className="font-semibold text-xs">Admin</span>
+                          </SelectItem>
+                        )}
                         <SelectItem value="editor">
                           <span className="font-semibold text-xs">Editor</span>
                         </SelectItem>
@@ -605,7 +625,7 @@ export const MembersView: React.FC = () => {
                           <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
                             Owner
                           </Badge>
-                        ) : canManageMembers ? (
+                        ) : canManageRoles ? (
                           <Select
                             value={member.role}
                             onValueChange={(val: any) => handleRoleChange(member.email, val as UserRole)}
@@ -632,7 +652,7 @@ export const MembersView: React.FC = () => {
                         )}
 
                         {/* Remove Action */}
-                        {canManageMembers && !isMemberOwner && !isCurrentUser && (
+                        {canManageRoles && !isMemberOwner && !isCurrentUser && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -762,7 +782,7 @@ export const MembersView: React.FC = () => {
                           </>
                         )}
 
-                        {canManageMembers && (
+                        {canManageRoles && (
                           <Button
                             variant="ghost"
                             size="sm"

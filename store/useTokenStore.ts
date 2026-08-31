@@ -97,6 +97,8 @@ interface TokenStoreState {
   removeMemberAction: (memberEmailOrUid: string) => Promise<void>;
   getCurrentUserRole: () => UserRole;
   canUserEdit: () => boolean;
+  canUserInvite: () => boolean;
+  canManageRoles: () => boolean;
 
   // Git Credentials
   credentials: GitCredentials;
@@ -330,17 +332,34 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   getCurrentUserRole: () => {
     const { currentOrg, currentUser } = get();
-    if (!currentOrg || !currentUser) return "viewer";
+    if (!currentUser) {
+      return isFirebaseConfigured ? "viewer" : "admin";
+    }
+    if (!currentOrg) return "admin";
     if (currentOrg.ownerUid === currentUser.uid) return "owner";
     const member = currentOrg.members?.find(
-      (m) => m.uid === currentUser.uid || (currentUser.email && m?.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
+      (m) =>
+        m.uid === currentUser.uid ||
+        (currentUser.email &&
+          m?.email &&
+          m.email.toLowerCase() === currentUser.email.toLowerCase())
     );
     return member?.role || "viewer";
   },
 
   canUserEdit: () => {
     const role = get().getCurrentUserRole();
-    return role !== "viewer";
+    return role === "owner" || role === "admin" || role === "editor";
+  },
+
+  canUserInvite: () => {
+    const role = get().getCurrentUserRole();
+    return role === "owner" || role === "admin" || role === "editor";
+  },
+
+  canManageRoles: () => {
+    const role = get().getCurrentUserRole();
+    return role === "owner" || role === "admin";
   },
 
   setCurrentOrg: async (org) => {
@@ -857,6 +876,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   desyncFigmaVariablesAction: async () => {
+    if (!get().canUserEdit()) {
+      get().addToast({ type: "info", title: "Read-Only Access", message: "Viewer role cannot de-sync Figma variables." });
+      return;
+    }
     const { currentOrg, currentProject, addToast } = get();
     set({
       figmaVariables: null,
@@ -875,6 +898,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   deleteFigmaVariableAction: async (setName: string, tokenPath: string[]) => {
+    if (!get().canUserEdit()) {
+      get().addToast({ type: "info", title: "Read-Only Access", message: "Viewer role cannot delete variables." });
+      return;
+    }
     const { figmaVariables, currentOrg, currentProject, addToast } = get();
     if (!figmaVariables) return;
     const cloned = JSON.parse(JSON.stringify(figmaVariables));
@@ -904,6 +931,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   deleteFigmaCollectionAction: async (setName: string) => {
+    if (!get().canUserEdit()) {
+      get().addToast({ type: "info", title: "Read-Only Access", message: "Viewer role cannot delete collections." });
+      return;
+    }
     const { figmaVariables, currentOrg, currentProject, addToast } = get();
     if (!figmaVariables) return;
     const cloned = JSON.parse(JSON.stringify(figmaVariables));
@@ -932,6 +963,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setAssets: (assets) => set({ assets }),
 
   uploadAssets: async (newAssets) => {
+    if (!get().canUserEdit()) {
+      get().addToast({ type: "info", title: "Read-Only Access", message: "Viewer role cannot upload assets." });
+      return;
+    }
     const { currentOrg, currentProject, assets, addToast } = get();
     const now = new Date().toISOString();
     const created: ProjectAsset[] = newAssets.map((a) => ({
@@ -1644,6 +1679,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setResolvedTokens: (tokens) => set({ resolvedTokens: tokens }),
 
   updateSingleToken: (path, newValue) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot modify design tokens.",
+      });
+      return;
+    }
     const { rawTokens, activeSet } = get();
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
     const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
@@ -1660,6 +1703,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   updateSetJson: (setName, newJsonContent) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot modify design tokens.",
+      });
+      return;
+    }
     const { rawTokens, activeSet } = get();
     const updatedRaw = {
       ...rawTokens,
@@ -1718,6 +1769,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }),
 
   addThemeOption: (params) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot add theme options.",
+      });
+      return;
+    }
     const { rawTokens, themeGroups, activeSet } = get();
     const targetGroup =
       themeGroups.find((g) => g.id === params.groupId) ||
@@ -1818,6 +1877,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   updateThemeGroup: (groupId, newName, newColor) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot edit theme groups.",
+      });
+      return;
+    }
     const { rawTokens, themeGroups, activeSet } = get();
     const targetGroup =
       themeGroups.find((g) => g.id === groupId) ||
@@ -1892,6 +1959,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   duplicateThemeGroup: (groupId) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot duplicate theme groups.",
+      });
+      return;
+    }
     const { rawTokens, themeGroups, activeSet } = get();
     const targetGroup = themeGroups.find((g) => g.id === groupId);
     if (!targetGroup) return;
@@ -1963,6 +2038,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   deleteThemeGroup: (groupId) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot delete theme groups.",
+      });
+      return;
+    }
     const { rawTokens, themeGroups, activeSet } = get();
     const targetGroup = themeGroups.find((g) => g.id === groupId);
     if (!targetGroup) return;
@@ -2036,6 +2119,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   addNewToken: (setName, tokenPath, tokenData) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot add design tokens.",
+      });
+      return;
+    }
     const { rawTokens, activeSet } = get();
     const fullPath = [setName, ...tokenPath];
     const updatedRawDoc = createTokenAtKeyPath(rawTokens, fullPath, tokenData);
@@ -2059,6 +2150,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   deleteToken: (setName, tokenPath) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot delete design tokens.",
+      });
+      return;
+    }
     const { rawTokens, activeSet } = get();
     const fullPath = [setName, ...tokenPath];
     const updatedRawDoc = deleteTokenAtKeyPath(rawTokens, fullPath);
@@ -2082,6 +2181,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   duplicateToken: (setName, tokenPath, newName) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot duplicate design tokens.",
+      });
+      return;
+    }
     const { rawTokens, activeSet, resolvedTokens } = get();
     const existingName = tokenPath.join(".");
     const existing = resolvedTokens.find((t) => t.setName === setName && t.name === existingName);
@@ -2114,6 +2221,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   addNewSet: (setName) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot add token sets.",
+      });
+      return;
+    }
     const { rawTokens, activeSet } = get();
     const cleanName = setName.trim();
     if (!cleanName || rawTokens[cleanName]) return;
@@ -2140,6 +2255,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   deleteSet: (setName) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot delete token sets.",
+      });
+      return;
+    }
     const { rawTokens, activeSet } = get();
     const updatedRawDoc = deleteTokenSet(rawTokens, setName);
     const remainingSets = Object.keys(updatedRawDoc).filter((k) => !k.startsWith("$"));

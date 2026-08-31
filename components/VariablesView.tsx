@@ -240,15 +240,17 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
         <div className="flex items-center gap-2">
           {hasVariables && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDesyncModalOpen(true)}
-                className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-              >
-                <Unlink className="w-3.5 h-3.5" />
-                <span>De-sync Figma</span>
-              </Button>
+              {canUserEdit() && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDesyncModalOpen(true)}
+                  className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                >
+                  <Unlink className="w-3.5 h-3.5" />
+                  <span>De-sync Figma</span>
+                </Button>
+              )}
 
               <Button
                 variant="outline"

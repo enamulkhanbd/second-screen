@@ -46,12 +46,16 @@ export function safeParseObject(val: any): Record<string, any> | null {
   return null;
 }
 
+import { useTokenStore } from "@/store/useTokenStore";
+
 export const TokenRawValueCell: React.FC<{
   token: FlattenedToken;
   onUpdate: (path: string[], newValue: string | Record<string, any>) => void;
 }> = ({ token, onUpdate }) => {
+  const { canUserEdit, addToast } = useTokenStore();
   const [localVal, setLocalVal] = useState(token.rawValue);
   const [isSaved, setIsSaved] = useState(false);
+  const isEditable = canUserEdit();
 
   React.useEffect(() => {
     setLocalVal(token.rawValue);
@@ -61,6 +65,14 @@ export const TokenRawValueCell: React.FC<{
   const isTypographyComposite = token.type === "typography" && rawObj !== null;
 
   const handleStringChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isEditable) {
+      addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot edit tokens.",
+      });
+      return;
+    }
     const newVal = e.target.value;
     setLocalVal(newVal);
     onUpdate(token.path, newVal);
@@ -113,9 +125,13 @@ export const TokenRawValueCell: React.FC<{
           type="text"
           value={localVal}
           onChange={handleStringChange}
+          disabled={!isEditable}
+          readOnly={!isEditable}
           placeholder="e.g. #3b82f6 or {colors.brand.500}"
           className={`w-full font-mono text-xs px-3 py-1.5 rounded-md border transition-all outline-none ${
-            token.isAlias
+            !isEditable
+              ? "border-border/60 bg-muted/20 text-foreground cursor-default select-text"
+              : token.isAlias
               ? "border-primary/40 text-primary bg-primary/5 focus:border-primary focus:ring-1 focus:ring-primary"
               : "border-input bg-transparent text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring"
           }`}

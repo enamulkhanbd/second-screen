@@ -576,29 +576,33 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                 </span>
               </div>
 
-              <DropdownMenuItem
-                onClick={() => setShowAddOptionModal(true)}
-                className="gap-2 text-xs"
-              >
-                <Plus className="w-3.5 h-3.5 text-primary" />
-                <span>Add theme option</span>
-              </DropdownMenuItem>
+              {canUserEdit() && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => setShowAddOptionModal(true)}
+                    className="gap-2 text-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-primary" />
+                    <span>Add theme option</span>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => setShowEditGroupModal(true)}
-                className="gap-2 text-xs"
-              >
-                <Pencil className="w-3.5 h-3.5 text-blue-500" />
-                <span>Rename & edit color</span>
-              </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowEditGroupModal(true)}
+                    className="gap-2 text-xs"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Rename & edit color</span>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => activeGroup && duplicateThemeGroup(activeGroup.id)}
-                className="gap-2 text-xs"
-              >
-                <Copy className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Duplicate theme group</span>
-              </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => activeGroup && duplicateThemeGroup(activeGroup.id)}
+                    className="gap-2 text-xs"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Duplicate theme group</span>
+                  </DropdownMenuItem>
+                </>
+              )}
 
               <DropdownMenuItem
                 onClick={() => {
@@ -618,16 +622,19 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                 <span>Copy group JSON</span>
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={themeGroups.length <= 1}
-                className="gap-2 text-xs text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete theme group</span>
-              </DropdownMenuItem>
+              {canUserEdit() && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={themeGroups.length <= 1}
+                    className="gap-2 text-xs text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete theme group</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1067,7 +1074,8 @@ const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
   onEdit,
   onDelete,
 }) => {
-  const { resolvedTokens, addToast } = useTokenStore();
+  const { resolvedTokens, addToast, canUserEdit } = useTokenStore();
+  const isEditable = canUserEdit();
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
   const targetToken: FlattenedToken = useMemo(() => {
@@ -1120,13 +1128,15 @@ const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          onClick={() => onEdit(targetToken)}
-          className="gap-2 text-xs"
-        >
-          <Edit2 className="w-3.5 h-3.5 text-primary" />
-          <span className="font-semibold">Edit token</span>
-        </DropdownMenuItem>
+        {isEditable && (
+          <DropdownMenuItem
+            onClick={() => onEdit(targetToken)}
+            className="gap-2 text-xs"
+          >
+            <Edit2 className="w-3.5 h-3.5 text-primary" />
+            <span className="font-semibold">Edit token</span>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem
           onClick={() => handleCopy(row.tokenKey, "name")}
@@ -1150,19 +1160,22 @@ const MatrixRowActionMenu: React.FC<MatrixRowActionMenuProps> = ({
           {copiedType === "css" && <Check className="w-3 h-3 text-emerald-500" />}
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={() => {
-            if (confirm(`Delete token "${row.tokenKey}"?`)) {
-              onDelete(targetToken);
-            }
-          }}
-          className="gap-2 text-xs text-destructive focus:text-destructive"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Delete token</span>
-        </DropdownMenuItem>
+        {isEditable && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                if (confirm(`Delete token "${row.tokenKey}"?`)) {
+                  onDelete(targetToken);
+                }
+              }}
+              className="gap-2 text-xs text-destructive focus:text-destructive"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete token</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -1187,6 +1200,8 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = React.memo(({
   optionName,
   onUpdate,
 }) => {
+  const { canUserEdit } = useTokenStore();
+  const isEditable = canUserEdit();
   const [isEditing, setIsEditing] = useState(false);
   const [val, setVal] = useState(cellData?.rawValue || "");
   const [showTypographyModal, setShowTypographyModal] = useState(false);
@@ -1256,7 +1271,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = React.memo(({
         <div
           onClick={() => setShowTypographyModal(true)}
           className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-accent/40 transition-all max-w-sm w-full cursor-pointer shadow-xs min-h-[34px]"
-          title="Click to inspect/edit typography token properties"
+          title={isEditable ? "Click to inspect/edit typography token properties" : "Click to inspect typography token properties"}
         >
           {/* Left: Aa Badge */}
           <div className="w-5 h-5 rounded flex items-center justify-center bg-primary/10 text-primary border border-primary/20 text-xs font-serif font-bold flex-shrink-0">
@@ -1275,6 +1290,7 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = React.memo(({
             tokenKey={tokenKey}
             optionName={optionName}
             typoObj={typoObj}
+            isReadOnly={!isEditable}
             onClose={() => setShowTypographyModal(false)}
             onSave={(newObj) => {
               onUpdate(cellData.tokenPath, JSON.stringify(newObj));
@@ -1347,8 +1363,12 @@ const MatrixPillCell: React.FC<MatrixPillCellProps> = React.memo(({
         />
       ) : (
         <span
-          onClick={() => setIsEditing(true)}
-          className="flex-1 font-mono text-[13px] text-foreground group-hover:text-primary truncate cursor-text select-text font-medium"
+          onClick={() => {
+            if (isEditable) setIsEditing(true);
+          }}
+          className={`flex-1 font-mono text-[13px] text-foreground group-hover:text-primary truncate select-text font-medium ${
+            isEditable ? "cursor-text" : "cursor-default"
+          }`}
           title={`Raw: ${cellData.rawValue} | Computed: ${cellData.resolvedValue}`}
         >
           {typeof cellData.rawValue === "object" ? JSON.stringify(cellData.rawValue) : String(cellData.rawValue ?? "")}
@@ -1362,6 +1382,7 @@ interface TypographyModalProps {
   tokenKey: string;
   optionName: string;
   typoObj: Record<string, string>;
+  isReadOnly?: boolean;
   onClose: () => void;
   onSave: (newObj: Record<string, string>) => void;
 }
@@ -1370,6 +1391,7 @@ const TypographyModal: React.FC<TypographyModalProps> = ({
   tokenKey,
   optionName,
   typoObj,
+  isReadOnly = false,
   onClose,
   onSave,
 }) => {
@@ -1378,56 +1400,55 @@ const TypographyModal: React.FC<TypographyModalProps> = ({
     while (typeof v === "object" && v !== null && ("value" in v || "$value" in v)) {
       v = v.value !== undefined ? v.value : v.$value;
     }
-    return typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+    return String(v ?? "");
   };
 
   const [form, setForm] = useState<Record<string, string>>({
     fontFamily: extractField(typoObj.fontFamily),
-    fontWeight: extractField(typoObj.fontWeight),
     fontSize: extractField(typoObj.fontSize),
+    fontWeight: extractField(typoObj.fontWeight),
     lineHeight: extractField(typoObj.lineHeight),
     letterSpacing: extractField(typoObj.letterSpacing),
-    paragraphSpacing: extractField(typoObj.paragraphSpacing),
-    textCase: extractField(typoObj.textCase),
-    textDecoration: extractField(typoObj.textDecoration),
   });
 
   const fields = [
-    { key: "fontFamily", label: "Font Family", placeholder: "e.g. {font-families.primary}" },
-    { key: "fontWeight", label: "Font Weight", placeholder: "e.g. {font-weights.regular} or 400" },
-    { key: "fontSize", label: "Font Size", placeholder: "e.g. {font-sizes.base} or 16px" },
-    { key: "lineHeight", label: "Line Height", placeholder: "e.g. {line-heights.base} or 24px" },
-    { key: "letterSpacing", label: "Letter Spacing", placeholder: "e.g. 0% or 0.5px" },
-    { key: "paragraphSpacing", label: "Paragraph Spacing", placeholder: "e.g. 0px" },
-    { key: "textCase", label: "Text Case", placeholder: "none, uppercase, lowercase" },
-    { key: "textDecoration", label: "Text Decoration", placeholder: "none, underline" },
+    { key: "fontFamily", label: "Font Family", placeholder: "e.g. Inter, sans-serif" },
+    { key: "fontSize", label: "Font Size", placeholder: "e.g. 16px, 1rem, {fontSize.base}" },
+    { key: "fontWeight", label: "Font Weight", placeholder: "e.g. 400, 600, Bold" },
+    { key: "lineHeight", label: "Line Height", placeholder: "e.g. 1.5, 24px, 150%" },
+    { key: "letterSpacing", label: "Letter Spacing", placeholder: "e.g. 0.02em, 0px" },
   ];
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/40">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Type className="w-4 h-4" />
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-serif font-bold text-sm">
+              Aa
             </div>
             <div>
-              <DialogTitle className="font-mono text-sm">{tokenKey}</DialogTitle>
-              <DialogDescription className="text-xs">
-                Typography composite token for {optionName}
+              <DialogTitle className="text-sm font-bold font-mono">
+                {tokenKey}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                {isReadOnly ? "Inspect properties for option " : "Configure composite properties for option "}
+                <span className="font-semibold text-foreground">"{optionName}"</span>
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Form Body */}
-        <div className="p-6 space-y-3 overflow-y-auto flex-1 font-mono text-xs">
+        <div className="p-6 space-y-3.5 max-h-[60vh] overflow-y-auto">
           {fields.map(({ key, label, placeholder }) => (
-            <div key={key} className="grid grid-cols-3 items-center gap-3">
-              <Label className="font-sans text-xs">{label}</Label>
+            <div key={key} className="grid grid-cols-3 items-center gap-2">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                {label}
+              </Label>
               <Input
-                type="text"
                 value={form[key] || ""}
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
                 placeholder={placeholder}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 className="col-span-2 text-xs"
@@ -1443,17 +1464,19 @@ const TypographyModal: React.FC<TypographyModalProps> = ({
             size="sm"
             onClick={onClose}
           >
-            Cancel
+            {isReadOnly ? "Close" : "Cancel"}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => onSave(form)}
-            className="gap-1.5"
-          >
-            <Check className="w-3.5 h-3.5" />
-            Save Typography
-          </Button>
+          {!isReadOnly && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onSave(form)}
+              className="gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5" />
+              Save Typography
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

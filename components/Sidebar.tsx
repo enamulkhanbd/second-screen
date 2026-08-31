@@ -68,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     releases,
     addToast,
     getCurrentUserRole,
+    canUserEdit,
   } = useTokenStore();
 
   const [showCreateProj, setShowCreateProj] = useState(false);
@@ -149,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             {/* Expand Button */}
             <button
               onClick={() => setIsCollapsed(false)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
               title="Expand Sidebar"
             >
               <PanelLeftOpen className="size-4" />
@@ -160,9 +161,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex-1 min-w-0 flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-sidebar-accent transition-colors text-left group">
+                <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent transition-all text-left flex-1 min-w-0 group cursor-pointer">
+                  {/* Organization Avatar */}
                   <div
-                    className="flex aspect-square size-8 items-center justify-center rounded-lg text-white font-bold text-sm shadow-xs flex-shrink-0"
+                    className="flex size-8 items-center justify-center rounded-lg text-white font-bold text-xs flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
                     style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
                   >
                     {currentOrg?.logoUrl ? (
@@ -171,24 +173,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                       <span>{currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "🏢"}</span>
                     )}
                   </div>
-                  <div className="grid flex-1 text-left leading-tight truncate">
-                    <span className="truncate font-bold text-xs text-sidebar-foreground">
-                      {currentOrg?.name || "Select Workspace"}
-                    </span>
-                    <span className="truncate text-[11px] text-muted-foreground flex items-center gap-1">
-                      <span>{currentProject?.icon || "🎯"}</span>
-                      <span className="truncate">{currentProject?.name || "Select Project"}</span>
-                    </span>
+
+                  {/* Org and Project Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs truncate text-sidebar-foreground">
+                        {currentOrg?.name || "Select Workspace"}
+                      </span>
+                      {userRole === "owner" && (
+                        <Crown className="size-3 text-amber-500 flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
+                      <span className="truncate font-medium">{currentProject?.name || "Project"}</span>
+                      {userRole && (
+                        <>
+                          <span>•</span>
+                          <span className="capitalize text-[10px]">{userRole}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <ChevronsUpDown className="ml-auto size-3.5 text-muted-foreground group-hover:text-sidebar-foreground flex-shrink-0" />
+
+                  <ChevronsUpDown className="size-3.5 text-muted-foreground group-hover:text-sidebar-foreground transition-colors flex-shrink-0" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-64 rounded-xl p-1.5 font-sans"
-                align="start"
-                sideOffset={6}
-              >
-                {/* Organizations List */}
+
+              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans" align="start">
                 <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-2 py-1">
                   Workspaces ({userOrgs.length})
                 </DropdownMenuLabel>
@@ -219,13 +230,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
                   <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                     Projects ({orgProjects.length})
                   </span>
-                  <button
-                    onClick={() => setShowCreateProj(true)}
-                    className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
-                  >
-                    <Plus className="size-3" />
-                    <span>New</span>
-                  </button>
+                  {canUserEdit() && (
+                    <button
+                      onClick={() => setShowCreateProj(true)}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
+                    >
+                      <Plus className="size-3" />
+                      <span>New</span>
+                    </button>
+                  )}
                 </div>
                 {orgProjects.map((proj) => {
                   const isSelected = proj.id === currentProject?.id;

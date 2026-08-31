@@ -824,6 +824,8 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
   onDuplicate,
   onDelete,
 }) => {
+  const { canUserEdit } = useTokenStore();
+  const isEditable = canUserEdit();
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
   const handleCopy = (text: string, type: string) => {
@@ -902,26 +904,30 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={onEdit}
-                className="gap-2 text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5 text-primary" />
-                <span className="font-semibold">Edit token</span>
-              </DropdownMenuItem>
+              {isEditable && (
+                <>
+                  <DropdownMenuItem
+                    onClick={onEdit}
+                    className="gap-2 text-xs"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-primary" />
+                    <span className="font-semibold">Edit token</span>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => {
-                  const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
-                  if (newName && newName.trim()) {
-                    onDuplicate(newName.trim());
-                  }
-                }}
-                className="gap-2 text-xs"
-              >
-                <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Duplicate token</span>
-              </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
+                      if (newName && newName.trim()) {
+                        onDuplicate(newName.trim());
+                      }
+                    }}
+                    className="gap-2 text-xs"
+                  >
+                    <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Duplicate token</span>
+                  </DropdownMenuItem>
+                </>
+              )}
 
               <DropdownMenuItem
                 onClick={() => handleCopy(cssVarName, "var")}
@@ -939,19 +945,22 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
                 <span>Copy token name</span>
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
-                    onDelete();
-                  }
-                }}
-                className="gap-2 text-xs text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete token</span>
-              </DropdownMenuItem>
+              {isEditable && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
+                        onDelete();
+                      }
+                    }}
+                    className="gap-2 text-xs text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete token</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

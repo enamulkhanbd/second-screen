@@ -68,8 +68,10 @@ export const ReleasesWorkspace: React.FC = () => {
     compilerConfig,
     publishReleaseToTargets,
     addToast,
+    canUserEdit,
   } = useTokenStore();
 
+  const isEditable = canUserEdit();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isManageTargetsOpen, setIsManageTargetsOpen] = useState(false);
   const [isCompilerConfigOpen, setIsCompilerConfigOpen] = useState(false);
@@ -186,10 +188,12 @@ export const ReleasesWorkspace: React.FC = () => {
         <p className="text-xs text-muted-foreground max-w-md mt-1 mb-6">
           Compile your design tokens into production-ready packages for Tailwind CSS, CSS Variables, React TypeScript, Flutter Dart, Swift, and Android XML.
         </p>
-        <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2 text-xs font-bold">
-          <Plus className="w-4 h-4" />
-          <span>Create First Release</span>
-        </Button>
+        {isEditable && (
+          <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2 text-xs font-bold">
+            <Plus className="w-4 h-4" />
+            <span>Create First Release</span>
+          </Button>
+        )}
         <CreateReleaseModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
@@ -277,14 +281,16 @@ export const ReleasesWorkspace: React.FC = () => {
             <span>Download All (ZIP)</span>
           </Button>
 
-          <Button
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="gap-1.5 text-xs font-bold"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Release</span>
-          </Button>
+          {isEditable && (
+            <Button
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="gap-1.5 text-xs font-bold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Release</span>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -506,7 +512,7 @@ export const ReleasesWorkspace: React.FC = () => {
           </div>
 
           {/* Publish Trigger Button */}
-          {distributionTargets.length > 0 && (
+          {distributionTargets.length > 0 && isEditable && (
             <Button
               onClick={handlePublishToTargets}
               disabled={isPublishing || selectedTargetIds.length === 0}
@@ -567,21 +573,23 @@ export const ReleasesWorkspace: React.FC = () => {
           )}
 
           {/* Delete Active Release */}
-          <div className="pt-4 border-t border-border">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (confirm(`Delete release ${activeRelease.version}?`)) {
-                  deleteRelease(activeRelease.id);
-                }
-              }}
-              className="w-full text-xs text-muted-foreground hover:text-destructive gap-1.5 h-8"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete This Release</span>
-            </Button>
-          </div>
+          {isEditable && (
+            <div className="pt-4 border-t border-border">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`Delete release ${activeRelease.version}?`)) {
+                    deleteRelease(activeRelease.id);
+                  }
+                }}
+                className="w-full text-xs text-muted-foreground hover:text-destructive gap-1.5 h-8"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete This Release</span>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

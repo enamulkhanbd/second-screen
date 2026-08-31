@@ -99,6 +99,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     currentUser,
     setCurrentUser,
     getCurrentUserRole,
+    canUserEdit,
     figmaVariables,
     figmaResolvedVariables,
     figmaUpdatedAt,
@@ -675,18 +676,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 )}
               </div>
 
-              {/* Push Button - Disabled when there are no local changes */}
+              {/* Push Button - Disabled when there are no local changes or user is viewer */}
               <Button
-                variant={isDirty ? "default" : "outline"}
+                variant={isDirty && canUserEdit() ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowPushModal(true)}
-                disabled={!isDirty || isPushing}
-                className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty
+                disabled={!isDirty || isPushing || !canUserEdit()}
+                className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty || !canUserEdit()
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
                   }`}
                 title={
-                  isDirty
+                  !canUserEdit()
+                    ? "Viewer role cannot push changes"
+                    : isDirty
                     ? `Review diff and push changes directly to ${credentials.branch || "branch"}`
                     : "No local changes to push"
                 }

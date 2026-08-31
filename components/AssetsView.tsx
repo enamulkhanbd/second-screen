@@ -804,23 +804,27 @@ export const AssetsView: React.FC = () => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 text-xs">
-              <DropdownMenuItem
-                onClick={() => {
-                  setReplacingAssetId(icon.id);
-                  replaceInputRef.current?.click();
-                }}
-                className="gap-2 cursor-pointer text-xs"
-              >
-                <UploadCloud className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Replace SVG File</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleOpenEdit(icon)}
-                className="gap-2 cursor-pointer text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Edit Metadata</span>
-              </DropdownMenuItem>
+              {canUserEdit() && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setReplacingAssetId(icon.id);
+                      replaceInputRef.current?.click();
+                    }}
+                    className="gap-2 cursor-pointer text-xs"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Replace SVG File</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleOpenEdit(icon)}
+                    className="gap-2 cursor-pointer text-xs"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Edit Metadata</span>
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem
                 onClick={() => handleDownloadSingleSvg(icon)}
                 className="gap-2 cursor-pointer text-xs"
@@ -828,14 +832,18 @@ export const AssetsView: React.FC = () => {
                 <Download className="w-3.5 h-3.5 text-muted-foreground" />
                 <span>Download .svg</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setSingleDeleteAsset(icon)}
-                className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Icon</span>
-              </DropdownMenuItem>
+              {canUserEdit() && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSingleDeleteAsset(icon)}
+                    className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Icon</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -973,40 +981,42 @@ export const AssetsView: React.FC = () => {
           )}
 
           {/* Upload Button with Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                className="gap-1.5 h-8 text-xs font-semibold shadow-xs cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Upload Assets</span>
-                <ChevronDown className="w-3 h-3 opacity-70" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 text-xs">
-              <DropdownMenuItem
-                onClick={() => fileInputRef.current?.click()}
-                className="gap-2 cursor-pointer text-xs"
-              >
-                <UploadCloud className="w-3.5 h-3.5 text-primary" />
-                <div>
-                  <div className="font-semibold">Upload Files (.svg, .json, .zip)</div>
-                  <div className="text-[10px] text-muted-foreground">Select SVGs, metadata or ZIP</div>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => folderInputRef.current?.click()}
-                className="gap-2 cursor-pointer text-xs"
-              >
-                <FolderUp className="w-3.5 h-3.5 text-emerald-500" />
-                <div>
-                  <div className="font-semibold">Upload Entire Folder</div>
-                  <div className="text-[10px] text-muted-foreground">Preserves nested type folders</div>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {canUserEdit() && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-8 text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Upload Assets</span>
+                  <ChevronDown className="w-3 h-3 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 text-xs">
+                <DropdownMenuItem
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2 cursor-pointer text-xs"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-primary" />
+                  <div>
+                    <div className="font-semibold">Upload Files (.svg, .json, .zip)</div>
+                    <div className="text-[10px] text-muted-foreground">Select SVGs, metadata or ZIP</div>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => folderInputRef.current?.click()}
+                  className="gap-2 cursor-pointer text-xs"
+                >
+                  <FolderUp className="w-3.5 h-3.5 text-emerald-500" />
+                  <div>
+                    <div className="font-semibold">Upload Entire Folder</div>
+                    <div className="text-[10px] text-muted-foreground">Preserves nested type folders</div>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Quick Sync Button if Git is already configured */}
           {assetGitConfig && assetGitConfig.repo && (
@@ -1371,15 +1381,17 @@ export const AssetsView: React.FC = () => {
 
           <div className="h-4 w-px bg-border" />
 
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => setIsBulkDeleteOpen(true)}
-            className="h-8 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete Selected</span>
-          </Button>
+          {canUserEdit() && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="h-8 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </Button>
+          )}
 
           <Button
             size="sm"

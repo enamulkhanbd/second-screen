@@ -31,8 +31,10 @@ export const SecondarySidebar: React.FC = () => {
     activeThemeOptionId,
     setActiveThemeGroup,
     setActiveThemeOption,
+    canUserEdit,
   } = useTokenStore();
 
+  const isEditable = canUserEdit();
   const [addModalGroupId, setAddModalGroupId] = useState<string | null>(null);
   const [isAddSetOpen, setIsAddSetOpen] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
@@ -157,13 +159,15 @@ export const SecondarySidebar: React.FC = () => {
                 </Badge>
               )}
             </div>
-            <button
-              onClick={() => setIsAddSetOpen(true)}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="Add Token Set"
-            >
-              <Plus className="size-3.5" />
-            </button>
+            {isEditable && (
+              <button
+                onClick={() => setIsAddSetOpen(true)}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Add Token Set"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Search Filter */}
@@ -193,15 +197,17 @@ export const SecondarySidebar: React.FC = () => {
           </div>
 
           {/* Bottom Add Set Button */}
-          <div className="p-2 border-t border-border">
-            <button
-              onClick={() => setIsAddSetOpen(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border hover:border-primary/50 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
-            >
-              <Plus className="size-3.5" />
-              <span>Add Token Set</span>
-            </button>
-          </div>
+          {isEditable && (
+            <div className="p-2 border-t border-border">
+              <button
+                onClick={() => setIsAddSetOpen(true)}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border hover:border-primary/50 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
+              >
+                <Plus className="size-3.5" />
+                <span>Add Token Set</span>
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -242,16 +248,18 @@ export const SecondarySidebar: React.FC = () => {
                         {grp.name}
                       </span>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAddModalGroupId(grp.id);
-                      }}
-                      className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      title="Add Theme Option / Mode"
-                    >
-                      <Plus className="size-3.5" />
-                    </button>
+                    {isEditable && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAddModalGroupId(grp.id);
+                        }}
+                        className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title="Add Theme Option / Mode"
+                      >
+                        <Plus className="size-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -286,16 +294,20 @@ export const SecondarySidebar: React.FC = () => {
       )}
 
       {/* Modals */}
-      <AddSetModal
-        isOpen={isAddSetOpen}
-        onClose={() => setIsAddSetOpen(false)}
-      />
+      {isEditable && (
+        <>
+          <AddSetModal
+            isOpen={isAddSetOpen}
+            onClose={() => setIsAddSetOpen(false)}
+          />
 
-      <AddThemeOptionModal
-        isOpen={Boolean(addModalGroupId)}
-        defaultGroupId={addModalGroupId || undefined}
-        onClose={() => setAddModalGroupId(null)}
-      />
+          <AddThemeOptionModal
+            isOpen={Boolean(addModalGroupId)}
+            defaultGroupId={addModalGroupId || undefined}
+            onClose={() => setAddModalGroupId(null)}
+          />
+        </>
+      )}
     </aside>
   );
 };
