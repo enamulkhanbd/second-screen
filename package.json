@@ -1,6 +1,6 @@
 {
   "name": "tokens-platform",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -34,6 +34,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "token-transformer": "^0.0.33",
+    "vaul": "^1.1.2",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

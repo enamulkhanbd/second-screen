@@ -69,6 +69,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerClose,
+} from "@/components/ui/drawer";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -299,15 +308,24 @@ export const AssetsView: React.FC = () => {
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const [replacingAssetId, setReplacingAssetId] = useState<string | null>(null);
 
-  // Modals State
-  const [isGitConfigOpen, setIsGitConfigOpen] = useState(false);
-  const [isFigmaConfigOpen, setIsFigmaConfigOpen] = useState(false);
+  // Modals & Drawer State
+  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
+  const [drawerActiveTab, setDrawerActiveTab] = useState<"figma" | "git">("figma");
   const [editingAsset, setEditingAsset] = useState<ProjectAsset | null>(null);
   const [editFormName, setEditFormName] = useState("");
   const [editFormTitle, setEditFormTitle] = useState("");
   const [editFormType, setEditFormType] = useState("");
   const [editFormCategory, setEditFormCategory] = useState("");
   const [editFormTag, setEditFormTag] = useState("");
+
+  // Configuration status helper flags
+  const hasFigmaConfigured = Boolean(
+    assetFigmaConfig?.pat && assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0
+  );
+  const hasGitConfigured = Boolean(assetGitConfig?.repo && assetGitConfig?.pat);
+  const enabledFigmaSourcesCount = (assetFigmaConfig?.sources || []).filter(
+    (s) => s.enabled !== false && !s.isPaused
+  ).length;
 
   // Independent Git Config Form
   const [gitProvider, setGitProvider] = useState<"github" | "gitlab" | "azure" | "bitbucket">(
@@ -761,7 +779,7 @@ export const AssetsView: React.FC = () => {
       };
 
       await setAssetGitConfig(newConfig);
-      setIsGitConfigOpen(false);
+      setIsSettingsDrawerOpen(false);
       await syncAssetsFromGit();
     } catch (err: any) {
       addToast({
@@ -1150,143 +1168,59 @@ export const AssetsView: React.FC = () => {
             </DropdownMenu>
           )}
 
-          {/* Quick Sync Button if Git is already configured */}
-          {assetGitConfig && assetGitConfig.repo && (
+          {/* Figma Global Sync Button (ONLY VISIBLE WHEN FIGMA IS CONFIGURED) */}
+          {hasFigmaConfigured && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => syncAssetsFromGit()}
-              disabled={isSyncingAssets || assetGitConfig.isPaused}
-              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer ${
-                assetGitConfig.isPaused ? "opacity-60" : ""
-              }`}
-              title={
-                assetGitConfig.isPaused
-                  ? "Git sync is paused. Resume in Git Config to sync."
-                  : `Sync icons from ${assetGitConfig.repo}/${assetGitConfig.assetFolder || ""}`
-              }
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${isSyncingAssets ? "animate-spin" : ""}`} />
-              <span>{isSyncingAssets ? "Syncing..." : assetGitConfig.isPaused ? "Git Paused" : "Sync Git"}</span>
-            </Button>
-          )}
-
-          {/* Quick Sync Button for Figma Multi-Sources */}
-          {assetFigmaConfig && (assetFigmaConfig.sources?.length > 0 || assetFigmaConfig.fileUrl) && (
-            <Button
-              variant="outline"
-              size="sm"
+              disabled={isSyncingFigmaAssets || assetFigmaConfig?.isPaused}
               onClick={() => syncAllFigmaSources()}
-              disabled={isSyncingFigmaAssets || assetFigmaConfig.isPaused}
               className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer border-violet-500/30 text-violet-600 dark:text-violet-400 ${
-                assetFigmaConfig.isPaused ? "opacity-60" : ""
+                assetFigmaConfig?.isPaused ? "opacity-60" : ""
               }`}
               title={
-                assetFigmaConfig.isPaused
+                assetFigmaConfig?.isPaused
                   ? "Figma sync is paused."
-                  : `Sync all enabled Figma sources (${assetFigmaConfig.sources?.length || 1})`
+                  : `Sync all active Figma sources (${enabledFigmaSourcesCount})`
               }
             >
               <RefreshCw className={`w-3.5 h-3.5 text-violet-500 ${isSyncingFigmaAssets ? "animate-spin" : ""}`} />
               <span>
                 {isSyncingFigmaAssets
                   ? "Syncing Figma..."
-                  : assetFigmaConfig.isPaused
+                  : assetFigmaConfig?.isPaused
                   ? "Figma Paused"
-                  : `Sync Figma (${assetFigmaConfig.sources?.length || 1})`}
+                  : `Sync Figma (${enabledFigmaSourcesCount})`}
               </span>
             </Button>
           )}
 
-          {/* Figma Sources Manager Modal Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setFigmaPatInput(assetFigmaConfig?.pat || "");
-              setIsFigmaConfigOpen(true);
-            }}
-            className="gap-1.5 h-8 text-xs font-medium bg-background hover:bg-muted cursor-pointer"
-          >
-            <Figma className="w-3.5 h-3.5 text-violet-500" />
-            <span>
-              {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0
-                ? `Figma (${assetFigmaConfig.sources.length})`
-                : assetFigmaConfig?.pat
-                ? "Figma Sources"
-                : "Connect Figma"}
-            </span>
-            {assetFigmaConfig?.isPaused && (
-              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">(Paused)</span>
-            )}
-          </Button>
-
-          {/* Git Settings / Connection Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setGitProvider(assetGitConfig?.provider || "github");
-              setGitOwner(assetGitConfig?.owner || "");
-              setGitProject(assetGitConfig?.project || "");
-              setGitRepo(assetGitConfig?.repo || "");
-              setGitBranch(assetGitConfig?.branch || "main");
-              setGitFolder(assetGitConfig?.assetFolder || "icons");
-              setGitPat(assetGitConfig?.pat || "");
-              setIsGitConfigOpen(true);
-            }}
-            className="gap-1.5 h-8 text-xs font-medium bg-background hover:bg-muted cursor-pointer"
-          >
-            <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>{assetGitConfig?.repo ? `Git: ${assetGitConfig.repo}` : "Connect Git"}</span>
-            {assetGitConfig?.isPaused && (
-              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">(Paused)</span>
-            )}
-          </Button>
-
-          {/* View Options Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs font-medium cursor-pointer">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>View Options</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60 text-xs p-3 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="toggle-source-badges" className="text-xs cursor-pointer select-none">
-                  Show Source Title Badges
-                </Label>
-                <input
-                  id="toggle-source-badges"
-                  type="checkbox"
-                  checked={showSourceBadges}
-                  onChange={(e) => setShowSourceBadges(e.target.checked)}
-                  className="rounded border-border cursor-pointer h-4 w-4"
-                />
-              </div>
-
-              {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 1 && (
-                <div className="pt-2 border-t border-border/50 space-y-1">
-                  <Label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
-                    Filter By Figma Source
-                  </Label>
-                  <select
-                    value={selectedFigmaSource}
-                    onChange={(e) => setSelectedFigmaSource(e.target.value)}
-                    className="w-full h-7 text-xs bg-muted border border-border rounded px-2 text-foreground cursor-pointer focus:outline-none"
-                  >
-                    <option value="all">All Figma Sources ({displayAssets.filter(a => a.source === "figma").length})</option>
-                    {assetFigmaConfig.sources.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({displayAssets.filter((a) => a.figmaSourceId === s.id).length})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Quick Sync Button if Git is already configured */}
+          {hasGitConfigured && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncAssetsFromGit()}
+              disabled={isSyncingAssets || assetGitConfig?.isPaused}
+              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer border-emerald-500/30 text-emerald-600 dark:text-emerald-400 ${
+                assetGitConfig?.isPaused ? "opacity-60" : ""
+              }`}
+              title={
+                assetGitConfig?.isPaused
+                  ? "Git sync is paused. Resume in Git Config to sync."
+                  : `Sync icons from ${assetGitConfig?.repo}/${assetGitConfig?.assetFolder || ""}`
+              }
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${isSyncingAssets ? "animate-spin" : ""}`} />
+              <span>
+                {isSyncingAssets
+                  ? "Syncing Git..."
+                  : assetGitConfig?.isPaused
+                  ? "Git Paused"
+                  : "Sync Git"}
+              </span>
+            </Button>
+          )}
 
           {/* Download All .ZIP */}
           {filteredAssets.length > 0 && (
@@ -1301,6 +1235,31 @@ export const AssetsView: React.FC = () => {
               <span>Export ZIP</span>
             </Button>
           )}
+
+          {/* Asset Sources & Settings Drawer Trigger Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setFigmaPatInput(assetFigmaConfig?.pat || "");
+              setGitProvider(assetGitConfig?.provider || "github");
+              setGitOwner(assetGitConfig?.owner || "");
+              setGitProject(assetGitConfig?.project || "");
+              setGitRepo(assetGitConfig?.repo || "");
+              setGitBranch(assetGitConfig?.branch || "main");
+              setGitFolder(assetGitConfig?.assetFolder || "icons");
+              setGitPat(assetGitConfig?.pat || "");
+              setIsSettingsDrawerOpen(true);
+            }}
+            className="gap-1.5 h-8 text-xs font-medium bg-background hover:bg-muted cursor-pointer"
+            title="Open Asset Sources, Figma Links, Git Setup & View Options"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+            <span>Settings</span>
+            {(hasFigmaConfigured || hasGitConfigured) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-0.5" />
+            )}
+          </Button>
         </div>
       </header>
 
@@ -1430,7 +1389,7 @@ export const AssetsView: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto p-6 pb-24 space-y-6">
             {displayAssets.length === 0 ? (
-              /* High-Value Onboarding Empty State */
+              /* High-Value Onboarding Setup Guide Empty State */
               <div className="max-w-5xl mx-auto py-8 space-y-8 animate-in fade-in duration-300">
                 <div className="text-center space-y-2 max-w-xl mx-auto">
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3 shadow-inner">
@@ -1460,7 +1419,7 @@ export const AssetsView: React.FC = () => {
                         <UploadCloud className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-foreground">Upload SVG or ZIP</h3>
+                        <h3 className="text-sm font-bold text-foreground">Upload SVG, Folder, or ZIP</h3>
                         <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                           Drag and drop nested type folders (e.g. <code className="font-mono text-primary">stroke/</code>, <code className="font-mono text-primary">twotone/</code>), a <code className="font-mono text-primary">.zip</code> archive, or <code className="font-mono text-primary">metadata.json</code>.
                         </p>
@@ -1494,7 +1453,8 @@ export const AssetsView: React.FC = () => {
                   <div
                     onClick={() => {
                       setFigmaPatInput(assetFigmaConfig?.pat || "");
-                      setIsFigmaConfigOpen(true);
+                      setDrawerActiveTab("figma");
+                      setIsSettingsDrawerOpen(true);
                     }}
                     className="p-5 rounded-2xl border border-border bg-card hover:border-violet-500/50 hover:bg-violet-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
@@ -1522,7 +1482,7 @@ export const AssetsView: React.FC = () => {
                         className="w-full text-xs font-semibold gap-1.5 border-violet-500/30 text-violet-600 dark:text-violet-400 group-hover:bg-violet-600 group-hover:text-white transition-colors pointer-events-none h-8"
                       >
                         <Figma className="w-3.5 h-3.5" />
-                        <span>Connect Figma Sources</span>
+                        <span>Configure Figma Sources</span>
                       </Button>
                     </div>
                   </div>
@@ -1537,7 +1497,8 @@ export const AssetsView: React.FC = () => {
                       setGitBranch(assetGitConfig?.branch || "main");
                       setGitFolder(assetGitConfig?.assetFolder || "icons");
                       setGitPat(assetGitConfig?.pat || "");
-                      setIsGitConfigOpen(true);
+                      setDrawerActiveTab("git");
+                      setIsSettingsDrawerOpen(true);
                     }}
                     className="p-5 rounded-2xl border border-border bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
@@ -1766,547 +1727,625 @@ export const AssetsView: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Git Repository Connection & Control Modal */}
-      <Dialog open={isGitConfigOpen} onOpenChange={setIsGitConfigOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <FolderGit2 className="w-4 h-4" />
+      {/* Unified Asset Sources, Figma Links, Git Setup & View Options Drawer (shadcn/ui Drawer) */}
+      <Drawer open={isSettingsDrawerOpen} onOpenChange={setIsSettingsDrawerOpen}>
+        <DrawerContent className="max-w-xl mx-auto w-full max-h-[90vh] rounded-t-[28px] border-t border-x border-border bg-background shadow-2xl p-0 flex flex-col">
+          <DrawerHeader className="px-6 pt-5 pb-3 border-b border-border/60 space-y-2 text-left">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <SlidersHorizontal className="w-4 h-4" />
               </div>
               <div>
-                <DialogTitle className="text-sm font-bold">Asset Git Repository</DialogTitle>
-                <DialogDescription className="text-xs">
-                  Connect a dedicated Git repository folder for vector SVG icons and <code className="font-mono">metadata.json</code>.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {assetGitConfig && assetGitConfig.repo && (
-            <div className="p-3 rounded-lg bg-muted/60 border border-border text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-semibold text-foreground truncate">
-                  <FolderGit2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span className="truncate">
-                    {assetGitConfig.owner}/{assetGitConfig.repo}
-                  </span>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] shrink-0 ${
-                    assetGitConfig.isPaused
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                  }`}
-                >
-                  {assetGitConfig.isPaused ? "Sync Paused" : "Active"}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={togglePauseAssetGit}
-                  className="h-7 text-xs gap-1.5 cursor-pointer"
-                >
-                  {assetGitConfig.isPaused ? (
-                    <Play className="w-3 h-3 text-emerald-500" />
-                  ) : (
-                    <Pause className="w-3 h-3 text-amber-500" />
-                  )}
-                  <span>{assetGitConfig.isPaused ? "Resume Sync" : "Pause Sync"}</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    if (confirm("Are you sure you want to disconnect and remove this Git configuration?")) {
-                      await disconnectAssetGit();
-                      setIsGitConfigOpen(false);
-                    }
-                  }}
-                  className="h-7 text-xs gap-1.5 text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
-                >
-                  <Unlink className="w-3 h-3" />
-                  <span>Disconnect Git</span>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleSaveGitConfig} className="space-y-3.5 py-1">
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Git Provider</Label>
-              <Select
-                value={gitProvider}
-                onValueChange={(val: any) => setGitProvider(val)}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="github">GitHub</SelectItem>
-                  <SelectItem value="gitlab">GitLab</SelectItem>
-                  <SelectItem value="azure">Azure DevOps</SelectItem>
-                  <SelectItem value="bitbucket">Bitbucket</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="gitOwner" className="text-xs font-semibold">
-                  {gitProvider === "azure" ? "Organization" : "Owner / Org"}
-                </Label>
-                <Input
-                  id="gitOwner"
-                  placeholder="e.g. acme-corp"
-                  value={gitOwner}
-                  onChange={(e) => setGitOwner(e.target.value)}
-                  required
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="gitRepo" className="text-xs font-semibold">
-                  Repository Name
-                </Label>
-                <Input
-                  id="gitRepo"
-                  placeholder="e.g. design-system-icons"
-                  value={gitRepo}
-                  onChange={(e) => setGitRepo(e.target.value)}
-                  required
-                  className="h-8 text-xs"
-                />
+                <DrawerTitle className="text-base font-bold text-foreground">Asset Sources &amp; Settings</DrawerTitle>
+                <DrawerDescription className="text-xs text-muted-foreground mt-0.5">
+                  Manage your Figma frame links, Git version control, and icon view preferences.
+                </DrawerDescription>
               </div>
             </div>
 
-            {gitProvider === "azure" && (
-              <div className="space-y-1">
-                <Label htmlFor="gitProject" className="text-xs font-semibold">
-                  Azure Project Name
-                </Label>
-                <Input
-                  id="gitProject"
-                  placeholder="e.g. CoreUI"
-                  value={gitProject}
-                  onChange={(e) => setGitProject(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="gitBranch" className="text-xs font-semibold">
-                  Branch
-                </Label>
-                <Input
-                  id="gitBranch"
-                  placeholder="main"
-                  value={gitBranch}
-                  onChange={(e) => setGitBranch(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="gitFolder" className="text-xs font-semibold">
-                  Icons Folder Path
-                </Label>
-                <Input
-                  id="gitFolder"
-                  placeholder="icons (or assets/icons)"
-                  value={gitFolder}
-                  onChange={(e) => setGitFolder(e.target.value)}
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="gitPat" className="text-xs font-semibold">
-                Personal Access Token (PAT)
-              </Label>
-              <Input
-                id="gitPat"
-                type="password"
-                placeholder="ghp_... or glpat-..."
-                value={gitPat}
-                onChange={(e) => setGitPat(e.target.value)}
-                required
-                className="h-8 text-xs font-mono"
-              />
-            </div>
-
-            <DialogFooter className="pt-2">
-              <Button
+            {/* In-Drawer Tabs: Figma & View Options | Git Repository */}
+            <div className="flex items-center gap-1.5 bg-muted/60 p-1.5 rounded-2xl border border-border mt-2">
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsGitConfigOpen(false)}
-                className="text-xs h-8"
+                onClick={() => setDrawerActiveTab("figma")}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  drawerActiveTab === "figma"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isSavingGitConfig || isSyncingAssets}
-                className="text-xs h-8 gap-1.5 font-semibold"
-              >
-                {isSavingGitConfig || isSyncingAssets ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <FolderGit2 className="w-3.5 h-3.5" />
-                )}
-                <span>Save &amp; Sync Now</span>
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Multi-Figma Sources & Unified PAT Manager Modal */}
-      <Dialog open={isFigmaConfigOpen} onOpenChange={setIsFigmaConfigOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
-                <Figma className="w-4 h-4" />
-              </div>
-              <div>
-                <DialogTitle className="text-sm font-bold">Figma Component &amp; Icon Sources</DialogTitle>
-                <DialogDescription className="text-xs">
-                  Connect multiple Figma frames/sections with a unified Personal Access Token.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-4 py-1">
-            {/* Section 1: Unified Figma PAT Vault */}
-            <div className="p-3 rounded-lg border border-violet-500/20 bg-violet-500/5 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
-                  <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />
-                  <span>Unified Figma Personal Access Token</span>
-                </div>
-                {assetFigmaConfig?.pat ? (
-                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] border-emerald-500/30">
-                    Token Saved
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-500/30">
-                    Token Required
+                <Figma className="w-3.5 h-3.5 text-violet-500" />
+                <span>Figma &amp; View Options</span>
+                {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0 && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono rounded-full">
+                    {assetFigmaConfig.sources.length}
                   </Badge>
                 )}
-              </div>
+              </button>
 
-              <p className="text-[11px] text-muted-foreground">
-                Configured once and securely reused across all your connected Figma links.
-              </p>
-
-              <form onSubmit={handleSaveFigmaPat} className="flex gap-2 items-center">
-                <div className="relative flex-1">
-                  <Input
-                    type={showFigmaPat ? "text" : "password"}
-                    value={figmaPatInput}
-                    onChange={(e) => setFigmaPatInput(e.target.value)}
-                    placeholder="figd_..."
-                    className="h-8 text-xs font-mono pr-8"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowFigmaPat(!showFigmaPat)}
-                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    {showFigmaPat ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSavingFigmaPat}
-                  className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1 font-semibold cursor-pointer"
-                >
-                  {isSavingFigmaPat ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  <span>Save Token</span>
-                </Button>
-                {assetFigmaConfig?.pat && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
-                      await setFigmaPat("");
-                      setFigmaPatInput("");
-                    }}
-                    className="h-8 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
-                    title="Clear Token"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </form>
+              <button
+                type="button"
+                onClick={() => setDrawerActiveTab("git")}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  drawerActiveTab === "git"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <FolderGit2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Git Repository</span>
+                {hasGitConfigured && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+              </button>
             </div>
+          </DrawerHeader>
 
-            {/* Section 2: Add New Figma Link Form */}
-            <form onSubmit={handleAddNewFigmaSource} className="p-3 rounded-lg border border-border bg-card space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <PlusCircle className="w-3.5 h-3.5 text-violet-500" />
-                <span>Add Figma Frame / Section Link</span>
-              </div>
+          {/* Drawer Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {drawerActiveTab === "figma" ? (
+              <div className="space-y-4">
+                {/* Section 1: View & Display Options */}
+                <div className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+                    <span>View &amp; Display Options</span>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="newFigmaTitle" className="text-[11px] font-semibold">
-                    Source Title / Name
-                  </Label>
-                  <Input
-                    id="newFigmaTitle"
-                    value={newFigmaTitle}
-                    onChange={(e) => setNewFigmaTitle(e.target.value)}
-                    placeholder="e.g. Navigation Icons"
-                    required
-                    className="h-8 text-xs"
-                  />
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <Label htmlFor="drawer-source-badges" className="text-xs font-medium cursor-pointer">
+                        Show Source Title Badges
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">
+                        Display Figma source pills (e.g. 📍 Navigation Icons) on icon cards
+                      </p>
+                    </div>
+                    <input
+                      id="drawer-source-badges"
+                      type="checkbox"
+                      checked={showSourceBadges}
+                      onChange={(e) => setShowSourceBadges(e.target.checked)}
+                      className="rounded border-border cursor-pointer h-4 w-4"
+                    />
+                  </div>
+
+                  {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 1 && (
+                    <div className="pt-2.5 border-t border-border/50 space-y-1.5">
+                      <Label className="text-[11px] font-medium text-foreground block">
+                        Filter Grid by Figma Source
+                      </Label>
+                      <select
+                        value={selectedFigmaSource}
+                        onChange={(e) => setSelectedFigmaSource(e.target.value)}
+                        className="w-full h-8 text-xs bg-muted/60 border border-border rounded-lg px-2.5 text-foreground cursor-pointer focus:outline-none"
+                      >
+                        <option value="all">All Sources ({displayAssets.filter((a) => a.source === "figma").length} icons)</option>
+                        {assetFigmaConfig.sources.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({displayAssets.filter((a) => a.figmaSourceId === s.id).length} icons)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
+
+                {/* Section 2: Unified Figma PAT Vault */}
+                <div className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
+                      <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />
+                      <span>Unified Figma Personal Access Token</span>
+                    </div>
+                    {assetFigmaConfig?.pat ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] border-emerald-500/30 rounded-full">
+                        Token Saved
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-500/30 rounded-full">
+                        Token Required
+                      </Badge>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground">
+                    Configured once and securely reused across all your connected Figma links.
+                  </p>
+
+                  <form onSubmit={handleSaveFigmaPat} className="flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showFigmaPat ? "text" : "password"}
+                        value={figmaPatInput}
+                        onChange={(e) => setFigmaPatInput(e.target.value)}
+                        placeholder="figd_..."
+                        className="h-8 text-xs font-mono pr-8 bg-background"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowFigmaPat(!showFigmaPat)}
+                        className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        {showFigmaPat ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isSavingFigmaPat}
+                      className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1 font-semibold cursor-pointer"
+                    >
+                      {isSavingFigmaPat ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      <span>Save</span>
+                    </Button>
+                    {assetFigmaConfig?.pat && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          await setFigmaPat("");
+                          setFigmaPatInput("");
+                        }}
+                        className="h-8 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                        title="Clear Token"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </form>
+                </div>
+
+                {/* Section 3: Add New Figma Link Form */}
+                <form onSubmit={handleAddNewFigmaSource} className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <PlusCircle className="w-3.5 h-3.5 text-violet-500" />
+                    <span>Add Figma Frame / Section Link</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="newFigmaTitle" className="text-[11px] font-semibold">
+                        Source Title / Name
+                      </Label>
+                      <Input
+                        id="newFigmaTitle"
+                        value={newFigmaTitle}
+                        onChange={(e) => setNewFigmaTitle(e.target.value)}
+                        placeholder="e.g. Navigation Icons"
+                        required
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="newFigmaUrl" className="text-[11px] font-semibold">
+                        Figma Frame Link (URL)
+                      </Label>
+                      <Input
+                        id="newFigmaUrl"
+                        value={newFigmaUrl}
+                        onChange={(e) => setNewFigmaUrl(e.target.value)}
+                        placeholder="https://www.figma.com/design/.../Icons?node-id=..."
+                        required
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      Right click in Figma &rarr; <span className="font-medium text-foreground">&quot;Copy link to selection&quot;</span>
+                    </span>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isAddingFigmaSource || isSyncingFigmaAssets}
+                      className="h-8 text-xs gap-1.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold cursor-pointer"
+                    >
+                      {isAddingFigmaSource ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="w-3.5 h-3.5" />
+                      )}
+                      <span>Add &amp; Sync Link</span>
+                    </Button>
+                  </div>
+                </form>
+
+                {/* Section 4: Connected Figma Links List */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-semibold text-foreground px-0.5">
+                    <span>Connected Sources ({assetFigmaConfig?.sources?.length || 0})</span>
+                    {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0 && (
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={togglePauseFigmaSync}
+                          className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
+                        >
+                          {assetFigmaConfig.isPaused ? (
+                            <Play className="w-3 h-3 text-emerald-500" />
+                          ) : (
+                            <Pause className="w-3 h-3 text-amber-500" />
+                          )}
+                          <span>{assetFigmaConfig.isPaused ? "Resume All" : "Pause All"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => syncAllFigmaSources()}
+                          disabled={isSyncingFigmaAssets}
+                          className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${isSyncingFigmaAssets ? "animate-spin" : ""}`} />
+                          <span>Sync All</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {(!assetFigmaConfig?.sources || assetFigmaConfig.sources.length === 0) ? (
+                    <div className="text-center py-6 border border-dashed border-border rounded-2xl text-xs text-muted-foreground space-y-1">
+                      <div className="font-semibold text-foreground">No Figma Links Connected</div>
+                      <div>Paste your first frame or section link above to sync icon components.</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                      {assetFigmaConfig.sources.map((src) => {
+                        const iconCount = displayAssets.filter((a) => a.figmaSourceId === src.id).length;
+                        const isSrcPaused = src.isPaused || src.enabled === false;
+                        return (
+                          <div
+                            key={src.id}
+                            className={`p-3.5 rounded-2xl border text-xs transition-all ${
+                              isSrcPaused
+                                ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
+                                : "border-border bg-card shadow-2xs hover:border-violet-500/30"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-foreground text-xs">{src.name}</span>
+                                  {isSrcPaused ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 rounded-full"
+                                    >
+                                      <Pause className="w-2.5 h-2.5" />
+                                      <span>Paused</span>
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 rounded-full"
+                                    >
+                                      <Check className="w-2.5 h-2.5" />
+                                      <span>Active</span>
+                                    </Badge>
+                                  )}
+                                  {src.nodeId && (
+                                    <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                      Node: {src.nodeId}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                                  <span>{iconCount} icons</span>
+                                  {src.lastSyncedAt && (
+                                    <span>
+                                      &bull; Synced{" "}
+                                      {new Date(src.lastSyncedAt).toLocaleString([], {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Quick Open in Figma */}
+                              {src.fileUrl && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(src.fileUrl, "_blank")}
+                                  className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                                  title="Open in Figma"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span className="hidden sm:inline">Figma</span>
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Actions Row: Explicit Toggle Pause & Remove Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-border/40 gap-2 flex-wrap">
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => togglePauseFigmaSource(src.id)}
+                                  className={`h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer ${
+                                    isSrcPaused
+                                      ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                                      : "border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                                  }`}
+                                  title={isSrcPaused ? "Resume sync for this Figma link" : "Pause sync for this Figma link"}
+                                >
+                                  {isSrcPaused ? (
+                                    <>
+                                      <Play className="w-3 h-3 text-emerald-500" />
+                                      <span>Resume Link</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Pause className="w-3 h-3 text-amber-500" />
+                                      <span>Pause Link</span>
+                                    </>
+                                  )}
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={syncingSourceId === src.id || isSyncingFigmaAssets || isSrcPaused}
+                                  onClick={() => handleSyncSource(src.id)}
+                                  className="h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-500/10 border-violet-500/30"
+                                  title="Sync this link now"
+                                >
+                                  <RefreshCw className={`w-3 h-3 ${syncingSourceId === src.id ? "animate-spin" : ""}`} />
+                                  <span>{syncingSourceId === src.id ? "Syncing..." : "Sync Now"}</span>
+                                </Button>
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  removeFigmaSource(
+                                    src.id,
+                                    confirm(
+                                      `Delete all ${iconCount} icons imported from "${src.name}" as well?\n\nClick OK to delete icons, or Cancel to keep icons but remove the link.`
+                                    )
+                                  )
+                                }
+                                className="h-7 px-2 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
+                                title="Remove this Figma link"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Remove</span>
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: GIT REPOSITORY CONFIGURATION */
+              <form onSubmit={handleSaveGitConfig} className="space-y-4">
+                {assetGitConfig?.repo && (
+                  <div className="p-4 rounded-2xl border border-border bg-card space-y-2 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                          <FolderGit2 className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-xs text-foreground block">
+                            {assetGitConfig.owner}/{assetGitConfig.repo}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Branch: {assetGitConfig.branch} &bull; Folder: {assetGitConfig.assetFolder || "icons"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {assetGitConfig.isPaused ? (
+                        <Badge variant="outline" className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 rounded-full">
+                          <Pause className="w-2.5 h-2.5" />
+                          <span>Paused</span>
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 rounded-full">
+                          <Check className="w-2.5 h-2.5" />
+                          <span>Active</span>
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={togglePauseAssetGit}
+                        className="h-7 text-[11px] gap-1.5 cursor-pointer flex-1"
+                      >
+                        {assetGitConfig.isPaused ? (
+                          <>
+                            <Play className="w-3 h-3 text-emerald-500" />
+                            <span>Resume Sync</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="w-3 h-3 text-amber-500" />
+                            <span>Pause Sync</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          if (confirm("Are you sure you want to disconnect and remove this Git configuration?")) {
+                            await disconnectAssetGit();
+                          }
+                        }}
+                        className="h-7 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                      >
+                        <Unlink className="w-3 h-3" />
+                        <span>Disconnect</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Git Platform Provider</Label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(["github", "gitlab", "azure", "bitbucket"] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setGitProvider(p)}
+                        className={`px-2 py-2.5 rounded-xl border text-xs font-medium capitalize transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                          gitProvider === p
+                            ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
+                            : "border-border bg-card text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <span>{p === "github" ? "🐙" : p === "gitlab" ? "🦊" : p === "azure" ? "🔷" : "🪣"}</span>
+                        <span className="text-[10px]">{p}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <Label htmlFor="gitOwner" className="text-xs font-semibold">
+                      {gitProvider === "azure" ? "Organization" : "Owner / Org"}
+                    </Label>
+                    <Input
+                      id="gitOwner"
+                      placeholder="e.g. acme-corp"
+                      value={gitOwner}
+                      onChange={(e) => setGitOwner(e.target.value)}
+                      required
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="gitRepo" className="text-xs font-semibold">
+                      Repository Name
+                    </Label>
+                    <Input
+                      id="gitRepo"
+                      placeholder="e.g. design-system-icons"
+                      value={gitRepo}
+                      onChange={(e) => setGitRepo(e.target.value)}
+                      required
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+
+                {gitProvider === "azure" && (
+                  <div className="space-y-1">
+                    <Label htmlFor="gitProject" className="text-xs font-semibold">
+                      Azure Project Name
+                    </Label>
+                    <Input
+                      id="gitProject"
+                      placeholder="e.g. CoreUI"
+                      value={gitProject}
+                      onChange={(e) => setGitProject(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <Label htmlFor="gitBranch" className="text-xs font-semibold">
+                      Branch
+                    </Label>
+                    <Input
+                      id="gitBranch"
+                      placeholder="main"
+                      value={gitBranch}
+                      onChange={(e) => setGitBranch(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="gitFolder" className="text-xs font-semibold">
+                      Icons Folder Path
+                    </Label>
+                    <Input
+                      id="gitFolder"
+                      placeholder="icons (or assets/icons)"
+                      value={gitFolder}
+                      onChange={(e) => setGitFolder(e.target.value)}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <Label htmlFor="newFigmaUrl" className="text-[11px] font-semibold">
-                    Figma Frame Link (URL)
+                  <Label htmlFor="gitPat" className="text-xs font-semibold">
+                    Personal Access Token (PAT)
                   </Label>
                   <Input
-                    id="newFigmaUrl"
-                    value={newFigmaUrl}
-                    onChange={(e) => setNewFigmaUrl(e.target.value)}
-                    placeholder="https://www.figma.com/design/.../Icons?node-id=..."
+                    id="gitPat"
+                    type="password"
+                    placeholder="ghp_... or glpat-..."
+                    value={gitPat}
+                    onChange={(e) => setGitPat(e.target.value)}
                     required
                     className="h-8 text-xs font-mono"
                   />
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[10px] text-muted-foreground">
-                  In Figma: Right click &rarr; <span className="font-medium text-foreground">&quot;Copy link to selection&quot;</span>
-                </span>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isAddingFigmaSource || isSyncingFigmaAssets}
-                  className="h-8 text-xs gap-1.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold cursor-pointer"
-                >
-                  {isAddingFigmaSource ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Plus className="w-3.5 h-3.5" />
-                  )}
-                  <span>Add &amp; Sync Link</span>
-                </Button>
-              </div>
-            </form>
-
-            {/* Section 3: Connected Figma Links List */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-foreground px-0.5">
-                <span>Connected Sources ({assetFigmaConfig?.sources?.length || 0})</span>
-                {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0 && (
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={togglePauseFigmaSync}
-                      className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
-                    >
-                      {assetFigmaConfig.isPaused ? (
-                        <Play className="w-3 h-3 text-emerald-500" />
-                      ) : (
-                        <Pause className="w-3 h-3 text-amber-500" />
-                      )}
-                      <span>{assetFigmaConfig.isPaused ? "Resume All" : "Pause All"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => syncAllFigmaSources()}
-                      disabled={isSyncingFigmaAssets}
-                      className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isSyncingFigmaAssets ? "animate-spin" : ""}`} />
-                      <span>Sync All</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {(!assetFigmaConfig?.sources || assetFigmaConfig.sources.length === 0) ? (
-                <div className="text-center py-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground space-y-1">
-                  <div className="font-semibold text-foreground">No Figma Links Connected</div>
-                  <div>Paste your first frame or section link above to sync icon components.</div>
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isSavingGitConfig || isSyncingAssets}
+                    className="text-xs h-8 gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer rounded-xl"
+                  >
+                    {isSavingGitConfig || isSyncingAssets ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <FolderGit2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>Save &amp; Sync Git</span>
+                  </Button>
                 </div>
-              ) : (
-                <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
-                  {assetFigmaConfig.sources.map((src) => {
-                    const iconCount = displayAssets.filter((a) => a.figmaSourceId === src.id).length;
-                    const isSrcPaused = src.isPaused || src.enabled === false;
-                    return (
-                      <div
-                        key={src.id}
-                        className={`p-3 rounded-xl border text-xs transition-all ${
-                          isSrcPaused
-                            ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
-                            : "border-border bg-card shadow-2xs hover:border-violet-500/30"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-foreground text-xs">{src.name}</span>
-                              {isSrcPaused ? (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1"
-                                >
-                                  <Pause className="w-2.5 h-2.5" />
-                                  <span>Paused</span>
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1"
-                                >
-                                  <Check className="w-2.5 h-2.5" />
-                                  <span>Active</span>
-                                </Badge>
-                              )}
-                              {src.nodeId && (
-                                <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                  Node: {src.nodeId}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap">
-                              <span>{iconCount} icons</span>
-                              {src.lastSyncedAt && (
-                                <span>
-                                  &bull; Synced{" "}
-                                  {new Date(src.lastSyncedAt).toLocaleString([], {
-                                    dateStyle: "short",
-                                    timeStyle: "short",
-                                  })}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Quick Open in Figma */}
-                          {src.fileUrl && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(src.fileUrl, "_blank")}
-                              className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-                              title="Open in Figma"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              <span className="hidden sm:inline">Figma</span>
-                            </Button>
-                          )}
-                        </div>
-
-                        {/* Actions Row: Explicit Toggle Pause & Remove Buttons */}
-                        <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-border/40 gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5">
-                            {/* Explicit Pause / Resume Toggle Button */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => togglePauseFigmaSource(src.id)}
-                              className={`h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer ${
-                                isSrcPaused
-                                  ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
-                                  : "border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                              }`}
-                              title={isSrcPaused ? "Resume sync for this Figma link" : "Pause sync for this Figma link"}
-                            >
-                              {isSrcPaused ? (
-                                <>
-                                  <Play className="w-3 h-3 text-emerald-500" />
-                                  <span>Resume Link</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Pause className="w-3 h-3 text-amber-500" />
-                                  <span>Pause Link</span>
-                                </>
-                              )}
-                            </Button>
-
-                            {/* Sync This Link Button */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={syncingSourceId === src.id || isSyncingFigmaAssets || isSrcPaused}
-                              onClick={() => handleSyncSource(src.id)}
-                              className="h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-500/10 border-violet-500/30"
-                              title="Sync this link now"
-                            >
-                              <RefreshCw className={`w-3 h-3 ${syncingSourceId === src.id ? "animate-spin" : ""}`} />
-                              <span>{syncingSourceId === src.id ? "Syncing..." : "Sync Now"}</span>
-                            </Button>
-                          </div>
-
-                          {/* Remove Link Button */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              removeFigmaSource(
-                                src.id,
-                                confirm(
-                                  `Delete all ${iconCount} icons imported from "${src.name}" as well?\n\nClick OK to delete icons, or Cancel to keep icons but remove the link.`
-                                )
-                              )
-                            }
-                            className="h-7 px-2 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
-                            title="Remove this Figma link"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Remove Link</span>
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              </form>
+            )}
           </div>
 
-          <DialogFooter className="pt-2">
+          <DrawerFooter className="px-6 py-4 border-t border-border/60 flex flex-col gap-2">
             <Button
               type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsFigmaConfigOpen(false)}
-              className="text-xs h-8"
+              onClick={() => setIsSettingsDrawerOpen(false)}
+              className="w-full h-10 rounded-full font-semibold text-xs bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-xs cursor-pointer"
             >
-              Close
+              Done
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DrawerClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 rounded-full font-semibold text-xs border-border text-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                Cancel
+              </Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Edit Name / Title / Type / Category / Tag Modal */}
       {editingAsset && (
