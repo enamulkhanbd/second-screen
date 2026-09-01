@@ -1431,7 +1431,7 @@ export const AssetsView: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-6 pb-24 space-y-6">
             {displayAssets.length === 0 ? (
               /* High-Value Onboarding Empty State */
-              <div className="max-w-4xl mx-auto py-8 space-y-8 animate-in fade-in duration-300">
+              <div className="max-w-5xl mx-auto py-8 space-y-8 animate-in fade-in duration-300">
                 <div className="text-center space-y-2 max-w-xl mx-auto">
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3 shadow-inner">
                     <ImageIcon className="w-6 h-6" />
@@ -1440,40 +1440,40 @@ export const AssetsView: React.FC = () => {
                     No Vector Assets in Project
                   </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Upload SVG vector icons, folders, or ZIP archives along with a single unified <code className="text-primary font-mono font-semibold">metadata.json</code>, or synchronize automatically from any Git repository.
+                    Upload SVG vector icons, folders, or ZIP archives, connect multiple Figma component frames &amp; sections, or synchronize automatically from any Git repository.
                   </p>
                 </div>
 
-                {/* Two Onboarding Workflow Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Three Onboarding Workflow Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* 1. Direct Multi-Layer SVG / ZIP / Folder Dropzone Card */}
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className={`p-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col justify-between group text-center space-y-4 ${
+                    className={`p-5 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col justify-between group text-center space-y-4 ${
                       isDragOver
                         ? "border-primary bg-primary/5 scale-[1.01]"
                         : "border-border/80 bg-card hover:border-primary/50 hover:bg-card/80 shadow-xs"
                     }`}
                   >
                     <div className="space-y-3 flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <UploadCloud className="w-6 h-6" />
+                      <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <UploadCloud className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-foreground">Upload SVG, Folder, or ZIP</h3>
-                        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                          Drag and drop nested type folders (e.g. <code className="font-mono text-primary">stroke/</code>, <code className="font-mono text-primary">twotone/</code>), a <code className="font-mono text-primary">.zip</code> archive, and <code className="font-mono text-primary">metadata.json</code>.
+                        <h3 className="text-sm font-bold text-foreground">Upload SVG or ZIP</h3>
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          Drag and drop nested type folders (e.g. <code className="font-mono text-primary">stroke/</code>, <code className="font-mono text-primary">twotone/</code>), a <code className="font-mono text-primary">.zip</code> archive, or <code className="font-mono text-primary">metadata.json</code>.
                         </p>
                       </div>
                     </div>
 
-                    <div className="pt-2 flex items-center gap-2">
+                    <div className="pt-2 flex items-center gap-1.5">
                       <Button
                         size="sm"
-                        className="flex-1 text-xs font-semibold gap-1.5 shadow-xs pointer-events-none"
+                        className="flex-1 text-xs font-semibold gap-1 shadow-xs pointer-events-none h-8"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Select Files or ZIP</span>
+                        <span>Select Files</span>
                       </Button>
                       <Button
                         size="sm"
@@ -1482,7 +1482,7 @@ export const AssetsView: React.FC = () => {
                           e.stopPropagation();
                           folderInputRef.current?.click();
                         }}
-                        className="text-xs font-semibold gap-1.5"
+                        className="text-xs font-semibold gap-1 h-8"
                       >
                         <FolderUp className="w-3.5 h-3.5" />
                         <span>Folder</span>
@@ -1490,7 +1490,44 @@ export const AssetsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 2. Configure Git Sync Provider Card */}
+                  {/* 2. Connect Figma Component Links Card */}
+                  <div
+                    onClick={() => {
+                      setFigmaPatInput(assetFigmaConfig?.pat || "");
+                      setIsFigmaConfigOpen(true);
+                    }}
+                    className="p-5 rounded-2xl border border-border bg-card hover:border-violet-500/50 hover:bg-violet-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Figma className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-foreground">Connect Figma Links</h3>
+                          <Badge variant="outline" className="text-[9px] font-mono border-violet-500/30 text-violet-600 dark:text-violet-400">
+                            Multi-Link
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          Paste links to your icon frames, sections, or component sets. Automatically sync variants &amp; high-fidelity SVG vectors.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs font-semibold gap-1.5 border-violet-500/30 text-violet-600 dark:text-violet-400 group-hover:bg-violet-600 group-hover:text-white transition-colors pointer-events-none h-8"
+                      >
+                        <Figma className="w-3.5 h-3.5" />
+                        <span>Connect Figma Sources</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 3. Configure Git Sync Provider Card */}
                   <div
                     onClick={() => {
                       setGitProvider(assetGitConfig?.provider || "github");
@@ -1502,11 +1539,11 @@ export const AssetsView: React.FC = () => {
                       setGitPat(assetGitConfig?.pat || "");
                       setIsGitConfigOpen(true);
                     }}
-                    className="p-6 rounded-2xl border border-border bg-card hover:border-primary/50 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
+                    className="p-5 rounded-2xl border border-border bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
                     <div className="space-y-3">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <FolderGit2 className="w-6 h-6" />
+                      <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <FolderGit2 className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -1515,8 +1552,8 @@ export const AssetsView: React.FC = () => {
                             Independent
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Sync from GitHub, GitLab, Azure, or Bitbucket. Pull all multi-layer icon types and <code className="font-mono text-foreground">metadata.json</code> from your repository directory.
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          Sync from GitHub, GitLab, Azure, or Bitbucket. Pull all multi-layer icon types and <code className="font-mono text-foreground">metadata.json</code>.
                         </p>
                       </div>
                     </div>
@@ -1525,10 +1562,10 @@ export const AssetsView: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full text-xs font-semibold gap-1.5 group-hover:bg-primary group-hover:text-primary-foreground transition-colors pointer-events-none"
+                        className="w-full text-xs font-semibold gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors pointer-events-none h-8"
                       >
-                        <GitBranch className="w-3.5 h-3.5" />
-                        <span>Configure Asset Sync Provider</span>
+                        <FolderGit2 className="w-3.5 h-3.5" />
+                        <span>Configure Git Provider</span>
                       </Button>
                     </div>
                   </div>
@@ -1538,10 +1575,10 @@ export const AssetsView: React.FC = () => {
                 <div className="p-4 rounded-xl border border-border/60 bg-muted/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Supports multi-type folders (<code className="font-mono text-foreground font-semibold">stroke/</code>, <code className="font-mono text-foreground font-semibold">twotone/</code>) mapped to a single <code className="font-mono text-foreground font-semibold">metadata.json</code>.</span>
+                    <span>Supports Figma component links • multi-type folders (<code className="font-mono text-foreground font-semibold">stroke/</code>, <code className="font-mono text-foreground font-semibold">twotone/</code>) • metadata.json.</span>
                   </div>
                   <span className="font-mono text-[11px] text-muted-foreground/80">
-                    Supports GitHub • GitLab • Azure DevOps • Bitbucket
+                    Figma • GitHub • GitLab • Azure DevOps • Bitbucket
                   </span>
                 </div>
               </div>
