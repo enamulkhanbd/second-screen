@@ -387,10 +387,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const targetPath = (creds.filePath || creds.path || "").trim().replace(/^\/+/, "").toLowerCase();
+    let finalFiles = files;
+    if (targetPath) {
+      const matchingFiles = files.filter((f) => {
+        const fn = (f.filename || "").replace(/^\/+/, "").toLowerCase();
+        return fn === targetPath || fn.startsWith(`${targetPath}/`) || fn.startsWith(targetPath);
+      });
+      if (matchingFiles.length > 0) {
+        finalFiles = matchingFiles;
+      }
+    }
+
     return NextResponse.json({
       sha: commitSha,
       stats,
-      files,
+      files: finalFiles,
     });
   } catch (err: any) {
     return NextResponse.json(

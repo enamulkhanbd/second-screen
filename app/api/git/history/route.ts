@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     const rawCreds: GitCredentials = await req.json();
     const creds = sanitizeGitCredentials(rawCreds);
     const { provider, owner, project, repo, branch, pat } = creds;
+    const targetPath = (creds.filePath || creds.path || "").trim().replace(/^\/+/, "");
 
     if (!provider || !owner || !repo || !pat || !branch) {
       return NextResponse.json(
@@ -40,9 +41,10 @@ export async function POST(req: NextRequest) {
         "User-Agent": "TokensPlatform-Cloud/1.0",
       };
 
+      const pathParam = targetPath ? `&path=${encodeURIComponent(targetPath)}` : "";
       const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
         repo
-      )}/commits?sha=${encodeURIComponent(branch)}&per_page=30`;
+      )}/commits?sha=${encodeURIComponent(branch)}${pathParam}&per_page=30`;
 
       const res = await fetch(url, {
         headers,
@@ -89,9 +91,11 @@ export async function POST(req: NextRequest) {
         Accept: "application/json",
       };
 
+      const azureItemPath = targetPath ? (targetPath.startsWith("/") ? targetPath : "/" + targetPath) : "";
+      const pathParam = azureItemPath ? `&searchCriteria.itemPath=${encodeURIComponent(azureItemPath)}` : "";
       const url = `https://dev.azure.com/${azOrg}/${azProject}/_apis/git/repositories/${azRepo}/commits?searchCriteria.itemVersion.version=${encodeURIComponent(
         branch
-      )}&$top=30&api-version=7.0`;
+      )}${pathParam}&$top=30&api-version=7.0`;
 
       const res = await fetch(url, {
         method: "GET",
@@ -135,9 +139,10 @@ export async function POST(req: NextRequest) {
         "PRIVATE-TOKEN": pat,
       };
 
+      const pathParam = targetPath ? `&path=${encodeURIComponent(targetPath)}` : "";
       const url = `https://gitlab.com/api/v4/projects/${encodedProjectPath}/repository/commits?ref_name=${encodeURIComponent(
         branch
-      )}&per_page=30`;
+      )}${pathParam}&per_page=30`;
 
       const res = await fetch(url, {
         headers,
@@ -182,9 +187,10 @@ export async function POST(req: NextRequest) {
         Accept: "application/json",
       };
 
+      const pathParam = targetPath ? `?path=${encodeURIComponent(targetPath)}&pagelen=30` : `?pagelen=30`;
       const url = `https://api.bitbucket.org/2.0/repositories/${encodeURIComponent(
         owner
-      )}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}?pagelen=30`;
+      )}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}${pathParam}`;
 
       const res = await fetch(url, {
         headers,
@@ -223,6 +229,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       branch,
+      path: targetPath || null,
       commits,
     });
   } catch (err: any) {

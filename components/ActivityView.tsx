@@ -104,7 +104,16 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
     if (isGitConfigured) {
       fetchCommitHistory();
     }
-  }, [credentials.provider, credentials.owner, credentials.repo, credentials.branch, credentials.pat]);
+  }, [
+    credentials.provider,
+    credentials.owner,
+    credentials.project,
+    credentials.repo,
+    credentials.branch,
+    credentials.path,
+    credentials.filePath,
+    credentials.pat,
+  ]);
 
   const loadCommitDetails = async (sha: string) => {
     if (detailsCache[sha] || loadingDetailsSha === sha || !isGitConfigured) return;
@@ -185,6 +194,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
     }
   };
 
+  const configuredPath = credentials.filePath || credentials.path || "";
+
   return (
     <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none">
       {/* 1. Top Header Toolbar */}
@@ -198,7 +209,18 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
               Activity &amp; Change Log
             </h1>
             <p className="text-[11px] text-muted-foreground">
-              Git commit history, revisions, and side-by-side file diffs for {credentials.repo || "repository"}@{credentials.branch || "main"}
+              Git commit history, revisions, and side-by-side file diffs for{" "}
+              <span className="font-mono text-foreground font-medium">
+                {credentials.repo || "repository"}@{credentials.branch || "main"}
+              </span>
+              {configuredPath ? (
+                <>
+                  {" "}• Scoped to:{" "}
+                  <span className="font-mono text-primary font-medium">
+                    {configuredPath}
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
         </div>
@@ -264,14 +286,25 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
           {/* ============================================================= */}
           <div className="w-full lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r border-border bg-muted/15 flex flex-col flex-shrink-0 h-72 lg:h-full overflow-hidden">
             {/* List Sub-Header */}
-            <div className="px-4 py-2.5 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground uppercase tracking-wider">
-                <GitCommit className="w-3.5 h-3.5 text-primary" />
-                <span>Commits ({filteredCommits.length})</span>
+            <div className="px-4 py-2.5 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0 gap-2">
+              <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground uppercase tracking-wider min-w-0">
+                <GitCommit className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <span className="truncate">Commits ({filteredCommits.length})</span>
               </div>
-              <Badge variant="outline" className="text-[9px] font-mono py-0 px-1 font-normal">
-                {credentials.branch || "main"}
-              </Badge>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Badge variant="outline" className="text-[9px] font-mono py-0 px-1 font-normal">
+                  {credentials.branch || "main"}
+                </Badge>
+                {configuredPath ? (
+                  <Badge
+                    variant="secondary"
+                    className="text-[9px] font-mono py-0 px-1.5 font-medium max-w-[120px] truncate"
+                    title={`Tracking path: ${configuredPath}`}
+                  >
+                    📁 {configuredPath}
+                  </Badge>
+                ) : null}
+              </div>
             </div>
 
             {/* Commit List Scroll Area */}
