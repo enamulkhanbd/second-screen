@@ -202,11 +202,11 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
       <header className="h-14 border-b border-border px-6 flex items-center justify-between bg-card flex-shrink-0 z-10">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-            <Clock className="w-4 h-4" />
+            <GitBranch className="w-4 h-4" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-foreground">
-              Activity &amp; Change Log
+              Git Log
             </h1>
             <p className="text-[11px] text-muted-foreground">
               Git commit history, revisions, and side-by-side file diffs for{" "}

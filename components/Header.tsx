@@ -510,7 +510,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                     {sidebarTab === "assets" && <BreadcrumbPage>Assets</BreadcrumbPage>}
                     {sidebarTab === "exports" && <BreadcrumbPage>Exports</BreadcrumbPage>}
                     {sidebarTab === "releases" && <BreadcrumbPage>Releases</BreadcrumbPage>}
-                    {sidebarTab === "activity" && <BreadcrumbPage>Change Log</BreadcrumbPage>}
+                    {sidebarTab === "activity" && <BreadcrumbPage>Git Log</BreadcrumbPage>}
                     {sidebarTab === "integrations" && <BreadcrumbPage>Integrations</BreadcrumbPage>}
                     {sidebarTab === "mcp" && <BreadcrumbPage>MCP &amp; CLI</BreadcrumbPage>}
                     {sidebarTab === "members" && <BreadcrumbPage>Team Members</BreadcrumbPage>}
