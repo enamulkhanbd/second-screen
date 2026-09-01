@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { ProjectAsset, AssetGitConfig } from "@/types/tenant";
+import { ProjectAsset, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
 import JSZip from "jszip";
 import {
   Image as ImageIcon,
@@ -45,6 +45,16 @@ import {
   ShieldCheck,
   FolderUp,
   ChevronDown,
+  Figma,
+  ExternalLink,
+  Link2,
+  Pause,
+  Play,
+  Unlink,
+  Eye,
+  EyeOff,
+  SlidersHorizontal,
+  Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -248,7 +258,21 @@ export const AssetsView: React.FC = () => {
     assetGitConfig,
     setAssetGitConfig,
     syncAssetsFromGit,
+    togglePauseAssetGit,
+    disconnectAssetGit,
     isSyncingAssets,
+    assetFigmaConfig,
+    setAssetFigmaConfig,
+    setFigmaPat,
+    addFigmaSource,
+    updateFigmaSource,
+    removeFigmaSource,
+    togglePauseFigmaSource,
+    syncSingleFigmaSource,
+    syncAllFigmaSources,
+    togglePauseFigmaSync,
+    syncAssetsFromFigma,
+    isSyncingFigmaAssets,
     addToast,
     canUserEdit,
   } = useTokenStore();
@@ -257,6 +281,8 @@ export const AssetsView: React.FC = () => {
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedFigmaSource, setSelectedFigmaSource] = useState<string>("all");
+  const [showSourceBadges, setShowSourceBadges] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Selection & Bulk Actions State
@@ -275,6 +301,7 @@ export const AssetsView: React.FC = () => {
 
   // Modals State
   const [isGitConfigOpen, setIsGitConfigOpen] = useState(false);
+  const [isFigmaConfigOpen, setIsFigmaConfigOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<ProjectAsset | null>(null);
   const [editFormName, setEditFormName] = useState("");
   const [editFormTitle, setEditFormTitle] = useState("");
@@ -293,6 +320,19 @@ export const AssetsView: React.FC = () => {
   const [gitFolder, setGitFolder] = useState(assetGitConfig?.assetFolder || "icons");
   const [gitPat, setGitPat] = useState(assetGitConfig?.pat || "");
   const [isSavingGitConfig, setIsSavingGitConfig] = useState(false);
+
+  // Unified Figma PAT Form
+  const [figmaPatInput, setFigmaPatInput] = useState(assetFigmaConfig?.pat || "");
+  const [showFigmaPat, setShowFigmaPat] = useState(false);
+  const [isSavingFigmaPat, setIsSavingFigmaPat] = useState(false);
+
+  // Add New Figma Source Form
+  const [newFigmaTitle, setNewFigmaTitle] = useState("");
+  const [newFigmaUrl, setNewFigmaUrl] = useState("");
+  const [isAddingFigmaSource, setIsAddingFigmaSource] = useState(false);
+
+  // Syncing single source state
+  const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null);
 
   // Effective assets list
   const displayAssets: ProjectAsset[] = useMemo(() => {
@@ -333,6 +373,9 @@ export const AssetsView: React.FC = () => {
       if (selectedCategory !== "all" && icon.category?.toLowerCase() !== selectedCategory) {
         return false;
       }
+      if (selectedFigmaSource !== "all" && icon.figmaSourceId !== selectedFigmaSource) {
+        return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchTitle = icon.title?.toLowerCase().includes(q) || false;
@@ -340,11 +383,12 @@ export const AssetsView: React.FC = () => {
         const matchType = icon.type?.toLowerCase().includes(q) || false;
         const matchCat = icon.category?.toLowerCase().includes(q) || false;
         const matchTag = icon.tag?.toLowerCase().includes(q) || false;
-        return matchTitle || matchName || matchType || matchCat || matchTag;
+        const matchSource = icon.figmaSourceName?.toLowerCase().includes(q) || false;
+        return matchTitle || matchName || matchType || matchCat || matchTag || matchSource;
       }
       return true;
     });
-  }, [displayAssets, selectedType, selectedCategory, searchQuery]);
+  }, [displayAssets, selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
 
   // Group filtered assets directly by Type (e.g. Stroke, Two Tone, Solid)
   const groupedAssetsByType = useMemo(() => {
@@ -730,6 +774,66 @@ export const AssetsView: React.FC = () => {
     }
   };
 
+  // Save Unified Figma PAT
+  const handleSaveFigmaPat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingFigmaPat(true);
+    try {
+      await setFigmaPat(figmaPatInput);
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Failed to Save PAT",
+        message: err.message || "Could not save Figma token.",
+      });
+    } finally {
+      setIsSavingFigmaPat(false);
+    }
+  };
+
+  // Add New Figma Source Link
+  const handleAddNewFigmaSource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFigmaUrl.trim()) {
+      addToast({
+        type: "error",
+        title: "Missing Link",
+        message: "Please enter a valid Figma frame or section link.",
+      });
+      return;
+    }
+
+    setIsAddingFigmaSource(true);
+    try {
+      const ok = await addFigmaSource({
+        name: newFigmaTitle.trim() || "Figma Icons",
+        fileUrl: newFigmaUrl.trim(),
+      });
+      if (ok) {
+        setNewFigmaTitle("");
+        setNewFigmaUrl("");
+      }
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Failed to Add Source",
+        message: err.message || "Could not add Figma link.",
+      });
+    } finally {
+      setIsAddingFigmaSource(false);
+    }
+  };
+
+  // Sync Single Figma Source Link
+  const handleSyncSource = async (sourceId: string) => {
+    setSyncingSourceId(sourceId);
+    try {
+      await syncSingleFigmaSource(sourceId);
+    } finally {
+      setSyncingSourceId(null);
+    }
+  };
+
   // Open Edit Details Modal
   const handleOpenEdit = (asset: ProjectAsset) => {
     setEditingAsset(asset);
@@ -832,6 +936,20 @@ export const AssetsView: React.FC = () => {
                 <Download className="w-3.5 h-3.5 text-muted-foreground" />
                 <span>Download .svg</span>
               </DropdownMenuItem>
+              {icon.figmaUrl && (
+                <DropdownMenuItem
+                  onClick={() => window.open(icon.figmaUrl, "_blank")}
+                  className="gap-2 cursor-pointer text-xs"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-violet-500" />
+                  <span>Open in Figma</span>
+                </DropdownMenuItem>
+              )}
+              {icon.figmaSourceName && (
+                <div className="px-2 py-1 text-[10px] text-muted-foreground border-t border-border/50 truncate">
+                  Source: <span className="font-semibold text-foreground">{icon.figmaSourceName}</span>
+                </div>
+              )}
               {canUserEdit() && (
                 <>
                   <DropdownMenuSeparator />
@@ -854,13 +972,13 @@ export const AssetsView: React.FC = () => {
           dangerouslySetInnerHTML={{ __html: icon.svg }}
         />
 
-        {/* Icon Metadata: Title as primary, optional type/git pill below without category */}
+        {/* Icon Metadata: Title as primary, optional type/git/figma pill below */}
         <div className="w-full truncate mt-2 px-1">
           <span className="font-semibold text-xs text-foreground block truncate" title={displayTitle}>
             {displayTitle}
           </span>
-          {(icon.type || icon.source === "git") && (
-            <div className="flex items-center justify-center gap-1 mt-1">
+          {(icon.type || icon.source === "git" || icon.source === "figma" || (showSourceBadges && icon.figmaSourceName)) && (
+            <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
               {icon.type && (
                 <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                   {icon.type}
@@ -869,6 +987,20 @@ export const AssetsView: React.FC = () => {
               {icon.source === "git" && (
                 <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">
                   git
+                </span>
+              )}
+              {icon.source === "figma" && (
+                <span className="text-[9px] font-mono text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded flex items-center gap-0.5">
+                  <Figma className="w-2.5 h-2.5" />
+                  <span>figma</span>
+                </span>
+              )}
+              {showSourceBadges && icon.figmaSourceName && (
+                <span
+                  className="text-[9px] font-medium text-violet-700 dark:text-violet-300 bg-violet-500/10 px-1 py-0.5 rounded truncate max-w-[90px]"
+                  title={`Figma Source: ${icon.figmaSourceName}`}
+                >
+                  {icon.figmaSourceName}
                 </span>
               )}
             </div>
@@ -1024,14 +1156,70 @@ export const AssetsView: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => syncAssetsFromGit()}
-              disabled={isSyncingAssets}
-              className="gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer"
-              title={`Sync icons from ${assetGitConfig.repo}/${assetGitConfig.assetFolder || ""}`}
+              disabled={isSyncingAssets || assetGitConfig.isPaused}
+              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer ${
+                assetGitConfig.isPaused ? "opacity-60" : ""
+              }`}
+              title={
+                assetGitConfig.isPaused
+                  ? "Git sync is paused. Resume in Git Config to sync."
+                  : `Sync icons from ${assetGitConfig.repo}/${assetGitConfig.assetFolder || ""}`
+              }
             >
               <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${isSyncingAssets ? "animate-spin" : ""}`} />
-              <span>{isSyncingAssets ? "Syncing..." : "Sync from Git"}</span>
+              <span>{isSyncingAssets ? "Syncing..." : assetGitConfig.isPaused ? "Git Paused" : "Sync Git"}</span>
             </Button>
           )}
+
+          {/* Quick Sync Button for Figma Multi-Sources */}
+          {assetFigmaConfig && (assetFigmaConfig.sources?.length > 0 || assetFigmaConfig.fileUrl) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncAllFigmaSources()}
+              disabled={isSyncingFigmaAssets || assetFigmaConfig.isPaused}
+              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer border-violet-500/30 text-violet-600 dark:text-violet-400 ${
+                assetFigmaConfig.isPaused ? "opacity-60" : ""
+              }`}
+              title={
+                assetFigmaConfig.isPaused
+                  ? "Figma sync is paused."
+                  : `Sync all enabled Figma sources (${assetFigmaConfig.sources?.length || 1})`
+              }
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-violet-500 ${isSyncingFigmaAssets ? "animate-spin" : ""}`} />
+              <span>
+                {isSyncingFigmaAssets
+                  ? "Syncing Figma..."
+                  : assetFigmaConfig.isPaused
+                  ? "Figma Paused"
+                  : `Sync Figma (${assetFigmaConfig.sources?.length || 1})`}
+              </span>
+            </Button>
+          )}
+
+          {/* Figma Sources Manager Modal Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setFigmaPatInput(assetFigmaConfig?.pat || "");
+              setIsFigmaConfigOpen(true);
+            }}
+            className="gap-1.5 h-8 text-xs font-medium bg-background hover:bg-muted cursor-pointer"
+          >
+            <Figma className="w-3.5 h-3.5 text-violet-500" />
+            <span>
+              {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0
+                ? `Figma (${assetFigmaConfig.sources.length})`
+                : assetFigmaConfig?.pat
+                ? "Figma Sources"
+                : "Connect Figma"}
+            </span>
+            {assetFigmaConfig?.isPaused && (
+              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">(Paused)</span>
+            )}
+          </Button>
 
           {/* Git Settings / Connection Button */}
           <Button
@@ -1050,8 +1238,55 @@ export const AssetsView: React.FC = () => {
             className="gap-1.5 h-8 text-xs font-medium bg-background hover:bg-muted cursor-pointer"
           >
             <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>{assetGitConfig?.repo ? "Git Config" : "Connect Git"}</span>
+            <span>{assetGitConfig?.repo ? `Git: ${assetGitConfig.repo}` : "Connect Git"}</span>
+            {assetGitConfig?.isPaused && (
+              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">(Paused)</span>
+            )}
           </Button>
+
+          {/* View Options Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs font-medium cursor-pointer">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>View Options</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60 text-xs p-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="toggle-source-badges" className="text-xs cursor-pointer select-none">
+                  Show Source Title Badges
+                </Label>
+                <input
+                  id="toggle-source-badges"
+                  type="checkbox"
+                  checked={showSourceBadges}
+                  onChange={(e) => setShowSourceBadges(e.target.checked)}
+                  className="rounded border-border cursor-pointer h-4 w-4"
+                />
+              </div>
+
+              {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 1 && (
+                <div className="pt-2 border-t border-border/50 space-y-1">
+                  <Label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                    Filter By Figma Source
+                  </Label>
+                  <select
+                    value={selectedFigmaSource}
+                    onChange={(e) => setSelectedFigmaSource(e.target.value)}
+                    className="w-full h-7 text-xs bg-muted border border-border rounded px-2 text-foreground cursor-pointer focus:outline-none"
+                  >
+                    <option value="all">All Figma Sources ({displayAssets.filter(a => a.source === "figma").length})</option>
+                    {assetFigmaConfig.sources.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({displayAssets.filter((a) => a.figmaSourceId === s.id).length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Download All .ZIP */}
           {filteredAssets.length > 0 && (
@@ -1494,16 +1729,16 @@ export const AssetsView: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Independent Git Sync Configuration Modal */}
+      {/* Git Repository Connection & Control Modal */}
       <Dialog open={isGitConfigOpen} onOpenChange={setIsGitConfigOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <FolderGit2 className="w-4 h-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold">Asset Git Sync Provider</DialogTitle>
+                <DialogTitle className="text-sm font-bold">Asset Git Repository</DialogTitle>
                 <DialogDescription className="text-xs">
                   Connect a dedicated Git repository folder for vector SVG icons and <code className="font-mono">metadata.json</code>.
                 </DialogDescription>
@@ -1511,7 +1746,63 @@ export const AssetsView: React.FC = () => {
             </div>
           </DialogHeader>
 
-          <form onSubmit={handleSaveGitConfig} className="space-y-3.5 py-2">
+          {assetGitConfig && assetGitConfig.repo && (
+            <div className="p-3 rounded-lg bg-muted/60 border border-border text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-foreground truncate">
+                  <FolderGit2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span className="truncate">
+                    {assetGitConfig.owner}/{assetGitConfig.repo}
+                  </span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] shrink-0 ${
+                    assetGitConfig.isPaused
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                  }`}
+                >
+                  {assetGitConfig.isPaused ? "Sync Paused" : "Active"}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={togglePauseAssetGit}
+                  className="h-7 text-xs gap-1.5 cursor-pointer"
+                >
+                  {assetGitConfig.isPaused ? (
+                    <Play className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <Pause className="w-3 h-3 text-amber-500" />
+                  )}
+                  <span>{assetGitConfig.isPaused ? "Resume Sync" : "Pause Sync"}</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    if (confirm("Are you sure you want to disconnect and remove this Git configuration?")) {
+                      await disconnectAssetGit();
+                      setIsGitConfigOpen(false);
+                    }
+                  }}
+                  className="h-7 text-xs gap-1.5 text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
+                >
+                  <Unlink className="w-3 h-3" />
+                  <span>Disconnect Git</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveGitConfig} className="space-y-3.5 py-1">
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Git Provider</Label>
               <Select
@@ -1643,6 +1934,340 @@ export const AssetsView: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Multi-Figma Sources & Unified PAT Manager Modal */}
+      <Dialog open={isFigmaConfigOpen} onOpenChange={setIsFigmaConfigOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                <Figma className="w-4 h-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-sm font-bold">Figma Component &amp; Icon Sources</DialogTitle>
+                <DialogDescription className="text-xs">
+                  Connect multiple Figma frames/sections with a unified Personal Access Token.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* Section 1: Unified Figma PAT Vault */}
+            <div className="p-3 rounded-lg border border-violet-500/20 bg-violet-500/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
+                  <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />
+                  <span>Unified Figma Personal Access Token</span>
+                </div>
+                {assetFigmaConfig?.pat ? (
+                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] border-emerald-500/30">
+                    Token Saved
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-500/30">
+                    Token Required
+                  </Badge>
+                )}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Configured once and securely reused across all your connected Figma links.
+              </p>
+
+              <form onSubmit={handleSaveFigmaPat} className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Input
+                    type={showFigmaPat ? "text" : "password"}
+                    value={figmaPatInput}
+                    onChange={(e) => setFigmaPatInput(e.target.value)}
+                    placeholder="figd_..."
+                    className="h-8 text-xs font-mono pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowFigmaPat(!showFigmaPat)}
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    {showFigmaPat ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSavingFigmaPat}
+                  className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1 font-semibold cursor-pointer"
+                >
+                  {isSavingFigmaPat ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  <span>Save Token</span>
+                </Button>
+                {assetFigmaConfig?.pat && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      await setFigmaPat("");
+                      setFigmaPatInput("");
+                    }}
+                    className="h-8 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                    title="Clear Token"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </form>
+            </div>
+
+            {/* Section 2: Add New Figma Link Form */}
+            <form onSubmit={handleAddNewFigmaSource} className="p-3 rounded-lg border border-border bg-card space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <PlusCircle className="w-3.5 h-3.5 text-violet-500" />
+                <span>Add Figma Frame / Section Link</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="newFigmaTitle" className="text-[11px] font-semibold">
+                    Source Title / Name
+                  </Label>
+                  <Input
+                    id="newFigmaTitle"
+                    value={newFigmaTitle}
+                    onChange={(e) => setNewFigmaTitle(e.target.value)}
+                    placeholder="e.g. Navigation Icons"
+                    required
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="newFigmaUrl" className="text-[11px] font-semibold">
+                    Figma Frame Link (URL)
+                  </Label>
+                  <Input
+                    id="newFigmaUrl"
+                    value={newFigmaUrl}
+                    onChange={(e) => setNewFigmaUrl(e.target.value)}
+                    placeholder="https://www.figma.com/design/.../Icons?node-id=..."
+                    required
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] text-muted-foreground">
+                  In Figma: Right click &rarr; <span className="font-medium text-foreground">&quot;Copy link to selection&quot;</span>
+                </span>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isAddingFigmaSource || isSyncingFigmaAssets}
+                  className="h-8 text-xs gap-1.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold cursor-pointer"
+                >
+                  {isAddingFigmaSource ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5" />
+                  )}
+                  <span>Add &amp; Sync Link</span>
+                </Button>
+              </div>
+            </form>
+
+            {/* Section 3: Connected Figma Links List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-foreground px-0.5">
+                <span>Connected Sources ({assetFigmaConfig?.sources?.length || 0})</span>
+                {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={togglePauseFigmaSync}
+                      className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
+                    >
+                      {assetFigmaConfig.isPaused ? (
+                        <Play className="w-3 h-3 text-emerald-500" />
+                      ) : (
+                        <Pause className="w-3 h-3 text-amber-500" />
+                      )}
+                      <span>{assetFigmaConfig.isPaused ? "Resume All" : "Pause All"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => syncAllFigmaSources()}
+                      disabled={isSyncingFigmaAssets}
+                      className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isSyncingFigmaAssets ? "animate-spin" : ""}`} />
+                      <span>Sync All</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {(!assetFigmaConfig?.sources || assetFigmaConfig.sources.length === 0) ? (
+                <div className="text-center py-6 border border-dashed border-border rounded-lg text-xs text-muted-foreground space-y-1">
+                  <div className="font-semibold text-foreground">No Figma Links Connected</div>
+                  <div>Paste your first frame or section link above to sync icon components.</div>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+                  {assetFigmaConfig.sources.map((src) => {
+                    const iconCount = displayAssets.filter((a) => a.figmaSourceId === src.id).length;
+                    const isSrcPaused = src.isPaused || src.enabled === false;
+                    return (
+                      <div
+                        key={src.id}
+                        className={`p-3 rounded-xl border text-xs transition-all ${
+                          isSrcPaused
+                            ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
+                            : "border-border bg-card shadow-2xs hover:border-violet-500/30"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-foreground text-xs">{src.name}</span>
+                              {isSrcPaused ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1"
+                                >
+                                  <Pause className="w-2.5 h-2.5" />
+                                  <span>Paused</span>
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1"
+                                >
+                                  <Check className="w-2.5 h-2.5" />
+                                  <span>Active</span>
+                                </Badge>
+                              )}
+                              {src.nodeId && (
+                                <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                  Node: {src.nodeId}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                              <span>{iconCount} icons</span>
+                              {src.lastSyncedAt && (
+                                <span>
+                                  &bull; Synced{" "}
+                                  {new Date(src.lastSyncedAt).toLocaleString([], {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
+                                  })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Open in Figma */}
+                          {src.fileUrl && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(src.fileUrl, "_blank")}
+                              className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                              title="Open in Figma"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span className="hidden sm:inline">Figma</span>
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Actions Row: Explicit Toggle Pause & Remove Buttons */}
+                        <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-border/40 gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            {/* Explicit Pause / Resume Toggle Button */}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => togglePauseFigmaSource(src.id)}
+                              className={`h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer ${
+                                isSrcPaused
+                                  ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                                  : "border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                              }`}
+                              title={isSrcPaused ? "Resume sync for this Figma link" : "Pause sync for this Figma link"}
+                            >
+                              {isSrcPaused ? (
+                                <>
+                                  <Play className="w-3 h-3 text-emerald-500" />
+                                  <span>Resume Link</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Pause className="w-3 h-3 text-amber-500" />
+                                  <span>Pause Link</span>
+                                </>
+                              )}
+                            </Button>
+
+                            {/* Sync This Link Button */}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={syncingSourceId === src.id || isSyncingFigmaAssets || isSrcPaused}
+                              onClick={() => handleSyncSource(src.id)}
+                              className="h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-500/10 border-violet-500/30"
+                              title="Sync this link now"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${syncingSourceId === src.id ? "animate-spin" : ""}`} />
+                              <span>{syncingSourceId === src.id ? "Syncing..." : "Sync Now"}</span>
+                            </Button>
+                          </div>
+
+                          {/* Remove Link Button */}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              removeFigmaSource(
+                                src.id,
+                                confirm(
+                                  `Delete all ${iconCount} icons imported from "${src.name}" as well?\n\nClick OK to delete icons, or Cancel to keep icons but remove the link.`
+                                )
+                              )
+                            }
+                            className="h-7 px-2 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
+                            title="Remove this Figma link"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Remove Link</span>
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFigmaConfigOpen(false)}
+              className="text-xs h-8"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

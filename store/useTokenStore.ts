@@ -38,6 +38,8 @@ import {
   ROLE_DEFINITIONS,
   ProjectAsset,
   AssetGitConfig,
+  AssetFigmaConfig,
+  FigmaSourceLink,
 } from "@/types/tenant";
 import {
   getUserOrganizations,
@@ -49,6 +51,7 @@ import {
   saveProjectFigmaVariables,
   saveProjectAssets,
   saveProjectAssetGitConfig,
+  saveProjectAssetFigmaConfig,
   createOrganizationInvitation,
   getOrganizationInvitations,
   getPendingInvitationsForEmail,
@@ -130,7 +133,9 @@ interface TokenStoreState {
   // Assets & SVG Icons State (Independent Sync)
   assets: ProjectAsset[];
   assetGitConfig: AssetGitConfig | null;
+  assetFigmaConfig: AssetFigmaConfig | null;
   isSyncingAssets: boolean;
+  isSyncingFigmaAssets: boolean;
   setAssets: (assets: ProjectAsset[]) => void;
   uploadAssets: (newAssets: Array<{ name: string; title?: string; type?: string; tag?: string; category?: string; svg: string }>) => Promise<void>;
   applyMetadataToAssets: (metadataMap: Map<string, { name?: string; title?: string; type?: string; tag?: string; category?: string }>) => Promise<void>;
@@ -139,6 +144,18 @@ interface TokenStoreState {
   deleteAssets: (ids: string[]) => Promise<void>;
   setAssetGitConfig: (config: AssetGitConfig | null) => Promise<void>;
   syncAssetsFromGit: () => Promise<boolean>;
+  togglePauseAssetGit: () => Promise<void>;
+  disconnectAssetGit: () => Promise<void>;
+  setAssetFigmaConfig: (config: AssetFigmaConfig | null) => Promise<void>;
+  setFigmaPat: (pat: string) => Promise<void>;
+  addFigmaSource: (source: { name: string; fileUrl: string }) => Promise<boolean>;
+  updateFigmaSource: (id: string, updates: Partial<FigmaSourceLink>) => Promise<void>;
+  removeFigmaSource: (id: string, removeAssets?: boolean) => Promise<void>;
+  togglePauseFigmaSource: (sourceId: string) => Promise<void>;
+  syncSingleFigmaSource: (sourceId: string) => Promise<boolean>;
+  syncAllFigmaSources: () => Promise<boolean>;
+  togglePauseFigmaSync: () => Promise<void>;
+  syncAssetsFromFigma: (customConfig?: AssetFigmaConfig) => Promise<boolean>;
 
   // Theme Groups Architecture
   themeGroups: ThemeGroup[];
@@ -461,10 +478,35 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       // 3. Independent Assets & SVG Icons
+      let normalizedFigmaConfig: AssetFigmaConfig | null = proj.assetFigmaConfig || null;
+      if (normalizedFigmaConfig) {
+        if (!Array.isArray(normalizedFigmaConfig.sources)) {
+          normalizedFigmaConfig = {
+            pat: normalizedFigmaConfig.pat || "",
+            sources: normalizedFigmaConfig.fileUrl ? [
+              {
+                id: "figma_src_default",
+                name: normalizedFigmaConfig.nodeName || "Primary Frame",
+                fileUrl: normalizedFigmaConfig.fileUrl,
+                fileKey: normalizedFigmaConfig.fileKey || "",
+                nodeId: normalizedFigmaConfig.nodeId,
+                nodeName: normalizedFigmaConfig.nodeName,
+                lastSyncedAt: normalizedFigmaConfig.lastSyncedAt,
+                enabled: true,
+              }
+            ] : [],
+            lastSyncedAt: normalizedFigmaConfig.lastSyncedAt,
+            isPaused: normalizedFigmaConfig.isPaused || false,
+          };
+        }
+      }
+
       set({
         assets: proj.assets || [],
         assetGitConfig: proj.assetGitConfig || null,
+        assetFigmaConfig: normalizedFigmaConfig,
         isSyncingAssets: false,
+        isSyncingFigmaAssets: false,
       });
     }
   },
@@ -960,7 +1002,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   // Assets & SVG Icons Implementation (Independent Sync)
   assets: [],
   assetGitConfig: null,
+  assetFigmaConfig: null,
   isSyncingAssets: false,
+  isSyncingFigmaAssets: false,
 
   setAssets: (assets) => set({ assets }),
 
@@ -1143,6 +1187,414 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     } finally {
       set({ isSyncingAssets: false });
     }
+  },
+
+  togglePauseAssetGit: async () => {
+    const { currentOrg, currentProject, assetGitConfig, addToast } = get();
+    if (!assetGitConfig) return;
+    const isPaused = !assetGitConfig.isPaused;
+    const updated = { ...assetGitConfig, isPaused };
+    set({ assetGitConfig: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetGitConfig(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "info",
+      title: isPaused ? "Git Sync Paused" : "Git Sync Resumed",
+      message: isPaused ? "Automatic Git asset sync is paused." : "Git asset sync is now active.",
+    });
+  },
+
+  disconnectAssetGit: async () => {
+    const { currentOrg, currentProject, addToast } = get();
+    set({ assetGitConfig: null });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetGitConfig(currentOrg.id, currentProject.id, null);
+    }
+    addToast({
+      type: "info",
+      title: "Git Disconnected",
+      message: "Asset Git configuration has been removed.",
+    });
+  },
+
+  setAssetFigmaConfig: async (config) => {
+    const { currentOrg, currentProject, addToast } = get();
+    set({ assetFigmaConfig: config });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, config);
+    }
+  },
+
+  setFigmaPat: async (pat: string) => {
+    const { currentOrg, currentProject, assetFigmaConfig, addToast } = get();
+    const cleanPat = pat.trim();
+    const updated: AssetFigmaConfig = {
+      pat: cleanPat,
+      sources: assetFigmaConfig?.sources || [],
+      lastSyncedAt: assetFigmaConfig?.lastSyncedAt,
+      isPaused: assetFigmaConfig?.isPaused || false,
+    };
+    set({ assetFigmaConfig: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "success",
+      title: cleanPat ? "Figma Token Saved" : "Figma Token Cleared",
+      message: cleanPat ? "Personal Access Token securely saved for all Figma sources." : "Figma Personal Access Token removed.",
+    });
+  },
+
+  addFigmaSource: async (source: { name: string; fileUrl: string }) => {
+    const { currentOrg, currentProject, assetFigmaConfig, addToast } = get();
+    const pat = assetFigmaConfig?.pat || "";
+    if (!source.fileUrl.trim()) {
+      addToast({ type: "error", title: "Missing URL", message: "Please enter a valid Figma frame or section link." });
+      return false;
+    }
+
+    const newId = `figma_src_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newSource: FigmaSourceLink = {
+      id: newId,
+      name: source.name.trim() || "Figma Frame",
+      fileUrl: source.fileUrl.trim(),
+      fileKey: "",
+      enabled: true,
+    };
+
+    const currentSources = assetFigmaConfig?.sources || [];
+    const updatedSources = [...currentSources, newSource];
+    const updatedConfig: AssetFigmaConfig = {
+      pat,
+      sources: updatedSources,
+      lastSyncedAt: assetFigmaConfig?.lastSyncedAt,
+      isPaused: assetFigmaConfig?.isPaused || false,
+    };
+
+    set({ assetFigmaConfig: updatedConfig });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+    }
+
+    if (pat) {
+      // Automatically run initial sync for this source
+      await get().syncSingleFigmaSource(newId);
+    } else {
+      addToast({
+        type: "success",
+        title: "Figma Source Added",
+        message: `Added "${newSource.name}". Connect your Figma PAT to sync.`,
+      });
+    }
+    return true;
+  },
+
+  updateFigmaSource: async (id: string, updates: Partial<FigmaSourceLink>) => {
+    const { currentOrg, currentProject, assetFigmaConfig } = get();
+    if (!assetFigmaConfig) return;
+    const updatedSources = (assetFigmaConfig.sources || []).map((s) =>
+      s.id === id ? { ...s, ...updates } : s
+    );
+    const updatedConfig = { ...assetFigmaConfig, sources: updatedSources };
+    set({ assetFigmaConfig: updatedConfig });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+    }
+  },
+
+  removeFigmaSource: async (id: string, removeAssets = false) => {
+    const { currentOrg, currentProject, assetFigmaConfig, assets, addToast } = get();
+    if (!assetFigmaConfig) return;
+    const removedSrc = assetFigmaConfig.sources.find((s) => s.id === id);
+    const updatedSources = (assetFigmaConfig.sources || []).filter((s) => s.id !== id);
+    const updatedConfig = { ...assetFigmaConfig, sources: updatedSources };
+
+    let updatedAssets = assets;
+    if (removeAssets) {
+      updatedAssets = assets.filter((a) => a.figmaSourceId !== id);
+    }
+
+    set({ assetFigmaConfig: updatedConfig, assets: updatedAssets });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      if (removeAssets) {
+        await saveProjectAssets(currentOrg.id, currentProject.id, updatedAssets);
+      }
+    }
+    addToast({
+      type: "info",
+      title: "Figma Source Removed",
+      message: `Removed source "${removedSrc?.name || id}".`,
+    });
+  },
+
+  togglePauseFigmaSource: async (sourceId: string) => {
+    const { currentOrg, currentProject, assetFigmaConfig, addToast } = get();
+    if (!assetFigmaConfig) return;
+    let isNowPaused = false;
+    let sourceName = "Figma Source";
+    const updatedSources = (assetFigmaConfig.sources || []).map((s) => {
+      if (s.id === sourceId) {
+        isNowPaused = !s.isPaused;
+        sourceName = s.name;
+        return { ...s, isPaused: isNowPaused, enabled: !isNowPaused };
+      }
+      return s;
+    });
+    const updatedConfig = { ...assetFigmaConfig, sources: updatedSources };
+    set({ assetFigmaConfig: updatedConfig });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+    }
+    addToast({
+      type: "info",
+      title: isNowPaused ? `Paused "${sourceName}"` : `Resumed "${sourceName}"`,
+      message: isNowPaused ? "This Figma link is paused and excluded from sync." : "This Figma link is active and ready to sync.",
+    });
+  },
+
+  togglePauseFigmaSync: async () => {
+    const { currentOrg, currentProject, assetFigmaConfig, addToast } = get();
+    if (!assetFigmaConfig) return;
+    const isPaused = !assetFigmaConfig.isPaused;
+    const updated = { ...assetFigmaConfig, isPaused };
+    set({ assetFigmaConfig: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "info",
+      title: isPaused ? "Figma Sync Paused" : "Figma Sync Resumed",
+      message: isPaused ? "Figma asset sync is paused." : "Figma asset sync is active.",
+    });
+  },
+
+  syncSingleFigmaSource: async (sourceId: string) => {
+    const { currentOrg, currentProject, assetFigmaConfig, assets, addToast } = get();
+    if (!assetFigmaConfig || !assetFigmaConfig.pat) {
+      addToast({
+        type: "error",
+        title: "Missing Figma Token",
+        message: "Please configure your Figma Personal Access Token in settings.",
+      });
+      return false;
+    }
+
+    const targetSrc = (assetFigmaConfig.sources || []).find((s) => s.id === sourceId);
+    if (!targetSrc || !targetSrc.fileUrl) {
+      addToast({ type: "error", title: "Source Not Found", message: "Target Figma source was not found." });
+      return false;
+    }
+
+    set({ isSyncingFigmaAssets: true });
+    try {
+      const res = await fetch("/api/figma/fetch-assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pat: assetFigmaConfig.pat,
+          fileUrl: targetSrc.fileUrl,
+          fileKey: targetSrc.fileKey,
+          nodeId: targetSrc.nodeId,
+          name: targetSrc.name,
+          sourceId: targetSrc.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch assets from Figma.");
+      }
+
+      const fetchedAssets: ProjectAsset[] = (data.assets || []).map((a: ProjectAsset) => ({
+        ...a,
+        figmaSourceId: targetSrc.id,
+        figmaSourceName: targetSrc.name,
+      }));
+
+      // Merge: Update matching figmaNodeId or append new, keep non-source assets
+      const otherAssets = assets.filter((a) => a.figmaSourceId !== targetSrc.id);
+      const existingThisSource = assets.filter((a) => a.figmaSourceId === targetSrc.id);
+      const existingNodeMap = new Map(existingThisSource.map((a) => [a.figmaNodeId, a]));
+
+      let newCount = 0;
+      let updatedCount = 0;
+
+      const mergedThisSource = fetchedAssets.map((fetched) => {
+        const existing = existingNodeMap.get(fetched.figmaNodeId);
+        if (existing) {
+          updatedCount++;
+          return {
+            ...existing,
+            ...fetched,
+            id: existing.id,
+          };
+        } else {
+          newCount++;
+          return fetched;
+        }
+      });
+
+      const finalAssets = [...mergedThisSource, ...otherAssets];
+      const now = new Date().toISOString();
+
+      const updatedSources = (assetFigmaConfig.sources || []).map((s) =>
+        s.id === sourceId
+          ? {
+              ...s,
+              nodeName: data.nodeName || s.nodeName,
+              fileKey: data.fileKey || s.fileKey,
+              nodeId: data.nodeId || s.nodeId,
+              lastSyncedAt: now,
+              assetCount: mergedThisSource.length,
+            }
+          : s
+      );
+
+      const updatedConfig: AssetFigmaConfig = {
+        ...assetFigmaConfig,
+        sources: updatedSources,
+        lastSyncedAt: now,
+      };
+
+      set({ assets: finalAssets, assetFigmaConfig: updatedConfig });
+      if (currentOrg && currentProject) {
+        await saveProjectAssets(currentOrg.id, currentProject.id, finalAssets);
+        await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      }
+
+      addToast({
+        type: "success",
+        title: `Synced: ${targetSrc.name}`,
+        message: `Synced ${fetchedAssets.length} icons (${newCount} new, ${updatedCount} updated).`,
+      });
+      return true;
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Figma Sync Failed",
+        message: err.message || `Could not sync source "${targetSrc.name}".`,
+      });
+      return false;
+    } finally {
+      set({ isSyncingFigmaAssets: false });
+    }
+  },
+
+  syncAllFigmaSources: async () => {
+    const { currentOrg, currentProject, assetFigmaConfig, assets, addToast } = get();
+    if (!assetFigmaConfig || !assetFigmaConfig.pat) {
+      addToast({
+        type: "error",
+        title: "Missing Figma Token",
+        message: "Please configure your Figma Personal Access Token.",
+      });
+      return false;
+    }
+
+    const enabledSources = (assetFigmaConfig.sources || []).filter(
+      (s) => s.enabled !== false && !s.isPaused && s.fileUrl
+    );
+    if (enabledSources.length === 0) {
+      addToast({
+        type: "info",
+        title: "No Active Sources",
+        message: "Please add or resume at least one active Figma source link to sync.",
+      });
+      return false;
+    }
+
+    set({ isSyncingFigmaAssets: true });
+    try {
+      const res = await fetch("/api/figma/fetch-assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pat: assetFigmaConfig.pat,
+          sources: enabledSources,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch assets from Figma.");
+      }
+
+      const fetchedAssets: ProjectAsset[] = data.assets || [];
+      const nonFigmaAssets = assets.filter((a) => a.source !== "figma");
+      const existingFigmaAssets = assets.filter((a) => a.source === "figma");
+      const existingNodeMap = new Map(existingFigmaAssets.map((a) => [a.figmaNodeId, a]));
+
+      let newCount = 0;
+      let updatedCount = 0;
+
+      const mergedFigma = fetchedAssets.map((fetched) => {
+        const existing = existingNodeMap.get(fetched.figmaNodeId);
+        if (existing) {
+          updatedCount++;
+          return {
+            ...existing,
+            ...fetched,
+            id: existing.id,
+          };
+        } else {
+          newCount++;
+          return fetched;
+        }
+      });
+
+      const finalAssets = [...mergedFigma, ...nonFigmaAssets];
+      const now = new Date().toISOString();
+
+      const resultsMap = new Map((data.sourcesResults || []).map((r: any) => [r.sourceId, r]));
+      const updatedSources = (assetFigmaConfig.sources || []).map((s) => {
+        const r: any = resultsMap.get(s.id);
+        if (r) {
+          return {
+            ...s,
+            nodeName: r.nodeName || s.nodeName,
+            fileKey: r.fileKey || s.fileKey,
+            nodeId: r.nodeId || s.nodeId,
+            lastSyncedAt: now,
+            assetCount: r.importedCount,
+          };
+        }
+        return s;
+      });
+
+      const updatedConfig: AssetFigmaConfig = {
+        ...assetFigmaConfig,
+        sources: updatedSources,
+        lastSyncedAt: now,
+      };
+
+      set({ assets: finalAssets, assetFigmaConfig: updatedConfig });
+      if (currentOrg && currentProject) {
+        await saveProjectAssets(currentOrg.id, currentProject.id, finalAssets);
+        await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      }
+
+      addToast({
+        type: "success",
+        title: "All Figma Sources Synchronized",
+        message: `Synced ${fetchedAssets.length} icons across ${enabledSources.length} sources (${newCount} new, ${updatedCount} updated).`,
+      });
+      return true;
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Figma Sync Failed",
+        message: err.message || "Could not sync assets from Figma.",
+      });
+      return false;
+    } finally {
+      set({ isSyncingFigmaAssets: false });
+    }
+  },
+
+  syncAssetsFromFigma: async (customConfig) => {
+    return get().syncAllFigmaSources();
   },
 
   themeGroups: [],

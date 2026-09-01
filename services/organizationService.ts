@@ -18,6 +18,7 @@ import {
   UserRole,
   ProjectAsset,
   AssetGitConfig,
+  AssetFigmaConfig,
 } from "@/types/tenant";
 import { RawTokensDocument, ThemeGroup, GitCredentials } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
@@ -661,5 +662,30 @@ export async function saveProjectAssetGitConfig(
     console.warn("Firestore error saving project asset git config:", e);
   }
 }
+
+/**
+ * Dynamically saves Figma asset configuration for a specific Project in Firestore
+ */
+export async function saveProjectAssetFigmaConfig(
+  orgId: string,
+  projectId: string,
+  assetFigmaConfig: AssetFigmaConfig | null
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        assetFigmaConfig: assetFigmaConfig || null,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving project asset figma config:", e);
+  }
+}
+
 
 

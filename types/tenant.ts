@@ -57,7 +57,11 @@ export interface ProjectAsset {
   svg: string;
   path?: string;
   updatedAt: string;
-  source: "upload" | "git";
+  source: "upload" | "git" | "figma";
+  figmaNodeId?: string;
+  figmaUrl?: string;
+  figmaSourceId?: string;
+  figmaSourceName?: string;
 }
 
 export interface AssetGitConfig {
@@ -68,6 +72,33 @@ export interface AssetGitConfig {
   branch: string;
   assetFolder?: string; // e.g. "icons" or "assets/icons"
   pat: string;
+  isPaused?: boolean;
+}
+
+export interface FigmaSourceLink {
+  id: string;
+  name: string; // User-defined or auto-detected title (e.g. "Navigation Icons")
+  fileUrl: string; // Full Figma URL
+  fileKey: string; // Extracted file key
+  nodeId?: string; // Target frame/section/component set node ID (e.g. "102:450")
+  nodeName?: string; // Figma API returned frame/section name
+  lastSyncedAt?: string;
+  assetCount?: number;
+  enabled?: boolean;
+  isPaused?: boolean;
+}
+
+export interface AssetFigmaConfig {
+  pat: string; // Unified Personal Access Token
+  sources: FigmaSourceLink[]; // Array of multiple Figma source links
+  lastSyncedAt?: string;
+  isPaused?: boolean;
+  showSourceBadge?: boolean;
+  // Legacy single-source fields for backward compatibility:
+  fileUrl?: string;
+  fileKey?: string;
+  nodeId?: string;
+  nodeName?: string;
 }
 
 export interface Project {
@@ -81,6 +112,7 @@ export interface Project {
   logoUrl?: string;
   gitConfig?: GitCredentials | null;
   assetGitConfig?: AssetGitConfig | null;
+  assetFigmaConfig?: AssetFigmaConfig | null;
   assets?: ProjectAsset[];
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];

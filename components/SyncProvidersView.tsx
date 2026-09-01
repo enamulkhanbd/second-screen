@@ -34,6 +34,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Send,
+  Figma,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,8 @@ export const SyncProvidersView: React.FC = () => {
     fetchLiveTokens,
     syncStatus,
     setSyncStatus,
+    assetFigmaConfig,
+    setFigmaPat,
     addToast,
     getCurrentUserRole,
     setSidebarTab,
@@ -139,6 +142,27 @@ export const SyncProvidersView: React.FC = () => {
   const [activePluginKey, setActivePluginKey] = useState<any | null>(null);
   const [isLoadingPluginStatus, setIsLoadingPluginStatus] = useState(false);
   const [isUnlinkingPlugin, setIsUnlinkingPlugin] = useState(false);
+
+  // Unified Figma PAT State
+  const [figmaPatInput, setFigmaPatInput] = useState(assetFigmaConfig?.pat || "");
+  const [showFigmaPat, setShowFigmaPat] = useState(false);
+  const [isSavingFigmaPat, setIsSavingFigmaPat] = useState(false);
+
+  useEffect(() => {
+    if (assetFigmaConfig?.pat) {
+      setFigmaPatInput(assetFigmaConfig.pat);
+    }
+  }, [assetFigmaConfig?.pat]);
+
+  const handleSaveFigmaPat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingFigmaPat(true);
+    try {
+      await setFigmaPat(figmaPatInput);
+    } finally {
+      setIsSavingFigmaPat(false);
+    }
+  };
 
   const fetchPluginStatus = async () => {
     if (!currentProject) return;
@@ -957,6 +981,122 @@ export const SyncProvidersView: React.FC = () => {
                   </ol>
                 </div>
               </div>
+            </div>
+
+            {/* Unified Figma REST API & Asset Sync PAT Vault */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-border/70 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                      <Figma className="w-3.5 h-3.5" />
+                    </div>
+                    <h2 className="text-sm font-bold text-foreground">
+                      Unified Figma Personal Access Token (PAT Vault)
+                    </h2>
+                    {assetFigmaConfig?.pat ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono border-emerald-500/30">
+                        Token Saved
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400">
+                        No Token Set
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Centralized access token used to fetch component frames, variant SVGs, and automated asset syncing.
+                  </p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSidebarTab("assets")}
+                  className="h-8 text-xs gap-1.5 cursor-pointer"
+                >
+                  <span>Go to Assets Manager</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+
+              <form onSubmit={handleSaveFigmaPat} className="space-y-3 max-w-xl">
+                <div className="space-y-1.5">
+                  <Label htmlFor="figmaPatVaultInput" className="text-xs font-semibold">
+                    Figma Personal Access Token (PAT)
+                  </Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="figmaPatVaultInput"
+                        type={showFigmaPat ? "text" : "password"}
+                        placeholder="figd_..."
+                        value={figmaPatInput}
+                        onChange={(e) => setFigmaPatInput(e.target.value)}
+                        className="h-9 text-xs font-mono pr-8"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowFigmaPat(!showFigmaPat)}
+                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        {showFigmaPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isSavingFigmaPat}
+                      className="h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1.5 font-semibold"
+                    >
+                      {isSavingFigmaPat ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>Save Token</span>
+                    </Button>
+
+                    {assetFigmaConfig?.pat && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          await setFigmaPat("");
+                          setFigmaPatInput("");
+                        }}
+                        className="h-9 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                        title="Remove Token"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Generate via Figma: <strong>Profile &gt; Settings &gt; Security &gt; Personal access tokens</strong>.
+                  </p>
+                </div>
+
+                {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0 && (
+                  <div className="p-3 rounded-lg bg-muted/40 border border-border text-xs flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-foreground">
+                        {assetFigmaConfig.sources.length} Linked Figma Source{assetFigmaConfig.sources.length === 1 ? "" : "s"}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground block">
+                        Using this unified token for automatic asset updates.
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSidebarTab("assets")}
+                      className="h-7 text-xs"
+                    >
+                      Manage Links
+                    </Button>
+                  </div>
+                )}
+              </form>
             </div>
           </div>
         )}
