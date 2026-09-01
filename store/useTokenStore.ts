@@ -166,7 +166,8 @@ interface TokenStoreState {
     | "mcp"
     | "project-settings"
     | "members"
-    | "org-settings";
+    | "org-settings"
+    | "changelog";
   setSidebarTab: (
     tab:
       | "dashboard"
@@ -183,6 +184,7 @@ interface TokenStoreState {
       | "project-settings"
       | "members"
       | "org-settings"
+      | "changelog"
   ) => void;
   membersSubTab: "members" | "invites" | "activity";
   setMembersSubTab: (tab: "members" | "invites" | "activity") => void;
@@ -1530,6 +1532,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "project-settings",
         "members",
         "org-settings",
+        "changelog",
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const initialTab: any =

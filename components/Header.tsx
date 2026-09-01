@@ -22,6 +22,7 @@ import {
   FileCode,
   Sparkles,
   Activity,
+  Rocket,
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
@@ -511,6 +512,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                     {sidebarTab === "exports" && <BreadcrumbPage>Exports</BreadcrumbPage>}
                     {sidebarTab === "releases" && <BreadcrumbPage>Releases</BreadcrumbPage>}
                     {sidebarTab === "activity" && <BreadcrumbPage>Git Log</BreadcrumbPage>}
+                    {sidebarTab === "changelog" && <BreadcrumbPage>What&apos;s New &amp; Releases</BreadcrumbPage>}
                     {sidebarTab === "integrations" && <BreadcrumbPage>Integrations</BreadcrumbPage>}
                     {sidebarTab === "mcp" && <BreadcrumbPage>MCP &amp; CLI</BreadcrumbPage>}
                     {sidebarTab === "members" && <BreadcrumbPage>Team Members</BreadcrumbPage>}
@@ -866,6 +868,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                   >
                     <Activity className="w-4 h-4 text-muted-foreground" />
                     <span>Activity log</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setSidebarTab("changelog")}
+                    className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
+                  >
+                    <Rocket className="w-4 h-4 text-primary" />
+                    <span>What&apos;s New &amp; Releases</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuItem

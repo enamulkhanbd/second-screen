@@ -13,6 +13,7 @@ import {
   Package,
   Clock,
   GitBranch,
+  Rocket,
   Settings,
   Users,
   Building2,
@@ -28,6 +29,7 @@ import {
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
+import { LATEST_VERSION } from "@/data/systemChangelog";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 
@@ -580,7 +582,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
         </div>
       </div>
 
-      {/* 3. Footer: User Account & Logout */}
+      {/* 3. System Changelog / What's New dedicated section */}
+      <div className="p-2 border-t border-sidebar-border">
+        <button
+          onClick={() => setSidebarTab("changelog")}
+          title={`What's New & System Changelog (${LATEST_VERSION})`}
+          className={`w-full flex items-center ${
+            isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"
+          } rounded-lg text-xs transition-all cursor-pointer ${
+            sidebarTab === "changelog"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+              : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+          }`}
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            <Rocket className="size-4 flex-shrink-0 text-primary" />
+            {!isCollapsed && <span>What&apos;s New</span>}
+          </div>
+          {!isCollapsed && (
+            <Badge variant="secondary" className="text-[9px] py-0 px-1 font-mono font-semibold">
+              {LATEST_VERSION}
+            </Badge>
+          )}
+        </button>
+      </div>
+
+      {/* 4. Footer: User Account & Logout */}
       <div className="p-2 border-t border-sidebar-border">
         {currentUser ? (
           <DropdownMenu>
@@ -637,6 +664,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem
+                  onClick={() => setSidebarTab("changelog")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Rocket className="size-3.5 text-primary" />
+                  <span>What&apos;s New ({LATEST_VERSION})</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => setSidebarTab("org-settings")}
                   className="gap-2 cursor-pointer"
                 >
@@ -668,7 +702,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
           <div className="px-3 py-1 flex items-center justify-between text-[10px] text-muted-foreground font-mono select-none">
             <span>Tokens Platform</span>
             <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
-              v0.1.0-beta
+              {LATEST_VERSION}
             </Badge>
           </div>
         ) : null}

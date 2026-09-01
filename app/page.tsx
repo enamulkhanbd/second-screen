@@ -22,6 +22,7 @@ import { McpCliView } from "@/components/McpCliView";
 import { ProjectSettingsView } from "@/components/ProjectSettingsView";
 import { MembersView } from "@/components/MembersView";
 import { OrgSettingsView } from "@/components/OrgSettingsView";
+import { SystemChangelogView } from "@/components/SystemChangelogView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
@@ -123,6 +124,8 @@ export default function Home() {
           <MembersView />
         ) : sidebarTab === "org-settings" ? (
           <OrgSettingsView />
+        ) : sidebarTab === "changelog" ? (
+          <SystemChangelogView />
         ) : sidebarTab === "tokens" ? (
           <TokensWorkspace onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : viewMode === "flow" ? (
