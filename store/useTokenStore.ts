@@ -140,6 +140,7 @@ interface TokenStoreState {
   uploadAssets: (newAssets: Array<{ name: string; title?: string; type?: string; tag?: string; category?: string; svg: string }>) => Promise<void>;
   applyMetadataToAssets: (metadataMap: Map<string, { name?: string; title?: string; type?: string; tag?: string; category?: string }>) => Promise<void>;
   updateAsset: (id: string, updates: Partial<ProjectAsset>) => Promise<void>;
+  updateAssets: (ids: string[], updates: Partial<ProjectAsset>) => Promise<void>;
   deleteAsset: (id: string) => Promise<void>;
   deleteAssets: (ids: string[]) => Promise<void>;
   setAssetGitConfig: (config: AssetGitConfig | null) => Promise<void>;
@@ -1094,6 +1095,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "success",
       title: "Asset Updated",
       message: "Saved changes to icon.",
+    });
+  },
+
+  updateAssets: async (ids, updates) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    const idSet = new Set(ids);
+    const updated = assets.map((asset) =>
+      idSet.has(asset.id) ? { ...asset, ...updates, updatedAt: new Date().toISOString() } : asset
+    );
+    set({ assets: updated });
+    if (currentOrg && currentProject) {
+      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+    }
+    addToast({
+      type: "success",
+      title: "Metadata Updated",
+      message: `Updated metadata for ${ids.length} icon${ids.length > 1 ? "s" : ""}.`,
     });
   },
 

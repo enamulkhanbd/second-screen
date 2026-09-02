@@ -262,6 +262,7 @@ export const AssetsView: React.FC = () => {
     uploadAssets,
     applyMetadataToAssets,
     updateAsset,
+    updateAssets,
     deleteAsset,
     deleteAssets,
     assetGitConfig,
@@ -297,6 +298,7 @@ export const AssetsView: React.FC = () => {
   // Selection & Bulk Actions State
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkMetadataOpen, setIsBulkMetadataOpen] = useState(false);
   const [singleDeleteAsset, setSingleDeleteAsset] = useState<ProjectAsset | null>(null);
 
   // Drag and Drop Zone State
@@ -317,6 +319,10 @@ export const AssetsView: React.FC = () => {
   const [editFormType, setEditFormType] = useState("");
   const [editFormCategory, setEditFormCategory] = useState("");
   const [editFormTag, setEditFormTag] = useState("");
+  const [bulkFormTitle, setBulkFormTitle] = useState("");
+  const [bulkFormType, setBulkFormType] = useState("");
+  const [bulkFormCategory, setBulkFormCategory] = useState("");
+  const [bulkFormTag, setBulkFormTag] = useState("");
 
   // Configuration status helper flags
   const hasFigmaConfigured = Boolean(
@@ -405,7 +411,7 @@ export const AssetsView: React.FC = () => {
         return matchTitle || matchName || matchType || matchCat || matchTag || matchSource;
       }
       return true;
-    });
+    }).sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name, undefined, { sensitivity: "base" }));
   }, [displayAssets, selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
 
   // Group filtered assets directly by Type (e.g. Stroke, Two Tone, Solid)
@@ -876,6 +882,33 @@ export const AssetsView: React.FC = () => {
     setEditingAsset(null);
   };
 
+  const handleOpenBulkMetadata = () => {
+    setBulkFormTitle("");
+    setBulkFormType("");
+    setBulkFormCategory("");
+    setBulkFormTag("");
+    setIsBulkMetadataOpen(true);
+  };
+
+  const handleSaveBulkMetadata = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = bulkFormTitle.trim();
+    const type = bulkFormType.trim();
+    const category = bulkFormCategory.trim().toLowerCase();
+    const tag = bulkFormTag.trim();
+    if (!title && !type && !category && !tag) return;
+
+    const selectedIds = selectedAssetIds;
+    const updates: Partial<ProjectAsset> = {
+      ...(title ? { title } : {}),
+      ...(type ? { type } : {}),
+      ...(category ? { category } : {}),
+      ...(tag ? { tag } : {}),
+    };
+    await updateAssets(Array.from(selectedIds), updates);
+    setIsBulkMetadataOpen(false);
+  };
+
   const isAllSelected =
     filteredAssets.length > 0 && selectedAssetIds.size === filteredAssets.length;
 
@@ -1089,9 +1122,9 @@ export const AssetsView: React.FC = () => {
                 {displayAssets.length} {displayAssets.length === 1 ? "icon" : "icons"}
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            {/* <p className="text-[11px] text-muted-foreground">
               Vector SVG icon library &amp; independent Git folder synchronization
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -1617,6 +1650,18 @@ export const AssetsView: React.FC = () => {
           {canUserEdit() && (
             <Button
               size="sm"
+              variant="outline"
+              onClick={handleOpenBulkMetadata}
+              className="h-8 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Edit Metadata</span>
+            </Button>
+          )}
+
+          {canUserEdit() && (
+            <Button
+              size="sm"
               variant="destructive"
               onClick={() => setIsBulkDeleteOpen(true)}
               className="h-8 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
@@ -1724,6 +1769,73 @@ export const AssetsView: React.FC = () => {
               <span>Delete {selectedAssetIds.size} Icons</span>
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkMetadataOpen} onOpenChange={setIsBulkMetadataOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold">Edit Metadata for Selected Icons</DialogTitle>
+            <DialogDescription className="text-xs">
+              Update {selectedAssetIds.size} selected icon{selectedAssetIds.size > 1 ? "s" : ""}. Leave a field blank to keep its current value.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveBulkMetadata} className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="bulkTitle" className="text-xs font-semibold">Display Title</Label>
+              <Input
+                id="bulkTitle"
+                value={bulkFormTitle}
+                onChange={(e) => setBulkFormTitle(e.target.value)}
+                placeholder="Apply the same title to all selected icons"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="bulkType" className="text-xs font-semibold">Icon Type</Label>
+                <Input
+                  id="bulkType"
+                  value={bulkFormType}
+                  onChange={(e) => setBulkFormType(e.target.value)}
+                  placeholder="e.g. Stroke"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="bulkCategory" className="text-xs font-semibold">Category</Label>
+                <Input
+                  id="bulkCategory"
+                  value={bulkFormCategory}
+                  onChange={(e) => setBulkFormCategory(e.target.value)}
+                  placeholder="e.g. navigation"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="bulkTag" className="text-xs font-semibold">Search Tags</Label>
+              <Input
+                id="bulkTag"
+                value={bulkFormTag}
+                onChange={(e) => setBulkFormTag(e.target.value)}
+                placeholder="e.g. interface | common"
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsBulkMetadataOpen(false)} className="text-xs h-8">
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="text-xs h-8 font-semibold" disabled={!bulkFormTitle.trim() && !bulkFormType.trim() && !bulkFormCategory.trim() && !bulkFormTag.trim()}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
