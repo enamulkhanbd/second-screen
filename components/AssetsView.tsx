@@ -1877,7 +1877,7 @@ export const AssetsView: React.FC = () => {
 
       {/* Unified Asset Sources, Figma Links, Git Setup & View Options Drawer (shadcn/ui Drawer) */}
       <Drawer direction="right" open={isSettingsDrawerOpen} onOpenChange={setIsSettingsDrawerOpen}>
-        <DrawerContent className="!inset-y-0 !left-auto !right-0 !bottom-auto !mt-0 h-full max-h-none w-full max-w-xl rounded-l-[28px] rounded-r-none border-y border-l border-r-0 border-border bg-background shadow-2xl p-0 flex flex-col">
+        <DrawerContent className="h-full max-h-none w-full max-w-xl border-y border-l-0 border-r border-border bg-background shadow-2xl p-0 flex flex-col">
           <DrawerHeader className="shrink-0 px-6 pt-5 pb-3 border-b border-border/60 space-y-2 text-left">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
