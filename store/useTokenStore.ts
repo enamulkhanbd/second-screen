@@ -294,6 +294,7 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
 export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
   const isScopeActive = (orgId?: string, projectId?: string) => {
+    if (!orgId || !projectId) return false;
     const { currentOrg, currentProject } = get();
     return currentOrg?.id === orgId && currentProject?.id === projectId;
   };
@@ -2161,16 +2162,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         set({ isLoadingTenant: false });
       }
 
-      // 5. Automatically fetch fresh live tokens from remote git repository only if fully configured
-      if (
-        parsedCreds.provider &&
-        parsedCreds.owner &&
-        parsedCreds.repo &&
-        parsedCreds.branch &&
-        parsedCreds.pat
-      ) {
-        get().fetchLiveTokens(parsedCreds);
-      }
+      // Live token fetching is started only after the active project is loaded.
     } catch {
       // ignore storage parsing error
     }
