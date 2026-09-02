@@ -455,6 +455,13 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
   return null;
 }
 
+export function normalizeHexColor(hex: string, fallback = "#6366f1"): string {
+  const clean = hex.trim().replace(/^#/, "");
+  if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(clean)) return fallback;
+  const expanded = clean.length === 3 ? clean.split("").map((char) => char + char).join("") : clean;
+  return `#${expanded.toLowerCase()}`;
+}
+
 export function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (c: number) => {
     const hex = Math.round(Math.min(255, Math.max(0, c))).toString(16);

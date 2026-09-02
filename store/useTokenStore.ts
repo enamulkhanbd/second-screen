@@ -87,7 +87,7 @@ interface TokenStoreState {
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
   createOrgAction: (name: string, icon?: string, color?: string, logoUrl?: string) => Promise<Organization | null>;
-  updateOrgAction: (orgId: string, updates: { name: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
+  updateOrgAction: (orgId: string, updates: { name?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
   deleteOrgAction: (orgId: string) => Promise<void>;
   createProjectAction: (name: string, description?: string, icon?: string, color?: string, logoUrl?: string) => Promise<Project | null>;
   updateProjectAction: (orgId: string, projectId: string, updates: { name: string; description?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Project | null>;
@@ -292,6 +292,12 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
 };
 
 export const useTokenStore = create<TokenStoreState>((set, get) => {
+  let scopeSwitchVersion = 0;
+  const isScopeActive = (orgId?: string, projectId?: string) => {
+    const { currentOrg, currentProject } = get();
+    return currentOrg?.id === orgId && currentProject?.id === projectId;
+  };
+
   const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
     const { currentOrg, currentProject } = get();
     if (currentOrg && currentProject) {
@@ -383,14 +389,36 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setCurrentOrg: async (org) => {
-    set({ currentOrg: org });
+    const switchVersion = ++scopeSwitchVersion;
+    set({
+      currentOrg: org,
+      orgProjects: [],
+      currentProject: null,
+      rawTokens: {},
+      resolvedTokens: [],
+      themeGroups: [],
+      activeThemeGroupId: "",
+      activeThemeOptionId: "",
+      syncMeta: null,
+      figmaVariables: null,
+      figmaResolvedVariables: [],
+      figmaUpdatedAt: null,
+      figmaMeta: null,
+      assets: [],
+      assetGitConfig: null,
+      assetFigmaConfig: null,
+      credentials: DEFAULT_CREDENTIALS,
+      pendingInvitations: [],
+    });
     if (org) {
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("ts_active_org_id", org.id);
+          localStorage.removeItem("ts_active_project_id");
         } catch {}
       }
       const projects = await getOrgProjects(org.id);
+      if (switchVersion !== scopeSwitchVersion || get().currentOrg?.id !== org.id) return;
       set({ orgProjects: projects });
       if (projects.length > 0) {
         get().setCurrentProject(projects[0]);
@@ -402,7 +430,25 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setCurrentProject: (proj) => {
-    set({ currentProject: proj });
+    if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
+
+    set({
+      currentProject: proj,
+      rawTokens: {},
+      resolvedTokens: [],
+      themeGroups: [],
+      activeThemeGroupId: "",
+      activeThemeOptionId: "",
+      syncMeta: null,
+      figmaVariables: null,
+      figmaResolvedVariables: [],
+      figmaUpdatedAt: null,
+      figmaMeta: null,
+      assets: [],
+      assetGitConfig: null,
+      assetFigmaConfig: null,
+      credentials: DEFAULT_CREDENTIALS,
+    });
 
     if (proj) {
       if (typeof window !== "undefined") {
@@ -565,6 +611,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     try {
       const invs = await getOrganizationInvitations(orgId);
       const { currentOrg } = get();
+      if (currentOrg?.id !== orgId) return;
       const memberEmails = new Set(
         (currentOrg?.members || []).map((m) => String(m?.email || "").toLowerCase()).filter(Boolean)
       );
@@ -709,12 +756,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   updateOrgAction: async (orgId, updates) => {
     try {
-      const slug = updates.name ? String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") : "";
+      const existingOrg = get().userOrgs.find((org) => org.id === orgId);
+      const name = updates.name ?? existingOrg?.name;
       const orgUpdates = {
-        name: updates.name,
-        slug,
-        ...(updates.icon ? { icon: updates.icon } : {}),
-        ...(updates.color ? { color: updates.color } : {}),
+        ...(name ? { name } : {}),
+        ...(updates.name ? { slug: String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") } : {}),
+        ...(updates.icon !== undefined ? { icon: updates.icon } : {}),
+        ...(updates.color !== undefined ? { color: updates.color } : {}),
         ...(updates.logoUrl !== undefined ? { logoUrl: updates.logoUrl } : {}),
       };
       await updateOrganization(orgId, orgUpdates);
@@ -755,7 +803,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         currentOrg.id,
         name,
         description,
-        get().rawTokens,
+        {},
         currentUser?.displayName,
         icon,
         color,
@@ -1159,6 +1207,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   syncAssetsFromGit: async () => {
     const { currentOrg, currentProject, assetGitConfig, assets, addToast } = get();
+    const scopeOrgId = currentOrg?.id;
+    const scopeProjectId = currentProject?.id;
     if (!assetGitConfig || !assetGitConfig.owner || !assetGitConfig.repo || !assetGitConfig.pat) {
       addToast({
         type: "error",
@@ -1182,6 +1232,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       const fetchedAssets: ProjectAsset[] = data.assets || [];
+      if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
       const uploadedAssets = assets.filter((a) => a.source === "upload");
       const merged = [...fetchedAssets, ...uploadedAssets];
 
@@ -1391,6 +1442,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   syncSingleFigmaSource: async (sourceId: string) => {
     const { currentOrg, currentProject, assetFigmaConfig, assets, addToast } = get();
+    const scopeOrgId = currentOrg?.id;
+    const scopeProjectId = currentProject?.id;
     if (!assetFigmaConfig || !assetFigmaConfig.pat) {
       addToast({
         type: "error",
@@ -1425,6 +1478,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to fetch assets from Figma.");
       }
+
+      if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
 
       const fetchedAssets: ProjectAsset[] = (data.assets || []).map((a: ProjectAsset) => ({
         ...a,
@@ -1891,6 +1946,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   // Live Git Fetcher (Memory-only, 100% fresh)
   fetchLiveTokens: async (customCreds) => {
     const creds = customCreds || get().credentials;
+    const scopeOrgId = get().currentOrg?.id;
+    const scopeProjectId = get().currentProject?.id;
     if (!creds.provider || !creds.owner || !creds.repo || !creds.branch || !creds.pat) {
       return false;
     }
@@ -1912,6 +1969,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         get().setUserProfile(data.userProfile);
       }
 
+      if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
       get().setRawTokens(data.tokens, data.syncMeta);
       set({
         syncStatus: "success",

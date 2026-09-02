@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
 import {
   Dialog,
   DialogContent,
@@ -45,13 +46,15 @@ export const OrgSettingsView: React.FC = () => {
   const isOwner = currentOrg?.ownerUid === currentUser?.uid || userRole === "owner";
 
   const [orgName, setOrgName] = useState(currentOrg?.name || "");
+  const [orgColor, setOrgColor] = useState(currentOrg?.color || "#6366f1");
   const [copiedId, setCopiedId] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync state when currentOrg changes
   React.useEffect(() => {
-    if (currentOrg?.name) {
+    if (currentOrg) {
       setOrgName(currentOrg.name);
+      setOrgColor(currentOrg.color || "#6366f1");
     }
   }, [currentOrg]);
 
@@ -78,12 +81,12 @@ export const OrgSettingsView: React.FC = () => {
 
     setIsSaving(true);
     try {
-      await updateOrgAction(currentOrg.id, { name: orgName.trim() });
+      await updateOrgAction(currentOrg.id, { name: orgName.trim(), color: orgColor });
 
       addToast({
         type: "success",
         title: "Organization Updated",
-        message: `Saved workspace name as "${orgName.trim()}".`,
+        message: `Saved workspace name and brand color.`,
       });
     } catch (err: any) {
       addToast({
@@ -225,6 +228,13 @@ export const OrgSettingsView: React.FC = () => {
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold">Brand Color</Label>
+              <div className={!isOwner ? "pointer-events-none opacity-60" : undefined}>
+                <ColorPickerWithShades value={orgColor} onChange={setOrgColor} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs font-semibold">Organization Unique Identifier (ID)</Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -271,7 +281,7 @@ export const OrgSettingsView: React.FC = () => {
             <div className="flex justify-end pt-2 border-t border-border/70">
               <Button
                 type="submit"
-                disabled={isSaving || !orgName.trim() || orgName === currentOrg.name}
+                disabled={isSaving || !orgName.trim() || (orgName === currentOrg.name && orgColor === (currentOrg.color || "#6366f1"))}
                 className="h-9 text-xs font-bold gap-1.5"
               >
                 <Save className="w-3.5 h-3.5" />
