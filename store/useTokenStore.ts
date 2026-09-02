@@ -459,8 +459,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       // 1. Git Connection & Token Dictionary
-      if (proj.gitConfig && proj.gitConfig.repo) {
-        let branchToUse = proj.gitConfig.branch;
+      const hasProjectGitProvider = Boolean(
+        proj.gitConfig?.provider &&
+        proj.gitConfig.owner &&
+        proj.gitConfig.repo &&
+        proj.gitConfig.branch
+      );
+      if (hasProjectGitProvider) {
+        const gitConfig = proj.gitConfig!;
+        let branchToUse = gitConfig.branch;
         if (typeof window !== "undefined") {
           const savedBranch = localStorage.getItem(`ts_project_branch_${proj.id}`);
           if (savedBranch) {
@@ -469,8 +476,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
         const activeCreds = {
           ...DEFAULT_CREDENTIALS,
-          ...proj.gitConfig,
-          branch: branchToUse || proj.gitConfig.branch || DEFAULT_CREDENTIALS.branch,
+          ...gitConfig,
+          branch: branchToUse || gitConfig.branch || DEFAULT_CREDENTIALS.branch,
         };
         set({ credentials: activeCreds });
         if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
@@ -486,16 +493,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           });
         }
       } else {
-        const canonical = proj.rawTokens ? canonicalizeTokenDocument(proj.rawTokens) : {};
-        const hasTokens = Object.keys(canonical).length > 0;
-        const groups = hasTokens ? extractThemeGroups(canonical) : proj.themeGroups || [];
         set({
           credentials: DEFAULT_CREDENTIALS,
-          rawTokens: canonical,
-          resolvedTokens: hasTokens ? flattenAndResolveTokens(canonical, "ALL") : [],
-          themeGroups: groups,
-          activeThemeGroupId: groups[0]?.id || "",
-          activeThemeOptionId: groups[0]?.options?.[0]?.id || "",
+          rawTokens: {},
+          resolvedTokens: [],
+          themeGroups: [],
+          activeThemeGroupId: "",
+          activeThemeOptionId: "",
           syncMeta: null,
         });
       }
