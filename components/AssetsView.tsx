@@ -2486,13 +2486,6 @@ export const AssetsView: React.FC = () => {
           </div>
 
           <DrawerFooter className="shrink-0 px-6 py-4 border-t border-border/60 flex flex-col gap-2">
-            <Button
-              type="button"
-              onClick={() => setIsSettingsDrawerOpen(false)}
-              className="w-full h-10 rounded-full font-semibold text-xs bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-xs cursor-pointer"
-            >
-              Done
-            </Button>
             <DrawerClose asChild>
               <Button
                 type="button"
