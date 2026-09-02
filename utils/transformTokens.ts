@@ -735,9 +735,11 @@ export function deleteTokenSet(
     );
   }
 
-  // Clean from $themes.json
-  const themesKey = clone["$themes.json"] ? "$themes.json" : "$themes";
-  if (Array.isArray(clone[themesKey])) {
+  // Clean from $themes.json / $theme.json
+  const themesKey = ["$themes.json", "$themes", "$theme.json", "$theme"].find((k) =>
+    Array.isArray(clone[k])
+  );
+  if (themesKey) {
     (clone[themesKey] as any).forEach((theme: any) => {
       if (theme.selectedTokenSets && theme.selectedTokenSets[setName]) {
         delete theme.selectedTokenSets[setName];

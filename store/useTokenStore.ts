@@ -27,7 +27,7 @@ import {
   compileCssVariables,
   compileStyleDictionary,
 } from "@/utils/releaseCompiler";
-import { extractThemeGroups } from "@/utils/themeHelpers";
+import { extractThemeGroups, canonicalizeTokenDocument } from "@/utils/themeHelpers";
 import { computeTokensDiff, DocumentDiffSummary } from "@/utils/tokenDiff";
 import {
   Organization,
@@ -438,15 +438,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           });
         }
       } else {
+        const canonical = proj.rawTokens ? canonicalizeTokenDocument(proj.rawTokens) : {};
+        const hasTokens = Object.keys(canonical).length > 0;
+        const groups = hasTokens ? extractThemeGroups(canonical) : proj.themeGroups || [];
         set({
           credentials: DEFAULT_CREDENTIALS,
-          rawTokens: proj.rawTokens || {},
-          resolvedTokens: proj.rawTokens && Object.keys(proj.rawTokens).length > 0
-            ? flattenAndResolveTokens(proj.rawTokens, "ALL")
-            : [],
-          themeGroups: proj.themeGroups || [],
-          activeThemeGroupId: proj.themeGroups?.[0]?.id || "",
-          activeThemeOptionId: proj.themeGroups?.[0]?.options?.[0]?.id || "",
+          rawTokens: canonical,
+          resolvedTokens: hasTokens ? flattenAndResolveTokens(canonical, "ALL") : [],
+          themeGroups: groups,
+          activeThemeGroupId: groups[0]?.id || "",
+          activeThemeOptionId: groups[0]?.options?.[0]?.id || "",
           syncMeta: null,
         });
       }
@@ -2101,8 +2102,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setRawTokens: (doc, meta) => {
     const { activeSet, activeThemeGroupId } = get();
-    const resolved = flattenAndResolveTokens(doc, activeSet);
-    const groups = extractThemeGroups(doc);
+    const canonical = canonicalizeTokenDocument(doc);
+    const resolved = flattenAndResolveTokens(canonical, activeSet);
+    const groups = extractThemeGroups(canonical);
     const savedGroupId = typeof window !== "undefined" ? localStorage.getItem("ts_active_group_id") : null;
     const defaultGroup =
       groups.find((g) => g && g.id === activeThemeGroupId) ||
@@ -2113,12 +2115,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     // Synchronize loaded tokens with active Project in Cloud Firestore
     const { currentOrg, currentProject } = get();
     if (currentOrg && currentProject) {
-      saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
+      saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups).catch(() => {});
     }
 
     set({
-      rawTokens: doc,
-      originalTokens: JSON.parse(JSON.stringify(doc)),
+      rawTokens: canonical,
+      originalTokens: JSON.parse(JSON.stringify(canonical)),
       resolvedTokens: resolved,
       themeGroups: groups,
       activeThemeGroupId: defaultGroup?.id || "",

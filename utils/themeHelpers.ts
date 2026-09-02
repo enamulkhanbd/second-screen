@@ -61,19 +61,14 @@ export function findSetsInDoc(
     if (key.startsWith("$") || visitedKeys.has(key)) continue;
     const normKey = normalizeName(key);
 
-    if (
-      normKey === norm ||
-      normKey.endsWith(`.${norm}`) ||
-      norm.endsWith(`.${normKey}`) ||
-      normKey.includes(`.${norm}.`) ||
-      norm.includes(`.${normKey}.`) ||
-      normKey.startsWith(`${norm}.`) ||
-      norm.startsWith(`${normKey}.`) ||
-      normKey.includes(`.${norm}`) ||
-      norm.includes(`.${normKey}`) ||
-      normKey.includes(norm) ||
-      norm.includes(normKey)
-    ) {
+    // Path-aware match only (never substring). "color" must not match "color-palette".
+    const isSame = normKey === norm;
+    const keyIsUnderDeclared = normKey.startsWith(`${norm}.`);
+    const declaredIsUnderKey = norm.startsWith(`${normKey}.`);
+    const keyEndsWithDeclared = normKey.endsWith(`.${norm}`);
+    const declaredEndsWithKey = norm.endsWith(`.${normKey}`);
+
+    if (isSame || keyIsUnderDeclared || declaredIsUnderKey || keyEndsWithDeclared || declaredEndsWithKey) {
       results.push({ setTree: val, actualKey: key });
       visitedKeys.add(key);
     }
@@ -105,9 +100,196 @@ export function findSetInDoc(
   return matches.length > 0 ? matches[0] : null;
 }
 
+function fileBaseName(key: string): string {
+  return String(key || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .pop()
+    ?.replace(/\.json$/i, "")
+    .toLowerCase() || "";
+}
+
+/** Tokens Studio / Style Dictionary theme definition files ($themes.json or $theme.json). */
+export function isThemesFileName(key: string): boolean {
+  const base = fileBaseName(key);
+  return base === "$themes" || base === "$theme";
+}
+
+/** Tokens Studio metadata file ($metadata.json). */
+export function isMetadataFileName(key: string): boolean {
+  return fileBaseName(key) === "$metadata";
+}
+
+function normalizeThemesPayload(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter((item) => item && typeof item === "object" && !Array.isArray(item));
+  }
+  if (typeof raw !== "object") return [];
+
+  for (const wrapKey of ["$themes", "$theme", "themes", "theme"]) {
+    if (Array.isArray(raw[wrapKey])) {
+      return normalizeThemesPayload(raw[wrapKey]);
+    }
+  }
+
+  if (raw.name || raw.selectedTokenSets || raw.id || raw.group) {
+    return [raw];
+  }
+
+  return [];
+}
+
+function normalizeMetadataPayload(raw: any): Record<string, any> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (Array.isArray(raw.tokenSetOrder)) return raw;
+  if (raw.$metadata && typeof raw.$metadata === "object") {
+    return normalizeMetadataPayload(raw.$metadata);
+  }
+  return raw;
+}
+
+export function normalizeSetStatus(
+  status: any
+): "enabled" | "disabled" | "source" | null {
+  if (status === true || status === 1) return "enabled";
+  if (status === false || status === 0) return "disabled";
+  const s = String(status ?? "")
+    .toLowerCase()
+    .trim();
+  if (s === "enabled" || s === "enable" || s === "on" || s === "true") return "enabled";
+  if (s === "source" || s === "sources") return "source";
+  if (s === "disabled" || s === "disable" || s === "off" || s === "false") return "disabled";
+  return null;
+}
+
+export function normalizeSelectedTokenSets(
+  raw: any
+): Record<string, "enabled" | "disabled" | "source"> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, "enabled" | "disabled" | "source"> = {};
+  for (const [setName, status] of Object.entries(raw)) {
+    if (!setName || setName.startsWith("$")) continue;
+    const normalized = normalizeSetStatus(status);
+    if (normalized) out[setName] = normalized;
+  }
+  return out;
+}
+
+function collectFromDoc(rawDoc: RawTokensDocument, kind: "themes" | "metadata"): any {
+  if (!rawDoc || typeof rawDoc !== "object") return kind === "themes" ? [] : null;
+
+  const directKeys =
+    kind === "themes"
+      ? ["$themes", "$themes.json", "$theme", "$theme.json"]
+      : ["$metadata", "$metadata.json"];
+
+  const tryValue = (val: any) =>
+    kind === "themes" ? normalizeThemesPayload(val) : normalizeMetadataPayload(val);
+
+  for (const key of directKeys) {
+    const parsed = tryValue(rawDoc[key]);
+    if (kind === "themes" ? (parsed as any[]).length > 0 : parsed) return parsed;
+  }
+
+  for (const [key, val] of Object.entries(rawDoc)) {
+    const isMatch = kind === "themes" ? isThemesFileName(key) : isMetadataFileName(key);
+    if (!isMatch) continue;
+    const parsed = tryValue(val);
+    if (kind === "themes" ? (parsed as any[]).length > 0 : parsed) return parsed;
+  }
+
+  for (const val of Object.values(rawDoc)) {
+    if (!val || typeof val !== "object" || Array.isArray(val)) continue;
+    for (const [innerKey, innerVal] of Object.entries(val as Record<string, any>)) {
+      const isMatch = kind === "themes" ? isThemesFileName(innerKey) : isMetadataFileName(innerKey);
+      if (!isMatch && !directKeys.includes(innerKey)) continue;
+      const parsed = tryValue(innerVal);
+      if (kind === "themes" ? (parsed as any[]).length > 0 : parsed) return parsed;
+    }
+  }
+
+  return kind === "themes" ? [] : null;
+}
+
+/** Theme entries from $themes.json, $theme.json, or nested Tokens Studio documents. */
+export function getThemesArray(rawDoc: RawTokensDocument): any[] {
+  return collectFromDoc(rawDoc, "themes") as any[];
+}
+
+/** $metadata.json body (tokenSetOrder, etc.). */
+export function getMetadataObject(rawDoc: RawTokensDocument): Record<string, any> | null {
+  return collectFromDoc(rawDoc, "metadata") as Record<string, any> | null;
+}
+
+function looksLikeTokenStudioDocument(val: any): boolean {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return false;
+  const keys = Object.keys(val);
+  const hasSpecial = keys.some((k) => isThemesFileName(k) || isMetadataFileName(k));
+  const hasSets = keys.some((k) => !k.startsWith("$") && val[k] && typeof val[k] === "object");
+  return hasSpecial && hasSets;
+}
+
 /**
- * Extracts or synthesizes theme groups from rawTokens (including $themes.json if present).
- * Also discovers and exposes Foundation, Alias, Semantic, and Component layers.
+ * Hoists $themes.json / $theme.json / $metadata.json to canonical top-level keys
+ * and flattens single-file Tokens Studio documents so the Themes tab can read them.
+ */
+export function canonicalizeTokenDocument(doc: RawTokensDocument): RawTokensDocument {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return doc || {};
+
+  const out: RawTokensDocument = { ...doc };
+  const keysToDelete: string[] = [];
+
+  const themes = getThemesArray(doc);
+  const metadata = getMetadataObject(doc);
+
+  for (const key of Object.keys(out)) {
+    if (isThemesFileName(key) || isMetadataFileName(key)) {
+      keysToDelete.push(key);
+    }
+  }
+
+  const wrapperKeys = Object.keys(out).filter(
+    (key) => !isThemesFileName(key) && !isMetadataFileName(key) && looksLikeTokenStudioDocument(out[key])
+  );
+  // Flatten only when the payload is a single Tokens Studio file (one wrapper), not mixed with real sets
+  const nonSpecialCount = Object.keys(out).filter(
+    (key) => !isThemesFileName(key) && !isMetadataFileName(key)
+  ).length;
+  if (wrapperKeys.length === 1 && nonSpecialCount === 1) {
+    const wrapperKey = wrapperKeys[0];
+    const val = out[wrapperKey] as Record<string, any>;
+    for (const [innerKey, innerVal] of Object.entries(val)) {
+      if (innerKey.startsWith("$")) continue;
+      if (out[innerKey] === undefined) out[innerKey] = innerVal;
+    }
+    keysToDelete.push(wrapperKey);
+  }
+
+  for (let i = 0; i < keysToDelete.length; i++) {
+    const key = keysToDelete[i];
+    if (key !== "$themes" && key !== "$metadata") {
+      delete out[key];
+    }
+  }
+
+  delete out["$themes.json"];
+  delete out["$theme.json"];
+  delete out["$theme"];
+  delete out["$metadata.json"];
+
+  if (themes.length > 0) out["$themes"] = themes;
+  else delete out["$themes"];
+
+  if (metadata) out["$metadata"] = metadata;
+  else delete out["$metadata"];
+
+  return out;
+}
+
+/**
+ * Extracts theme groups from $themes.json / $theme.json.
+ * Synthesizes groups from set names only when no theme file is present.
  */
 export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   if (!rawDoc || typeof rawDoc !== "object") return [];
@@ -115,9 +297,8 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   const groups: ThemeGroup[] = [];
   const coveredSetNames = new Set<string>();
 
-  // 1. Check if $themes.json exists in rawDoc (or $themes)
-  const themesRaw = rawDoc["$themes"] || rawDoc["$themes.json"];
-  if (themesRaw && Array.isArray(themesRaw) && themesRaw.length > 0) {
+  const themesRaw = getThemesArray(rawDoc);
+  if (themesRaw.length > 0) {
     const groupMap = new Map<string, ThemeOption[]>();
 
     themesRaw.forEach((item: any, idx: number) => {
@@ -125,7 +306,7 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
       const groupName = typeof item.group === "string" && item.group.trim() ? item.group.trim() : "Theme";
       const optionName = typeof item.name === "string" && item.name.trim() ? item.name.trim() : `Option ${idx + 1}`;
       const optionId = typeof item.id === "string" && item.id.trim() ? item.id.trim() : `opt-${idx}`;
-      const selectedSets = item.selectedTokenSets && typeof item.selectedTokenSets === "object" ? item.selectedTokenSets : {};
+      const selectedSets = normalizeSelectedTokenSets(item.selectedTokenSets);
 
       // Track all sets covered by this theme group
       Object.keys(selectedSets).forEach((s) => coveredSetNames.add(normalizeName(s)));
@@ -157,10 +338,12 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
         options,
       });
     });
+
+    return groups;
   }
 
-  // 2. Discover Foundation, Alias, Brand, and other orphan layers if they exist in rawDoc
-  const allRawSetKeys = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
+  // No $themes.json / $theme.json: infer groups from remaining token sets
+  const allRawSetKeys = Object.keys(rawDoc).filter((k) => !k.startsWith("$") && !isThemesFileName(k) && !isMetadataFileName(k));
 
   // Check for Foundation sets
   const foundationSets = allRawSetKeys.filter(
@@ -440,13 +623,28 @@ function findNodeByPath(tree: any, pathSegments: string[], setName?: string): an
  */
 /**
  * Builds rows for the active Theme Group matrix.
- * Accurately scopes tokens to the token sets that belong to the active Theme Group (including source foundation sets).
+ * Rows come from enabled token sets only. Source (foundation/alias) sets are
+ * used to resolve aliases, not listed as tokens in this group.
  */
 export function buildThemeMatrix(
   rawDoc: RawTokensDocument,
   group: ThemeGroup
 ): MatrixRowData[] {
   if (!rawDoc || !group || group.options.length === 0) return [];
+
+  const setsEnabledInOtherGroups = new Set<string>();
+  extractThemeGroups(rawDoc).forEach((otherGroup) => {
+    if (otherGroup.id === group.id) return;
+    otherGroup.options.forEach((opt) => {
+      const selected = normalizeSelectedTokenSets(opt.selectedTokenSets);
+      Object.entries(selected).forEach(([setName, status]) => {
+        if (status !== "enabled") return;
+        findSetsInDoc(setName, rawDoc).forEach((matched) => {
+          setsEnabledInOtherGroups.add(matched.actualKey);
+        });
+      });
+    });
+  });
 
   // 1. Resolve enabled and source token set trees for each option in this group
   const optionSetsMap = new Map<
@@ -457,23 +655,23 @@ export function buildThemeMatrix(
     }
   >();
 
-  // Collect all sets relevant to this theme group
+  // Collect enabled sets only — source palettes must not appear as Mode rows
   const groupSetKeys = new Set<string>();
 
   group.options.forEach((option) => {
     const enabledSets: Array<{ setName: string; setTree: any }> = [];
     const sourceSets: Array<{ setName: string; setTree: any }> = [];
 
-    const selected = option.selectedTokenSets || {};
+    const selected = normalizeSelectedTokenSets(option.selectedTokenSets);
     const selectedEntries = Object.entries(selected);
 
     if (selectedEntries.length > 0) {
       selectedEntries.forEach(([setName, status]) => {
         const matches = findSetsInDoc(setName, rawDoc);
         matches.forEach((matched) => {
-          // Include both enabled and source sets so Foundation & Alias tokens are visible in matrix
-          groupSetKeys.add(matched.actualKey);
           if (status === "enabled") {
+            if (setsEnabledInOtherGroups.has(matched.actualKey)) return;
+            groupSetKeys.add(matched.actualKey);
             enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
           } else if (status === "source") {
             sourceSets.push({ setName: matched.actualKey, setTree: matched.setTree });
@@ -487,6 +685,7 @@ export function buildThemeMatrix(
       const matches = optionName ? findSetsInDoc(optionName, rawDoc) : [];
       const fallbackMatches = matches.length > 0 ? matches : (groupName ? findSetsInDoc(groupName, rawDoc) : []);
       fallbackMatches.forEach((matched) => {
+        if (setsEnabledInOtherGroups.has(matched.actualKey)) return;
         groupSetKeys.add(matched.actualKey);
         enabledSets.push({ setName: matched.actualKey, setTree: matched.setTree });
       });
@@ -559,10 +758,7 @@ export function buildThemeMatrix(
       let foundLeaf: any = undefined;
       let foundSetName: string = "";
 
-      const targetSets = [
-        ...(sets?.enabledSets || []),
-        ...(sets?.sourceSets || []),
-      ];
+      const targetSets = sets?.enabledSets || [];
 
       for (const { setName, setTree } of targetSets) {
         const node = findNodeByPath(setTree, pathSegments, setName);
@@ -764,7 +960,7 @@ export function getValidTokenSetNames(rawDoc: RawTokensDocument): string[] {
   };
 
   // 1. Check $metadata.json / $metadata for tokenSetOrder
-  const meta = rawDoc["$metadata"] || rawDoc["$metadata.json"];
+  const meta = getMetadataObject(rawDoc);
   if (meta && Array.isArray(meta.tokenSetOrder) && meta.tokenSetOrder.length > 0) {
     for (const declaredSet of meta.tokenSetOrder) {
       if (typeof declaredSet !== "string" || !declaredSet.trim()) continue;
@@ -779,12 +975,13 @@ export function getValidTokenSetNames(rawDoc: RawTokensDocument): string[] {
     }
   }
 
-  // 2. Check $themes.json / $themes for selectedTokenSets across all themes
-  const themesRaw = rawDoc["$themes"] || rawDoc["$themes.json"];
-  if (themesRaw && Array.isArray(themesRaw) && themesRaw.length > 0) {
+  // 2. Check $themes.json / $theme.json for selectedTokenSets across all themes
+  const themesRaw = getThemesArray(rawDoc);
+  if (themesRaw.length > 0) {
     for (const theme of themesRaw) {
-      if (theme && theme.selectedTokenSets && typeof theme.selectedTokenSets === "object") {
-        for (const setName of Object.keys(theme.selectedTokenSets)) {
+      const selected = normalizeSelectedTokenSets(theme?.selectedTokenSets);
+      if (Object.keys(selected).length > 0) {
+        for (const setName of Object.keys(selected)) {
           const match = findSetInDoc(setName, rawDoc);
           if (match && !visited.has(match.actualKey)) {
             validOrdered.push(match.actualKey);

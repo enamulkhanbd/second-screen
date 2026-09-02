@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
-import { extractThemeGroups } from "@/utils/themeHelpers";
+import { extractThemeGroups, getThemesArray, getMetadataObject } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { getOrgProjects, saveProjectTokens, saveProjectFigmaVariables } from "@/services/organizationService";
 import { computeTokensDiff } from "@/utils/tokenDiff";
@@ -85,11 +85,8 @@ export async function GET(req: NextRequest) {
     const resolvedTokens = flattenAndResolveTokens(targetDoc, "ALL");
     const themeGroups = extractThemeGroups(targetDoc);
 
-    const themesKey = targetDoc["$themes.json"] ? "$themes.json" : "$themes";
-    const themes = targetDoc[themesKey] || [];
-
-    const metaKey = targetDoc["$metadata.json"] ? "$metadata.json" : "$metadata";
-    const metadata = targetDoc[metaKey] || {};
+    const themes = getThemesArray(targetDoc);
+    const metadata = getMetadataObject(targetDoc) || {};
 
     return jsonWithCors({
       success: true,
@@ -185,11 +182,18 @@ export async function POST(req: NextRequest) {
       ...rawDoc,
     };
 
-    if (!mergedDoc["$themes"] && !mergedDoc["$themes.json"] && (currentDoc["$themes"] || currentDoc["$themes.json"])) {
-      mergedDoc["$themes"] = currentDoc["$themes"] || currentDoc["$themes.json"];
+    const incomingHasThemes = Boolean(
+      mergedDoc["$themes"] || mergedDoc["$themes.json"] || mergedDoc["$theme"] || mergedDoc["$theme.json"]
+    );
+    if (!incomingHasThemes) {
+      const existingThemes =
+        currentDoc["$themes"] || currentDoc["$themes.json"] || currentDoc["$theme"] || currentDoc["$theme.json"];
+      if (existingThemes) mergedDoc["$themes"] = existingThemes;
     }
-    if (!mergedDoc["$metadata"] && !mergedDoc["$metadata.json"] && (currentDoc["$metadata"] || currentDoc["$metadata.json"])) {
-      mergedDoc["$metadata"] = currentDoc["$metadata"] || currentDoc["$metadata.json"];
+    const incomingHasMeta = Boolean(mergedDoc["$metadata"] || mergedDoc["$metadata.json"]);
+    if (!incomingHasMeta) {
+      const existingMeta = currentDoc["$metadata"] || currentDoc["$metadata.json"];
+      if (existingMeta) mergedDoc["$metadata"] = existingMeta;
     }
 
     // Compute exact token delta between current Cloud tokens and incoming tokens

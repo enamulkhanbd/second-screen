@@ -32,6 +32,36 @@ function isIgnored(filePath: string): boolean {
   return IGNORED_JSON_FILES.has(fileName);
 }
 
+function jsonFileBaseName(filePath: string): string {
+  return (filePath.split(/[/\\]/).pop() || "").replace(/\.json$/i, "").toLowerCase();
+}
+
+function specialTokenFileKind(filePath: string): "$themes" | "$metadata" | null {
+  const base = jsonFileBaseName(filePath);
+  if (base === "$themes" || base === "$theme") return "$themes";
+  if (base === "$metadata") return "$metadata";
+  return null;
+}
+
+function hoistNestedStudioKeys(
+  parsed: any,
+  aggregated: Record<string, any>,
+  filesMeta: Record<string, string>,
+  filePath: string
+) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+  const nestedThemes = parsed["$themes"] ?? parsed["$themes.json"] ?? parsed["$theme"] ?? parsed["$theme.json"];
+  const nestedMeta = parsed["$metadata"] ?? parsed["$metadata.json"];
+  if (nestedThemes !== undefined && aggregated["$themes"] === undefined) {
+    aggregated["$themes"] = nestedThemes;
+    filesMeta["$themes"] = filePath;
+  }
+  if (nestedMeta !== undefined && aggregated["$metadata"] === undefined) {
+    aggregated["$metadata"] = nestedMeta;
+    filesMeta["$metadata"] = filePath;
+  }
+}
+
 /**
  * Scopes aggregated tokens strictly to the token root (based on $themes.json / $metadata.json or folder path)
  * and excludes non-token repository JSON files.
@@ -48,8 +78,10 @@ function scopeAggregatedTokens(
       const fileName = filePath.split("/").pop()?.toLowerCase() || "";
       if (
         fileName === "$themes.json" ||
+        fileName === "$theme.json" ||
         fileName === "$metadata.json" ||
         fileName === "$themes" ||
+        fileName === "$theme" ||
         fileName === "$metadata"
       ) {
         const parentDir = filePath.substring(0, filePath.lastIndexOf("/")).replace(/^\/+|\/+$/g, "");
@@ -64,13 +96,28 @@ function scopeAggregatedTokens(
   const resultTokens: Record<string, any> = {};
   const resultFiles: Record<string, string> = {};
 
-  if (rawMap["$themes"]) resultTokens["$themes"] = rawMap["$themes"];
-  if (rawMap["$themes.json"]) resultTokens["$themes"] = rawMap["$themes.json"];
-  if (rawMap["$metadata"]) resultTokens["$metadata"] = rawMap["$metadata"];
-  if (rawMap["$metadata.json"]) resultTokens["$metadata"] = rawMap["$metadata.json"];
+  const assignSpecial = (canonical: "$themes" | "$metadata", aliases: string[]) => {
+    for (const alias of aliases) {
+      if (rawMap[alias] !== undefined) {
+        resultTokens[canonical] = rawMap[alias];
+        if (filesMeta[alias]) resultFiles[canonical] = filesMeta[alias];
+        return;
+      }
+    }
+    for (const [key, val] of Object.entries(rawMap)) {
+      if (specialTokenFileKind(key) === canonical) {
+        resultTokens[canonical] = val;
+        resultFiles[canonical] = filesMeta[key] || filesMeta[canonical] || key;
+        return;
+      }
+    }
+  };
+
+  assignSpecial("$themes", ["$themes", "$themes.json", "$theme", "$theme.json"]);
+  assignSpecial("$metadata", ["$metadata", "$metadata.json"]);
 
   for (const [key, val] of Object.entries(rawMap)) {
-    if (key.startsWith("$")) continue;
+    if (key.startsWith("$") || specialTokenFileKind(key)) continue;
     const filePath = (filesMeta[key] || key).replace(/^\/+/, "");
     const lowerPath = filePath.toLowerCase();
 
@@ -287,17 +334,16 @@ export async function POST(req: NextRequest) {
                     relativeSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
                   }
 
-                  const baseSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
+                  const specialKind = specialTokenFileKind(cleanBlobPath);
 
-                  if (baseSetName === "$themes" || baseSetName === "$themes.json") {
-                    aggregated["$themes"] = parsed;
-                  } else if (baseSetName === "$metadata" || baseSetName === "$metadata.json") {
-                    aggregated["$metadata"] = parsed;
+                  if (specialKind) {
+                    aggregated[specialKind] = parsed;
+                    filesMeta[specialKind] = cleanBlobPath;
                   } else {
+                    hoistNestedStudioKeys(parsed, aggregated, filesMeta, cleanBlobPath);
                     aggregated[relativeSetName] = parsed;
+                    filesMeta[relativeSetName] = blob.path;
                   }
-
-                  filesMeta[relativeSetName] = blob.path;
                 } catch {
                   // ignore non-json
                 }
@@ -458,18 +504,17 @@ export async function POST(req: NextRequest) {
               relativeSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
             }
 
-            const baseSetName = cleanItemPath.split("/").pop()!.replace(/\.json$/i, "");
+            const specialKind = specialTokenFileKind(cleanItemPath);
             const parsed = JSON.parse(rawText);
 
-            if (baseSetName === "$themes" || baseSetName === "$themes.json") {
-              aggregated["$themes"] = parsed;
-            } else if (baseSetName === "$metadata" || baseSetName === "$metadata.json") {
-              aggregated["$metadata"] = parsed;
+            if (specialKind) {
+              aggregated[specialKind] = parsed;
+              filesMeta[specialKind] = cleanItemPath;
             } else {
+              hoistNestedStudioKeys(parsed, aggregated, filesMeta, cleanItemPath);
               aggregated[relativeSetName] = parsed;
+              filesMeta[relativeSetName] = cleanItemPath;
             }
-
-            filesMeta[relativeSetName] = cleanItemPath;
           } catch {
             // ignore invalid json files
           }
