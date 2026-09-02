@@ -306,6 +306,44 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   };
 
+  /** Build an org+project-scoped localStorage key to prevent cross-context data leaks */
+  const getScopedKey = (base: string, orgId?: string, projectId?: string): string => {
+    if (orgId && projectId) return `${base}__${orgId}__${projectId}`;
+    if (orgId) return `${base}__${orgId}`;
+    return base;
+  };
+
+  /** Restore scoped localStorage data (releases, targets, config, activities) for the active project */
+  const restoreScopedProjectData = (orgId: string, projId: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      let releases: ReleasePackage[] = [];
+      const rawRel = localStorage.getItem(getScopedKey("ts_releases_history", orgId, projId));
+      if (rawRel) releases = JSON.parse(rawRel);
+
+      let targets = get().distributionTargets;
+      const rawTargets = localStorage.getItem(getScopedKey("ts_distribution_targets", orgId, projId));
+      if (rawTargets) targets = JSON.parse(rawTargets);
+      else targets = [];
+
+      let config = DEFAULT_COMPILER_CONFIG;
+      const rawCfg = localStorage.getItem(getScopedKey("ts_compiler_config", orgId, projId));
+      if (rawCfg) config = { ...DEFAULT_COMPILER_CONFIG, ...JSON.parse(rawCfg) };
+
+      let activities: UserActivityItem[] = [];
+      const rawAct = localStorage.getItem(getScopedKey("ts_user_activities", orgId, projId));
+      if (rawAct) activities = JSON.parse(rawAct);
+
+      set({
+        releases,
+        activeReleaseId: releases[0]?.id || null,
+        distributionTargets: targets,
+        compilerConfig: config,
+        userActivities: activities,
+      });
+    } catch {}
+  };
+
   return {
   currentUser: null,
   isLoadingTenant: true,
@@ -410,6 +448,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       assetFigmaConfig: null,
       credentials: DEFAULT_CREDENTIALS,
       pendingInvitations: [],
+      // Reset local-only state so previous org/project data doesn't leak
+      releases: [],
+      activeReleaseId: null,
+      distributionTargets: [],
+      compilerConfig: DEFAULT_COMPILER_CONFIG,
+      userActivities: [],
     });
     if (org) {
       if (typeof window !== "undefined") {
@@ -449,6 +493,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       assetGitConfig: null,
       assetFigmaConfig: null,
       credentials: DEFAULT_CREDENTIALS,
+      // Reset local-only state so previous project data doesn't leak
+      releases: [],
+      activeReleaseId: null,
+      distributionTargets: [],
+      compilerConfig: DEFAULT_COMPILER_CONFIG,
+      userActivities: [],
     });
 
     if (proj) {
@@ -474,9 +524,20 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             branchToUse = savedBranch;
           }
         }
+        // Hydrate PAT from session/localStorage if not present in Firestore gitConfig
+        let pat = gitConfig.pat || "";
+        if (!pat && typeof window !== "undefined") {
+          pat =
+            sessionStorage.getItem("ts_tokens_platform_pat") ||
+            localStorage.getItem("ts_tokens_platform_pat_enc") ||
+            sessionStorage.getItem("ts_second_screen_pat") ||
+            localStorage.getItem("ts_second_screen_pat_enc") ||
+            "";
+        }
         const activeCreds = {
           ...DEFAULT_CREDENTIALS,
           ...gitConfig,
+          pat,
           branch: branchToUse || gitConfig.branch || DEFAULT_CREDENTIALS.branch,
         };
         set({ credentials: activeCreds });
@@ -561,6 +622,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isSyncingAssets: false,
         isSyncingFigmaAssets: false,
       });
+
+      // 4. Restore scoped localStorage data (releases, targets, config, activities)
+      const scopeOrgId = get().currentOrg?.id;
+      if (scopeOrgId) {
+        restoreScopedProjectData(scopeOrgId, proj.id);
+      }
     }
   },
 
@@ -881,9 +948,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = { ...state.credentials, ...newCreds };
       if (typeof window !== "undefined") {
         try {
-          const { pat, ...safeCreds } = updated;
-          localStorage.setItem("ts_tokens_platform_creds", JSON.stringify(safeCreds));
-
+          // No longer persist credentials globally — they live in Firestore per-project.
+          // Only persist the per-project branch override and PAT.
           if (state.currentProject?.id && updated.branch) {
             localStorage.setItem(`ts_project_branch_${state.currentProject.id}`, updated.branch);
           }
@@ -1746,7 +1812,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = [pkg, ...state.releases];
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_releases_history", JSON.stringify(updated));
+          const key = getScopedKey("ts_releases_history", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(key, JSON.stringify(updated));
         } catch { }
       }
       return { releases: updated, activeReleaseId: pkg.id };
@@ -1756,7 +1823,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = state.releases.filter((r) => r.id !== id);
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_releases_history", JSON.stringify(updated));
+          const key = getScopedKey("ts_releases_history", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(key, JSON.stringify(updated));
         } catch { }
       }
       return {
@@ -1771,7 +1839,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = [...state.distributionTargets, target];
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_distribution_targets", JSON.stringify(updated));
+          const key = getScopedKey("ts_distribution_targets", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(key, JSON.stringify(updated));
         } catch { }
       }
       return { distributionTargets: updated };
@@ -1782,7 +1851,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = state.distributionTargets.map((t) => (t.id === id ? { ...t, ...target } : t));
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_distribution_targets", JSON.stringify(updated));
+          const key = getScopedKey("ts_distribution_targets", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(key, JSON.stringify(updated));
         } catch { }
       }
       return { distributionTargets: updated };
@@ -1795,7 +1865,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updatedConfig = { ...state.compilerConfig, ...newCfg };
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_compiler_config", JSON.stringify(updatedConfig));
+          const cfgKey = getScopedKey("ts_compiler_config", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(cfgKey, JSON.stringify(updatedConfig));
         } catch { }
       }
 
@@ -1815,7 +1886,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
         if (typeof window !== "undefined") {
           try {
-            localStorage.setItem("ts_releases_history", JSON.stringify(updatedReleases));
+            const relKey = getScopedKey("ts_releases_history", state.currentOrg?.id, state.currentProject?.id);
+            localStorage.setItem(relKey, JSON.stringify(updatedReleases));
           } catch { }
         }
       }
@@ -1831,7 +1903,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = state.distributionTargets.filter((t) => t.id !== id);
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_distribution_targets", JSON.stringify(updated));
+          const key = getScopedKey("ts_distribution_targets", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(key, JSON.stringify(updated));
         } catch { }
       }
       return { distributionTargets: updated };
@@ -1997,31 +2070,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       localStorage.removeItem("ts_cached_tokens");
       localStorage.removeItem("ts_cached_meta");
 
-      // 2. Restore Credentials & PAT
-      const savedCreds =
-        localStorage.getItem("ts_tokens_platform_creds") ||
-        localStorage.getItem("ts_second_screen_creds");
-      const sessionPat =
-        sessionStorage.getItem("ts_tokens_platform_pat") ||
-        localStorage.getItem("ts_tokens_platform_pat_enc") ||
-        sessionStorage.getItem("ts_second_screen_pat") ||
-        localStorage.getItem("ts_second_screen_pat_enc") ||
-        "";
-
-      let parsedCreds: any = DEFAULT_CREDENTIALS;
-      if (savedCreds) {
-        parsedCreds = { ...JSON.parse(savedCreds), pat: sessionPat };
-      } else if (sessionPat) {
-        parsedCreds = { ...DEFAULT_CREDENTIALS, pat: sessionPat };
-      }
-
-      const activeProjId = localStorage.getItem("ts_active_project_id");
-      if (activeProjId) {
-        const projBranch = localStorage.getItem(`ts_project_branch_${activeProjId}`);
-        if (projBranch) {
-          parsedCreds.branch = projBranch;
-        }
-      }
+      // 2. Credentials are NO LONGER restored from global localStorage.
+      //    They are derived from the project's Firestore gitConfig in setCurrentProject.
+      //    We only keep the PAT alive so it can be re-attached when the project loads.
+      //    (PAT is intentionally global since users often share one PAT across projects.)
 
       // 3. Restore User Profile & View Mode
       const savedUser =
@@ -2078,43 +2130,51 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         (localStorage.getItem("ts_tokens_view_mode") as "preview" | "json") ||
         "preview";
 
-      // 6. Restore Releases History & Distribution Targets
-      let savedReleases: ReleasePackage[] = [];
-      try {
-        const rawRel = localStorage.getItem("ts_releases_history");
-        if (rawRel) savedReleases = JSON.parse(rawRel);
-      } catch { }
+      // 6. Releases, Distribution Targets, Compiler Config, and User Activities
+      //    are now project-scoped and restored by restoreScopedProjectData() when setCurrentProject runs.
+      //    We start with empty/default values here.
 
-      let savedTargets = get().distributionTargets;
-      try {
-        const rawTargets = localStorage.getItem("ts_distribution_targets");
-        if (rawTargets) savedTargets = JSON.parse(rawTargets);
-      } catch { }
-
-      let savedConfig = DEFAULT_COMPILER_CONFIG;
-      try {
-        const rawCfg = localStorage.getItem("ts_compiler_config");
-        if (rawCfg) savedConfig = { ...DEFAULT_COMPILER_CONFIG, ...JSON.parse(rawCfg) };
-      } catch { }
-
-      let savedActivities: UserActivityItem[] = [];
-      try {
-        const rawAct = localStorage.getItem("ts_user_activities");
-        if (rawAct) savedActivities = JSON.parse(rawAct);
-      } catch { }
+      // 6b. ONE-TIME MIGRATION: Move any existing unscoped data to the active project's scoped key.
+      //     This preserves existing user data when upgrading to scoped storage.
+      const savedOrgId = localStorage.getItem("ts_active_org_id");
+      const savedProjId = localStorage.getItem("ts_active_project_id");
+      if (savedOrgId && savedProjId) {
+        const migrationFlag = `ts_scoped_migration_done__${savedOrgId}__${savedProjId}`;
+        if (!localStorage.getItem(migrationFlag)) {
+          try {
+            const migrateKey = (base: string) => {
+              const globalVal = localStorage.getItem(base);
+              if (globalVal) {
+                const scopedKey = getScopedKey(base, savedOrgId, savedProjId);
+                // Only migrate if the scoped key doesn't already have data
+                if (!localStorage.getItem(scopedKey)) {
+                  localStorage.setItem(scopedKey, globalVal);
+                }
+                localStorage.removeItem(base);
+              }
+            };
+            migrateKey("ts_releases_history");
+            migrateKey("ts_distribution_targets");
+            migrateKey("ts_compiler_config");
+            migrateKey("ts_user_activities");
+            localStorage.setItem(migrationFlag, "1");
+          } catch {}
+        }
+      }
 
       set({
-        credentials: parsedCreds,
+        credentials: DEFAULT_CREDENTIALS,
         userProfile,
         viewMode: savedViewMode,
         themeMode: initialTheme,
         sidebarTab: initialTab,
         tokensViewMode: savedTokensViewMode,
-        releases: savedReleases,
-        activeReleaseId: savedReleases[0]?.id || null,
-        distributionTargets: savedTargets,
-        compilerConfig: savedConfig,
-        userActivities: savedActivities,
+        // Start with empty/default project-scoped data — will be populated by setCurrentProject
+        releases: [],
+        activeReleaseId: null,
+        distributionTargets: [],
+        compilerConfig: DEFAULT_COMPILER_CONFIG,
+        userActivities: [],
         rawTokens: {},
         resolvedTokens: [],
         themeGroups: [],
@@ -2847,7 +2907,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const updated = [newActivity, ...state.userActivities].slice(0, 100);
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("ts_user_activities", JSON.stringify(updated));
+          const key = getScopedKey("ts_user_activities", state.currentOrg?.id, state.currentProject?.id);
+          localStorage.setItem(key, JSON.stringify(updated));
         } catch {}
       }
       return { userActivities: updated };
@@ -2857,7 +2918,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   clearUserActivities: () => {
     if (typeof window !== "undefined") {
       try {
-        localStorage.removeItem("ts_user_activities");
+        const { currentOrg, currentProject } = get();
+        const key = getScopedKey("ts_user_activities", currentOrg?.id, currentProject?.id);
+        localStorage.removeItem(key);
       } catch {}
     }
     set({ userActivities: [] });
