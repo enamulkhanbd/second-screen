@@ -53,6 +53,7 @@ interface ManageTargetsModalProps {
 const AVAILABLE_FORMATS: { id: PlatformFormatId; label: string; defaultPath: string; icon: string }[] = [
   { id: "tailwind", label: "Tailwind CSS Config", defaultPath: "tailwind.tokens.js", icon: "⚡" },
   { id: "css", label: "CSS Variables (:root & themes)", defaultPath: "styles/tokens.css", icon: "🎨" },
+  { id: "scss", label: "SCSS Variables & theme maps", defaultPath: "styles/_tokens.scss", icon: "💗" },
   { id: "react", label: "React / TypeScript Definitions", defaultPath: "src/tokens/index.ts", icon: "⚛️" },
   { id: "flutter", label: "Flutter (Dart)", defaultPath: "lib/tokens/tokens.dart", icon: "💙" },
   { id: "swift", label: "iOS (Swift / SwiftUI)", defaultPath: "ios/Tokens.swift", icon: "🍏" },

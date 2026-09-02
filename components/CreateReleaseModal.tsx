@@ -58,7 +58,7 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
   const [version, setVersion] = useState(defaultVersion);
   const [title, setTitle] = useState("Design Tokens Production Release");
   const [notes, setNotes] = useState(
-    "Automated production build including Tailwind CSS, CSS Variables, React TypeScript, Flutter Dart, and iOS/Android assets."
+    "Automated production build including Tailwind CSS, CSS Variables, SCSS, React TypeScript, Flutter Dart, and iOS/Android assets."
   );
   const [publishImmediately, setPublishImmediately] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -97,6 +97,7 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
       const targetSystems = [
         "Tailwind CSS",
         "CSS Variables (:root & Themes)",
+        "SCSS Variables",
         "React / TypeScript",
         "Flutter (Dart)",
         "iOS (Swift)",
@@ -261,6 +262,7 @@ export const CreateReleaseModal: React.FC<CreateReleaseModalProps> = ({
               <div className="flex items-center gap-1.5 flex-wrap">
                 <Badge variant="secondary" className="text-[10px]">⚡ Tailwind CSS</Badge>
                 <Badge variant="secondary" className="text-[10px]">🎨 CSS Variables</Badge>
+                <Badge variant="secondary" className="text-[10px]">💗 SCSS Variables</Badge>
                 <Badge variant="secondary" className="text-[10px]">⚛️ React (TS)</Badge>
                 <Badge variant="secondary" className="text-[10px]">💙 Flutter (Dart)</Badge>
                 <Badge variant="secondary" className="text-[10px]">🍏 iOS Swift</Badge>

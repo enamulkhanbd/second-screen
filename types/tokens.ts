@@ -107,6 +107,7 @@ export interface ToastMessage {
 // -------------------------------------------------------------
 export type PlatformFormatId =
   | "css"
+  | "scss"
   | "tailwind"
   | "react"
   | "flutter"

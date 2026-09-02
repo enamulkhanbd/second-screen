@@ -49,6 +49,7 @@ import { Switch } from "@/components/ui/switch";
 const PLATFORM_TABS: { id: PlatformFormatId | "notes"; label: string; icon: string }[] = [
   { id: "tailwind", label: "Tailwind CSS", icon: "⚡" },
   { id: "css", label: "CSS Variables", icon: "🎨" },
+  { id: "scss", label: "SCSS Variables", icon: "💗" },
   { id: "react", label: "React / TS", icon: "⚛️" },
   { id: "flutter", label: "Flutter (Dart)", icon: "💙" },
   { id: "swift", label: "iOS (Swift)", icon: "🍏" },
@@ -186,7 +187,7 @@ export const ReleasesWorkspace: React.FC = () => {
         </div>
         <h2 className="text-base font-bold text-foreground">No Releases Created Yet</h2>
         <p className="text-xs text-muted-foreground max-w-md mt-1 mb-6">
-          Compile your design tokens into production-ready packages for Tailwind CSS, CSS Variables, React TypeScript, Flutter Dart, Swift, and Android XML.
+          Compile your design tokens into production-ready packages for Tailwind CSS, CSS Variables, SCSS, React TypeScript, Flutter Dart, Swift, and Android XML.
         </p>
         {isEditable && (
           <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2 text-xs font-bold">
