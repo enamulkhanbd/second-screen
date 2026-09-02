@@ -354,6 +354,10 @@ export const AssetsView: React.FC = () => {
   const [newFigmaTitle, setNewFigmaTitle] = useState("");
   const [newFigmaUrl, setNewFigmaUrl] = useState("");
   const [isAddingFigmaSource, setIsAddingFigmaSource] = useState(false);
+  const [editingFigmaSource, setEditingFigmaSource] = useState<FigmaSourceLink | null>(null);
+  const [editFigmaSourceName, setEditFigmaSourceName] = useState("");
+  const [editFigmaSourceUrl, setEditFigmaSourceUrl] = useState("");
+  const [isSavingFigmaSource, setIsSavingFigmaSource] = useState(false);
 
   // Syncing single source state
   const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null);
@@ -855,6 +859,35 @@ export const AssetsView: React.FC = () => {
       await syncSingleFigmaSource(sourceId);
     } finally {
       setSyncingSourceId(null);
+    }
+  };
+
+  const handleOpenFigmaSourceEdit = (source: FigmaSourceLink) => {
+    setEditingFigmaSource(source);
+    setEditFigmaSourceName(source.name);
+    setEditFigmaSourceUrl(source.fileUrl);
+  };
+
+  const handleSaveFigmaSource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFigmaSource || !editFigmaSourceName.trim() || !editFigmaSourceUrl.trim()) return;
+
+    setIsSavingFigmaSource(true);
+    try {
+      const name = editFigmaSourceName.trim();
+      const fileUrl = editFigmaSourceUrl.trim();
+      await updateFigmaSource(editingFigmaSource.id, { name, fileUrl });
+
+      const sourceAssetIds = displayAssets
+        .filter((asset) => asset.figmaSourceId === editingFigmaSource.id)
+        .map((asset) => asset.id);
+      if (sourceAssetIds.length > 0 && name !== editingFigmaSource.name) {
+        await updateAssets(sourceAssetIds, { category: name });
+      }
+
+      setEditingFigmaSource(null);
+    } finally {
+      setIsSavingFigmaSource(false);
     }
   };
 
@@ -1840,9 +1873,9 @@ export const AssetsView: React.FC = () => {
       </Dialog>
 
       {/* Unified Asset Sources, Figma Links, Git Setup & View Options Drawer (shadcn/ui Drawer) */}
-      <Drawer open={isSettingsDrawerOpen} onOpenChange={setIsSettingsDrawerOpen}>
-        <DrawerContent className="max-w-xl mx-auto w-full max-h-[90vh] rounded-t-[28px] border-t border-x border-border bg-background shadow-2xl p-0 flex flex-col">
-          <DrawerHeader className="px-6 pt-5 pb-3 border-b border-border/60 space-y-2 text-left">
+      <Drawer direction="right" open={isSettingsDrawerOpen} onOpenChange={setIsSettingsDrawerOpen}>
+        <DrawerContent className="!inset-y-0 !left-auto !right-0 !bottom-auto !mt-0 h-full max-h-none w-full max-w-xl rounded-l-[28px] rounded-r-none border-y border-l border-r-0 border-border bg-background shadow-2xl p-0 flex flex-col">
+          <DrawerHeader className="shrink-0 px-6 pt-5 pb-3 border-b border-border/60 space-y-2 text-left">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                 <SlidersHorizontal className="w-4 h-4" />
@@ -1892,7 +1925,7 @@ export const AssetsView: React.FC = () => {
           </DrawerHeader>
 
           {/* Drawer Scrollable Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-4">
             {drawerActiveTab === "figma" ? (
               <div className="space-y-4">
                 {/* Section 1: View & Display Options */}
@@ -2100,7 +2133,7 @@ export const AssetsView: React.FC = () => {
                       <div>Paste your first frame or section link above to sync icon components.</div>
                     </div>
                   ) : (
-                    <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                    <div className="space-y-2.5 pr-1">
                       {assetFigmaConfig.sources.map((src) => {
                         const iconCount = displayAssets.filter((a) => a.figmaSourceId === src.id).length;
                         const isSrcPaused = src.isPaused || src.enabled === false;
@@ -2169,6 +2202,17 @@ export const AssetsView: React.FC = () => {
                                   <span className="hidden sm:inline">Figma</span>
                                 </Button>
                               )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenFigmaSourceEdit(src)}
+                                className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                                title="Edit source name and link"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </Button>
                             </div>
 
                             {/* Actions Row: Explicit Toggle Pause & Remove Buttons */}
@@ -2438,7 +2482,7 @@ export const AssetsView: React.FC = () => {
             )}
           </div>
 
-          <DrawerFooter className="px-6 py-4 border-t border-border/60 flex flex-col gap-2">
+          <DrawerFooter className="shrink-0 px-6 py-4 border-t border-border/60 flex flex-col gap-2">
             <Button
               type="button"
               onClick={() => setIsSettingsDrawerOpen(false)}
@@ -2458,6 +2502,65 @@ export const AssetsView: React.FC = () => {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <Dialog
+        open={Boolean(editingFigmaSource)}
+        onOpenChange={(open) => {
+          if (!open && !isSavingFigmaSource) setEditingFigmaSource(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold">Edit Figma Source</DialogTitle>
+            <DialogDescription className="text-xs">
+              Update the source name and Figma frame or section link.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveFigmaSource} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="editFigmaSourceName" className="text-xs font-semibold">
+                Source Title / Name
+              </Label>
+              <Input
+                id="editFigmaSourceName"
+                value={editFigmaSourceName}
+                onChange={(e) => setEditFigmaSourceName(e.target.value)}
+                placeholder="e.g. Navigation Icons"
+                required
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editFigmaSourceUrl" className="text-xs font-semibold">
+                Figma Frame Link (URL)
+              </Label>
+              <Input
+                id="editFigmaSourceUrl"
+                value={editFigmaSourceUrl}
+                onChange={(e) => setEditFigmaSourceUrl(e.target.value)}
+                placeholder="https://www.figma.com/design/..."
+                required
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingFigmaSource(null)}
+                disabled={isSavingFigmaSource}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSavingFigmaSource} className="text-xs gap-1.5">
+                {isSavingFigmaSource && <RefreshCw className="w-3 h-3 animate-spin" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Name / Title / Type / Category / Tag Modal */}
       {editingAsset && (

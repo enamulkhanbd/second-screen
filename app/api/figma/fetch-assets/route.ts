@@ -306,7 +306,7 @@ async function processSingleFigmaSource(
             name: meta.name,
             title: meta.title,
             type: meta.type,
-            category: meta.category,
+            category: target.sourceName || meta.category,
             tag: meta.tag,
             svg: cleanSvg,
             updatedAt: now,
