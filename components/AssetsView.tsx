@@ -1074,9 +1074,12 @@ export const AssetsView: React.FC = () => {
                 </span>
               )}
               {icon.source === "figma" && (
-                <span className="text-[9px] font-mono text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded flex items-center gap-0.5">
+                <span
+                  className="text-[9px] font-mono text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded flex items-center gap-0.5"
+                  title="Figma source"
+                  aria-label="Figma source"
+                >
                   <Figma className="w-2.5 h-2.5" />
-                  <span>figma</span>
                 </span>
               )}
               {showSourceBadges && icon.figmaSourceName && (
