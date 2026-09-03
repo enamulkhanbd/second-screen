@@ -906,7 +906,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
       </div>
 
       {/* Main Table Matrix */}
-      <div className="flex-1 overflow-auto bg-background transition-colors">
+      <div className="flex-1 min-h-0 overflow-auto bg-background transition-colors">
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center select-none">
             <p className="text-base font-semibold text-foreground">No matching tokens found</p>

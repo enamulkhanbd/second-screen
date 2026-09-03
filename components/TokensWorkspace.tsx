@@ -714,7 +714,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           </div>
 
           {/* Table Content with generous top/bottom padding */}
-          <div className="flex-1 overflow-y-auto pb-8">
+          <div className="flex-1 min-h-0 overflow-auto pb-8">
             {displayedTokens.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center select-none text-muted-foreground">
                 <SearchX className="w-10 h-10 mb-3 opacity-40" />
@@ -726,36 +726,34 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[960px] text-left border-collapse text-xs">
-                  <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    <tr>
-                      <th className="sticky left-0 z-20 py-3.5 px-3 sm:px-4 xl:px-6 w-64 min-w-[200px] bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">
-                        Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
-                      </th>
-                      <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[360px]">Raw Value / Properties</th>
-                      <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[280px]">Visual Preview</th>
-                      <th className="py-3.5 px-3 sm:px-4 xl:px-6 w-44 min-w-[130px] text-right">Set / Type</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border font-mono">
-                    {groupDepth !== 1
-                      ? groupTree.map((node) => renderWorkspaceGroupTree(node))
-                      : displayedTokens.map((token) => (
-                          <TokenPreviewRow
-                            key={token.id}
-                            token={token}
-                            level={0}
-                            isGrouped={false}
-                            onUpdate={updateSingleToken}
-                            onEdit={() => setEditingToken(token)}
-                            onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
-                            onDelete={() => deleteToken(token.setName, token.name.split("."))}
-                          />
-                        ))}
-                  </tbody>
-                </table>
-              </div>
+              <table className="w-full min-w-[960px] text-left border-collapse text-xs">
+                <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <tr>
+                    <th className="sticky left-0 z-20 py-3.5 px-3 sm:px-4 xl:px-6 w-64 min-w-[200px] bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">
+                      Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
+                    </th>
+                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[360px]">Raw Value / Properties</th>
+                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[280px]">Visual Preview</th>
+                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 w-44 min-w-[130px] text-right">Set / Type</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-mono">
+                  {groupDepth !== 1
+                    ? groupTree.map((node) => renderWorkspaceGroupTree(node))
+                    : displayedTokens.map((token) => (
+                        <TokenPreviewRow
+                          key={token.id}
+                          token={token}
+                          level={0}
+                          isGrouped={false}
+                          onUpdate={updateSingleToken}
+                          onEdit={() => setEditingToken(token)}
+                          onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
+                          onDelete={() => deleteToken(token.setName, token.name.split("."))}
+                        />
+                      ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>

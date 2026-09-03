@@ -492,7 +492,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
           </div>
 
           {/* Variables Content View */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 lg:p-6">
             {filteredVariables.length === 0 ? (
               <div className="py-16 text-center text-xs text-muted-foreground">
                 <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -608,11 +608,11 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               </div>
             ) : (
               /* TABLE VIEW */
-              <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+              <div className="min-w-[980px] rounded-xl border border-border bg-card shadow-xs">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-muted/50 border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
+                  <thead className="sticky top-0 z-10 bg-muted/50 border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
                     <tr>
-                      <th className="py-2.5 px-4">Collection</th>
+                      <th className="sticky left-0 z-20 py-2.5 px-4 bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">Collection</th>
                       <th className="py-2.5 px-4">Variable Name</th>
                       <th className="py-2.5 px-4">Preview</th>
                       <th className="py-2.5 px-4">Resolved Value</th>
@@ -627,7 +627,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
                       return (
                         <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
-                          <td className="py-2.5 px-4">
+                          <td className="sticky left-0 z-[1] py-2.5 px-4 bg-card group-hover:bg-muted/30 shadow-[2px_0_0_hsl(var(--border)/0.45)]">
                             <Badge variant="outline" className="text-[9px] font-mono uppercase">
                               {item.setName}
                             </Badge>

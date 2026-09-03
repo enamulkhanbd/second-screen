@@ -286,7 +286,7 @@ export const ApiKeysManager: React.FC = () => {
       )}
 
       {/* Keys Table */}
-      <div className="border border-border rounded-xl overflow-hidden bg-card">
+      <div className="border border-border rounded-xl overflow-x-auto bg-card">
         {keys.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">
             <Key className="w-6 h-6 mx-auto mb-2 opacity-40" />
@@ -296,7 +296,7 @@ export const ApiKeysManager: React.FC = () => {
             </p>
           </div>
         ) : (
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full min-w-[680px] text-left text-xs border-collapse">
             <thead className="bg-muted/60 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
               <tr>
                 <th className="py-2.5 px-4">Name & Key Prefix</th>
