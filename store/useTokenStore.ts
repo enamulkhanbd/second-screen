@@ -583,11 +583,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
       }
 
-      if (proj.themeGroups && proj.themeGroups.length > 0) {
+      // 2b. Theme Groups (Only hydrate from Firestore cache if project has git provider or rawTokens)
+      if (hasProjectGitProvider && proj.themeGroups && proj.themeGroups.length > 0) {
         set({
           themeGroups: proj.themeGroups,
           activeThemeGroupId: proj.themeGroups[0].id,
           activeThemeOptionId: proj.themeGroups[0].options[0]?.id || "",
+        });
+      } else if (!hasProjectGitProvider && (!proj.rawTokens || Object.keys(proj.rawTokens).length === 0)) {
+        set({
+          themeGroups: [],
+          activeThemeGroupId: "",
+          activeThemeOptionId: "",
         });
       }
 
