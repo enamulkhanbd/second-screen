@@ -478,7 +478,16 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
 
           {/* Theme Groups List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
-            {themeGroups.map((grp) => {
+            {themeGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center px-2">
+                <Palette className="size-8 text-muted-foreground/30 mb-2.5" />
+                <p className="text-xs font-semibold text-foreground">No Theme Groups</p>
+                <p className="text-[11px] text-muted-foreground mt-1 max-w-[180px] leading-relaxed">
+                  Theme groups organize modes and brand variants. None currently defined.
+                </p>
+              </div>
+            ) : (
+              themeGroups.map((grp) => {
               const isGroupActive = activeThemeGroupId === grp.id;
               return (
                 <div key={grp.id} className="space-y-1.5">
@@ -626,7 +635,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
           </div>
         </>
       )}

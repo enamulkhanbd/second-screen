@@ -665,9 +665,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           : proj.rawTokens || {};
 
       const initialThemes =
-        activeBranchObj && activeBranchObj.themeGroups !== undefined && activeBranchObj.themeGroups.length > 0
+        activeBranchObj && activeBranchObj.themeGroups !== undefined
           ? activeBranchObj.themeGroups
-          : proj.themeGroups && proj.themeGroups.length > 0
+          : proj.themeGroups !== undefined
           ? proj.themeGroups
           : extractThemeGroups(initialTokens);
 
@@ -3038,7 +3038,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       return;
     }
     const { rawTokens, themeGroups, activeSet } = get();
-    const targetGroup = themeGroups.find((g) => g.id === groupId);
+    const targetGroup =
+      themeGroups.find((g) => g.id === groupId) ||
+      themeGroups.find((g) => g.name.toLowerCase() === groupId.toLowerCase());
     if (!targetGroup) return;
 
     const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
@@ -3061,16 +3063,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
     }
 
-    const updatedThemes = existingThemes.filter(
-      (t) => t.group !== targetGroup.name
-    );
+    const targetNameLower = targetGroup.name.trim().toLowerCase();
+    const targetIdLower = targetGroup.id.trim().toLowerCase();
+
+    const updatedThemes = existingThemes.filter((t) => {
+      const gName = String(t.group || "").trim().toLowerCase();
+      const isTargetName = gName === targetNameLower;
+      const isTargetId = gName === targetIdLower || `grp-${gName.replace(/\s+/g, "-")}` === targetIdLower;
+      const belongsToGroup = targetGroup.options.some((o) => o.id === t.id);
+      return !isTargetName && !isTargetId && !belongsToGroup;
+    });
 
     const updatedRawDoc = {
       ...rawTokens,
       [themesKey]: updatedThemes as any,
     };
 
-    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    // Directly exclude targetGroup so it is completely removed from state
+    const updatedGroups = themeGroups.filter(
+      (g) => g.id !== targetGroup.id && g.name.trim().toLowerCase() !== targetNameLower
+    );
     const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
     const remainingGroup = updatedGroups[0];
 
@@ -3078,6 +3090,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       try {
         if (remainingGroup) {
           localStorage.setItem("ts_active_group_id", remainingGroup.id);
+        } else {
+          localStorage.removeItem("ts_active_group_id");
         }
       } catch { }
     }

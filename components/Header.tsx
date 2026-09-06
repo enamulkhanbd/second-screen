@@ -439,13 +439,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       setShowBranchMenu(false);
       setCommitMessage("");
 
-      addToast({
-        type: "success",
-        title: isGitConfigured ? "Pushed to Git" : "Committed to Branch",
-        message: isGitConfigured
-          ? `Changes pushed to ${credentials.repo}@${credentials.branch}.`
-          : `Changes committed to native branch "${activeBranch}".`,
-      });
+      if (isGitConfigured) {
+        addToast({
+          type: "success",
+          title: "Pushed to Git",
+          message: `Changes pushed to ${credentials.repo}@${credentials.branch}.`,
+        });
+      }
     } catch (err: any) {
       setSyncStatus("error", err.message);
       addToast({
@@ -554,47 +554,51 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                     {sidebarTab === "themes" && (
                       <div className="flex items-center gap-1.5">
                         <BreadcrumbLink onClick={() => setSidebarTab("themes")}>Themes</BreadcrumbLink>
-                        <span className="text-muted-foreground/40 font-normal">/</span>
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                            className="flex items-center gap-1 font-semibold text-foreground hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-muted/70 cursor-pointer"
-                          >
-                            <span>{activeGroup?.name || "Theme"}</span>
-                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                          </button>
-                          {showThemeGroupMenu && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setShowThemeGroupMenu(false)}
-                              />
-                              <div className="absolute left-0 top-full mt-1 w-48 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                <div className="px-3 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                                  Theme Groups
-                                </div>
-                                {themeGroups.map((grp) => (
-                                  <button
-                                    key={grp.id}
-                                    onClick={() => {
-                                      setActiveThemeGroup(grp.id);
-                                      setShowThemeGroupMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer ${grp.id === activeThemeGroupId
-                                        ? "bg-primary/10 text-primary font-semibold"
-                                        : "text-foreground hover:bg-muted"
-                                      }`}
-                                  >
-                                    <span>{grp.name}</span>
-                                    {grp.id === activeThemeGroupId && (
-                                      <Check className="w-3 h-3 text-primary" />
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        {themeGroups.length > 0 && (
+                          <>
+                            <span className="text-muted-foreground/40 font-normal">/</span>
+                            <div className="relative">
+                              <button
+                                onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
+                                className="flex items-center gap-1 font-semibold text-foreground hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-muted/70 cursor-pointer"
+                              >
+                                <span>{activeGroup?.name || "Theme"}</span>
+                                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                              </button>
+                              {showThemeGroupMenu && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={() => setShowThemeGroupMenu(false)}
+                                  />
+                                  <div className="absolute left-0 top-full mt-1 w-48 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="px-3 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                                      Theme Groups
+                                    </div>
+                                    {themeGroups.map((grp) => (
+                                      <button
+                                        key={grp.id}
+                                        onClick={() => {
+                                          setActiveThemeGroup(grp.id);
+                                          setShowThemeGroupMenu(false);
+                                        }}
+                                        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer ${grp.id === activeThemeGroupId
+                                            ? "bg-primary/10 text-primary font-semibold"
+                                            : "text-foreground hover:bg-muted"
+                                          }`}
+                                      >
+                                        <span>{grp.name}</span>
+                                        {grp.id === activeThemeGroupId && (
+                                          <Check className="w-3 h-3 text-primary" />
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </BreadcrumbItem>

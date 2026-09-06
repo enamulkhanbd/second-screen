@@ -176,6 +176,27 @@ export function normalizeSelectedTokenSets(
   return out;
 }
 
+/**
+ * Checks whether rawDoc explicitly defines a theme specification file or key ($themes, $themes.json, $theme, $theme.json).
+ */
+export function hasThemeDefinition(rawDoc: RawTokensDocument): boolean {
+  if (!rawDoc || typeof rawDoc !== "object") return false;
+  const directKeys = ["$themes", "$themes.json", "$theme", "$theme.json"];
+  for (const key of directKeys) {
+    if (key in rawDoc && rawDoc[key] !== undefined) return true;
+  }
+  for (const [key, val] of Object.entries(rawDoc)) {
+    if (isThemesFileName(key) && val !== undefined) return true;
+  }
+  for (const val of Object.values(rawDoc)) {
+    if (!val || typeof val !== "object" || Array.isArray(val)) continue;
+    for (const innerKey of Object.keys(val as Record<string, any>)) {
+      if (isThemesFileName(innerKey) || directKeys.includes(innerKey)) return true;
+    }
+  }
+  return false;
+}
+
 function collectFromDoc(rawDoc: RawTokensDocument, kind: "themes" | "metadata"): any {
   if (!rawDoc || typeof rawDoc !== "object") return kind === "themes" ? [] : null;
 
@@ -188,15 +209,15 @@ function collectFromDoc(rawDoc: RawTokensDocument, kind: "themes" | "metadata"):
     kind === "themes" ? normalizeThemesPayload(val) : normalizeMetadataPayload(val);
 
   for (const key of directKeys) {
-    const parsed = tryValue(rawDoc[key]);
-    if (kind === "themes" ? (parsed as any[]).length > 0 : parsed) return parsed;
+    if (key in rawDoc && rawDoc[key] !== undefined) {
+      return tryValue(rawDoc[key]);
+    }
   }
 
   for (const [key, val] of Object.entries(rawDoc)) {
     const isMatch = kind === "themes" ? isThemesFileName(key) : isMetadataFileName(key);
     if (!isMatch) continue;
-    const parsed = tryValue(val);
-    if (kind === "themes" ? (parsed as any[]).length > 0 : parsed) return parsed;
+    return tryValue(val);
   }
 
   for (const val of Object.values(rawDoc)) {
@@ -204,8 +225,7 @@ function collectFromDoc(rawDoc: RawTokensDocument, kind: "themes" | "metadata"):
     for (const [innerKey, innerVal] of Object.entries(val as Record<string, any>)) {
       const isMatch = kind === "themes" ? isThemesFileName(innerKey) : isMetadataFileName(innerKey);
       if (!isMatch && !directKeys.includes(innerKey)) continue;
-      const parsed = tryValue(innerVal);
-      if (kind === "themes" ? (parsed as any[]).length > 0 : parsed) return parsed;
+      return tryValue(innerVal);
     }
   }
 
@@ -242,6 +262,7 @@ export function canonicalizeTokenDocument(doc: RawTokensDocument): RawTokensDocu
 
   const themes = getThemesArray(doc);
   const metadata = getMetadataObject(doc);
+  const hadThemes = hasThemeDefinition(doc);
 
   for (const key of Object.keys(out)) {
     if (isThemesFileName(key) || isMetadataFileName(key)) {
@@ -278,7 +299,7 @@ export function canonicalizeTokenDocument(doc: RawTokensDocument): RawTokensDocu
   delete out["$theme"];
   delete out["$metadata.json"];
 
-  if (themes.length > 0) out["$themes"] = themes;
+  if (hadThemes || themes.length > 0) out["$themes"] = themes;
   else delete out["$themes"];
 
   if (metadata) out["$metadata"] = metadata;
@@ -340,6 +361,12 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
     });
 
     return groups;
+  }
+
+  // If the document explicitly has a theme file/key ($themes, $themes.json, etc.) but it is empty,
+  // do NOT synthesize fake fallback groups! The user or document explicitly has 0 themes.
+  if (hasThemeDefinition(rawDoc)) {
+    return [];
   }
 
   // No $themes.json / $theme.json: infer groups from remaining token sets
