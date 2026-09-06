@@ -2,12 +2,83 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.2.3",
+    releaseDate: "September 6, 2026",
+    title: "Living Documentation Studio, Live Design Tokens & Multi-Page Publishing",
+    badge: "Feature Release",
+    badgeVariant: "success",
+    isLatest: true,
+    summary:
+      "Introduced an interactive 3-panel Living Documentation Studio with folder and page hierarchies, live design token & variable table/swatch blocks, Do's & Don'ts cards, slash command menu, contextual inspector, first-load onboarding, and granular public publishing.",
+    highlights: [
+      "Interactive 3-panel living documentation editor with left navigation tree, central canvas, and inspector.",
+      "Multi-page & folder hierarchy with inline reordering, renaming, and page creation.",
+      "Live connected Figma variables and token blocks (Variables Table, Color Swatches, Typography Specimens, Tokens Table).",
+      "Do's & Don'ts guideline comparison cards with side-by-side visual recommendations.",
+      "Slash command menu (`/`) for rapid block insertion across 8 content types.",
+      "Contextual page inspector with header background swatches, layout modes, TOC toggle, and live variable filtering.",
+      "Public documentation reader route (`/docs/[orgSlug]/[projectSlug]`) with one-click publishing and per-page visibility toggles.",
+      "Clean first-load onboarding guide with starter templates and zero auto-seeded clutter.",
+    ],
+    items: [
+      {
+        title: "Living Documentation Studio",
+        description:
+          "Full-featured documentation workspace integrated directly into the platform with folder organization, sub-pages, live markdown editing, and real-time design system connection.",
+        category: "feature",
+        tags: ["Documentation", "Studio", "Markdown"],
+      },
+      {
+        title: "Live Token & Variable Blocks",
+        description:
+          "Directly embed Figma variables and design tokens into living docs with live color swatches, tabular multi-mode values, typography specimens, and one-click CSS variable copy actions.",
+        category: "feature",
+        tags: ["Variables", "Tokens", "Swatches", "Live Blocks"],
+      },
+      {
+        title: "Do's & Don'ts Comparison Cards",
+        description:
+          "Clear visual design guideline cards comparing best practices (green check) vs anti-patterns (red cross) to enforce design system consistency.",
+        category: "feature",
+        tags: ["Guidelines", "Best Practices", "Design System"],
+      },
+      {
+        title: "Slash Command Menu (`/`)",
+        description:
+          "Trigger a keyboard-navigable slash command popover anywhere in the doc to instantly insert text, headings, variables, swatches, tokens, callouts, or guidelines.",
+        category: "ui",
+        tags: ["Shortcuts", "Slash Command", "UX"],
+      },
+      {
+        title: "Contextual Page Inspector & Theming",
+        description:
+          "Right-side drawer to customize canvas header color swatches (emerald, violet, amber, etc.), layout modes (Classic, Hero, Feature), table of contents, and variable filtering rules.",
+        category: "ui",
+        tags: ["Inspector", "Theming", "Layout"],
+      },
+      {
+        title: "Granular Public Publishing",
+        description:
+          "Publish entire documentation portals to a clean public reader URL (`/docs/...`) with granular per-page public/private visibility toggles.",
+        category: "integration",
+        tags: ["Publishing", "Public Docs", "Sharing"],
+      },
+      {
+        title: "First-Load Onboarding & Clean Start",
+        description:
+          "Ensured first-time project loads start clean without mock data, providing a 4-step quick guide, quick page creation CTA, and optional Foundations starter template.",
+        category: "enhancement",
+        tags: ["Onboarding", "Templates", "UX"],
+      },
+    ],
+  },
+  {
     version: "v1.2.1",
     releaseDate: "September 6, 2026",
     title: "Real-Time User Activity Audit Logs & Smart Git Asset Sync",
     badge: "Enhancement",
-    badgeVariant: "success",
-    isLatest: true,
+    badgeVariant: "secondary",
+    isLatest: false,
     summary:
       "Added cross-team real-time User Activity Audit Logging via Firestore, full event tracking across tokens and assets, and dynamic dual-path Git icon synchronization.",
     highlights: [
