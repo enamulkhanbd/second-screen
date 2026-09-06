@@ -674,15 +674,75 @@ export const AssetsView: React.FC = () => {
     }
   };
 
-  // Copy SVG string
-  const handleCopySvg = (svg: string, id: string) => {
+  /**
+   * Enriches an SVG XML string with an `id`, `data-name`, and `<title>` tag
+   * so when pasted or imported into Figma, Sketch, or Illustrator, the layer/frame is named correctly.
+   */
+  const enrichSvgWithName = (rawSvg: string, iconName: string): string => {
+    if (!rawSvg || typeof rawSvg !== "string") return rawSvg;
+    const nameClean = iconName.trim();
+    if (!nameClean) return rawSvg;
+
+    let formatted = rawSvg.trim();
+
+    // 1. Ensure root <svg> tag contains id="..." and data-name="..." set to iconName
+    const svgTagMatch = formatted.match(/<svg\b[^>]*>/i);
+    if (svgTagMatch) {
+      let svgTag = svgTagMatch[0];
+
+      // Handle id attribute
+      if (/\bid=["'][^"']*["']/i.test(svgTag)) {
+        svgTag = svgTag.replace(/\bid=["'][^"']*["']/i, `id="${nameClean}"`);
+      } else {
+        svgTag = svgTag.replace(/<svg\b/i, `<svg id="${nameClean}"`);
+      }
+
+      // Handle data-name attribute
+      if (/\bdata-name=["'][^"']*["']/i.test(svgTag)) {
+        svgTag = svgTag.replace(/\bdata-name=["'][^"']*["']/i, `data-name="${nameClean}"`);
+      } else {
+        svgTag = svgTag.replace(/<svg\b/i, `<svg data-name="${nameClean}"`);
+      }
+
+      formatted = formatted.replace(svgTagMatch[0], svgTag);
+    }
+
+    // 2. Inject or update <title> inside <svg>
+    if (/<title\b[^>]*>.*?<\/title>/i.test(formatted)) {
+      formatted = formatted.replace(/<title\b[^>]*>.*?<\/title>/i, `<title>${nameClean}</title>`);
+    } else {
+      formatted = formatted.replace(/(<svg\b[^>]*>)/i, `$1<title>${nameClean}</title>`);
+    }
+
+    return formatted;
+  };
+
+  // Copy SVG string enriched with icon name for Figma layer naming
+  const handleCopySvg = (svg: string, id: string, name?: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(svg);
+      const iconName = name || "icon";
+      const enriched = enrichSvgWithName(svg, iconName);
+
+      if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+        const textBlob = new Blob([enriched], { type: "text/plain" });
+        const htmlBlob = new Blob([enriched], { type: "text/html" });
+        navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": textBlob,
+            "text/html": htmlBlob,
+          }),
+        ]).catch(() => {
+          navigator.clipboard.writeText(enriched);
+        });
+      } else {
+        navigator.clipboard.writeText(enriched);
+      }
+
       setCopiedId(id);
       addToast({
         type: "success",
         title: "SVG Copied",
-        message: "SVG markup copied to clipboard.",
+        message: `Copied "${iconName}" SVG to clipboard.`,
       });
       setTimeout(() => setCopiedId(null), 1800);
     }
@@ -690,11 +750,13 @@ export const AssetsView: React.FC = () => {
 
   // Download single SVG file
   const handleDownloadSingleSvg = (asset: ProjectAsset) => {
-    const blob = new Blob([asset.svg], { type: "image/svg+xml" });
+    const iconName = asset.name || asset.title || "icon";
+    const enriched = enrichSvgWithName(asset.svg, iconName);
+    const blob = new Blob([enriched], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${asset.name || asset.title || "icon"}.svg`;
+    a.download = `${iconName}.svg`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -715,8 +777,10 @@ export const AssetsView: React.FC = () => {
       targetAssets.forEach((asset) => {
         const typeFolder = asset.type || "general";
         const catFolder = asset.category || "general";
-        const fileName = `${asset.name || asset.title || "icon"}.svg`;
-        zip.file(`${typeFolder}/${catFolder}/${fileName}`, asset.svg);
+        const iconName = asset.name || asset.title || "icon";
+        const fileName = `${iconName}.svg`;
+        const enriched = enrichSvgWithName(asset.svg, iconName);
+        zip.file(`${typeFolder}/${catFolder}/${fileName}`, enriched);
       });
 
       const blob = await zip.generateAsync({ type: "blob" });
@@ -954,7 +1018,7 @@ export const AssetsView: React.FC = () => {
     return (
       <div
         key={icon.id}
-        onClick={() => handleCopySvg(icon.svg, icon.id)}
+        onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle)}
         className={`p-4 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[148px] ${
           isSelected
             ? "border-primary ring-2 ring-primary/20 bg-primary/[0.02]"
