@@ -613,14 +613,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setCurrentProject: (proj) => {
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
+    const switchVersion = ++scopeSwitchVersion;
 
     set({
       currentProject: proj,
       rawTokens: {},
+      originalTokens: {},
       resolvedTokens: [],
       themeGroups: [],
       activeThemeGroupId: "",
       activeThemeOptionId: "",
+      branches: [],
+      activeBranch: "main",
+      isDirty: false,
+      hasRemoteChanges: false,
+      lastFetchedSha: null,
+      syncStatus: "idle",
+      syncError: null,
       syncMeta: null,
       figmaVariables: null,
       figmaResolvedVariables: [],
@@ -723,6 +732,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       } else {
         set({
           rawTokens: {},
+          originalTokens: {},
           resolvedTokens: [],
           themeGroups: initialThemes || [],
           activeThemeGroupId: initialThemes?.[0]?.id || "",
@@ -2339,6 +2349,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   checkRemoteUpdates: async () => {
     const creds = get().credentials;
+    const scopeOrgId = get().currentOrg?.id;
+    const scopeProjectId = get().currentProject?.id;
     if (!creds.provider || !creds.owner || !creds.repo || !creds.branch || !creds.pat) {
       return false;
     }
@@ -2361,6 +2373,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       if (!res.ok) return false;
       const data = await res.json();
+      if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
       if (data.success && data.latestSha) {
         const currentSha = get().lastFetchedSha;
         if (currentSha && data.latestSha !== currentSha) {
