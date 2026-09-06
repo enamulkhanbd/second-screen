@@ -102,12 +102,13 @@ const KNOWN_TYPE_NAMES = new Set([
  * e.g. "add-remove-delete" -> "Add Remove Delete", "two-tone" -> "Two Tone"
  */
 export function formatCategoryName(category?: string): string {
-  if (!category) return "General";
-  return category
+  if (!category) return "All Icons";
+  const formatted = category
     .split(/[-_]/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
+  return formatted.toLowerCase() === "general" ? "All Icons" : formatted;
 }
 
 /**
@@ -422,7 +423,8 @@ export const AssetsView: React.FC = () => {
   const groupedAssetsByType = useMemo(() => {
     const map = new Map<string, ProjectAsset[]>();
     filteredAssets.forEach((asset) => {
-      const type = asset.type || "General";
+      let type = asset.type || "All Icons";
+      if (type.toLowerCase() === "general") type = "All Icons";
       if (!map.has(type)) map.set(type, []);
       map.get(type)!.push(asset);
     });
