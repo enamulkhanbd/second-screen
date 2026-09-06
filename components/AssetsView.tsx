@@ -97,6 +97,9 @@ const KNOWN_TYPE_NAMES = new Set([
   "bold", "curved", "light", "thin", "duotone", "duo-tone", "duo tone", "regular", "glyph", "sharp", "flat"
 ]);
 
+const ASSET_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+const ASSET_BATCH_SIZE = 72;
+
 /**
  * Formats a category or type name by replacing hyphens and underscores with spaces and applying Title Case.
  * e.g. "add-remove-delete" -> "Add Remove Delete", "two-tone" -> "Two Tone"
@@ -378,13 +381,25 @@ export const AssetsView: React.FC = () => {
     return Array.from(set).sort();
   }, [displayAssets]);
 
+  // Precomputed category counts in a single O(N) pass
+  const categoryCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    displayAssets.forEach((a) => {
+      if (a.category) {
+        const cat = a.category.toLowerCase();
+        counts.set(cat, (counts.get(cat) || 0) + 1);
+      }
+    });
+    return counts;
+  }, [displayAssets]);
+
   // Unique categories
   const categories = useMemo(() => {
     const set = new Set<string>();
     displayAssets.forEach((a) => {
       if (a.category) set.add(a.category.toLowerCase());
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => ASSET_COLLATOR.compare(a, b));
   }, [displayAssets]);
 
   // Filtered categories in left sidebar
@@ -417,25 +432,64 @@ export const AssetsView: React.FC = () => {
         return matchTitle || matchName || matchType || matchCat || matchTag || matchSource;
       }
       return true;
-    }).sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name, undefined, { sensitivity: "base" }));
+    }).sort((a, b) => ASSET_COLLATOR.compare(a.title || a.name, b.title || b.name));
   }, [displayAssets, selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
 
-  // Group filtered assets directly by Type (e.g. Stroke, Two Tone, Solid)
-  const groupedAssetsByType = useMemo(() => {
-    const map = new Map<string, ProjectAsset[]>();
+  // Progressive loading: only render visibleCount icons at once to prevent DOM freezing
+  const [visibleCount, setVisibleCount] = useState(ASSET_BATCH_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset visibleCount whenever filters change
+  React.useEffect(() => {
+    setVisibleCount(ASSET_BATCH_SIZE);
+  }, [selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
+
+  // Infinite scroll intersection observer to smoothly load the next batch
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + ASSET_BATCH_SIZE, filteredAssets.length));
+        }
+      },
+      { rootMargin: "350px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredAssets.length]);
+
+  // Precompute total counts per type for section headers
+  const totalCountByType = useMemo(() => {
+    const map = new Map<string, number>();
     filteredAssets.forEach((asset) => {
+      let type = asset.type || "All Icons";
+      if (type.toLowerCase() === "general") type = "All Icons";
+      map.set(type, (map.get(type) || 0) + 1);
+    });
+    return map;
+  }, [filteredAssets]);
+
+  // Group filtered assets directly by Type, slicing to visibleCount for smooth DOM performance
+  const groupedAssetsByType = useMemo(() => {
+    const visibleSlice = filteredAssets.slice(0, visibleCount);
+    const map = new Map<string, ProjectAsset[]>();
+    visibleSlice.forEach((asset) => {
       let type = asset.type || "All Icons";
       if (type.toLowerCase() === "general") type = "All Icons";
       if (!map.has(type)) map.set(type, []);
       map.get(type)!.push(asset);
     });
     return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => ASSET_COLLATOR.compare(a, b))
       .map(([typeName, icons]) => ({
         typeName,
         icons,
       }));
-  }, [filteredAssets]);
+  }, [filteredAssets, visibleCount]);
 
   // Toggle selection for an individual asset
   const toggleAssetSelect = (id: string, e?: React.MouseEvent) => {
@@ -1450,7 +1504,7 @@ export const AssetsView: React.FC = () => {
 
               {/* Category Items */}
               {filteredCategoryList.map((cat) => {
-                const count = displayAssets.filter((a) => a.category?.toLowerCase() === cat).length;
+                const count = categoryCountMap.get(cat) || 0;
                 const isSelected = selectedCategory === cat;
                 const IconComponent = getCategoryIcon(cat);
                 const formattedName = formatCategoryName(cat);
@@ -1720,7 +1774,10 @@ export const AssetsView: React.FC = () => {
                               variant="secondary"
                               className="text-[10px] font-mono py-0 px-1.5 h-4 text-muted-foreground font-normal"
                             >
-                              {icons.length}
+                              {(() => {
+                                const totalForType = totalCountByType.get(typeName) || icons.length;
+                                return icons.length < totalForType ? `${icons.length} of ${totalForType}` : icons.length;
+                              })()}
                             </Badge>
                           </div>
                         </div>
@@ -1733,6 +1790,40 @@ export const AssetsView: React.FC = () => {
                     </section>
                   );
                 })}
+
+                {/* Progressive Loading Sentinel & Controls */}
+                {filteredAssets.length > visibleCount && (
+                  <div ref={sentinelRef} className="pt-6 pb-12 flex flex-col items-center justify-center gap-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                      <span>Showing {Math.min(visibleCount, filteredAssets.length)} of {filteredAssets.length} icons</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVisibleCount((prev) => Math.min(prev + ASSET_BATCH_SIZE, filteredAssets.length))}
+                        className="text-xs h-7 cursor-pointer"
+                      >
+                        Load More (+{ASSET_BATCH_SIZE})
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setVisibleCount(filteredAssets.length)}
+                        className="text-xs h-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Load All ({filteredAssets.length})
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {filteredAssets.length > 0 && filteredAssets.length <= visibleCount && filteredAssets.length > ASSET_BATCH_SIZE && (
+                  <div className="pt-6 pb-10 flex items-center justify-center text-xs text-muted-foreground font-mono">
+                    <span>All {filteredAssets.length} icons loaded</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -181,9 +181,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       checkRemoteUpdates();
     }, 45000);
 
-    // Immediate check on tab focus
+    // Throttled check on tab focus (minimum 30s)
+    let lastFocusCheck = 0;
     const handleFocus = () => {
-      checkRemoteUpdates();
+      const now = Date.now();
+      if (now - lastFocusCheck > 30000) {
+        lastFocusCheck = now;
+        checkRemoteUpdates();
+      }
     };
 
     window.addEventListener("focus", handleFocus);

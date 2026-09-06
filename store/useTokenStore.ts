@@ -330,6 +330,8 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
 
 export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
+  let isCheckingRemoteUpdates = false;
+  let lastRemoteCheckTimestamp = 0;
   const isScopeActive = (orgId?: string, projectId?: string) => {
     if (!orgId || !projectId) return false;
     const { currentOrg, currentProject } = get();
@@ -2247,6 +2249,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       return false;
     }
 
+    const now = Date.now();
+    // Guard: Enforce 30s minimum cooldown between remote checks and prevent concurrent fetches
+    if (isCheckingRemoteUpdates || now - lastRemoteCheckTimestamp < 30000) {
+      return false;
+    }
+
+    isCheckingRemoteUpdates = true;
+    lastRemoteCheckTimestamp = now;
+
     try {
       const res = await fetch("/api/git/check-updates", {
         method: "POST",
@@ -2259,13 +2270,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (data.success && data.latestSha) {
         const currentSha = get().lastFetchedSha;
         if (currentSha && data.latestSha !== currentSha) {
-          set({ hasRemoteChanges: true });
+          if (!get().hasRemoteChanges) {
+            set({ hasRemoteChanges: true });
+          }
           return true;
         }
       }
       return false;
     } catch {
       return false;
+    } finally {
+      isCheckingRemoteUpdates = false;
     }
   },
 
