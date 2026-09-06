@@ -9,6 +9,8 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import {
   Organization,
@@ -20,7 +22,7 @@ import {
   AssetGitConfig,
   AssetFigmaConfig,
 } from "@/types/tenant";
-import { RawTokensDocument, ThemeGroup, GitCredentials } from "@/types/tokens";
+import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
 // -------------------------------------------------------------
@@ -684,5 +686,48 @@ export async function saveProjectAssetFigmaConfig(
   }
 }
 
+// -------------------------------------------------------------
+// USER & WORKSPACE ACTIVITY AUDIT LOG (Dynamic Firestore)
+// -------------------------------------------------------------
 
+/**
+ * Persists an activity item to the organization's activities subcollection in Firestore
+ */
+export async function logOrganizationActivity(
+  orgId: string,
+  activity: UserActivityItem
+): Promise<void> {
+  if (!orgId || !isFirebaseConfigured || !db) return;
+  try {
+    const actRef = doc(db, "organizations", orgId, "activities", activity.id);
+    await setDoc(actRef, {
+      ...activity,
+      createdAt: activity.timestamp || new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Firestore error logging organization activity:", e);
+  }
+}
 
+/**
+ * Fetches recent activity logs for an organization from Firestore (ordered by timestamp desc)
+ */
+export async function getOrganizationActivities(
+  orgId: string,
+  maxItems = 60
+): Promise<UserActivityItem[]> {
+  if (!orgId || !isFirebaseConfigured || !db) return [];
+  try {
+    const actCol = collection(db, "organizations", orgId, "activities");
+    const q = query(actCol, orderBy("timestamp", "desc"), limit(maxItems));
+    const snapshot = await getDocs(q);
+    const activities: UserActivityItem[] = [];
+    snapshot.forEach((d) => {
+      activities.push(d.data() as UserActivityItem);
+    });
+    return activities;
+  } catch (e) {
+    console.warn("Firestore error fetching organization activities:", e);
+    return [];
+  }
+}

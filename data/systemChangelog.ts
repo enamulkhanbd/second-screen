@@ -2,12 +2,66 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.2.1",
+    releaseDate: "September 6, 2026",
+    title: "Real-Time User Activity Audit Logs & Smart Git Asset Sync",
+    badge: "Enhancement",
+    badgeVariant: "success",
+    isLatest: true,
+    summary:
+      "Added cross-team real-time User Activity Audit Logging via Firestore, full event tracking across tokens and assets, and dynamic dual-path Git icon synchronization.",
+    highlights: [
+      "Authentic cross-team User Activity Log powered by Cloud Firestore (`organizations/{orgId}/activities`).",
+      "Full event tracking across token mutations, theme creation, releases, vector asset uploads, and member management.",
+      "Dynamic Git sync supporting both `assets/icons` and `assets/icons/svg` with parent `metadata.json` automatic resolution.",
+      "High-scale asset ingestion expanded to 5,000 items with Azure DevOps chunking.",
+      "Modernized UI with Assets filter tab, role pills, project badges, and exact ISO timestamp tooltips.",
+    ],
+    items: [
+      {
+        title: "Cross-Team User Activity Audit Logs",
+        description:
+          "Completely eliminated dummy/mock fallback logs in favor of a shared Firestore audit collection, enabling all team members in an organization to see who modified tokens, created releases, or updated assets in real time.",
+        category: "feature",
+        tags: ["Audit Log", "Firestore", "Team"],
+      },
+      {
+        title: "Comprehensive Platform Event Triggers",
+        description:
+          "Instrumented automatic activity logging across token edits, theme option creation, package releases, vector asset uploads/updates/deletions, Git asset syncs, Figma source syncs, and team invitations.",
+        category: "enhancement",
+        tags: ["Tokens", "Assets", "Git", "Figma", "Releases"],
+      },
+      {
+        title: "Dynamic Dual-Path Git Icon Sync",
+        description:
+          "Added automatic resolution for both `assets/icons` and `assets/icons/svg` structures with recursive parent folder lookups for `metadata.json` and subfolder format stripping.",
+        category: "integration",
+        tags: ["Git", "Icons", "Azure DevOps", "GitHub"],
+      },
+      {
+        title: "High-Scale Icon Processing",
+        description:
+          "Expanded Git asset retrieval limit to 5,000 items with batched Azure DevOps requests to seamlessly handle repositories with 1,380+ vector icons without timeouts.",
+        category: "enhancement",
+        tags: ["Performance", "Azure DevOps"],
+      },
+      {
+        title: "Modernized Activity Log UX",
+        description:
+          "Added dedicated Assets category filter, actor role badges, project tags, contextual metadata badges (old vs new values, commit SHAs, release versions), and hover datetime tooltips.",
+        category: "ui",
+        tags: ["UI", "Accessibility", "UX"],
+      },
+    ],
+  },
+  {
     version: "v1.2.0",
     releaseDate: "September 1, 2026",
     title: "Dynamic Git Path Scoping & Git Log Tracking",
     badge: "Feature Release",
     badgeVariant: "violet",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Added dynamic repository path scoping for Git commit histories, path-filtered change detection, and dedicated system changelog tracking.",
     highlights: [

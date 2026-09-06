@@ -37,6 +37,7 @@ import {
   FolderGit2,
   Search,
   CheckCircle,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,75 +254,10 @@ export const MembersView: React.FC = () => {
     );
   }, [pendingInvitations, memberEmails]);
 
-  // Seed default activities if list is currently empty
+  // Real workspace activities (no mock fallbacks)
   const allActivities: UserActivityItem[] = useMemo(() => {
-    if (userActivities && userActivities.length > 0) {
-      return userActivities;
-    }
-
-    const now = Date.now();
-    const actorName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Enamul Khan";
-    const actorEmail = currentUser?.email || "anamul.ipa@gmail.com";
-    const actorAvatar = currentUser?.avatarUrl;
-    const roleDef = ROLE_DEFINITIONS[userRole];
-
-    return [
-      {
-        id: "act_1",
-        type: "git",
-        title: "Tokens Pushed to Remote",
-        description: `Pushed latest typography and color tokens to branch "${credentials.branch || "main"}" on ${credentials.repo || "planet"}.`,
-        timestamp: new Date(now - 12 * 60 * 1000).toISOString(),
-        actor: { name: actorName, email: actorEmail, avatarUrl: actorAvatar },
-        metadata: { branch: credentials.branch || "main", files: 3 },
-      },
-      {
-        id: "act_2",
-        type: "token",
-        title: "Token Updated",
-        description: 'Modified token "fontSize.heading.h1" value from "32px" to "36px".',
-        timestamp: new Date(now - 45 * 60 * 1000).toISOString(),
-        actor: { name: actorName, email: actorEmail, avatarUrl: actorAvatar },
-        metadata: { token: "fontSize.heading.h1", set: "typography/global" },
-      },
-      {
-        id: "act_3",
-        type: "git",
-        title: "Branch Switched",
-        description: `Switched active workspace branch to "${credentials.branch || "main"}".`,
-        timestamp: new Date(now - 2 * 3600 * 1000).toISOString(),
-        actor: { name: actorName, email: actorEmail, avatarUrl: actorAvatar },
-        metadata: { branch: credentials.branch || "main" },
-      },
-      {
-        id: "act_4",
-        type: "figma",
-        title: "Figma Variables Synced",
-        description: "Imported 48 design variables from Figma via Tokens Studio plugin bridge.",
-        timestamp: new Date(now - 5 * 3600 * 1000).toISOString(),
-        actor: { name: actorName, email: actorEmail, avatarUrl: actorAvatar },
-        metadata: { variableCount: 48, source: "Figma Bridge" },
-      },
-      {
-        id: "act_5",
-        type: "release",
-        title: "Release Package Published",
-        description: "Compiled and published Release v1.2.0 for Web CSS & Style Dictionary.",
-        timestamp: new Date(now - 24 * 3600 * 1000).toISOString(),
-        actor: { name: actorName, email: actorEmail, avatarUrl: actorAvatar },
-        metadata: { version: "v1.2.0", targets: ["Web App", "NPM"] },
-      },
-      {
-        id: "act_6",
-        type: "team",
-        title: "Team Workspace Active",
-        description: `Logged in to organization "${currentOrg?.name || "Planet Design System"}" with role "${roleDef.title}".`,
-        timestamp: new Date(now - 48 * 3600 * 1000).toISOString(),
-        actor: { name: actorName, email: actorEmail, avatarUrl: actorAvatar },
-        metadata: { role: roleDef.title, org: currentOrg?.name },
-      },
-    ];
-  }, [userActivities, currentUser, credentials.branch, credentials.repo, currentOrg?.name, userRole]);
+    return userActivities || [];
+  }, [userActivities]);
 
   const filteredActivities = useMemo(() => {
     let list = allActivities;
@@ -334,7 +270,8 @@ export const MembersView: React.FC = () => {
         (a) =>
           a.title.toLowerCase().includes(q) ||
           a.description.toLowerCase().includes(q) ||
-          a.actor.name.toLowerCase().includes(q)
+          a.actor?.name?.toLowerCase().includes(q) ||
+          a.actor?.email?.toLowerCase().includes(q)
       );
     }
     return list;
@@ -349,7 +286,7 @@ export const MembersView: React.FC = () => {
       const diffHours = Math.floor(diffMins / 60);
       const diffDays = Math.floor(diffHours / 24);
 
-      if (diffMins < 2) return "Just now";
+      if (diffMins < 1) return "Just now";
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays === 1) return "Yesterday";
@@ -368,6 +305,8 @@ export const MembersView: React.FC = () => {
         return <Sparkles className="w-4 h-4 text-purple-500" />;
       case "figma":
         return <Layers className="w-4 h-4 text-rose-500" />;
+      case "asset":
+        return <ImageIcon className="w-4 h-4 text-indigo-500" />;
       case "release":
         return <Package className="w-4 h-4 text-amber-500" />;
       case "team":
@@ -385,6 +324,10 @@ export const MembersView: React.FC = () => {
         return "outline";
       case "token":
         return "secondary";
+      case "asset":
+        return "secondary";
+      case "figma":
+        return "outline";
       case "release":
         return "warning";
       case "team":
@@ -850,6 +793,7 @@ export const MembersView: React.FC = () => {
                   { id: "token", label: "Tokens" },
                   { id: "git", label: "Git Operations" },
                   { id: "figma", label: "Figma" },
+                  { id: "asset", label: "Assets" },
                   { id: "release", label: "Releases" },
                   { id: "team", label: "Team" },
                 ].map((tab) => (
@@ -868,15 +812,32 @@ export const MembersView: React.FC = () => {
                 ))}
               </div>
 
-              {/* Search input */}
-              <div className="relative w-full sm:w-64">
-                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  placeholder="Search activities..."
-                  value={activitySearch}
-                  onChange={(e) => setActivitySearch(e.target.value)}
-                  className="pl-8 h-8 text-xs font-mono"
-                />
+              {/* Search input and clear action */}
+              <div className="flex items-center gap-2">
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    placeholder="Search events, tokens, users..."
+                    value={activitySearch}
+                    onChange={(e) => setActivitySearch(e.target.value)}
+                    className="pl-8 h-8 text-xs font-mono"
+                  />
+                </div>
+                {canManageRoles && allActivities.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm("Clear local activity logs for this workspace?")) {
+                        clearUserActivities();
+                      }
+                    }}
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive flex-shrink-0"
+                    title="Clear local logs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -884,10 +845,16 @@ export const MembersView: React.FC = () => {
             <div className="rounded-xl border border-border bg-card shadow-xs p-6 space-y-6">
               {filteredActivities.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-                  <Clock className="w-8 h-8 opacity-40" />
-                  <span className="text-xs font-semibold">No activity logs match your filter</span>
-                  <span className="text-[11px] text-muted-foreground max-w-xs">
-                    {activitySearch ? "Try searching for a different keyword." : "Recent actions will be logged here automatically."}
+                  <Clock className="w-8 h-8 opacity-40 text-primary/60" />
+                  <span className="text-xs font-semibold text-foreground">
+                    {allActivities.length === 0 ? "No activity recorded yet" : "No activity logs match your filter"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground max-w-sm">
+                    {allActivities.length === 0
+                      ? "Token edits, Git commits, Figma imports, asset uploads, and team events will automatically appear here."
+                      : activitySearch
+                      ? "Try searching for a different keyword or set name."
+                      : "Try switching to another category tab."}
                   </span>
                 </div>
               ) : (
@@ -912,8 +879,19 @@ export const MembersView: React.FC = () => {
                             >
                               {act.type}
                             </Badge>
+                            {act.projectName && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] font-mono py-0 px-1.5 border-dashed text-muted-foreground"
+                              >
+                                {act.projectName}
+                              </Badge>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                          <div
+                            className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground"
+                            title={new Date(act.timestamp).toLocaleString()}
+                          >
                             <span>{formatTimeAgo(act.timestamp)}</span>
                             <span>•</span>
                             <span>{new Date(act.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
@@ -952,6 +930,11 @@ export const MembersView: React.FC = () => {
                             <span className="font-medium text-foreground">{act.actor.name}</span>
                             <span className="font-mono text-muted-foreground text-[10px]">({act.actor.email})</span>
                           </div>
+                          {act.actor.role && (
+                            <Badge variant="secondary" className="text-[9px] font-mono py-0 px-1.5 capitalize">
+                              {act.actor.role}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>

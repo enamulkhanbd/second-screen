@@ -207,14 +207,29 @@ export interface ReleasePackage {
 
 export interface UserActivityItem {
   id: string;
-  type: "token" | "git" | "release" | "team" | "figma" | "project";
+  type: "token" | "git" | "release" | "team" | "figma" | "project" | "asset";
   title: string;
   description: string;
   timestamp: string;
   actor: {
+    uid?: string;
     name: string;
     email: string;
+    role?: string;
     avatarUrl?: string;
   };
+  orgId?: string;
+  projectId?: string;
+  projectName?: string;
   metadata?: Record<string, any>;
 }
+
+export type LogActivityInput = Omit<UserActivityItem, "id" | "timestamp" | "actor"> & {
+  actor?: {
+    uid?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    avatarUrl?: string;
+  };
+};

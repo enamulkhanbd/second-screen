@@ -14,6 +14,7 @@ import {
   CompilerConfig,
   DEFAULT_COMPILER_CONFIG,
   UserActivityItem,
+  LogActivityInput,
 } from "@/types/tokens";
 import {
   flattenAndResolveTokens,
@@ -64,6 +65,8 @@ import {
   deleteProject,
   updateOrganization,
   updateProject,
+  logOrganizationActivity,
+  getOrganizationActivities,
 } from "@/services/organizationService";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -256,7 +259,8 @@ interface TokenStoreState {
   removeToast: (id: string) => void;
   resetDirtyState: () => void;
   userActivities: UserActivityItem[];
-  logUserActivity: (activity: Omit<UserActivityItem, "id" | "timestamp">) => void;
+  logUserActivity: (activity: LogActivityInput) => void;
+  loadOrganizationActivities: (orgId: string) => Promise<void>;
   clearUserActivities: () => void;
   addThemeOption: (params: {
     groupId: string;
@@ -471,6 +475,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         set({ currentProject: null });
       }
       get().loadInvitations(org.id);
+      get().loadOrganizationActivities(org.id);
     }
   },
 
@@ -634,6 +639,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const scopeOrgId = get().currentOrg?.id;
       if (scopeOrgId) {
         restoreScopedProjectData(scopeOrgId, proj.id);
+        get().loadOrganizationActivities(scopeOrgId);
       }
     }
   },
@@ -773,6 +779,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set((state) => ({
         pendingInvitations: [inv, ...state.pendingInvitations.filter((i) => i.id !== inv.id)],
       }));
+
+      get().logUserActivity({
+        type: "team",
+        title: "Team Member Invited",
+        description: `Sent invitation to ${email} as ${role}.`,
+        metadata: {
+          inviteeEmail: email,
+          role,
+        },
+      });
+
       return inv;
     } catch (e) {
       console.warn("Error sending invitation:", e);
@@ -802,6 +819,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ),
         }));
         get().setCurrentOrg(updatedOrg);
+
+        get().logUserActivity({
+          type: "team",
+          title: "Joined Workspace",
+          description: `${currentUser.displayName || currentUser.email} accepted invitation and joined organization.`,
+          orgId: updatedOrg.id,
+        });
+
         return true;
       }
       return false;
@@ -853,6 +878,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         currentOrg: updatedOrg,
         userOrgs: state.userOrgs.map((o) => (o.id === updatedOrg.id ? updatedOrg : o)),
       }));
+
+      get().logUserActivity({
+        type: "team",
+        title: "Team Member Removed",
+        description: `Removed member ${memberEmailOrUid} from organization.`,
+        metadata: {
+          member: memberEmailOrUid,
+        },
+      });
     } catch (e) {
       console.warn("Error removing member:", e);
     }
@@ -1209,6 +1243,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       await saveProjectAssets(currentOrg.id, currentProject.id, updated);
     }
+
+    get().logUserActivity({
+      type: "asset",
+      title: "Assets Uploaded",
+      description: `Uploaded ${created.length} SVG asset${created.length > 1 ? "s" : ""} to project.`,
+      metadata: {
+        count: created.length,
+        source: "upload",
+      },
+    });
+
     addToast({
       type: "success",
       title: "Assets Uploaded",
@@ -1250,6 +1295,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (currentOrg && currentProject) {
         await saveProjectAssets(currentOrg.id, currentProject.id, updated);
       }
+
+      get().logUserActivity({
+        type: "asset",
+        title: "Asset Metadata Applied",
+        description: `Applied JSON metadata to ${updatedCount} icon${updatedCount > 1 ? "s" : ""}.`,
+        metadata: {
+          updatedCount,
+        },
+      });
+
       addToast({
         type: "success",
         title: "Metadata Applied",
@@ -1260,6 +1315,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   updateAsset: async (id, updates) => {
     const { currentOrg, currentProject, assets, addToast } = get();
+    const targetAsset = assets.find((a) => a.id === id);
     const updated = assets.map((a) =>
       a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
     );
@@ -1267,6 +1323,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       await saveProjectAssets(currentOrg.id, currentProject.id, updated);
     }
+
+    if (targetAsset) {
+      get().logUserActivity({
+        type: "asset",
+        title: "Asset Updated",
+        description: `Updated asset "${targetAsset.title || targetAsset.name}".`,
+        metadata: {
+          assetName: targetAsset.name,
+          ...updates,
+        },
+      });
+    }
+
     addToast({
       type: "success",
       title: "Asset Updated",
@@ -1284,6 +1353,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       await saveProjectAssets(currentOrg.id, currentProject.id, updated);
     }
+
+    get().logUserActivity({
+      type: "asset",
+      title: "Bulk Assets Updated",
+      description: `Updated metadata for ${ids.length} icon${ids.length > 1 ? "s" : ""}.`,
+      metadata: {
+        count: ids.length,
+      },
+    });
+
     addToast({
       type: "success",
       title: "Metadata Updated",
@@ -1293,11 +1372,24 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   deleteAsset: async (id) => {
     const { currentOrg, currentProject, assets, addToast } = get();
+    const targetAsset = assets.find((a) => a.id === id);
     const updated = assets.filter((a) => a.id !== id);
     set({ assets: updated });
     if (currentOrg && currentProject) {
       await saveProjectAssets(currentOrg.id, currentProject.id, updated);
     }
+
+    if (targetAsset) {
+      get().logUserActivity({
+        type: "asset",
+        title: "Asset Deleted",
+        description: `Deleted asset "${targetAsset.title || targetAsset.name}".`,
+        metadata: {
+          assetName: targetAsset.name,
+        },
+      });
+    }
+
     addToast({
       type: "info",
       title: "Asset Deleted",
@@ -1368,6 +1460,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (currentOrg && currentProject) {
         await saveProjectAssets(currentOrg.id, currentProject.id, merged);
       }
+
+      get().logUserActivity({
+        type: "git",
+        title: "Git Assets Synchronized",
+        description: `Synchronized ${fetchedAssets.length} SVG icon${fetchedAssets.length === 1 ? "" : "s"} from ${assetGitConfig.repo} (${assetGitConfig.branch}).`,
+        metadata: {
+          count: fetchedAssets.length,
+          repo: assetGitConfig.repo,
+          branch: assetGitConfig.branch,
+          folder: assetGitConfig.assetFolder || "root",
+        },
+      });
 
       addToast({
         type: "success",
@@ -1777,6 +1881,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
       }
 
+      get().logUserActivity({
+        type: "figma",
+        title: "Figma Assets Synchronized",
+        description: `Synced ${fetchedAssets.length} icons across ${enabledSources.length} Figma sources (${newCount} new, ${updatedCount} updated).`,
+        metadata: {
+          iconCount: fetchedAssets.length,
+          sourceCount: enabledSources.length,
+          newCount,
+          updatedCount,
+        },
+      });
+
       addToast({
         type: "success",
         title: "All Figma Sources Synchronized",
@@ -1864,7 +1980,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   releases: [],
   activeReleaseId: null,
   distributionTargets: [],
-  createRelease: (pkg) =>
+  createRelease: (pkg) => {
     set((state) => {
       const updated = [pkg, ...state.releases];
       if (typeof window !== "undefined") {
@@ -1874,8 +1990,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch { }
       }
       return { releases: updated, activeReleaseId: pkg.id };
-    }),
-  deleteRelease: (id) =>
+    });
+
+    get().logUserActivity({
+      type: "release",
+      title: "Release Package Published",
+      description: `Created release package "${pkg.version}" (${pkg.title || "Production Bundle"}).`,
+      metadata: {
+        version: pkg.version,
+        tokenCount: pkg.tokenCount,
+        targets: pkg.targetSystems?.join(", ") || "Style Dictionary",
+      },
+    });
+  },
+  deleteRelease: (id) => {
+    const targetRelease = get().releases.find((r) => r.id === id);
     set((state) => {
       const updated = state.releases.filter((r) => r.id !== id);
       if (typeof window !== "undefined") {
@@ -1888,7 +2017,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         releases: updated,
         activeReleaseId: state.activeReleaseId === id ? (updated[0]?.id || null) : state.activeReleaseId,
       };
-    }),
+    });
+
+    if (targetRelease) {
+      get().logUserActivity({
+        type: "release",
+        title: "Release Package Deleted",
+        description: `Deleted release package "${targetRelease.version}".`,
+        metadata: {
+          version: targetRelease.version,
+        },
+      });
+    }
+  },
   setActiveReleaseId: (id) => set({ activeReleaseId: id }),
 
   addDistributionTarget: (target) =>
@@ -2346,6 +2487,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
 
     persistTokensChange(updatedRaw, updatedGroups);
+
+    const tokenName = path.slice(1).join(".");
+    const setName = path[0];
+    get().logUserActivity({
+      type: "token",
+      title: "Token Updated",
+      description: `Modified token "${tokenName}" in set "${setName}" to "${newValue}".`,
+      metadata: {
+        token: tokenName,
+        set: setName,
+        newValue,
+      },
+    });
   },
 
   updateSetJson: (setName, newJsonContent) => {
@@ -2373,6 +2527,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
 
     persistTokensChange(updatedRaw, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Token Set Updated",
+      description: `Updated JSON definitions for set "${setName}".`,
+      metadata: {
+        set: setName,
+      },
+    });
   },
 
   setActiveSet: (setName) => {
@@ -2514,6 +2677,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
 
     persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Theme Option Created",
+      description: `Created theme option "${params.name}" under group "${targetGroup.name}".`,
+      metadata: {
+        themeOption: params.name,
+        themeGroup: targetGroup.name,
+      },
+    });
 
     get().addToast({
       type: "success",
@@ -2788,6 +2961,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     persistTokensChange(updatedRawDoc, updatedGroups);
 
+    get().logUserActivity({
+      type: "token",
+      title: "Token Created",
+      description: `Created token "${tokenPath.join(".")}" in set "${setName}".`,
+      metadata: {
+        token: tokenPath.join("."),
+        set: setName,
+        type: tokenData.type,
+      },
+    });
+
     get().addToast({
       type: "success",
       title: "Token Created",
@@ -2818,6 +3002,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
 
     persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Token Deleted",
+      description: `Deleted token "${tokenPath.join(".")}" from set "${setName}".`,
+      metadata: {
+        token: tokenPath.join("."),
+        set: setName,
+      },
+    });
 
     get().addToast({
       type: "info",
@@ -2893,6 +3087,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     persistTokensChange(updatedRawDoc, updatedGroups);
 
+    get().logUserActivity({
+      type: "token",
+      title: "Token Set Created",
+      description: `Created new token set "${cleanName}".`,
+      metadata: {
+        set: cleanName,
+      },
+    });
+
     get().addToast({
       type: "success",
       title: "Set Created",
@@ -2926,6 +3129,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     persistTokensChange(updatedRawDoc, updatedGroups);
 
+    get().logUserActivity({
+      type: "token",
+      title: "Token Set Deleted",
+      description: `Deleted token set "${setName}".`,
+      metadata: {
+        set: setName,
+      },
+    });
+
     get().addToast({
       type: "info",
       title: "Set Deleted",
@@ -2955,11 +3167,28 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   userActivities: [],
 
   logUserActivity: (act) => {
+    const { currentUser, currentOrg, currentProject } = get();
+    const role = get().getCurrentUserRole();
+    const roleDef = ROLE_DEFINITIONS[role];
+
+    const actor = {
+      uid: act.actor?.uid || currentUser?.uid,
+      name: act.actor?.name || currentUser?.displayName || currentUser?.email?.split("@")[0] || "Collaborator",
+      email: act.actor?.email || currentUser?.email || "anonymous@team.com",
+      role: act.actor?.role || roleDef?.title || "Editor",
+      avatarUrl: act.actor?.avatarUrl || currentUser?.avatarUrl,
+    };
+
     const newActivity: UserActivityItem = {
       ...act,
       id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       timestamp: new Date().toISOString(),
+      actor,
+      orgId: act.orgId || currentOrg?.id,
+      projectId: act.projectId || currentProject?.id,
+      projectName: act.projectName || currentProject?.name,
     };
+
     set((state) => {
       const updated = [newActivity, ...state.userActivities].slice(0, 100);
       if (typeof window !== "undefined") {
@@ -2970,6 +3199,39 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
       return { userActivities: updated };
     });
+
+    // Asynchronously persist to Cloud Firestore for team visibility
+    const targetOrgId = act.orgId || currentOrg?.id;
+    if (targetOrgId) {
+      logOrganizationActivity(targetOrgId, newActivity).catch(() => {});
+    }
+  },
+
+  loadOrganizationActivities: async (orgId: string) => {
+    if (!orgId) return;
+    try {
+      const remoteActs = await getOrganizationActivities(orgId, 80);
+      if (remoteActs && remoteActs.length > 0) {
+        set((state) => {
+          // Merge remote activities with any immediate local-only activities
+          const existingIds = new Set(remoteActs.map((a) => a.id));
+          const localOnly = state.userActivities.filter((a) => !existingIds.has(a.id));
+          const combined = [...localOnly, ...remoteActs]
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .slice(0, 100);
+
+          if (typeof window !== "undefined") {
+            try {
+              const key = getScopedKey("ts_user_activities", state.currentOrg?.id, state.currentProject?.id);
+              localStorage.setItem(key, JSON.stringify(combined));
+            } catch {}
+          }
+          return { userActivities: combined };
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to load organization activities from Firestore:", e);
+    }
   },
 
   clearUserActivities: () => {

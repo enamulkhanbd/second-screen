@@ -4,6 +4,20 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 
 ---
 
+# 1.2.1 `2026-09-06`
+
+● **Patch Changes**
+
+### 🚀 Highlights
+
+- **Real-Time Cross-Team User Activity Audit Logs**: Completely eliminated static/mock fallback data and replaced it with a dynamic, real-time Firestore audit log under `organizations/{orgId}/activities` that synchronizes activity across all organization collaborators.
+- **Comprehensive Platform Event Instrumentation**: All core workspace actions—including token edits (`updateSingleToken`, `updateSetJson`, `addNewToken`, `deleteToken`, set creations/deletions), theme matrix additions, release package publishing, asset mutations (`uploadAssets`, `applyMetadataToAssets`, `updateAsset`, `deleteAsset`, `syncAssetsFromGit`, `syncAllFigmaSources`), and team invitations/member role updates—now automatically capture actor details, workspace project context, and precise action metadata.
+- **Modernized Audit Trail UX**: Enhanced both the Team & Access Management Activity subtab and the User Activity Drawer with category filters (`All`, `Tokens`, `Git Operations`, `Figma`, `Assets`, `Releases`, `Team`), search filtering across descriptions and actor details, role pills, project badges, contextual metadata chips (e.g. old $\to$ new values, branch/commit SHA, icon count), and full localized datetime tooltips.
+- **Dynamic Git Icon & Asset Hierarchy Sync**: Added flexible path synchronization supporting both `assets/icons` and `assets/icons/svg` with parent `metadata.json` automatic resolution and subfolder-stripping for clean icon naming.
+- **High-Performance Large Asset Ingestion**: Expanded Git fetch limits to 5,000 items and implemented batched requests for Azure DevOps, seamlessly supporting enterprise repositories with 1,380+ icons.
+
+---
+
 # 0.2.0 `2026-09-06`
 
 ● **Minor Release**
