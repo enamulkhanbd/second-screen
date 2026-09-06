@@ -4,6 +4,18 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 
 ---
 
+# 0.2.0 `2026-09-06`
+
+● **Minor Release**
+
+### 🚀 Highlights & Features
+
+- **Multi-Tenant Scope Isolation**: 100% sandboxed context isolation across organizations and projects. Switching context immediately purges residual state and resets theme groups (`$themes.json`) for unconfigured projects.
+- **Figma Layer Name Enrichment for SVGs**: Copied SVG markup and downloaded `.svg` files now automatically contain embedded `id`, `data-name`, and `<title>` tags so pasting vector icons into Figma, Sketch, or Illustrator retains their exact icon names instead of pasting as generic `"Frame"`.
+- **Zero-Latency App Startup**: Added instant `localStorage` cache hydration and parallelized Firestore database queries (`Promise.allSettled`), bypassing starting delay and unblocking the UI immediately.
+
+---
+
 # 0.1.1 `2026-09-01`
 
 ● **Patch Changes**
