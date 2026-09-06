@@ -594,19 +594,20 @@ export async function saveProjectBranches(
   activeBranch?: string
 ): Promise<void> {
   if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  const projRef = doc(db, "organizations", orgId, "projects", projectId);
+  const data = {
+    branches,
+    ...(activeBranch ? { activeBranch } : {}),
+    updatedAt: new Date().toISOString(),
+  };
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
-        branches,
-        ...(activeBranch ? { activeBranch } : {}),
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  } catch (e) {
-    console.warn("Firestore error saving project branches:", e);
+    await updateDoc(projRef, data);
+  } catch {
+    try {
+      await setDoc(projRef, data, { merge: true });
+    } catch (e) {
+      console.warn("Firestore error saving project branches:", e);
+    }
   }
 }
 
@@ -654,20 +655,21 @@ export async function saveProjectTokens(
 ): Promise<void> {
   if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
   const groups = themeGroups || extractThemeGroups(rawTokens);
+  const projRef = doc(db, "organizations", orgId, "projects", projectId);
+  const data = {
+    rawTokens,
+    themeGroups: groups,
+    updatedAt: new Date().toISOString(),
+  };
 
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
-        rawTokens,
-        themeGroups: groups,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  } catch (e) {
-    console.warn("Firestore error saving project tokens:", e);
+    await updateDoc(projRef, data);
+  } catch {
+    try {
+      await setDoc(projRef, data, { merge: true });
+    } catch (e) {
+      console.warn("Firestore error saving project tokens:", e);
+    }
   }
 }
 

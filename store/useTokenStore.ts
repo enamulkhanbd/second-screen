@@ -368,6 +368,43 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     return currentOrg?.id === orgId && currentProject?.id === projectId;
   };
 
+  const updateProjectInMemoryAndCache = (
+    updatedBranches?: ProjectBranch[],
+    updatedTokens?: RawTokensDocument,
+    updatedThemes?: ThemeGroup[],
+    newActiveBranch?: string
+  ) => {
+    const { currentOrg, currentProject, orgProjects } = get();
+    if (!currentOrg || !currentProject) return;
+
+    const updatedProj: Project = {
+      ...currentProject,
+      ...(updatedBranches ? { branches: updatedBranches } : {}),
+      ...(updatedTokens !== undefined ? { rawTokens: updatedTokens } : {}),
+      ...(updatedThemes ? { themeGroups: updatedThemes } : {}),
+      ...(newActiveBranch ? { activeBranch: newActiveBranch } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedOrgProjects = orgProjects.map((p) =>
+      p.id === currentProject.id ? updatedProj : p
+    );
+
+    set({
+      currentProject: updatedProj,
+      orgProjects: updatedOrgProjects,
+    });
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `ts_cached_org_projects_${currentOrg.id}`,
+          JSON.stringify(updatedOrgProjects)
+        );
+      } catch {}
+    }
+  };
+
   const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
     const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
@@ -387,6 +424,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         );
         saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
         set({ branches: updatedBranches });
+        updateProjectInMemoryAndCache(updatedBranches, doc, groups || currentProject.themeGroups);
+      } else {
+        updateProjectInMemoryAndCache(undefined, doc, groups || currentProject.themeGroups);
       }
     }
   };
@@ -611,14 +651,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const activeBranchObj = projectBranches.find((b) => b.name === activeBranchName) || projectBranches[0];
 
       const initialTokens =
-        activeBranchObj && Object.keys(activeBranchObj.rawTokens || {}).length > 0
+        activeBranchObj && activeBranchObj.rawTokens !== undefined
           ? activeBranchObj.rawTokens
-          : proj.rawTokens && Object.keys(proj.rawTokens).length > 0
-          ? proj.rawTokens
-          : {};
+          : proj.rawTokens || {};
 
       const initialThemes =
-        activeBranchObj && activeBranchObj.themeGroups && activeBranchObj.themeGroups.length > 0
+        activeBranchObj && activeBranchObj.themeGroups !== undefined && activeBranchObj.themeGroups.length > 0
           ? activeBranchObj.themeGroups
           : proj.themeGroups && proj.themeGroups.length > 0
           ? proj.themeGroups
@@ -4260,6 +4298,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, cleanName).catch(console.error);
       saveProjectTokens(currentOrg.id, currentProject.id, initialRaw, initialThemes).catch(console.error);
+      updateProjectInMemoryAndCache(updatedBranches, initialRaw, initialThemes, cleanName);
       get().logUserActivity({
         type: "git",
         title: `Created branch "${cleanName}"`,
@@ -4328,6 +4367,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, targetBranchName).catch(console.error);
       saveProjectTokens(currentOrg.id, currentProject.id, targetRaw, targetThemes).catch(console.error);
+      updateProjectInMemoryAndCache(updatedBranches, targetRaw, targetThemes, targetBranchName);
       get().logUserActivity({
         type: "git",
         title: `Switched to branch "${targetBranchName}"`,
@@ -4386,6 +4426,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, filtered, newActive).catch(console.error);
+      const activeBranchObj = filtered.find((b) => b.name === newActive);
+      updateProjectInMemoryAndCache(
+        filtered,
+        activeBranchObj?.rawTokens,
+        activeBranchObj?.themeGroups,
+        newActive
+      );
       get().logUserActivity({
         type: "git",
         title: `Deleted branch "${branchName}"`,
@@ -4476,6 +4523,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(console.error);
       saveProjectTokens(currentOrg.id, currentProject.id, mergedTokens, source.themeGroups || target.themeGroups).catch(console.error);
+      updateProjectInMemoryAndCache(
+        updatedBranches,
+        mergedTokens,
+        source.themeGroups || target.themeGroups,
+        activeBranch
+      );
       get().logUserActivity({
         type: "git",
         title: `Merged "${sourceBranchName}" into "${targetBranchName}"`,
@@ -4554,6 +4607,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(console.error);
       saveProjectTokens(currentOrg.id, currentProject.id, rawTokens, get().themeGroups).catch(console.error);
+      updateProjectInMemoryAndCache(
+        updatedBranches,
+        rawTokens,
+        get().themeGroups,
+        activeBranch
+      );
       get().logUserActivity({
         type: "git",
         title: `Committed to branch "${activeBranch}"`,
