@@ -1239,6 +1239,21 @@ export const AssetsView: React.FC = () => {
     );
   };
 
+  // Skeleton card placeholder for smooth progressive loading
+  const renderSkeletonCard = (index: number) => (
+    <div
+      key={`skeleton-${index}`}
+      className="p-4 rounded-xl border border-border/40 bg-card/40 shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[148px] animate-pulse pointer-events-none select-none"
+    >
+      <div className="w-11 h-11 rounded-lg bg-muted/60 flex items-center justify-center mt-1" />
+      <div className="w-full flex flex-col items-center gap-1.5 mt-3 px-1">
+        <div className="w-16 h-3 bg-muted/60 rounded" />
+        <div className="w-10 h-2 bg-muted/30 rounded" />
+      </div>
+      <div className="w-12 h-2.5 bg-muted/20 rounded mt-2" />
+    </div>
+  );
+
   return (
     <div
       className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none relative"
@@ -1806,37 +1821,14 @@ export const AssetsView: React.FC = () => {
                   );
                 })}
 
-                {/* Progressive Loading Sentinel & Controls */}
+                {/* Progressive Loading Skeleton Grid with Sentinel */}
                 {filteredAssets.length > visibleCount && (
-                  <div ref={sentinelRef} className="pt-6 pb-12 flex flex-col items-center justify-center gap-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
-                      <span>Showing {Math.min(visibleCount, filteredAssets.length)} of {filteredAssets.length} icons</span>
+                  <div ref={sentinelRef} className="pt-2 pb-8 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+                      {Array.from({ length: Math.min(12, filteredAssets.length - visibleCount) }).map((_, idx) =>
+                        renderSkeletonCard(idx)
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setVisibleCount((prev) => Math.min(prev + ASSET_BATCH_SIZE, filteredAssets.length))}
-                        className="text-xs h-7 cursor-pointer"
-                      >
-                        Load More (+{ASSET_BATCH_SIZE})
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setVisibleCount(filteredAssets.length)}
-                        className="text-xs h-7 text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        Load All ({filteredAssets.length})
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {filteredAssets.length > 0 && filteredAssets.length <= visibleCount && filteredAssets.length > ASSET_BATCH_SIZE && (
-                  <div className="pt-6 pb-10 flex items-center justify-center text-xs text-muted-foreground font-mono">
-                    <span>All {filteredAssets.length} icons loaded</span>
                   </div>
                 )}
               </div>
