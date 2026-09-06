@@ -119,6 +119,7 @@ export interface Project {
   figmaVariables?: RawTokensDocument;
   figmaUpdatedAt?: string;
   figmaMeta?: Record<string, any>;
+  documentation?: import("./documentation").ProjectDocumentation | null;
   createdAt: string;
   updatedAt: string;
   createdByName?: string;

@@ -687,6 +687,119 @@ export async function saveProjectAssetFigmaConfig(
 }
 
 // -------------------------------------------------------------
+// DOCUMENTATION OPERATIONS (100% Dynamic Firestore)
+// -------------------------------------------------------------
+
+/**
+ * Saves project documentation (folders, pages, blocks, publish settings) in Firestore
+ */
+export async function saveProjectDocumentation(
+  orgId: string,
+  projectId: string,
+  documentation: import("@/types/documentation").ProjectDocumentation | null
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        documentation: documentation || null,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving project documentation:", e);
+  }
+}
+
+/**
+ * Fetches project documentation from Firestore
+ */
+export async function getProjectDocumentation(
+  orgId: string,
+  projectId: string
+): Promise<import("@/types/documentation").ProjectDocumentation | null> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return null;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    const snap = await getDoc(projRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return (data.documentation as import("@/types/documentation").ProjectDocumentation) || null;
+    }
+    return null;
+  } catch (e) {
+    console.warn("Firestore error getting project documentation:", e);
+    return null;
+  }
+}
+
+/**
+ * Fetches published project documentation for public viewing
+ */
+export async function getPublishedProjectDocs(
+  orgSlugOrId: string,
+  projectSlugOrName: string
+): Promise<{
+  orgName: string;
+  projectName: string;
+  documentation: import("@/types/documentation").ProjectDocumentation;
+} | null> {
+  if (!isFirebaseConfigured || !db) return null;
+  try {
+    // 1. Try finding org by ID or slug
+    let orgDoc = await getDoc(doc(db, "organizations", orgSlugOrId));
+    let orgData: Organization | null = orgDoc.exists() ? (orgDoc.data() as Organization) : null;
+
+    if (!orgData) {
+      const orgQuery = query(collection(db, "organizations"), where("slug", "==", orgSlugOrId));
+      const orgSnaps = await getDocs(orgQuery);
+      if (!orgSnaps.empty) {
+        orgData = orgSnaps.docs[0].data() as Organization;
+      }
+    }
+
+    if (!orgData) return null;
+
+    // 2. Query project in this org
+    const projsQuery = collection(db, "organizations", orgData.id, "projects");
+    const projSnaps = await getDocs(projsQuery);
+    let targetProject: Project | null = null;
+
+    projSnaps.forEach((pDoc) => {
+      const p = pDoc.data() as Project;
+      const cleanNameSlug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const docSlug = p.documentation?.publishedUrlSlug;
+      if (
+        p.id === projectSlugOrName ||
+        cleanNameSlug === projectSlugOrName ||
+        docSlug === projectSlugOrName
+      ) {
+        targetProject = p;
+      }
+    });
+
+    if (!targetProject) return null;
+
+    const proj = targetProject as Project;
+    if (!proj.documentation || !proj.documentation.isPublishedGlobally) {
+      return null;
+    }
+
+    return {
+      orgName: orgData.name,
+      projectName: proj.name,
+      documentation: proj.documentation,
+    };
+  } catch (e) {
+    console.warn("Error fetching published project docs:", e);
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
 // USER & WORKSPACE ACTIVITY AUDIT LOG (Dynamic Firestore)
 // -------------------------------------------------------------
 

@@ -4,6 +4,23 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 
 ---
 
+# 1.3.0 `2026-09-06`
+
+● **Minor Release — Living Documentation System**
+
+### 🚀 Highlights & Features
+
+- **Interactive 3-Panel Living Documentation Studio**: Launched full documentation editor in the `Documentation` tab featuring navigation tree, dynamic canvas, and contextual block inspector.
+- **Folder & Multi-Page Organization**: Support for creating nested folders (e.g. `Foundations`, `Components`) and sub-pages (e.g. `Color`, `Typography`, `Spacing`) with inline renaming, reordering, and deletion.
+- **Living Token & Variable Blocks**: Real-time connected blocks rendering Figma variables, color swatches with transparency checkerboards, typographic specimens, and repository tokens.
+- **Do's & Don'ts Comparison**: Built-in side-by-side design guideline blocks comparing recommended patterns and anti-patterns.
+- **Floating Slash Command Popover (`/`)**: Fast block insertion menu supporting keyboard navigation, quick search, and 8 block types.
+- **Contextual Inspector Drawer**: Header background color swatches, layout options (`Classic`, `Hero`, `Feature`), Table of Contents toggle, and variable filters (collections, mode checkboxes, types, starts-with/includes).
+- **Public Reader Route & Granular Publishing**: Dedicated public site (`/docs/[orgSlug]/[projectSlug]`) with one-click global publishing and page-by-page visibility switches.
+- **Root Elements Directory (`/`)**: Visual overview dashboard summarizing documentation statistics and element directory cards.
+
+---
+
 # 1.2.1 `2026-09-06`
 
 ● **Patch Changes**

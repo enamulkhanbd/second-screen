@@ -17,6 +17,13 @@ import {
   LogActivityInput,
 } from "@/types/tokens";
 import {
+  ProjectDocumentation,
+  DocPage,
+  DocFolder,
+  DocBlock,
+  createDefaultDocumentation,
+} from "@/types/documentation";
+import {
   flattenAndResolveTokens,
   setTokenAtKeyPath,
   createTokenAtKeyPath,
@@ -65,6 +72,7 @@ import {
   deleteProject,
   updateOrganization,
   updateProject,
+  saveProjectDocumentation,
   logOrganizationActivity,
   getOrganizationActivities,
 } from "@/services/organizationService";
@@ -224,6 +232,29 @@ interface TokenStoreState {
   updateCompilerConfig: (config: Partial<CompilerConfig>) => void;
   publishReleaseToTargets: (releaseId: string, targetIds?: string[]) => Promise<TargetPublishResult[]>;
 
+  // Living Documentation System
+  documentation: ProjectDocumentation | null;
+  activeDocPageId: string | null;
+  activeDocFolderId: string | null;
+  isDocEditing: boolean;
+  selectedDocBlockId: string | null;
+  setActiveDocPageId: (pageId: string | null) => void;
+  setActiveDocFolderId: (folderId: string | null) => void;
+  setIsDocEditing: (isEditing: boolean) => void;
+  setSelectedDocBlockId: (blockId: string | null) => void;
+  addDocFolder: (title: string) => Promise<DocFolder>;
+  updateDocFolder: (folderId: string, updates: Partial<DocFolder>) => Promise<void>;
+  deleteDocFolder: (folderId: string) => Promise<void>;
+  addDocPage: (title: string, folderId?: string | null) => Promise<DocPage>;
+  updateDocPage: (pageId: string, updates: Partial<DocPage>) => Promise<void>;
+  deleteDocPage: (pageId: string) => Promise<void>;
+  addDocBlock: (pageId: string, block: Omit<DocBlock, "id">, insertIndex?: number) => Promise<DocBlock>;
+  updateDocBlock: (pageId: string, blockId: string, updates: Partial<DocBlock>) => Promise<void>;
+  deleteDocBlock: (pageId: string, blockId: string) => Promise<void>;
+  reorderDocBlocks: (pageId: string, blocks: DocBlock[]) => Promise<void>;
+  publishDocPage: (pageId: string, isPublished: boolean) => Promise<void>;
+  publishEntireDocumentation: (isPublishedGlobally: boolean, allowPublicAccess?: boolean) => Promise<void>;
+
   // View Mode & Filters
   viewMode: "matrix" | "flow";
   setViewMode: (mode: "matrix" | "flow") => void;
@@ -358,6 +389,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   pendingInvitations: [],
   pendingInvitePrompt: null,
   activeInviteToken: null,
+
+  // Living Documentation Initial State
+  documentation: null,
+  activeDocPageId: null,
+  activeDocFolderId: null,
+  isDocEditing: false,
+  selectedDocBlockId: null,
+  setActiveDocPageId: (pageId) => set({ activeDocPageId: pageId, selectedDocBlockId: null }),
+  setActiveDocFolderId: (folderId) => set({ activeDocFolderId: folderId }),
+  setIsDocEditing: (isEditing) => set({ isDocEditing: isEditing }),
+  setSelectedDocBlockId: (blockId) => set({ selectedDocBlockId: blockId }),
 
   setActiveInviteToken: (token) => set({ activeInviteToken: token }),
   setPendingInvitePrompt: (inv) => set({ pendingInvitePrompt: inv }),
@@ -627,10 +669,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
       }
 
+      const docToUse =
+        proj.documentation && proj.documentation.pages && proj.documentation.pages.length > 0
+          ? proj.documentation
+          : createDefaultDocumentation(proj.name || "Design System");
+
       set({
         assets: proj.assets || [],
         assetGitConfig: proj.assetGitConfig || null,
         assetFigmaConfig: normalizedFigmaConfig,
+        documentation: docToUse,
+        activeDocPageId: docToUse.pages[0]?.id || null,
+        activeDocFolderId: null,
         isSyncingAssets: false,
         isSyncingFigmaAssets: false,
       });
@@ -3243,6 +3293,351 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       } catch {}
     }
     set({ userActivities: [] });
+  },
+
+  // Living Documentation Actions
+  addDocFolder: async (title: string) => {
+    const { documentation, currentProject, currentOrg } = get();
+    const currentDoc = documentation || createDefaultDocumentation(currentProject?.name);
+    const newFolder: DocFolder = {
+      id: `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      title: title.trim() || "New Section",
+      order: currentDoc.folders.length,
+      isOpen: true,
+    };
+    const updatedDoc: ProjectDocumentation = {
+      ...currentDoc,
+      folders: [...currentDoc.folders, newFolder],
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc, activeDocFolderId: newFolder.id });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch((err) => {
+        console.error("Failed to save doc folder to Firestore:", err);
+      });
+      get().logUserActivity({
+        type: "doc",
+        title: "Created documentation section",
+        description: `Created documentation section "${newFolder.title}"`,
+      });
+    }
+    return newFolder;
+  },
+
+  updateDocFolder: async (folderId: string, updates: Partial<DocFolder>) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) return;
+    const updatedFolders = documentation.folders.map((f) =>
+      f.id === folderId ? { ...f, ...updates } : f
+    );
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      folders: updatedFolders,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+    }
+  },
+
+  deleteDocFolder: async (folderId: string) => {
+    const { documentation, currentProject, currentOrg, activeDocFolderId } = get();
+    if (!documentation) return;
+    const deletedFolder = documentation.folders.find((f) => f.id === folderId);
+    const updatedFolders = documentation.folders.filter((f) => f.id !== folderId);
+    const updatedPages = documentation.pages.map((p) =>
+      p.folderId === folderId ? { ...p, folderId: null } : p
+    );
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      folders: updatedFolders,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({
+      documentation: updatedDoc,
+      activeDocFolderId: activeDocFolderId === folderId ? null : activeDocFolderId,
+    });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+      if (deletedFolder) {
+        get().logUserActivity({
+          type: "doc",
+          title: "Deleted documentation section",
+          description: `Deleted documentation section "${deletedFolder.title}"`,
+        });
+      }
+    }
+  },
+
+  addDocPage: async (title: string, folderId?: string | null) => {
+    const { documentation, currentProject, currentOrg } = get();
+    const currentDoc = documentation || createDefaultDocumentation(currentProject?.name);
+    const cleanTitle = title.trim() || "Untitled Page";
+    const slug = cleanTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const newPage: DocPage = {
+      id: `page_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      title: cleanTitle,
+      slug: slug || "untitled",
+      description: "",
+      folderId: folderId ?? null,
+      order: currentDoc.pages.filter((p) => p.folderId === (folderId ?? null)).length,
+      blocks: [
+        {
+          id: `b_${Date.now()}_intro`,
+          type: "paragraph",
+          content: "Welcome to this page. Type `/` anywhere to insert design token blocks, color swatches, variables, or callouts.",
+        },
+      ],
+      layout: "classic",
+      headerBackground: "transparent",
+      showTableOfContents: true,
+      isPublished: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedDoc: ProjectDocumentation = {
+      ...currentDoc,
+      pages: [...currentDoc.pages, newPage],
+      updatedAt: new Date().toISOString(),
+    };
+
+    set({
+      documentation: updatedDoc,
+      activeDocPageId: newPage.id,
+      isDocEditing: true,
+      selectedDocBlockId: null,
+    });
+
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+      get().logUserActivity({
+        type: "doc",
+        title: "Created documentation page",
+        description: `Created documentation page "${newPage.title}"`,
+      });
+    }
+    return newPage;
+  },
+
+  updateDocPage: async (pageId: string, updates: Partial<DocPage>) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) return;
+    const updatedPages = documentation.pages.map((p) => {
+      if (p.id === pageId) {
+        const merged = { ...p, ...updates, updatedAt: new Date().toISOString() };
+        if (updates.title && !updates.slug) {
+          merged.slug = updates.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+        }
+        return merged;
+      }
+      return p;
+    });
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+    }
+  },
+
+  deleteDocPage: async (pageId: string) => {
+    const { documentation, currentProject, currentOrg, activeDocPageId } = get();
+    if (!documentation) return;
+    const deletedPage = documentation.pages.find((p) => p.id === pageId);
+    const updatedPages = documentation.pages.filter((p) => p.id !== pageId);
+    const nextActiveId =
+      activeDocPageId === pageId ? (updatedPages[0]?.id || null) : activeDocPageId;
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc, activeDocPageId: nextActiveId });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+      if (deletedPage) {
+        get().logUserActivity({
+          type: "doc",
+          title: "Deleted documentation page",
+          description: `Deleted documentation page "${deletedPage.title}"`,
+        });
+      }
+    }
+  },
+
+  addDocBlock: async (pageId: string, block: Omit<DocBlock, "id">, insertIndex?: number) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) throw new Error("No documentation initialized");
+    const newBlock: DocBlock = {
+      ...block,
+      id: `b_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    };
+    const updatedPages = documentation.pages.map((p) => {
+      if (p.id !== pageId) return p;
+      const blocks = [...p.blocks];
+      if (insertIndex !== undefined && insertIndex >= 0 && insertIndex <= blocks.length) {
+        blocks.splice(insertIndex, 0, newBlock);
+      } else {
+        blocks.push(newBlock);
+      }
+      return { ...p, blocks, updatedAt: new Date().toISOString() };
+    });
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc, selectedDocBlockId: newBlock.id });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+    }
+    return newBlock;
+  },
+
+  updateDocBlock: async (pageId: string, blockId: string, updates: Partial<DocBlock>) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) return;
+    const updatedPages = documentation.pages.map((p) => {
+      if (p.id !== pageId) return p;
+      const updatedBlocks = p.blocks.map((b) => {
+        if (b.id !== blockId) return b;
+        return {
+          ...b,
+          ...updates,
+          settings: {
+            ...b.settings,
+            ...updates.settings,
+          },
+        };
+      });
+      return { ...p, blocks: updatedBlocks, updatedAt: new Date().toISOString() };
+    });
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+    }
+  },
+
+  deleteDocBlock: async (pageId: string, blockId: string) => {
+    const { documentation, currentProject, currentOrg, selectedDocBlockId } = get();
+    if (!documentation) return;
+    const updatedPages = documentation.pages.map((p) => {
+      if (p.id !== pageId) return p;
+      return {
+        ...p,
+        blocks: p.blocks.filter((b) => b.id !== blockId),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({
+      documentation: updatedDoc,
+      selectedDocBlockId: selectedDocBlockId === blockId ? null : selectedDocBlockId,
+    });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+    }
+  },
+
+  reorderDocBlocks: async (pageId: string, blocks: DocBlock[]) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) return;
+    const updatedPages = documentation.pages.map((p) => {
+      if (p.id !== pageId) return p;
+      return { ...p, blocks, updatedAt: new Date().toISOString() };
+    });
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+    }
+  },
+
+  publishDocPage: async (pageId: string, isPublished: boolean) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) return;
+    let targetPageTitle = "";
+    const updatedPages = documentation.pages.map((p) => {
+      if (p.id === pageId) {
+        targetPageTitle = p.title;
+        return {
+          ...p,
+          isPublished,
+          publishedAt: isPublished ? new Date().toISOString() : p.publishedAt,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return p;
+    });
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+      get().logUserActivity({
+        type: "doc",
+        title: isPublished ? "Published documentation page" : "Unpublished documentation page",
+        description: isPublished
+          ? `Published documentation page "${targetPageTitle}"`
+          : `Unpublished documentation page "${targetPageTitle}"`,
+      });
+    }
+  },
+
+  publishEntireDocumentation: async (isPublishedGlobally: boolean, allowPublicAccess: boolean = true) => {
+    const { documentation, currentProject, currentOrg } = get();
+    if (!documentation) return;
+    const cleanSlug =
+      documentation.publishedUrlSlug ||
+      currentProject?.name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+      "docs";
+    const updatedDoc: ProjectDocumentation = {
+      ...documentation,
+      isPublishedGlobally,
+      allowPublicAccess:
+        allowPublicAccess !== undefined ? allowPublicAccess : documentation.allowPublicAccess,
+      publishedUrlSlug: cleanSlug,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ documentation: updatedDoc });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch(console.error);
+      get().logUserActivity({
+        type: "doc",
+        title: isPublishedGlobally ? "Published live documentation" : "Unpublished live documentation",
+        description: isPublishedGlobally
+          ? `Published live documentation for project "${currentProject.name}"`
+          : `Unpublished live documentation for project "${currentProject.name}"`,
+      });
+    }
   },
 };
 });

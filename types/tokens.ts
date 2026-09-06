@@ -207,7 +207,7 @@ export interface ReleasePackage {
 
 export interface UserActivityItem {
   id: string;
-  type: "token" | "git" | "release" | "team" | "figma" | "project" | "asset";
+  type: "token" | "git" | "release" | "team" | "figma" | "project" | "asset" | "doc";
   title: string;
   description: string;
   timestamp: string;

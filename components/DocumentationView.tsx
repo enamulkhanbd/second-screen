@@ -2,254 +2,294 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { FlattenedToken } from "@/types/tokens";
+import { createDefaultDocumentation } from "@/types/documentation";
+import { DocTreeNav } from "./docs/DocTreeNav";
+import { DocCanvas } from "./docs/DocCanvas";
+import { DocBlockInspector } from "./docs/DocBlockInspector";
+import { DocOverviewRoot } from "./docs/DocOverviewRoot";
+import { DocPublishModal } from "./docs/DocPublishModal";
 import {
-  FileText,
-  Search,
-  Copy,
-  Check,
-  Sparkles,
+  BookOpen,
+  Edit3,
+  Eye,
+  SlidersHorizontal,
+  Globe,
   Download,
-  Palette,
-  Type,
-  Maximize2,
-  Box,
-  Layers,
-  Code2,
+  Share2,
+  Sparkles,
+  LayoutGrid,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 export const DocumentationView: React.FC = () => {
-  const { resolvedTokens, currentOrg, currentProject, addToast } = useTokenStore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeSection, setActiveSection] = useState<"all" | "color" | "typography" | "spacing" | "other">("all");
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const {
+    documentation,
+    activeDocPageId,
+    selectedDocBlockId,
+    isDocEditing,
+    currentProject,
+    currentOrg,
+    resolvedTokens,
+    figmaResolvedVariables,
+    setActiveDocPageId,
+    setSelectedDocBlockId,
+    setIsDocEditing,
+    addDocFolder,
+    updateDocFolder,
+    deleteDocFolder,
+    addDocPage,
+    updateDocPage,
+    deleteDocPage,
+    addDocBlock,
+    updateDocBlock,
+    deleteDocBlock,
+    reorderDocBlocks,
+    publishDocPage,
+    publishEntireDocumentation,
+    addToast,
+  } = useTokenStore();
 
-  const colors = useMemo(() => resolvedTokens.filter((t) => t.type === "color"), [resolvedTokens]);
-  const typography = useMemo(() => resolvedTokens.filter((t) => t.type === "typography" || t.type.toLowerCase().includes("font")), [resolvedTokens]);
-  const spacing = useMemo(() => resolvedTokens.filter((t) => t.type === "spacing" || t.type === "sizing" || t.type === "dimension" || t.type === "borderRadius"), [resolvedTokens]);
-  const others = useMemo(() => resolvedTokens.filter((t) => !["color", "typography", "spacing", "sizing", "dimension", "borderRadius"].includes(t.type) && !t.type.toLowerCase().includes("font")), [resolvedTokens]);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [isViewingOverview, setIsViewingOverview] = useState(false);
 
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    addToast({
-      type: "success",
-      title: "Copied to Clipboard",
-      message: `${text} copied.`,
-    });
-    setTimeout(() => setCopiedKey(null), 2000);
+  // Active documentation object (with fallback initialization)
+  const activeDoc = useMemo(() => {
+    if (documentation && documentation.pages && documentation.pages.length > 0) {
+      return documentation;
+    }
+    return createDefaultDocumentation(currentProject?.name);
+  }, [documentation, currentProject]);
+
+  // Active page
+  const activePage = useMemo(() => {
+    if (!activeDocPageId) return activeDoc.pages[0] || null;
+    return activeDoc.pages.find((p) => p.id === activeDocPageId) || activeDoc.pages[0] || null;
+  }, [activeDoc, activeDocPageId]);
+
+  const handleSelectPage = (pageId: string) => {
+    setActiveDocPageId(pageId);
+    setIsViewingOverview(false);
+    setSelectedDocBlockId(null);
+  };
+
+  const handleAddPage = async (folderId?: string | null) => {
+    const page = await addDocPage("New Page", folderId);
+    setActiveDocPageId(page.id);
+    setIsViewingOverview(false);
+  };
+
+  const handleAddFolder = async () => {
+    await addDocFolder("New Section");
   };
 
   const handleExportMarkdown = () => {
-    let md = `# ${currentProject?.name || "Design System"} — Design Tokens Documentation\n\n`;
-    md += `*Generated automatically by Tokens Platform for ${currentOrg?.name || "Workspace"} on ${new Date().toLocaleDateString()}*\n\n`;
-    md += `## Summary\n- Total Tokens: ${resolvedTokens.length}\n- Colors: ${colors.length}\n- Typography: ${typography.length}\n- Spacing & Dimensions: ${spacing.length}\n\n`;
-
-    md += `## 1. Color Palette\n| Token Name | Resolved Value | Raw Value |\n| :--- | :--- | :--- |\n`;
-    colors.forEach((c) => {
-      md += `| \`${c.name}\` | \`${c.resolvedValue}\` | \`${c.rawValue}\` |\n`;
+    if (!activePage) return;
+    let md = `# ${activePage.title}\n\n`;
+    if (activePage.description) {
+      md += `*${activePage.description}*\n\n`;
+    }
+    activePage.blocks.forEach((b) => {
+      if (b.type === "callout") {
+        md += `> **${b.settings?.calloutVariant?.toUpperCase() || "NOTE"}**: ${b.content || ""}\n\n`;
+      } else if (b.type === "dodont") {
+        md += `### Do's & Don'ts\n- **DO**: ${b.settings?.doText || ""}\n- **DON'T**: ${b.settings?.dontText || ""}\n\n`;
+      } else if (b.type === "variables-table" || b.type === "tokens-table") {
+        md += `### Variables & Tokens\n| Name | Value | Type |\n| :--- | :--- | :--- |\n`;
+        const list = figmaResolvedVariables.length > 0 ? figmaResolvedVariables : resolvedTokens;
+        list.slice(0, 20).forEach((t) => {
+          md += `| \`${t.name}\` | \`${t.resolvedValue || t.rawValue}\` | \`${t.type}\` |\n`;
+        });
+        md += `\n`;
+      } else {
+        md += `${b.content || ""}\n\n`;
+      }
     });
 
-    md += `\n## 2. Typography\n| Token Name | Value | Description |\n| :--- | :--- | :--- |\n`;
-    typography.forEach((t) => {
-      md += `| \`${t.name}\` | \`${typeof t.resolvedValue === "object" ? JSON.stringify(t.resolvedValue) : t.resolvedValue}\` | ${t.description || "-"} |\n`;
-    });
-
-    md += `\n## 3. Spacing & Dimensions\n| Token Name | Value |\n| :--- | :--- |\n`;
-    spacing.forEach((s) => {
-      md += `| \`${s.name}\` | \`${s.resolvedValue}\` |\n`;
-    });
-
-    const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
+    const blob = new Blob([md], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${(currentProject?.slug || "design-tokens")}-docs.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${activePage.slug || "documentation"}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
 
     addToast({
       type: "success",
       title: "Markdown Exported",
-      message: "Living design system documentation downloaded.",
+      message: `Exported ${activePage.title}.md`,
     });
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none">
-      {/* Header */}
-      <header className="h-14 border-b border-border px-6 flex items-center justify-between bg-card flex-shrink-0 z-10">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
+      {/* Top Action & Navigation Header */}
+      <header className="flex h-13 shrink-0 items-center justify-between border-b border-border/70 bg-card/40 px-4 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-            <FileText className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-foreground">
-                Living Design Token Documentation
-              </h1>
-              <Badge variant="outline" className="text-[10px] font-mono">
-                Beta
-              </Badge>
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <BookOpen className="h-4 w-4" />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Automated design system specification &amp; guidelines for {currentProject?.name || "tokens"}
-            </p>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold leading-tight tracking-tight">
+                {currentProject?.name || "Project"} Living Docs
+              </span>
+              <span className="text-[10px] text-muted-foreground leading-none">
+                {currentOrg?.name || "Workspace"}
+              </span>
+            </div>
           </div>
+
+          <div className="h-4 w-px bg-border/60 mx-1" />
+
+          {/* Overview Tab Button */}
+          <button
+            type="button"
+            onClick={() => setIsViewingOverview(true)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              isViewingOverview
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>Overview</span>
+          </button>
         </div>
 
+        {/* Right Actions */}
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder="Search documentation..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 text-xs w-48 bg-background"
-            />
+          {/* Edit / Preview Toggle */}
+          <div className="flex items-center rounded-xl border border-border/60 bg-muted/40 p-0.5 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setIsDocEditing(false)}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all ${
+                !isDocEditing
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDocEditing(true)}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all ${
+                isDocEditing
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              <span>Edit</span>
+            </button>
           </div>
 
-          <Button
-            size="sm"
+          {/* Markdown Export */}
+          <button
+            type="button"
             onClick={handleExportMarkdown}
-            className="gap-1.5 text-xs font-bold"
+            className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-background/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Export page as markdown"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Markdown (.md)</span>
-          </Button>
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+
+          {/* Share & Publish Modal Button */}
+          <button
+            type="button"
+            onClick={() => setPublishModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Globe className="h-3.5 w-3.5" />
+            <span>Publish</span>
+            {activeDoc.isPublishedGlobally && (
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            )}
+          </button>
+
+          {/* Inspector Toggle */}
+          <button
+            type="button"
+            onClick={() => setInspectorOpen((prev) => !prev)}
+            className={`rounded-xl border p-1.5 transition-colors ${
+              inspectorOpen
+                ? "border-primary/50 bg-primary/10 text-primary"
+                : "border-border/60 text-muted-foreground hover:bg-muted"
+            }`}
+            title="Toggle Inspector"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 max-w-7xl mx-auto w-full">
-        {/* Colors Section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-2">
-            <div className="flex items-center gap-2">
-              <Palette className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm font-bold text-foreground">Color Palette ({colors.length})</h2>
-            </div>
-            <span className="text-xs text-muted-foreground font-mono">Theme &amp; Brand Tokens</span>
-          </div>
+      {/* 3-Column Studio Body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Navigation Tree */}
+        <DocTreeNav
+          documentation={activeDoc}
+          activePageId={isViewingOverview ? null : (activePage?.id || null)}
+          onSelectPage={handleSelectPage}
+          onAddPage={handleAddPage}
+          onAddFolder={handleAddFolder}
+          onUpdateFolder={updateDocFolder}
+          onDeleteFolder={deleteDocFolder}
+          onUpdatePage={(pageId, updates) => updateDocPage(pageId, updates)}
+          onDeletePage={deleteDocPage}
+        />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {colors
-              .filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((c) => {
-                const isCopied = copiedKey === c.name;
-                return (
-                  <div
-                    key={c.name}
-                    onClick={() => handleCopy(c.resolvedValue, c.name)}
-                    className="p-2.5 rounded-xl border border-border bg-card hover:border-primary/50 transition-all cursor-pointer group shadow-xs space-y-2"
-                  >
-                    <div
-                      className="w-full h-16 rounded-lg border border-border/40 shadow-inner flex items-end justify-end p-1.5"
-                      style={{ backgroundColor: c.resolvedValue }}
-                    >
-                      <button className="opacity-0 group-hover:opacity-100 bg-background/90 text-foreground p-1 rounded shadow-xs transition-opacity text-[10px]">
-                        {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                      </button>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-foreground text-xs truncate" title={c.name}>
-                        {c.name.split(".").pop()}
-                      </div>
-                      <div className="font-mono text-[10px] text-muted-foreground truncate">
-                        {c.resolvedValue}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </section>
+        {/* Center: Canvas or Overview */}
+        {isViewingOverview ? (
+          <DocOverviewRoot
+            documentation={activeDoc}
+            onSelectPage={handleSelectPage}
+            onOpenPublishModal={() => setPublishModalOpen(true)}
+          />
+        ) : (
+          <DocCanvas
+            page={activePage}
+            isEditing={isDocEditing}
+            selectedBlockId={selectedDocBlockId}
+            onSelectBlock={(blockId) => setSelectedDocBlockId(blockId)}
+            onUpdatePage={(updates) => activePage && updateDocPage(activePage.id, updates)}
+            onAddBlock={(block, insertIndex) =>
+              activePage && addDocBlock(activePage.id, block, insertIndex)
+            }
+            onUpdateBlock={(blockId, updates) =>
+              activePage && updateDocBlock(activePage.id, blockId, updates)
+            }
+            onDeleteBlock={(blockId) => activePage && deleteDocBlock(activePage.id, blockId)}
+            onReorderBlocks={(blocks) => activePage && reorderDocBlocks(activePage.id, blocks)}
+          />
+        )}
 
-        {/* Typography Section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-2">
-            <div className="flex items-center gap-2">
-              <Type className="w-4 h-4 text-sky-500" />
-              <h2 className="text-sm font-bold text-foreground">Typography Scale ({typography.length})</h2>
-            </div>
-            <span className="text-xs text-muted-foreground font-mono">Font Families &amp; Heading Hierarchy</span>
-          </div>
-
-          <div className="space-y-3">
-            {typography
-              .filter((t) => !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((t) => (
-                <div
-                  key={t.name}
-                  className="p-4 rounded-xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-foreground font-mono">{t.name}</span>
-                      <Badge variant="outline" className="text-[9px] font-mono">
-                        {t.setName}
-                      </Badge>
-                    </div>
-                    <p className="text-lg text-foreground font-medium truncate max-w-lg">
-                      The quick brown fox jumps over the lazy dog
-                    </p>
-                  </div>
-                  <div className="text-right font-mono text-xs text-muted-foreground flex-shrink-0">
-                    <code>{typeof t.resolvedValue === "object" ? JSON.stringify(t.resolvedValue) : t.resolvedValue}</code>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </section>
-
-        {/* Spacing & Dimensions Section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-2">
-            <div className="flex items-center gap-2">
-              <Box className="w-4 h-4 text-emerald-500" />
-              <h2 className="text-sm font-bold text-foreground">Spacing &amp; Sizing ({spacing.length})</h2>
-            </div>
-            <span className="text-xs text-muted-foreground font-mono">8pt Grid, Radius &amp; Dimensions</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {spacing
-              .filter((s) => !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((s) => {
-                const numericVal = parseInt(String(s.resolvedValue).replace(/[^0-9]/g, "")) || 16;
-                const clampedWidth = Math.min(Math.max(numericVal, 8), 120);
-
-                return (
-                  <div
-                    key={s.name}
-                    className="p-3.5 rounded-xl border border-border bg-card space-y-2 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-foreground font-mono truncate">
-                        {s.name.split(".").pop()}
-                      </span>
-                      <Badge variant="outline" className="font-mono text-[10px]">
-                        {s.resolvedValue}
-                      </Badge>
-                    </div>
-                    <div className="h-4 bg-muted/60 rounded flex items-center px-1">
-                      <div
-                        className="h-2 rounded bg-primary"
-                        style={{ width: `${clampedWidth}px` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </section>
+        {/* Right: Inspector Panel */}
+        {inspectorOpen && !isViewingOverview && (
+          <DocBlockInspector
+            page={activePage}
+            selectedBlockId={selectedDocBlockId}
+            onUpdatePage={(updates) => activePage && updateDocPage(activePage.id, updates)}
+            onUpdateBlock={(blockId, updates) =>
+              activePage && updateDocBlock(activePage.id, blockId, updates)
+            }
+            onDeleteBlock={(blockId) => activePage && deleteDocBlock(activePage.id, blockId)}
+            onClose={() => setInspectorOpen(false)}
+          />
+        )}
       </div>
+
+      {/* Publish & Share Modal */}
+      <DocPublishModal
+        isOpen={publishModalOpen}
+        onClose={() => setPublishModalOpen(false)}
+        documentation={activeDoc}
+        onPublishGlobally={publishEntireDocumentation}
+        onPublishPage={publishDocPage}
+      />
     </div>
   );
 };

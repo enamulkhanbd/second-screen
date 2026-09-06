@@ -72,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     setMembersSubTab,
     credentials,
     releases,
+    documentation,
     addToast,
     getCurrentUserRole,
     canUserEdit,
@@ -422,7 +423,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               <FileText className="size-4 flex-shrink-0 text-muted-foreground" />
               {!isCollapsed && <span>Documentation</span>}
             </div>
-            {!isCollapsed && <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">Beta</Badge>}
+            {!isCollapsed && (
+              documentation?.isPublishedGlobally ? (
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                  Live
+                </span>
+              ) : (
+                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
+                  Docs
+                </Badge>
+              )
+            )}
           </button>
 
           {/* Assets */}
