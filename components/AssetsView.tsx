@@ -359,6 +359,7 @@ export const AssetsView: React.FC = () => {
   const [editFigmaSourceName, setEditFigmaSourceName] = useState("");
   const [editFigmaSourceUrl, setEditFigmaSourceUrl] = useState("");
   const [isSavingFigmaSource, setIsSavingFigmaSource] = useState(false);
+  const [sourceToRemove, setSourceToRemove] = useState<FigmaSourceLink | null>(null);
 
   // Syncing single source state
   const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null);
@@ -2330,14 +2331,7 @@ export const AssetsView: React.FC = () => {
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() =>
-                                  removeFigmaSource(
-                                    src.id,
-                                    confirm(
-                                      `Delete all ${iconCount} icons imported from "${src.name}" as well?\n\nClick OK to delete icons, or Cancel to keep icons but remove the link.`
-                                    )
-                                  )
-                                }
+                                onClick={() => setSourceToRemove(src)}
                                 className="h-7 px-2 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
                                 title="Remove this Figma link"
                               >
@@ -2621,6 +2615,86 @@ export const AssetsView: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Figma Source Confirmation Modal */}
+      <Dialog
+        open={Boolean(sourceToRemove)}
+        onOpenChange={(open) => {
+          if (!open) setSourceToRemove(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2 text-destructive">
+              <Trash2 className="w-4 h-4 text-destructive" />
+              <span>Remove Figma Source Link</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Choose what happens to icons synced from <strong>"{sourceToRemove?.name}"</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {sourceToRemove && (() => {
+            const iconCount = displayAssets.filter((a) => a.figmaSourceId === sourceToRemove.id).length;
+            return (
+              <div className="space-y-3 py-2">
+                <div className="p-3 rounded-xl bg-muted/40 border border-border text-xs space-y-1">
+                  <div className="font-semibold text-foreground">{sourceToRemove.name}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {iconCount} {iconCount === 1 ? "icon" : "icons"} currently linked to this Figma source.
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      const id = sourceToRemove.id;
+                      setSourceToRemove(null);
+                      await removeFigmaSource(id, false);
+                    }}
+                    className="w-full text-xs justify-start h-auto py-2.5 px-3 border-border hover:bg-muted text-foreground cursor-pointer rounded-xl"
+                  >
+                    <div className="text-left">
+                      <div className="font-semibold">Keep icons in library</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">
+                        Removes the Figma link connection, but retains existing icons as static assets.
+                      </div>
+                    </div>
+                  </Button>
+
+                  {iconCount > 0 && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={async () => {
+                        const id = sourceToRemove.id;
+                        setSourceToRemove(null);
+                        await removeFigmaSource(id, true);
+                      }}
+                      className="w-full text-xs justify-start h-auto py-2.5 px-3 cursor-pointer rounded-xl"
+                    >
+                      <div className="text-left">
+                        <div className="font-semibold">Delete link AND all {iconCount} synced icons</div>
+                        <div className="text-[10px] opacity-90 font-normal">
+                          Removes the link and permanently deletes all {iconCount} icons imported from it.
+                        </div>
+                      </div>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setSourceToRemove(null)} className="text-xs cursor-pointer">
+              Cancel
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
