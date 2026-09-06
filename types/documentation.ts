@@ -85,6 +85,14 @@ export const DEFAULT_PAGE_BACKGROUNDS = [
   "#f8fafc",
 ];
 
+export const createEmptyDocumentation = (): ProjectDocumentation => ({
+  folders: [],
+  pages: [],
+  isPublishedGlobally: false,
+  allowPublicAccess: true,
+  updatedAt: new Date().toISOString(),
+});
+
 export const createDefaultDocumentation = (projectName: string = "Design System"): ProjectDocumentation => {
   const foundationsFolderId = "folder_foundations";
 

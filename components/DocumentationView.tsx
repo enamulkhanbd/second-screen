@@ -2,12 +2,13 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { createDefaultDocumentation } from "@/types/documentation";
+import { createEmptyDocumentation } from "@/types/documentation";
 import { DocTreeNav } from "./docs/DocTreeNav";
 import { DocCanvas } from "./docs/DocCanvas";
 import { DocBlockInspector } from "./docs/DocBlockInspector";
 import { DocOverviewRoot } from "./docs/DocOverviewRoot";
 import { DocPublishModal } from "./docs/DocPublishModal";
+import { DocEmptyStateGuide } from "./docs/DocEmptyStateGuide";
 import {
   BookOpen,
   Edit3,
@@ -46,6 +47,7 @@ export const DocumentationView: React.FC = () => {
     reorderDocBlocks,
     publishDocPage,
     publishEntireDocumentation,
+    loadStarterDocumentationTemplate,
     addToast,
   } = useTokenStore();
 
@@ -53,13 +55,13 @@ export const DocumentationView: React.FC = () => {
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [isViewingOverview, setIsViewingOverview] = useState(false);
 
-  // Active documentation object (with fallback initialization)
+  // Active documentation object (defaults to empty documentation on first load)
   const activeDoc = useMemo(() => {
-    if (documentation && documentation.pages && documentation.pages.length > 0) {
+    if (documentation) {
       return documentation;
     }
-    return createDefaultDocumentation(currentProject?.name);
-  }, [documentation, currentProject]);
+    return createEmptyDocumentation();
+  }, [documentation]);
 
   // Active page
   const activePage = useMemo(() => {
@@ -242,8 +244,15 @@ export const DocumentationView: React.FC = () => {
           onDeletePage={deleteDocPage}
         />
 
-        {/* Center: Canvas or Overview */}
-        {isViewingOverview ? (
+        {/* Center: Empty State Guide, Overview, or Canvas */}
+        {activeDoc.pages.length === 0 ? (
+          <DocEmptyStateGuide
+            projectName={currentProject?.name}
+            onCreateFirstPage={() => handleAddPage(null)}
+            onLoadTemplate={loadStarterDocumentationTemplate}
+            onCreateFolder={handleAddFolder}
+          />
+        ) : isViewingOverview ? (
           <DocOverviewRoot
             documentation={activeDoc}
             onSelectPage={handleSelectPage}
@@ -267,8 +276,8 @@ export const DocumentationView: React.FC = () => {
           />
         )}
 
-        {/* Right: Inspector Panel */}
-        {inspectorOpen && !isViewingOverview && (
+        {/* Right: Inspector Panel (only when pages exist and not viewing overview) */}
+        {inspectorOpen && activeDoc.pages.length > 0 && !isViewingOverview && (
           <DocBlockInspector
             page={activePage}
             selectedBlockId={selectedDocBlockId}

@@ -24,6 +24,7 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 - **Contextual Inspector Drawer**: Matches user reference designs with canvas header background swatches (slate, emerald, gradients, etc.), layout modes (`Classic`, `Hero`, `Feature`), Table of Contents toggle, and variable filters (collections, mode checkboxes, types, starts-with/includes).
 - **Public Reader Route & Granular Publishing**: Dedicated public site (`/docs/[orgSlug]/[projectSlug]`) with one-click global publishing and page-by-page visibility switches.
 - **Root Elements Overview Directory (`/`)**: Visual documentation dashboard summarizing key documentation metrics and element directory cards.
+- **First-Load Onboarding & Creation Guide**: When starting a fresh project, the canvas starts cleanly without auto-seeded dummy pages, presenting an interactive 4-step guide, instant `+ Create Your First Page` CTA, and an optional `Start with Foundations Template` button.
 - **Cloud Persistence & Audit Logging**: Scoped documentation stored dynamically in Cloud Firestore under `organizations/{orgId}/projects/{projectId}` with automatic event recording in the team activity log.
 
 ---

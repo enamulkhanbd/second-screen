@@ -136,6 +136,15 @@ export const DocTreeNav: React.FC<DocTreeNavProps> = ({
 
       {/* Tree Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+        {rootPages.length === 0 && folders.length === 0 && (
+          <div className="py-8 px-3 text-center space-y-2">
+            <p className="text-xs text-muted-foreground">No pages created yet.</p>
+            <p className="text-[11px] text-muted-foreground/80">
+              Click <strong>+ Page</strong> to start.
+            </p>
+          </div>
+        )}
+
         {/* Root Pages */}
         {rootPages.map((page) => {
           const isActive = page.id === activePageId;

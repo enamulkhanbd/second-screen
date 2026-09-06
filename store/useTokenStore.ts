@@ -22,6 +22,7 @@ import {
   DocFolder,
   DocBlock,
   createDefaultDocumentation,
+  createEmptyDocumentation,
 } from "@/types/documentation";
 import {
   flattenAndResolveTokens,
@@ -254,6 +255,7 @@ interface TokenStoreState {
   reorderDocBlocks: (pageId: string, blocks: DocBlock[]) => Promise<void>;
   publishDocPage: (pageId: string, isPublished: boolean) => Promise<void>;
   publishEntireDocumentation: (isPublishedGlobally: boolean, allowPublicAccess?: boolean) => Promise<void>;
+  loadStarterDocumentationTemplate: () => Promise<void>;
 
   // View Mode & Filters
   viewMode: "matrix" | "flow";
@@ -670,9 +672,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       const docToUse =
-        proj.documentation && proj.documentation.pages && proj.documentation.pages.length > 0
-          ? proj.documentation
-          : createDefaultDocumentation(proj.name || "Design System");
+        proj.documentation || createEmptyDocumentation();
 
       set({
         assets: proj.assets || [],
@@ -3636,6 +3636,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         description: isPublishedGlobally
           ? `Published live documentation for project "${currentProject.name}"`
           : `Unpublished live documentation for project "${currentProject.name}"`,
+      });
+    }
+  },
+
+  loadStarterDocumentationTemplate: async () => {
+    const { currentProject, currentOrg } = get();
+    const templateDoc = createDefaultDocumentation(currentProject?.name || "Design System");
+    set({
+      documentation: templateDoc,
+      activeDocPageId: templateDoc.pages[0]?.id || null,
+      activeDocFolderId: null,
+      selectedDocBlockId: null,
+      isDocEditing: false,
+    });
+    if (currentOrg && currentProject) {
+      saveProjectDocumentation(currentOrg.id, currentProject.id, templateDoc).catch(console.error);
+      get().logUserActivity({
+        type: "doc",
+        title: "Loaded starter documentation",
+        description: `Loaded starter documentation template for "${currentProject.name}"`,
       });
     }
   },
