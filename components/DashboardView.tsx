@@ -321,9 +321,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
                       >
                         <div className="flex items-center gap-2 truncate">
                           <div className="w-5 h-5 rounded-md bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
-                            {org.name[0]?.toUpperCase()}
+                            {org.name?.[0]?.toUpperCase() || "🏢"}
                           </div>
-                          <span className="font-medium truncate">{org.name}</span>
+                          <span className="font-medium truncate">{org.name || "Untitled"}</span>
                         </div>
                         {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
                       </DropdownMenuItem>
@@ -465,11 +465,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">
-                          {proj.name[0]?.toUpperCase()}
+                          {proj.name?.[0]?.toUpperCase() || "🎯"}
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
-                            {proj.name}
+                            {proj.name || "Untitled Project"}
                           </h3>
                           <span className="text-[10px] font-mono text-muted-foreground block truncate">
                             {proj.slug || proj.id}

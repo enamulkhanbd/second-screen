@@ -342,11 +342,11 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
                         {/* Avatar */}
                         <div className="relative flex-shrink-0 mt-0.5">
                           <Avatar className="h-7 w-7 rounded-lg">
-                            {commit.author.avatarUrl && (
-                              <AvatarImage src={commit.author.avatarUrl} alt={commit.author.name} />
+                            {commit.author?.avatarUrl && (
+                              <AvatarImage src={commit.author.avatarUrl} alt={commit.author?.name || "Git Author"} />
                             )}
                             <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-[10px] font-bold">
-                              {commit.author.name[0]?.toUpperCase() || "G"}
+                              {commit.author?.name?.[0]?.toUpperCase() || "G"}
                             </AvatarFallback>
                           </Avatar>
                         </div>
@@ -515,15 +515,15 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onOpenSettings }) =>
                   <div className="flex items-center gap-3 pt-2 border-t border-border/60 text-xs font-mono text-muted-foreground flex-wrap">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6 rounded-md">
-                        {selectedCommit.author.avatarUrl && (
-                          <AvatarImage src={selectedCommit.author.avatarUrl} alt={selectedCommit.author.name} />
+                        {selectedCommit.author?.avatarUrl && (
+                          <AvatarImage src={selectedCommit.author.avatarUrl} alt={selectedCommit.author?.name || "Git Author"} />
                         )}
                         <AvatarFallback className="rounded-md bg-primary/10 text-primary text-[10px] font-bold">
-                          {selectedCommit.author.name[0]?.toUpperCase() || "G"}
+                          {selectedCommit.author?.name?.[0]?.toUpperCase() || "G"}
                         </AvatarFallback>
                       </Avatar>
                       <span className="font-semibold text-foreground">
-                        {selectedCommit.author.name}
+                        {selectedCommit.author?.name || "Git Author"}
                       </span>
                     </div>
 

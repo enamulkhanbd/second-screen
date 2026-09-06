@@ -138,11 +138,11 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
           <DialogHeader className="p-6 border-b border-border bg-muted/20 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-base shadow-sm">
-                {currentOrg.name[0]?.toUpperCase() || "T"}
+                {currentOrg?.name?.[0]?.toUpperCase() || "T"}
               </div>
               <div>
                 <DialogTitle className="text-base font-bold">
-                  {currentOrg.name} — Team &amp; Permissions
+                  {currentOrg?.name || "Workspace"} — Team &amp; Permissions
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-0.5">
                   Manage organization access, assign roles, and dispatch email invitations.

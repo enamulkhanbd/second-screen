@@ -424,9 +424,9 @@ export const WorkspacesProjectsView: React.FC = () => {
                             className="w-5 h-5 rounded-md text-white flex items-center justify-center font-bold text-[10px]"
                             style={{ backgroundColor: org.color || "#6366f1" }}
                           >
-                            {org.icon || org.name[0]?.toUpperCase()}
+                            {org.icon || org.name?.[0]?.toUpperCase() || "🏢"}
                           </div>
-                          <span className="font-medium truncate">{org.name}</span>
+                          <span className="font-medium truncate">{org.name || "Untitled"}</span>
                         </div>
                         {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
                       </DropdownMenuItem>
@@ -728,15 +728,15 @@ export const WorkspacesProjectsView: React.FC = () => {
                               style={{ backgroundColor: projColor }}
                             >
                               {proj.logoUrl ? (
-                                <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-xl" />
+                                <img src={proj.logoUrl} alt={proj.name || "Project Logo"} className="w-full h-full object-cover rounded-xl" />
                               ) : (
-                                <span>{proj.icon || proj.name[0]?.toUpperCase() || "🎯"}</span>
+                                <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
                               )}
                             </div>
 
                             <div className="min-w-0">
                               <h3 className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
-                                {proj.name}
+                                {proj.name || "Untitled Project"}
                               </h3>
                               <span className="text-[10px] font-mono text-muted-foreground block truncate">
                                 {proj.slug || proj.id}
@@ -1066,16 +1066,16 @@ export const WorkspacesProjectsView: React.FC = () => {
                             style={{ backgroundColor: orgColor }}
                           >
                             {org.logoUrl ? (
-                              <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-xl" />
+                              <img src={org.logoUrl} alt={org.name || "Organization Logo"} className="w-full h-full object-cover rounded-xl" />
                             ) : (
-                              <span>{org.icon || org.name[0]?.toUpperCase() || "🏢"}</span>
+                              <span>{org.icon || org.name?.[0]?.toUpperCase() || "🏢"}</span>
                             )}
                           </div>
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h3 className="font-bold text-sm text-foreground truncate group-hover:text-violet-500 transition-colors">
-                                {org.name}
+                                {org.name || "Untitled Organization"}
                               </h3>
                               {isActive && (
                                 <Badge variant="secondary" className="text-[9px] py-0 px-1 font-semibold text-violet-600 dark:text-violet-400">

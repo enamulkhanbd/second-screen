@@ -920,15 +920,15 @@ export const MembersView: React.FC = () => {
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/40">
                           <div className="flex items-center gap-2">
                             <Avatar className="h-5 w-5 rounded-full">
-                              {act.actor.avatarUrl && (
-                                <AvatarImage src={act.actor.avatarUrl} alt={act.actor.name} />
+                              {act.actor?.avatarUrl && (
+                                <AvatarImage src={act.actor.avatarUrl} alt={act.actor?.name || "User"} />
                               )}
                               <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-bold">
-                                {act.actor.name[0]?.toUpperCase() || "U"}
+                                {act.actor?.name?.[0]?.toUpperCase() || "U"}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="font-medium text-foreground">{act.actor.name}</span>
-                            <span className="font-mono text-muted-foreground text-[10px]">({act.actor.email})</span>
+                            <span className="font-medium text-foreground">{act.actor?.name || "User"}</span>
+                            <span className="font-mono text-muted-foreground text-[10px]">({act.actor?.email || "Unknown"})</span>
                           </div>
                           {act.actor.role && (
                             <Badge variant="secondary" className="text-[9px] font-mono py-0 px-1.5 capitalize">

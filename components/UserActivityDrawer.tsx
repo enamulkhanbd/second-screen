@@ -313,14 +313,14 @@ export const UserActivityDrawer: React.FC<UserActivityDrawerProps> = ({
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40 font-mono">
                       <div className="flex items-center gap-1.5">
                         <Avatar className="h-4 w-4 rounded-full">
-                          {act.actor.avatarUrl && (
-                            <AvatarImage src={act.actor.avatarUrl} alt={act.actor.name} />
+                          {act.actor?.avatarUrl && (
+                            <AvatarImage src={act.actor.avatarUrl} alt={act.actor?.name || "User"} />
                           )}
                           <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
-                            {act.actor.name[0]?.toUpperCase() || "U"}
+                            {act.actor?.name?.[0]?.toUpperCase() || "U"}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{act.actor.name}</span>
+                        <span>{act.actor?.name || "User"}</span>
                         {act.actor.role && (
                           <span className="text-[8px] px-1 py-0 rounded bg-muted text-muted-foreground">
                             {act.actor.role}
