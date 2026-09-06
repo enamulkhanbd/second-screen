@@ -4,20 +4,27 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 
 ---
 
-# 1.3.0 `2026-09-06`
+# 1.2.3 `2026-09-06`
 
-● **Minor Release — Living Documentation System**
+● **Patch Release — Living Documentation System**
 
 ### 🚀 Highlights & Features
 
-- **Interactive 3-Panel Living Documentation Studio**: Launched full documentation editor in the `Documentation` tab featuring navigation tree, dynamic canvas, and contextual block inspector.
-- **Folder & Multi-Page Organization**: Support for creating nested folders (e.g. `Foundations`, `Components`) and sub-pages (e.g. `Color`, `Typography`, `Spacing`) with inline renaming, reordering, and deletion.
-- **Living Token & Variable Blocks**: Real-time connected blocks rendering Figma variables, color swatches with transparency checkerboards, typographic specimens, and repository tokens.
-- **Do's & Don'ts Comparison**: Built-in side-by-side design guideline blocks comparing recommended patterns and anti-patterns.
-- **Floating Slash Command Popover (`/`)**: Fast block insertion menu supporting keyboard navigation, quick search, and 8 block types.
-- **Contextual Inspector Drawer**: Header background color swatches, layout options (`Classic`, `Hero`, `Feature`), Table of Contents toggle, and variable filters (collections, mode checkboxes, types, starts-with/includes).
+- **Interactive 3-Panel Living Documentation Studio**: Launched the comprehensive documentation editor under the `Documentation` tab, featuring a left-hand navigation tree, dynamic central canvas, and a contextual right-hand inspector.
+- **Folder & Multi-Page Organization**: Full multi-page hierarchy support allowing creation of section folders (e.g. `Foundations`, `Components`, `Utilities`) and sub-pages (e.g. `Color`, `Typography`, `Spacing`) with inline renaming, reordering, and deletion.
+- **Real-Time Connected Design Token & Variable Blocks**:
+  - **Variables Table Block**: Tabular multi-mode variable display with collections selector, type pills (`Color`, `Float`, `String`, `Boolean`), and 1-click copy for CSS variable names (`var(--...)`).
+  - **Variable Color Swatches Block**: Visual grid of live color swatches with checkerboard transparency backgrounds, HEX/RGB values, and copy actions.
+  - **Variable Typography Block**: Live font hierarchy specimens displaying font sizes, weights, and line-heights.
+  - **Tokens Table Block**: Live repository token dictionary tables with type filtering and copy buttons.
+  - **Callout Block**: Alert callout boxes with `Info`, `Success`, `Warning`, and `Error` variants.
+  - **Markdown / Heading Block**: Rich markdown editing with instant formatting for headers (`#`), bullet lists, and paragraphs.
+- **Do's & Don'ts Comparison Cards**: Native side-by-side design guideline cards comparing recommended best practices (green checkmark) and anti-patterns (red cross).
+- **Floating Slash Command Popover (`/`)**: Fast block insertion menu supporting quick search, keyboard navigation, and instant insertion across 8 block types.
+- **Contextual Inspector Drawer**: Matches user reference designs with canvas header background swatches (slate, emerald, gradients, etc.), layout modes (`Classic`, `Hero`, `Feature`), Table of Contents toggle, and variable filters (collections, mode checkboxes, types, starts-with/includes).
 - **Public Reader Route & Granular Publishing**: Dedicated public site (`/docs/[orgSlug]/[projectSlug]`) with one-click global publishing and page-by-page visibility switches.
-- **Root Elements Directory (`/`)**: Visual overview dashboard summarizing documentation statistics and element directory cards.
+- **Root Elements Overview Directory (`/`)**: Visual documentation dashboard summarizing key documentation metrics and element directory cards.
+- **Cloud Persistence & Audit Logging**: Scoped documentation stored dynamically in Cloud Firestore under `organizations/{orgId}/projects/{projectId}` with automatic event recording in the team activity log.
 
 ---
 
