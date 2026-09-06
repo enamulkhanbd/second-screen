@@ -25,9 +25,12 @@ import {
   Rocket,
   PanelLeftOpen,
   Save,
-  CheckCheck,
   Undo2,
+  Plus,
+  GitMerge,
+  GitCommit,
 } from "lucide-react";
+import { CreateBranchModal } from "@/components/CreateBranchModal";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
@@ -115,12 +118,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     getDiffSummary,
     logUserActivity,
     setFigmaVariables,
+    // Native Branches
+    branches: nativeBranches,
+    activeBranch,
+    switchBranchAction,
+    commitToActiveBranchAction,
   } = useTokenStore();
 
   const [isPushing, setIsPushing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
+  const [isCreateBranchOpen, setIsCreateBranchOpen] = useState(false);
   const [showThemeGroupMenu, setShowThemeGroupMenu] = useState(false);
   const [commitMessage, setCommitMessage] = useState("");
   const [showPushModal, setShowPushModal] = useState(false);
@@ -395,60 +404,53 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   };
 
   const handleDirectPush = async () => {
-    if (!credentials.pat) {
-      onOpenSettings();
-      return;
-    }
-
     setIsPushing(true);
-    setSyncStatus("pushing");
+    const userCommitMsg =
+      commitMessage ||
+      `Update tokens on branch ${isGitConfigured ? credentials.branch : activeBranch || "main"}`;
 
     try {
-      const res = await fetch("/api/git/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credentials,
-          rawTokens,
-          syncMeta,
-          commitMessage: commitMessage || `chore(tokens): sync via tokens platform [${new Date().toLocaleTimeString()}]`,
-        }),
-      });
+      if (isGitConfigured && credentials.pat) {
+        // External sync provider configured: push directly to remote Git
+        setSyncStatus("pushing");
+        const res = await fetch("/api/git/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            credentials,
+            rawTokens,
+            syncMeta,
+            commitMessage: userCommitMsg,
+          }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to push tokens directly");
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to push tokens to Git");
+        }
+      } else {
+        // No sync provider configured: our native branch system handles the commit
+        await commitToActiveBranchAction(userCommitMsg);
       }
 
       resetDirtyState();
       setSyncStatus("success");
       setShowPushModal(false);
       setShowBranchMenu(false);
-      const pushedBranch = credentials.branch || "main";
-      const pushedRepo = credentials.repo || "repository";
-      const userCommitMsg = commitMessage || "Updated design tokens and synced changes.";
-      logUserActivity({
-        type: "git",
-        title: `Pushed Commit to ${pushedBranch}`,
-        description: userCommitMsg,
-        actor: {
-          name: currentUser?.displayName || "User",
-          email: currentUser?.email || "user@example.com",
-          avatarUrl: currentUser?.avatarUrl,
-        },
-        metadata: { branch: pushedBranch, repo: pushedRepo },
-      });
       setCommitMessage("");
+
       addToast({
         type: "success",
-        title: `Pushed to ${credentials.branch}`,
-        message: `Committed changes to ${credentials.repo}.`,
+        title: isGitConfigured ? "Pushed to Git" : "Committed to Branch",
+        message: isGitConfigured
+          ? `Changes pushed to ${credentials.repo}@${credentials.branch}.`
+          : `Changes committed to native branch "${activeBranch}".`,
       });
     } catch (err: any) {
       setSyncStatus("error", err.message);
       addToast({
         type: "error",
-        title: "Push Commit Failed",
+        title: isGitConfigured ? "Push Failed" : "Commit Failed",
         message: err.message,
       });
     } finally {
@@ -604,104 +606,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
         {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
-          {/* Unsaved changes interactive badge & quick save actions */}
-          {isDirty && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer shadow-2xs outline-none"
-                  title="Click to review, save, or push changes"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span>unsaved changes</span>
-                  <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 p-2 text-xs shadow-xl space-y-1">
-                <div className="px-2 py-1">
-                  <div className="font-semibold text-foreground text-xs flex items-center justify-between">
-                    <span>Working Draft Changes</span>
-                    <span className="text-[10px] font-mono text-muted-foreground">
-                      {diffSummary.totalAdded + diffSummary.totalModified + diffSummary.totalDeleted} diffs
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                    Tokens are auto-saved to your project workspace. Push to Git to version and publish them.
-                  </p>
-                </div>
 
-                <DropdownMenuSeparator />
-
-                {isGitConfigured ? (
-                  <DropdownMenuItem
-                    onClick={() => setShowPushModal(true)}
-                    className="gap-2.5 px-2 py-2 text-xs text-primary font-medium cursor-pointer"
-                  >
-                    <UploadCloud className="w-4 h-4 text-primary flex-shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold">Push to Git Repository</span>
-                      <span className="text-[10px] text-muted-foreground font-mono truncate">
-                        {credentials.repo} @ {credentials.branch || "main"}
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    onClick={onOpenSettings}
-                    className="gap-2.5 px-2 py-2 text-xs text-primary font-medium cursor-pointer"
-                  >
-                    <UploadCloud className="w-4 h-4 text-primary flex-shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold">Connect Git to Push</span>
-                      <span className="text-[10px] text-muted-foreground truncate">
-                        Configure GitHub / GitLab repository
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuItem
-                  onClick={() => {
-                    resetDirtyState();
-                    addToast({
-                      type: "success",
-                      title: "Baseline Saved",
-                      message: "All current token changes have been marked as saved baseline.",
-                    });
-                  }}
-                  className="gap-2.5 px-2 py-2 text-xs cursor-pointer"
-                >
-                  <CheckCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-medium">Mark as Saved Baseline</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      Clears unsaved indicator locally
-                    </span>
-                  </div>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => {
-                    const { originalTokens } = useTokenStore.getState();
-                    if (originalTokens && Object.keys(originalTokens).length > 0) {
-                      setRawTokens(JSON.parse(JSON.stringify(originalTokens)));
-                      resetDirtyState();
-                      addToast({
-                        type: "info",
-                        title: "Changes Discarded",
-                        message: "Reverted all tokens back to original baseline.",
-                      });
-                    }
-                  }}
-                  className="gap-2.5 px-2 py-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                >
-                  <Undo2 className="w-4 h-4 text-destructive flex-shrink-0" />
-                  <span>Discard Local Changes</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
 
           {/* Matrix vs Flow Switcher */}
           {hasTokens && sidebarTab === "themes" && (
@@ -747,109 +652,127 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             </Button>
           )}
 
-          {/* 2. Git Pull & Push & Branch Switcher - ONLY if Git Sync is configured */}
+          {/* Git Pull Button with Remote Changes Indicator - ONLY if Git Sync is configured */}
           {isGitConfigured && (
-            <>
-              {/* Git Pull Button with Remote Changes Indicator */}
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (hasRemoteChanges) {
-                      setShowPullModal(true);
-                    } else {
-                      handlePull();
-                    }
-                  }}
-                  disabled={isPulling}
-                  className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${hasRemoteChanges
-                      ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
-                      : ""
-                    }`}
-                  title={
-                    hasRemoteChanges
-                      ? "Remote changes detected on repository branch - click to review and pull"
-                      : "Pull latest tokens from current branch"
-                  }
-                >
-                  <DownloadCloud
-                    className={`w-3.5 h-3.5 ${hasRemoteChanges ? "text-blue-500" : "text-muted-foreground"
-                      } ${isPulling ? "animate-bounce" : ""}`}
-                  />
-                  <span>Git Pull</span>
-                </Button>
-
-                {/* Pulsating Remote Updates Notification Badge */}
-                {hasRemoteChanges && (
-                  <span
-                    className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none"
-                    title="Remote updates available"
-                  >
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600 ring-2 ring-background" />
-                  </span>
-                )}
-              </div>
-
-              {/* Push Button - Disabled when there are no local changes or user is viewer */}
+            <div className="relative">
               <Button
-                variant={isDirty && canUserEdit() ? "default" : "outline"}
+                variant="outline"
                 size="sm"
-                onClick={() => setShowPushModal(true)}
-                disabled={!isDirty || isPushing || !canUserEdit()}
-                className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty || !canUserEdit()
-                    ? "opacity-50 cursor-not-allowed"
-                    : "cursor-pointer"
+                onClick={() => {
+                  if (hasRemoteChanges) {
+                    setShowPullModal(true);
+                  } else {
+                    handlePull();
+                  }
+                }}
+                disabled={isPulling}
+                className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${hasRemoteChanges
+                    ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
+                    : ""
                   }`}
                 title={
-                  !canUserEdit()
-                    ? "Viewer role cannot push changes"
-                    : isDirty
-                    ? `Review diff and push changes directly to ${credentials.branch || "branch"}`
-                    : "No local changes to push"
+                  hasRemoteChanges
+                    ? "Remote changes detected on repository branch - click to review and pull"
+                    : "Pull latest tokens from current branch"
                 }
               >
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span>Push</span>
+                <DownloadCloud
+                  className={`w-3.5 h-3.5 ${hasRemoteChanges ? "text-blue-500" : "text-muted-foreground"
+                    } ${isPulling ? "animate-bounce" : ""}`}
+                />
+                <span>Git Pull</span>
               </Button>
 
-              {/* Branch Pill Dropdown */}
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBranchMenu(!showBranchMenu)}
-                  className="h-8 gap-1.5 font-mono text-xs cursor-pointer shadow-2xs"
+              {/* Pulsating Remote Updates Notification Badge */}
+              {hasRemoteChanges && (
+                <span
+                  className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none"
+                  title="Remote updates available"
                 >
-                  <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="max-w-[130px] truncate">
-                    {credentials.branch || "Branch"}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                </Button>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600 ring-2 ring-background" />
+                </span>
+              )}
+            </div>
+          )}
 
-                {/* Branch Switcher Dropdown */}
-                {showBranchMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowBranchMenu(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-1.5 w-64 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2 max-h-[85vh] flex flex-col">
+          {/* Commit / Push Button - Works natively on active branch, pushes to Git if connected */}
+          <Button
+            variant={isDirty && canUserEdit() ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowPushModal(true)}
+            disabled={!isDirty || isPushing || !canUserEdit()}
+            className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty || !canUserEdit()
+                ? "opacity-50 cursor-not-allowed"
+                : "cursor-pointer"
+              }`}
+            title={
+              !canUserEdit()
+                ? "Viewer role cannot commit changes"
+                : isDirty
+                ? isGitConfigured
+                  ? `Review diff and push changes directly to ${credentials.branch || activeBranch}`
+                  : `Review diff and commit changes to branch "${activeBranch}"`
+                : "No local changes to commit"
+            }
+          >
+            {isGitConfigured ? (
+              <UploadCloud className="w-3.5 h-3.5" />
+            ) : (
+              <GitCommit className="w-3.5 h-3.5" />
+            )}
+            <span>{isGitConfigured ? "Push" : "Commit"}</span>
+            {isDirty && (diffSummary.totalAdded + diffSummary.totalModified + diffSummary.totalDeleted > 0) && (
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20 text-primary-foreground font-semibold">
+                {diffSummary.totalAdded + diffSummary.totalModified + diffSummary.totalDeleted}
+              </span>
+            )}
+          </Button>
+
+          {/* Branch Pill Dropdown - Native branches + Git remote branches */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBranchMenu(!showBranchMenu)}
+              className="h-8 gap-1.5 font-mono text-xs cursor-pointer shadow-2xs"
+              title={
+                isGitConfigured
+                  ? `Git branch: ${credentials.branch || "main"}`
+                  : `Active branch: ${activeBranch || "main"}`
+              }
+            >
+              <GitBranch className="w-3.5 h-3.5 text-primary" />
+              <span className="max-w-[130px] truncate">
+                {isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}
+              </span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            </Button>
+
+            {/* Branch Switcher Dropdown */}
+            {showBranchMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowBranchMenu(false)}
+                />
+                <div className="absolute right-0 top-full mt-1.5 w-72 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2.5 max-h-[85vh] flex flex-col">
+                  {isGitConfigured ? (
+                    /* External Sync Provider Branches */
+                    <>
                       <div className="px-2.5 py-2 bg-muted/60 border border-border rounded-lg">
                         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                          Repository Name
+                          Git Repository
                         </div>
                         <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5">
-                          {credentials.repo || "Not Connected"}
+                          {credentials.repo} @ {credentials.branch || "main"}
                         </div>
                       </div>
 
                       <div className="relative">
                         <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input
-                          placeholder="Search branch..."
+                          placeholder="Search remote branch..."
                           value={branchSearch}
                           onChange={(e) => setBranchSearch(e.target.value)}
                           className="h-8 pl-8 text-xs font-mono"
@@ -857,7 +780,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                         />
                       </div>
 
-                      <div className="flex-1 overflow-y-auto max-h-48 space-y-0.5 pr-0.5">
+                      <div className="flex-1 overflow-y-auto max-h-52 space-y-0.5 pr-0.5">
                         {loadingBranches ? (
                           <div className="flex items-center justify-center py-6 text-muted-foreground gap-2">
                             <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
@@ -873,25 +796,126 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                             return (
                               <button
                                 key={b}
-                                onClick={() => handlePullForBranch(b)}
-                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
+                                onClick={() => {
+                                  handlePullForBranch(b);
+                                  setShowBranchMenu(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${
+                                  isCurrent
                                     ? "bg-primary/10 text-primary font-semibold"
                                     : "text-foreground hover:bg-muted"
-                                  }`}
+                                }`}
                               >
                                 <span className="truncate">{b}</span>
-                                {isCurrent && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                                {isCurrent && (
+                                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                )}
                               </button>
                             );
                           })
                         )}
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
+                    </>
+                  ) : (
+                    /* Native Branch System (Only when NO sync provider is set up) */
+                    <>
+                      <div className="px-2.5 py-2 bg-muted/60 border border-border rounded-lg flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                            Active Branch
+                          </div>
+                          <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5 flex items-center gap-1.5">
+                            <GitBranch className="w-3 h-3 text-primary" />
+                            <span>{activeBranch || "main"}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setShowBranchMenu(false);
+                            setIsCreateBranchOpen(true);
+                          }}
+                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                          title="Create new branch"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>New</span>
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Search branches..."
+                          value={branchSearch}
+                          onChange={(e) => setBranchSearch(e.target.value)}
+                          className="h-8 pl-8 text-xs font-mono"
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto max-h-52 space-y-1 pr-0.5">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-1">
+                          Project Branches ({nativeBranches.length})
+                        </div>
+                        {nativeBranches
+                          .filter(
+                            (b) =>
+                              b.name.toLowerCase().includes(branchSearch.toLowerCase()) ||
+                              b.title.toLowerCase().includes(branchSearch.toLowerCase())
+                          )
+                          .map((b) => {
+                            const isCurrent = b.name === (activeBranch || "main");
+                            return (
+                              <button
+                                key={b.id}
+                                onClick={async () => {
+                                  await switchBranchAction(b.name);
+                                  setShowBranchMenu(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${
+                                  isCurrent
+                                    ? "bg-primary/10 text-primary font-semibold"
+                                    : "text-foreground hover:bg-muted"
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <GitBranch
+                                    className={`w-3 h-3 flex-shrink-0 ${
+                                      isCurrent ? "text-primary" : "text-muted-foreground"
+                                    }`}
+                                  />
+                                  <span className="truncate">{b.name}</span>
+                                  {b.isDefault && (
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-muted text-muted-foreground font-sans">
+                                      default
+                                    </span>
+                                  )}
+                                </div>
+                                {isCurrent && (
+                                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0 ml-1.5" />
+                                )}
+                              </button>
+                            );
+                          })}
+                      </div>
+
+                      <div className="pt-1.5 border-t border-border flex items-center justify-between text-xs">
+                        <button
+                          onClick={() => {
+                            setSidebarTab("branches");
+                            setShowBranchMenu(false);
+                          }}
+                          className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer font-medium"
+                        >
+                          <span>View Branches &amp; History &rarr;</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Subtle Vertical Divider */}
           <Separator orientation="vertical" className="h-4 mx-1 opacity-60" />
@@ -1119,12 +1143,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <UploadCloud className="w-5 h-5" />
+                  {isGitConfigured ? (
+                    <UploadCloud className="w-5 h-5" />
+                  ) : (
+                    <GitCommit className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
-                  <DialogTitle>Review &amp; Commit Token Changes</DialogTitle>
+                  <DialogTitle>
+                    {isGitConfigured ? "Review & Push Token Changes" : "Review & Commit Token Changes"}
+                  </DialogTitle>
                   <DialogDescription className="font-mono text-xs">
-                    {credentials.repo} @ {credentials.branch || "main"}
+                    {isGitConfigured
+                      ? `${credentials.repo} @ ${credentials.branch || activeBranch || "main"}`
+                      : `Native Branch: ${activeBranch || "main"}`}
                   </DialogDescription>
                 </div>
               </div>
@@ -1160,7 +1192,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                   <span>Changed Files &amp; Tokens ({diffSummary.files.length})</span>
                 </span>
                 <span className="text-[11px] text-muted-foreground font-mono">
-                  Review before pushing
+                  {isGitConfigured ? "Review before pushing" : "Review before committing"}
                 </span>
               </div>
               <TokenDiffViewer diff={diffSummary} maxHeight="max-h-[240px]" />
@@ -1199,36 +1231,82 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
             <div className="bg-muted/60 p-3 rounded-lg border border-border text-xs text-muted-foreground space-y-1">
               <p className="flex items-center gap-1.5 text-foreground font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Direct Branch Rule
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{" "}
+                {isGitConfigured ? "Direct Branch & Push Rule" : "Native Branch Commit"}
               </p>
               <p className="text-[11px] leading-relaxed">
-                Tokens will be committed directly to <span className="font-mono text-primary">{credentials.branch || "main"}</span> preserving all raw alias references.
+                Tokens will be committed directly to{" "}
+                <span className="font-mono text-primary">{activeBranch || "main"}</span> preserving all raw alias references.
+                {isGitConfigured && ` And pushed to remote repository ${credentials.repo}.`}
               </p>
             </div>
           </div>
 
-          <DialogFooter className="pt-2 flex-shrink-0">
+          <DialogFooter className="pt-2 flex-shrink-0 flex items-center justify-between sm:justify-between w-full">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => setShowPushModal(false)}
+              onClick={() => {
+                const { originalTokens } = useTokenStore.getState();
+                if (originalTokens && Object.keys(originalTokens).length > 0) {
+                  setRawTokens(JSON.parse(JSON.stringify(originalTokens)));
+                  resetDirtyState();
+                  setShowPushModal(false);
+                  addToast({
+                    type: "info",
+                    title: "Changes Discarded",
+                    message: "Reverted all tokens back to baseline.",
+                  });
+                }
+              }}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5 cursor-pointer"
             >
-              Cancel
+              <Undo2 className="w-3.5 h-3.5" />
+              <span>Discard Changes</span>
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleDirectPush}
-              disabled={isPushing}
-              className="gap-1.5 font-semibold"
-            >
-              <UploadCloud className="w-3.5 h-3.5" />
-              <span>{isPushing ? "Pushing..." : "Confirm & Commit"}</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPushModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleDirectPush}
+                disabled={isPushing}
+                className="gap-1.5 font-semibold"
+              >
+                {isGitConfigured ? (
+                  <UploadCloud className="w-3.5 h-3.5" />
+                ) : (
+                  <GitCommit className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {isPushing
+                    ? isGitConfigured
+                      ? "Pushing..."
+                      : "Committing..."
+                    : isGitConfigured
+                    ? "Confirm & Push"
+                    : "Confirm & Commit"}
+                </span>
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Branch Modal */}
+      <CreateBranchModal
+        isOpen={isCreateBranchOpen}
+        onClose={() => setIsCreateBranchOpen(false)}
+        defaultBasedOn={activeBranch || "main"}
+      />
     </TooltipProvider>
   );
 };

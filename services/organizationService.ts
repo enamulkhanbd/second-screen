@@ -23,7 +23,7 @@ import {
   AssetGitConfig,
   AssetFigmaConfig,
 } from "@/types/tenant";
-import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem } from "@/types/tokens";
+import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem, ProjectBranch, BranchCommit, BranchComment } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
 // -------------------------------------------------------------
@@ -480,6 +480,39 @@ export async function createProject(
   const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : {};
   const themeGroups = extractThemeGroups(rawTokens);
 
+  const defaultBranch: ProjectBranch = {
+    id: `branch_main_${projId}`,
+    name: "main",
+    title: "Main",
+    description: "Default production branch",
+    isDefault: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: {
+      name: createdByName || "Team Member",
+      email: "user@example.com",
+    },
+    rawTokens,
+    themeGroups,
+    commits: [
+      {
+        id: `commit_init_${projId}`,
+        sha: "init-" + Math.random().toString(36).substring(2, 8),
+        message: "Initial project setup",
+        timestamp: new Date().toISOString(),
+        author: {
+          name: createdByName || "Team Member",
+          email: "user@example.com",
+        },
+        totalAdded: Object.keys(rawTokens).length,
+        totalModified: 0,
+        totalDeleted: 0,
+        changes: [],
+      },
+    ],
+    comments: [],
+  };
+
   const newProject: Project = {
     id: projId,
     orgId,
@@ -491,6 +524,8 @@ export async function createProject(
     logoUrl: logoUrl || "",
     rawTokens,
     themeGroups,
+    branches: [defaultBranch],
+    activeBranch: "main",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     createdByName: createdByName || "Team Member",
@@ -505,6 +540,74 @@ export async function createProject(
   }
 
   return newProject;
+}
+
+/**
+ * Ensures a project always has a valid list of native branches with at least a default 'main' branch
+ */
+export function ensureProjectDefaultBranch(proj: Project): ProjectBranch[] {
+  if (proj.branches && proj.branches.length > 0) {
+    return proj.branches;
+  }
+  const defaultBranch: ProjectBranch = {
+    id: `branch_main_${proj.id}`,
+    name: "main",
+    title: "Main",
+    description: "Default production branch",
+    isDefault: true,
+    createdAt: proj.createdAt || new Date().toISOString(),
+    updatedAt: proj.updatedAt || new Date().toISOString(),
+    createdBy: {
+      name: proj.createdByName || "Team Member",
+      email: "user@example.com",
+    },
+    rawTokens: proj.rawTokens || {},
+    themeGroups: proj.themeGroups || [],
+    commits: [
+      {
+        id: `commit_init_${proj.id}`,
+        sha: "init-" + Math.random().toString(36).substring(2, 8),
+        message: "Initial tokens import",
+        timestamp: proj.createdAt || new Date().toISOString(),
+        author: {
+          name: proj.createdByName || "Team Member",
+          email: "user@example.com",
+        },
+        totalAdded: Object.keys(proj.rawTokens || {}).length,
+        totalModified: 0,
+        totalDeleted: 0,
+        changes: [],
+      },
+    ],
+    comments: [],
+  };
+  return [defaultBranch];
+}
+
+/**
+ * Dynamically saves native branches for a specific Project in Firestore
+ */
+export async function saveProjectBranches(
+  orgId: string,
+  projectId: string,
+  branches: ProjectBranch[],
+  activeBranch?: string
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await setDoc(
+      projRef,
+      {
+        branches,
+        ...(activeBranch ? { activeBranch } : {}),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("Firestore error saving project branches:", e);
+  }
 }
 
 /**

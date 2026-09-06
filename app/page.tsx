@@ -17,6 +17,7 @@ import { DocumentationView } from "@/components/DocumentationView";
 import { AssetsView } from "@/components/AssetsView";
 import { ExportsView } from "@/components/ExportsView";
 import { ActivityView } from "@/components/ActivityView";
+import { BranchesView } from "@/components/BranchesView";
 import { IntegrationsView } from "@/components/IntegrationsView";
 import { McpCliView } from "@/components/McpCliView";
 import { ProjectSettingsView } from "@/components/ProjectSettingsView";
@@ -159,6 +160,8 @@ export default function Home() {
           <ExportsView />
         ) : sidebarTab === "releases" ? (
           <ReleasesWorkspace />
+        ) : sidebarTab === "branches" ? (
+          <BranchesView />
         ) : sidebarTab === "activity" ? (
           <ActivityView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "integrations" || (sidebarTab as string) === "sync" ? (

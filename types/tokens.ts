@@ -233,3 +233,73 @@ export type LogActivityInput = Omit<UserActivityItem, "id" | "timestamp" | "acto
     avatarUrl?: string;
   };
 };
+
+export type BranchChangeCategory = "tokens" | "sets" | "themes" | "assets" | "docs";
+
+export interface BranchChangeItem {
+  id: string;
+  category: BranchChangeCategory;
+  action: "added" | "modified" | "deleted";
+  key: string; // e.g. "border.state.error" or "alias/color-palette"
+  label: string; // e.g. "Token" or "Set" or "Theme"
+  oldValue?: string;
+  newValue?: string;
+  timestamp: string;
+}
+
+export interface BranchCommit {
+  id: string;
+  sha: string;
+  message: string;
+  timestamp: string;
+  author: {
+    uid?: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  totalAdded: number;
+  totalModified: number;
+  totalDeleted: number;
+  changes: BranchChangeItem[];
+}
+
+export interface BranchComment {
+  id: string;
+  text: string;
+  createdAt: string;
+  author: {
+    uid?: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  resolved?: boolean;
+  resolvedAt?: string;
+  resolvedBy?: {
+    name: string;
+    email: string;
+  };
+}
+
+export interface ProjectBranch {
+  id: string;
+  name: string; // branch slug, e.g. "main" or "new-color-palette"
+  title: string; // display title, e.g. "Main" or "New color palette"
+  description?: string;
+  isDefault: boolean;
+  basedOn?: string; // parent branch name it was forked from
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: {
+    uid?: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  rawTokens: RawTokensDocument;
+  themeGroups?: ThemeGroup[];
+  commits: BranchCommit[];
+  comments: BranchComment[];
+}
+

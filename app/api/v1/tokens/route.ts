@@ -3,7 +3,14 @@ import { authenticateRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups, getThemesArray, getMetadataObject } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
-import { getOrgProjects, saveProjectTokens, saveProjectFigmaVariables } from "@/services/organizationService";
+import {
+  getOrgProjects,
+  saveProjectTokens,
+  saveProjectFigmaVariables,
+  saveProjectBranches,
+  ensureProjectDefaultBranch,
+} from "@/services/organizationService";
+import { BranchCommit, ProjectBranch } from "@/types/tokens";
 import { computeTokensDiff } from "@/utils/tokenDiff";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +44,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const requestedOrgId = searchParams.get("orgId");
     const requestedProjId = searchParams.get("projectId");
+    const requestedBranch = searchParams.get("branch");
 
     // Tenant Isolation: If the API key is bound to a specific org/project, enforce it
     const tokenOrgId = auth.record.orgId;
@@ -62,6 +70,8 @@ export async function GET(req: NextRequest) {
     let targetDoc: Record<string, any> = {};
     let figmaVariables: Record<string, any> = {};
     let figmaUpdatedAt: string | null = null;
+    let currentBranchName = requestedBranch || "main";
+    let availableBranches: { name: string; title: string; isDefault?: boolean }[] = [];
 
     // Fetch directly from the target project in Firestore
     if (orgId && projectId) {
@@ -69,9 +79,27 @@ export async function GET(req: NextRequest) {
         const projects = await getOrgProjects(orgId);
         const proj = projects.find((p) => p.id === projectId);
         if (proj) {
-          if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
+          if (proj.branches && proj.branches.length > 0) {
+            availableBranches = proj.branches.map((b) => ({
+              name: b.name,
+              title: b.title,
+              isDefault: b.isDefault,
+            }));
+            const branchObj =
+              proj.branches.find((b) => b.name === (requestedBranch || proj.activeBranch || "main")) ||
+              proj.branches[0];
+            if (branchObj) {
+              currentBranchName = branchObj.name;
+              if (branchObj.rawTokens && Object.keys(branchObj.rawTokens).length > 0) {
+                targetDoc = branchObj.rawTokens;
+              }
+            }
+          }
+
+          if (Object.keys(targetDoc).length === 0 && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
             targetDoc = proj.rawTokens;
           }
+
           if (proj.figmaVariables) {
             figmaVariables = proj.figmaVariables;
             figmaUpdatedAt = proj.figmaUpdatedAt || null;
@@ -93,6 +121,8 @@ export async function GET(req: NextRequest) {
       authenticatedAs: auth.record.name,
       orgId: orgId || undefined,
       projectId: projectId || undefined,
+      branch: currentBranchName,
+      availableBranches: availableBranches.length > 0 ? availableBranches : undefined,
       version: "1.0.0",
       rawTokens: targetDoc,
       figmaVariables,
@@ -158,6 +188,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const requestedBranch = searchParams.get("branch") || body.branch;
     const rawDoc = body.rawTokens || body;
     const isFromFigma =
       body.source === "figma_plugin" ||
@@ -165,13 +196,26 @@ export async function POST(req: NextRequest) {
       (auth.record.name && auth.record.name.toLowerCase().includes("figma"));
 
     let currentDoc: Record<string, any> = {};
+    let targetBranchName = requestedBranch || "main";
+    let targetProject: any = null;
+    let projectBranches: ProjectBranch[] = [];
 
     if (orgId && projectId) {
       try {
         const projects = await getOrgProjects(orgId);
-        const proj = projects.find((p) => p.id === projectId);
-        if (proj && proj.rawTokens) {
-          currentDoc = proj.rawTokens;
+        targetProject = projects.find((p) => p.id === projectId);
+        if (targetProject) {
+          projectBranches = ensureProjectDefaultBranch(targetProject);
+          targetBranchName = requestedBranch || targetProject.activeBranch || "main";
+          const branchObj =
+            projectBranches.find((b) => b.name === targetBranchName) ||
+            projectBranches[0];
+
+          if (branchObj && branchObj.rawTokens && Object.keys(branchObj.rawTokens).length > 0) {
+            currentDoc = branchObj.rawTokens;
+          } else if (targetProject.rawTokens) {
+            currentDoc = targetProject.rawTokens;
+          }
         }
       } catch {}
     }
@@ -206,7 +250,67 @@ export async function POST(req: NextRequest) {
       try {
         // Save only if changes exist or during initial import
         if (diff.hasChanges || !hasExistingTokens) {
-          await saveProjectTokens(orgId, projectId, mergedDoc);
+          if (projectBranches.length > 0) {
+            let branch = projectBranches.find((b) => b.name === targetBranchName);
+            if (!branch) {
+              const newBranch: ProjectBranch = {
+                id: `branch_${targetBranchName}_${Date.now()}`,
+                name: targetBranchName,
+                title: targetBranchName,
+                isDefault: targetBranchName === "main",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                createdBy: { name: auth.record.name, email: "api@tokens-platform.local" },
+                rawTokens: mergedDoc,
+                themeGroups: targetProject?.themeGroups || [],
+                commits: [],
+                comments: [],
+              };
+              projectBranches.push(newBranch);
+              branch = newBranch;
+            } else {
+              branch.rawTokens = mergedDoc;
+              branch.updatedAt = new Date().toISOString();
+            }
+
+            const commit: BranchCommit = {
+              id: "commit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+              sha: Math.random().toString(36).substring(2, 9),
+              message:
+                body.commitMessage ||
+                (isFromFigma
+                  ? "Sync tokens from Figma Plugin"
+                  : `Update ${totalChanges || Object.keys(rawDoc).length} tokens via API`),
+              timestamp: new Date().toISOString(),
+              author: {
+                name: auth.record.name || "API User",
+                email: "api@tokens-platform.local",
+              },
+              totalAdded: diff.totalAdded,
+              totalModified: diff.totalModified,
+              totalDeleted: diff.totalDeleted,
+              changes: allChangedTokens.slice(0, 30).map((t) => ({
+                id: `chg_${Math.random().toString(36).substring(2, 9)}`,
+                category: "tokens",
+                action: t.changeType,
+                key: t.key,
+                label: t.name || t.key,
+                oldValue: typeof t.oldValue === "string" ? t.oldValue : JSON.stringify(t.oldValue),
+                newValue: typeof t.newValue === "string" ? t.newValue : JSON.stringify(t.newValue),
+                timestamp: new Date().toISOString(),
+              })),
+            };
+
+            branch.commits = [commit, ...(branch.commits || [])];
+
+            await saveProjectBranches(orgId, projectId, projectBranches, targetBranchName);
+          }
+
+          // Always maintain project rawTokens for default/main compatibility
+          if (targetBranchName === "main" || !projectBranches.length) {
+            await saveProjectTokens(orgId, projectId, mergedDoc);
+          }
+
           if (isFromFigma) {
             await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
           }
@@ -228,20 +332,21 @@ export async function POST(req: NextRequest) {
       newValue: t.newValue,
     }));
 
-    let message = "Cloud tokens are already in sync. 0 changes detected.";
+    let message = `Cloud tokens are already in sync on branch "${targetBranchName}". 0 changes detected.`;
     if (!hasExistingTokens) {
-      message = `Initial import: Published all ${resolved.length} tokens to Cloud.`;
+      message = `Initial import: Published all ${resolved.length} tokens to branch "${targetBranchName}".`;
     } else if (totalChanges === 1) {
       const sample = changedSamples[0];
       const detail = sample ? ` (${sample.setName}/${sample.key})` : "";
-      message = `Published 1 changed token${detail} to Cloud.`;
+      message = `Published 1 changed token${detail} to branch "${targetBranchName}".`;
     } else if (totalChanges > 1) {
-      message = `Published ${totalChanges} changed tokens (${diff.totalModified} modified, ${diff.totalAdded} added) to Cloud.`;
+      message = `Published ${totalChanges} changed tokens (${diff.totalModified} modified, ${diff.totalAdded} added) to branch "${targetBranchName}".`;
     }
 
     return jsonWithCors({
       success: true,
       message,
+      branch: targetBranchName,
       hasChanges: diff.hasChanges || !hasExistingTokens,
       changedCount: hasExistingTokens ? totalChanges : resolved.length,
       totalTokens: resolved.length,

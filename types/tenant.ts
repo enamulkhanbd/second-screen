@@ -1,4 +1,4 @@
-import { GitCredentials, RawTokensDocument, ThemeGroup } from "./tokens";
+import { GitCredentials, RawTokensDocument, ThemeGroup, ProjectBranch } from "./tokens";
 
 export type UserRole = "owner" | "admin" | "editor" | "viewer";
 
@@ -122,6 +122,8 @@ export interface Project {
   figmaUpdatedAt?: string;
   figmaMeta?: Record<string, any>;
   documentation?: import("./documentation").ProjectDocumentation | null;
+  branches?: ProjectBranch[];
+  activeBranch?: string;
   createdAt: string;
   updatedAt: string;
   createdByName?: string;

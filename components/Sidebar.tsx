@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Home,
@@ -76,6 +76,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     addToast,
     getCurrentUserRole,
     canUserEdit,
+    branches,
+    activeBranch,
   } = useTokenStore();
 
   const [showCreateProj, setShowCreateProj] = useState(false);
@@ -89,6 +91,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   const allSetNames = useMemo(() => {
     return getValidTokenSetNames(rawTokens);
   }, [rawTokens]);
+
+  const isGitConfigured = Boolean(
+    currentUser && credentials.provider && credentials.owner && credentials.repo
+  );
+
+  useEffect(() => {
+    if (isGitConfigured && sidebarTab === "branches") {
+      setSidebarTab("tokens");
+    }
+  }, [isGitConfigured, sidebarTab, setSidebarTab]);
 
   const handleSignOut = async () => {
     try {
@@ -338,6 +350,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             )}
           </button>
 
+          {/* Branches (Native Versioning) - ONLY if project does NOT have a sync provider */}
+          {!isGitConfigured && (
+            <button
+              onClick={() => setSidebarTab("branches")}
+              title="Branches"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "branches"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                <GitBranch className={`size-4 flex-shrink-0 ${sidebarTab === "branches" ? "text-emerald-500" : "text-muted-foreground"}`} />
+                {!isCollapsed && <span>Branches</span>}
+              </div>
+              {!isCollapsed && (
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+                  {branches.length > 0 ? branches.length : 1}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Variables (Figma Native) */}
           <button
             onClick={() => setSidebarTab("variables")}
@@ -453,19 +488,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             {!isCollapsed && <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">Beta</Badge>}
           </button>
 
-          {/* Git Log */}
-          <button
-            onClick={() => setSidebarTab("activity")}
-            title="Git Log"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "activity"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <GitBranch className="size-4 flex-shrink-0 text-muted-foreground" />
-            {!isCollapsed && <span>Git Log</span>}
-          </button>
+          {/* Git Log - ONLY if project HAS a sync provider */}
+          {isGitConfigured && (
+            <button
+              onClick={() => setSidebarTab("activity")}
+              title="Git Log"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "activity"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+              }`}
+            >
+              <GitBranch className="size-4 flex-shrink-0 text-muted-foreground" />
+              {!isCollapsed && <span>Git Log</span>}
+            </button>
+          )}
         </div>
 
         {/* ------------------------------------------------------------- */}

@@ -15,6 +15,10 @@ import {
   DEFAULT_COMPILER_CONFIG,
   UserActivityItem,
   LogActivityInput,
+  ProjectBranch,
+  BranchCommit,
+  BranchComment,
+  BranchChangeItem,
 } from "@/types/tokens";
 import {
   ProjectDocumentation,
@@ -77,6 +81,8 @@ import {
   saveProjectDocumentation,
   logOrganizationActivity,
   getOrganizationActivities,
+  saveProjectBranches,
+  ensureProjectDefaultBranch,
 } from "@/services/organizationService";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -178,6 +184,17 @@ interface TokenStoreState {
   setActiveThemeGroup: (groupId: string) => void;
   setActiveThemeOption: (optionId: string) => void;
 
+  // Native Branch System
+  branches: ProjectBranch[];
+  activeBranch: string;
+  createBranchAction: (params: { title: string; name: string; description?: string; basedOn?: string }) => Promise<ProjectBranch>;
+  switchBranchAction: (branchName: string) => Promise<void>;
+  deleteBranchAction: (branchName: string) => Promise<void>;
+  mergeBranchAction: (sourceBranch: string, targetBranch: string) => Promise<void>;
+  commitToActiveBranchAction: (message: string) => Promise<void>;
+  addBranchCommentAction: (branchName: string, text: string) => Promise<void>;
+  resolveBranchCommentAction: (branchName: string, commentId: string) => Promise<void>;
+
   // Theme Mode (light/dark)
   themeMode: "light" | "dark";
   setThemeMode: (mode: "light" | "dark") => void;
@@ -188,6 +205,7 @@ interface TokenStoreState {
     | "variables"
     | "tokens"
     | "themes"
+    | "branches"
     | "documentation"
     | "assets"
     | "exports"
@@ -205,6 +223,7 @@ interface TokenStoreState {
       | "variables"
       | "tokens"
       | "themes"
+      | "branches"
       | "documentation"
       | "assets"
       | "exports"
@@ -350,9 +369,25 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   };
 
   const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
-    const { currentOrg, currentProject } = get();
+    const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
+      // Native branches only handle and persist changes when NO sync provider is configured
+      if (!hasSyncProvider && branches && branches.length > 0) {
+        const updatedBranches = branches.map((b) =>
+          b.name === activeBranch
+            ? {
+                ...b,
+                rawTokens: doc,
+                themeGroups: groups || b.themeGroups,
+                updatedAt: new Date().toISOString(),
+              }
+            : b
+        );
+        saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
+        set({ branches: updatedBranches });
+      }
     }
   };
 
@@ -570,13 +605,38 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
 
-      // 1. Git Connection & Token Dictionary
+      // 1. Native Branches & Token Dictionary
+      const projectBranches = ensureProjectDefaultBranch(proj);
+      const activeBranchName = proj.activeBranch || "main";
+      const activeBranchObj = projectBranches.find((b) => b.name === activeBranchName) || projectBranches[0];
+
+      const initialTokens =
+        activeBranchObj && Object.keys(activeBranchObj.rawTokens || {}).length > 0
+          ? activeBranchObj.rawTokens
+          : proj.rawTokens && Object.keys(proj.rawTokens).length > 0
+          ? proj.rawTokens
+          : {};
+
+      const initialThemes =
+        activeBranchObj && activeBranchObj.themeGroups && activeBranchObj.themeGroups.length > 0
+          ? activeBranchObj.themeGroups
+          : proj.themeGroups && proj.themeGroups.length > 0
+          ? proj.themeGroups
+          : extractThemeGroups(initialTokens);
+
+      set({
+        branches: projectBranches,
+        activeBranch: activeBranchObj?.name || "main",
+      });
+
+      // 1b. Git Provider Connection (if configured)
       const hasProjectGitProvider = Boolean(
         proj.gitConfig?.provider &&
         proj.gitConfig.owner &&
         proj.gitConfig.repo &&
         proj.gitConfig.branch
       );
+
       if (hasProjectGitProvider) {
         const gitConfig = proj.gitConfig!;
         let branchToUse = gitConfig.branch;
@@ -586,7 +646,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             branchToUse = savedBranch;
           }
         }
-        // Hydrate PAT from session/localStorage if not present in Firestore gitConfig
         let pat = gitConfig.pat || "";
         if (!pat && typeof window !== "undefined") {
           pat =
@@ -596,67 +655,42 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             localStorage.getItem("ts_second_screen_pat_enc") ||
             "";
         }
-        const activeCreds = {
-          ...DEFAULT_CREDENTIALS,
-          ...gitConfig,
-          pat,
-          branch: branchToUse || gitConfig.branch || DEFAULT_CREDENTIALS.branch,
-        };
-        set({ credentials: activeCreds });
-        if (proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
-          get().setRawTokens(proj.rawTokens);
-        } else {
-          set({
-            rawTokens: {},
-            resolvedTokens: [],
-            themeGroups: proj.themeGroups || [],
-            activeThemeGroupId: proj.themeGroups?.[0]?.id || "",
-            activeThemeOptionId: proj.themeGroups?.[0]?.options?.[0]?.id || "",
-            syncMeta: null,
-          });
-        }
+        set({
+          credentials: {
+            ...DEFAULT_CREDENTIALS,
+            ...gitConfig,
+            pat,
+            branch: branchToUse || gitConfig.branch || DEFAULT_CREDENTIALS.branch,
+          },
+        });
       } else {
         set({
-          credentials: DEFAULT_CREDENTIALS,
+          credentials: {
+            ...DEFAULT_CREDENTIALS,
+            branch: activeBranchObj?.name || "main",
+          },
+        });
+      }
+
+      // Hydrate Tokens & Themes
+      if (initialTokens && Object.keys(initialTokens).length > 0) {
+        get().setRawTokens(initialTokens);
+        set({
+          themeGroups: initialThemes,
+          activeThemeGroupId: initialThemes[0]?.id || "",
+          activeThemeOptionId: initialThemes[0]?.options?.[0]?.id || "",
+          originalTokens: JSON.parse(JSON.stringify(initialTokens)),
+          isDirty: false,
+        });
+      } else {
+        set({
           rawTokens: {},
           resolvedTokens: [],
-          themeGroups: [],
-          activeThemeGroupId: "",
-          activeThemeOptionId: "",
+          themeGroups: initialThemes || [],
+          activeThemeGroupId: initialThemes?.[0]?.id || "",
+          activeThemeOptionId: initialThemes?.[0]?.options?.[0]?.id || "",
           syncMeta: null,
-        });
-      }
-
-      // 2. Figma Variables
-      if (proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0) {
-        const resolvedFigma = flattenAndResolveTokens(proj.figmaVariables, "ALL");
-        set({
-          figmaVariables: proj.figmaVariables,
-          figmaResolvedVariables: resolvedFigma,
-          figmaUpdatedAt: proj.figmaUpdatedAt || null,
-          figmaMeta: proj.figmaMeta || null,
-        });
-      } else {
-        set({
-          figmaVariables: null,
-          figmaResolvedVariables: [],
-          figmaUpdatedAt: null,
-          figmaMeta: null,
-        });
-      }
-
-      // 2b. Theme Groups (Only hydrate from Firestore cache if project has git provider or rawTokens)
-      if (hasProjectGitProvider && proj.themeGroups && proj.themeGroups.length > 0) {
-        set({
-          themeGroups: proj.themeGroups,
-          activeThemeGroupId: proj.themeGroups[0].id,
-          activeThemeOptionId: proj.themeGroups[0].options[0]?.id || "",
-        });
-      } else if (!hasProjectGitProvider && (!proj.rawTokens || Object.keys(proj.rawTokens).length === 0)) {
-        set({
-          themeGroups: [],
-          activeThemeGroupId: "",
-          activeThemeOptionId: "",
+          isDirty: false,
         });
       }
 
@@ -1170,6 +1204,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
   },
 
+  branches: [],
+  activeBranch: "main",
   rawTokens: {},
   originalTokens: {},
   resolvedTokens: [],
@@ -4140,6 +4176,457 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         title: "Loaded starter documentation",
         description: `Loaded starter documentation template for "${currentProject.name}"`,
       });
+    }
+  },
+
+  // -------------------------------------------------------------
+  // NATIVE BRANCH SYSTEM ACTIONS
+  // -------------------------------------------------------------
+
+  createBranchAction: async ({ title, name, description, basedOn }) => {
+    const { branches, activeBranch, rawTokens, themeGroups, currentOrg, currentProject, currentUser, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    if (hasSyncProvider) {
+      throw new Error("Sync provider is active. Native branch creation is disabled.");
+    }
+    const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "-");
+    if (!cleanName) throw new Error("Branch name cannot be empty");
+    if (branches.some((b) => b.name === cleanName)) {
+      throw new Error(`Branch "${cleanName}" already exists`);
+    }
+
+    const baseBranchName = basedOn || activeBranch || "main";
+    const baseBranch = branches.find((b) => b.name === baseBranchName);
+    const initialRaw = baseBranch
+      ? JSON.parse(JSON.stringify(baseBranch.rawTokens || {}))
+      : JSON.parse(JSON.stringify(rawTokens || {}));
+    const initialThemes = baseBranch
+      ? JSON.parse(JSON.stringify(baseBranch.themeGroups || []))
+      : JSON.parse(JSON.stringify(themeGroups || []));
+
+    const newBranch: ProjectBranch = {
+      id: `branch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: cleanName,
+      title: title || cleanName,
+      description: description || "",
+      isDefault: false,
+      basedOn: baseBranchName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: {
+        uid: currentUser?.uid,
+        name: currentUser?.displayName || currentUser?.email || "Team Member",
+        email: currentUser?.email || "user@example.com",
+        avatarUrl: currentUser?.avatarUrl,
+      },
+      rawTokens: initialRaw,
+      themeGroups: initialThemes,
+      commits: [
+        {
+          id: `commit_${Date.now()}`,
+          sha: "br-" + Math.random().toString(36).substring(2, 8),
+          message: `Branch created from ${baseBranchName}`,
+          timestamp: new Date().toISOString(),
+          author: {
+            uid: currentUser?.uid,
+            name: currentUser?.displayName || currentUser?.email || "Team Member",
+            email: currentUser?.email || "user@example.com",
+            avatarUrl: currentUser?.avatarUrl,
+          },
+          totalAdded: 0,
+          totalModified: 0,
+          totalDeleted: 0,
+          changes: [],
+        },
+      ],
+      comments: [],
+    };
+
+    const updatedBranches = [...branches, newBranch];
+    set({
+      branches: updatedBranches,
+      activeBranch: cleanName,
+      rawTokens: initialRaw,
+      originalTokens: JSON.parse(JSON.stringify(initialRaw)),
+      isDirty: false,
+      themeGroups: initialThemes,
+      activeThemeGroupId: initialThemes[0]?.id || "",
+      activeThemeOptionId: initialThemes[0]?.options?.[0]?.id || "",
+    });
+
+    const resolved = flattenAndResolveTokens(initialRaw, get().activeSet || "ALL");
+    set({ resolvedTokens: resolved });
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, cleanName).catch(console.error);
+      saveProjectTokens(currentOrg.id, currentProject.id, initialRaw, initialThemes).catch(console.error);
+      get().logUserActivity({
+        type: "git",
+        title: `Created branch "${cleanName}"`,
+        description: `Created branch "${title}" based on "${baseBranchName}".`,
+      });
+    }
+
+    get().addToast({
+      type: "success",
+      title: "Branch Created",
+      message: `Switched to newly created branch "${cleanName}".`,
+    });
+
+    return newBranch;
+  },
+
+  switchBranchAction: async (targetBranchName: string) => {
+    const { branches, activeBranch, rawTokens, themeGroups, currentOrg, currentProject, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    if (hasSyncProvider) {
+      get().setCredentials({ branch: targetBranchName });
+      await get().fetchLiveTokens();
+      return;
+    }
+    if (targetBranchName === activeBranch) return;
+
+    const targetBranch = branches.find((b) => b.name === targetBranchName);
+    if (!targetBranch) {
+      get().addToast({
+        type: "error",
+        title: "Switch Branch Failed",
+        message: `Branch "${targetBranchName}" was not found.`,
+      });
+      return;
+    }
+
+    // Save working draft of current branch if dirty
+    const updatedBranches = branches.map((b) =>
+      b.name === activeBranch
+        ? {
+            ...b,
+            rawTokens: rawTokens,
+            themeGroups: themeGroups,
+            updatedAt: new Date().toISOString(),
+          }
+        : b
+    );
+
+    const targetRaw = targetBranch.rawTokens || {};
+    const targetThemes = targetBranch.themeGroups || extractThemeGroups(targetRaw);
+
+    set({
+      branches: updatedBranches,
+      activeBranch: targetBranchName,
+      rawTokens: targetRaw,
+      originalTokens: JSON.parse(JSON.stringify(targetRaw)),
+      isDirty: false,
+      themeGroups: targetThemes,
+      activeThemeGroupId: targetThemes[0]?.id || "",
+      activeThemeOptionId: targetThemes[0]?.options?.[0]?.id || "",
+    });
+
+    const resolved = flattenAndResolveTokens(targetRaw, get().activeSet || "ALL");
+    set({ resolvedTokens: resolved });
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, targetBranchName).catch(console.error);
+      saveProjectTokens(currentOrg.id, currentProject.id, targetRaw, targetThemes).catch(console.error);
+      get().logUserActivity({
+        type: "git",
+        title: `Switched to branch "${targetBranchName}"`,
+        description: `Active branch is now "${targetBranchName}".`,
+      });
+    }
+
+    get().addToast({
+      type: "info",
+      title: "Active Branch Switched",
+      message: `Now working on branch "${targetBranchName}".`,
+    });
+  },
+
+  deleteBranchAction: async (branchName: string) => {
+    const { branches, activeBranch, currentOrg, currentProject, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    if (hasSyncProvider) {
+      get().addToast({
+        type: "info",
+        title: "Sync Provider Active",
+        message: "Branch deletion must be managed directly in your Git repository.",
+      });
+      return;
+    }
+    const target = branches.find((b) => b.name === branchName);
+    if (!target) return;
+    if (target.isDefault || branchName === "main") {
+      get().addToast({
+        type: "error",
+        title: "Cannot Delete Default Branch",
+        message: "The default main branch cannot be deleted.",
+      });
+      return;
+    }
+
+    const filtered = branches.filter((b) => b.name !== branchName);
+    let newActive = activeBranch;
+    if (activeBranch === branchName) {
+      newActive = "main";
+      const mainBranch = filtered.find((b) => b.name === "main") || filtered[0];
+      if (mainBranch) {
+        set({
+          activeBranch: mainBranch.name,
+          rawTokens: mainBranch.rawTokens || {},
+          originalTokens: JSON.parse(JSON.stringify(mainBranch.rawTokens || {})),
+          isDirty: false,
+          themeGroups: mainBranch.themeGroups || [],
+        });
+        const resolved = flattenAndResolveTokens(mainBranch.rawTokens || {}, get().activeSet || "ALL");
+        set({ resolvedTokens: resolved });
+      }
+    }
+
+    set({ branches: filtered });
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, filtered, newActive).catch(console.error);
+      get().logUserActivity({
+        type: "git",
+        title: `Deleted branch "${branchName}"`,
+        description: `Branch "${target.title || branchName}" was deleted.`,
+      });
+    }
+
+    get().addToast({
+      type: "success",
+      title: "Branch Deleted",
+      message: `Branch "${branchName}" has been removed.`,
+    });
+  },
+
+  mergeBranchAction: async (sourceBranchName: string, targetBranchName: string) => {
+    const { branches, currentOrg, currentProject, currentUser, activeBranch, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    if (hasSyncProvider) {
+      get().addToast({
+        type: "info",
+        title: "Sync Provider Active",
+        message: "Branch merges are managed via Pull Requests in your Git repository.",
+      });
+      return;
+    }
+    const source = branches.find((b) => b.name === sourceBranchName);
+    const target = branches.find((b) => b.name === targetBranchName);
+    if (!source || !target) throw new Error("Branch not found");
+
+    // Deep merge source rawTokens into target rawTokens
+    const mergedTokens = {
+      ...(target.rawTokens || {}),
+      ...(source.rawTokens || {}),
+    };
+
+    const mergeCommit: BranchCommit = {
+      id: `commit_merge_${Date.now()}`,
+      sha: "merge-" + Math.random().toString(36).substring(2, 8),
+      message: `Merge branch '${sourceBranchName}' into '${targetBranchName}'`,
+      timestamp: new Date().toISOString(),
+      author: {
+        uid: currentUser?.uid,
+        name: currentUser?.displayName || currentUser?.email || "Team Member",
+        email: currentUser?.email || "user@example.com",
+        avatarUrl: currentUser?.avatarUrl,
+      },
+      totalAdded: 0,
+      totalModified: Object.keys(source.rawTokens || {}).length,
+      totalDeleted: 0,
+      changes: [
+        {
+          id: `chg_merge_${Date.now()}`,
+          category: "tokens",
+          action: "modified",
+          key: `Merged ${sourceBranchName}`,
+          label: "Branch Merge",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    const updatedBranches = branches.map((b) => {
+      if (b.name === targetBranchName) {
+        return {
+          ...b,
+          rawTokens: mergedTokens,
+          themeGroups: source.themeGroups || b.themeGroups,
+          updatedAt: new Date().toISOString(),
+          commits: [mergeCommit, ...(b.commits || [])],
+        };
+      }
+      return b;
+    });
+
+    set({ branches: updatedBranches });
+
+    if (activeBranch === targetBranchName) {
+      set({
+        rawTokens: mergedTokens,
+        originalTokens: JSON.parse(JSON.stringify(mergedTokens)),
+        isDirty: false,
+        themeGroups: source.themeGroups || target.themeGroups,
+      });
+      const resolved = flattenAndResolveTokens(mergedTokens, get().activeSet || "ALL");
+      set({ resolvedTokens: resolved });
+    }
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(console.error);
+      saveProjectTokens(currentOrg.id, currentProject.id, mergedTokens, source.themeGroups || target.themeGroups).catch(console.error);
+      get().logUserActivity({
+        type: "git",
+        title: `Merged "${sourceBranchName}" into "${targetBranchName}"`,
+        description: `Successfully merged tokens from ${sourceBranchName} to ${targetBranchName}.`,
+      });
+    }
+
+    get().addToast({
+      type: "success",
+      title: "Branch Merged",
+      message: `Successfully merged '${sourceBranchName}' into '${targetBranchName}'.`,
+    });
+  },
+
+  commitToActiveBranchAction: async (message: string) => {
+    const { branches, activeBranch, rawTokens, currentOrg, currentProject, currentUser, getDiffSummary, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    if (hasSyncProvider) {
+      return;
+    }
+    const diff = getDiffSummary();
+    const totalAdded = diff.totalAdded;
+    const totalModified = diff.totalModified;
+    const totalDeleted = diff.totalDeleted;
+
+    const changes: BranchChangeItem[] = [];
+    diff.files.forEach((f) => {
+      f.tokens?.forEach((t) => {
+        changes.push({
+          id: `chg_${Math.random().toString(36).substring(2, 9)}`,
+          category: "tokens",
+          action: t.changeType,
+          key: t.key,
+          label: t.name || t.key,
+          oldValue: t.oldValue,
+          newValue: t.newValue,
+          timestamp: new Date().toISOString(),
+        });
+      });
+    });
+
+    const newCommit: BranchCommit = {
+      id: `commit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sha: Math.random().toString(36).substring(2, 10),
+      message: message || `Update tokens on branch ${activeBranch}`,
+      timestamp: new Date().toISOString(),
+      author: {
+        uid: currentUser?.uid,
+        name: currentUser?.displayName || currentUser?.email || "Team Member",
+        email: currentUser?.email || "user@example.com",
+        avatarUrl: currentUser?.avatarUrl,
+      },
+      totalAdded,
+      totalModified,
+      totalDeleted,
+      changes,
+    };
+
+    const updatedBranches = branches.map((b) =>
+      b.name === activeBranch
+        ? {
+            ...b,
+            rawTokens,
+            updatedAt: new Date().toISOString(),
+            commits: [newCommit, ...(b.commits || [])],
+          }
+        : b
+    );
+
+    set({
+      branches: updatedBranches,
+      originalTokens: JSON.parse(JSON.stringify(rawTokens)),
+      isDirty: false,
+    });
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(console.error);
+      saveProjectTokens(currentOrg.id, currentProject.id, rawTokens, get().themeGroups).catch(console.error);
+      get().logUserActivity({
+        type: "git",
+        title: `Committed to branch "${activeBranch}"`,
+        description: message || `Committed ${totalAdded + totalModified + totalDeleted} changes.`,
+      });
+    }
+
+    get().addToast({
+      type: "success",
+      title: "Committed to Branch",
+      message: `Changes saved to branch "${activeBranch}".`,
+    });
+  },
+
+  addBranchCommentAction: async (branchName: string, text: string) => {
+    const { branches, currentOrg, currentProject, currentUser } = get();
+    if (!text.trim()) return;
+
+    const newComment: BranchComment = {
+      id: `comment_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+      author: {
+        uid: currentUser?.uid,
+        name: currentUser?.displayName || currentUser?.email || "Team Member",
+        email: currentUser?.email || "user@example.com",
+        avatarUrl: currentUser?.avatarUrl,
+      },
+      resolved: false,
+    };
+
+    const updatedBranches = branches.map((b) =>
+      b.name === branchName
+        ? {
+            ...b,
+            comments: [...(b.comments || []), newComment],
+          }
+        : b
+    );
+
+    set({ branches: updatedBranches });
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches).catch(console.error);
+    }
+  },
+
+  resolveBranchCommentAction: async (branchName: string, commentId: string) => {
+    const { branches, currentOrg, currentProject, currentUser } = get();
+    const updatedBranches = branches.map((b) => {
+      if (b.name !== branchName) return b;
+      const updatedComments = (b.comments || []).map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              resolved: !c.resolved,
+              resolvedAt: !c.resolved ? new Date().toISOString() : undefined,
+              resolvedBy: !c.resolved
+                ? {
+                    name: currentUser?.displayName || currentUser?.email || "Team Member",
+                    email: currentUser?.email || "user@example.com",
+                  }
+                : undefined,
+            }
+          : c
+      );
+      return { ...b, comments: updatedComments };
+    });
+
+    set({ branches: updatedBranches });
+
+    if (currentOrg && currentProject) {
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches).catch(console.error);
     }
   },
 };
