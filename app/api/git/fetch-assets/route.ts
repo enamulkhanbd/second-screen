@@ -99,6 +99,13 @@ function parseIconMeta(
     }
   }
 
+  // If path still starts with a format container folder (e.g. svg/ or svgs/), strip it
+  if (normalized.toLowerCase().startsWith("svg/")) {
+    normalized = normalized.slice(4);
+  } else if (normalized.toLowerCase().startsWith("svgs/")) {
+    normalized = normalized.slice(5);
+  }
+
   const parts = normalized.split("/");
   const fileName = parts.pop() || "";
   const stem = fileName.replace(/\.svg$/i, "");
@@ -177,11 +184,17 @@ export async function POST(req: NextRequest) {
       const treeData = await treeRes.json();
       const treeItems: Array<{ path: string; type: string }> = treeData.tree || [];
 
-      // Check if metadata.json exists
+      // Check if metadata.json exists (inside cleanFolder, in its parent directory e.g. assets/icons for assets/icons/svg, or root)
+      const parentFolder = cleanFolder.includes("/") ? cleanFolder.split("/").slice(0, -1).join("/") : "";
       const metadataItem = treeItems.find((item) => {
         const p = item.path.toLowerCase();
         if (cleanFolder) {
-          return p === `${cleanFolder}/metadata.json` || p === `${cleanFolder}/$metadata.json` || p === "metadata.json";
+          return (
+            p === `${cleanFolder}/metadata.json` ||
+            p === `${cleanFolder}/$metadata.json` ||
+            (parentFolder && (p === `${parentFolder}/metadata.json` || p === `${parentFolder}/$metadata.json`)) ||
+            p.endsWith("metadata.json")
+          );
         }
         return p.endsWith("metadata.json");
       });
@@ -343,7 +356,20 @@ export async function POST(req: NextRequest) {
       const treeData = await treeRes.json();
       const items: Array<{ path: string; isFolder?: boolean; url?: string }> = treeData.value || [];
 
-      const metaItem = items.find((i) => !i.isFolder && i.path?.toLowerCase().endsWith("metadata.json"));
+      const parentFolder = cleanFolder.includes("/") ? cleanFolder.split("/").slice(0, -1).join("/") : "";
+      const metaItem = items.find((i) => {
+        if (i.isFolder || !i.path) return false;
+        const p = i.path.replace(/^\//, "").toLowerCase();
+        if (cleanFolder) {
+          return (
+            p === `${cleanFolder}/metadata.json` ||
+            p === `${cleanFolder}/$metadata.json` ||
+            (parentFolder && (p === `${parentFolder}/metadata.json` || p === `${parentFolder}/$metadata.json`)) ||
+            p.endsWith("metadata.json")
+          );
+        }
+        return p.endsWith("metadata.json");
+      });
       if (metaItem) {
         try {
           const metaUrl = `https://dev.azure.com/${azureOrg}/${azureProj}/_apis/git/repositories/${repo}/items?path=${encodeURIComponent(
