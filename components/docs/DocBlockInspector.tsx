@@ -86,9 +86,9 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
     selectedBlock?.type === "tokens-table";
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border/70 bg-card/60 backdrop-blur-xl">
+    <aside className="flex h-full w-76 shrink-0 flex-col border-l border-border bg-sidebar/50 dark:bg-[#0c0c10] select-none text-xs font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+      <div className="p-3 border-b border-border flex items-center justify-between min-h-12">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 text-primary" />
           <span className="text-xs font-bold uppercase tracking-wider text-foreground">

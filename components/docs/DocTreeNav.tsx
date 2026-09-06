@@ -84,12 +84,12 @@ export const DocTreeNav: React.FC<DocTreeNavProps> = ({
   };
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border/70 bg-card/40 backdrop-blur-xl">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-sidebar/50 dark:bg-[#0c0c10] select-none text-xs font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+      <div className="p-3 border-b border-border flex items-center justify-between min-h-12">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" />
-          <span className="text-xs font-bold tracking-tight text-foreground">
+          <span className="text-xs font-bold text-foreground">
             Documentation
           </span>
         </div>

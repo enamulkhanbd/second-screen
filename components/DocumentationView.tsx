@@ -19,8 +19,11 @@ import {
   Share2,
   Sparkles,
   LayoutGrid,
+  FolderGit2,
+  Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const DocumentationView: React.FC = () => {
   const {
@@ -30,6 +33,7 @@ export const DocumentationView: React.FC = () => {
     isDocEditing,
     currentProject,
     currentOrg,
+    credentials,
     resolvedTokens,
     figmaResolvedVariables,
     setActiveDocPageId,
@@ -125,107 +129,138 @@ export const DocumentationView: React.FC = () => {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
-      {/* Top Action & Navigation Header */}
-      <header className="flex h-13 shrink-0 items-center justify-between border-b border-border/70 bg-card/40 px-4 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <BookOpen className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-bold leading-tight tracking-tight">
-                {currentProject?.name || "Project"} Living Docs
-              </span>
-              <span className="text-[10px] text-muted-foreground leading-none">
-                {currentOrg?.name || "Workspace"}
-              </span>
-            </div>
-          </div>
-
-          <div className="h-4 w-px bg-border/60 mx-1" />
-
-          {/* Overview Tab Button */}
-          <button
-            type="button"
-            onClick={() => setIsViewingOverview(true)}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-              isViewingOverview
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      {/* Top Action & Navigation Header (Aligned with ThemeMatrix & other studio tabs) */}
+      <header className="min-h-12 py-2 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/20 flex items-center justify-between gap-3 flex-shrink-0 transition-colors">
+        {/* Left: Current Page / Overview Title & Context Indicator */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="font-semibold text-sm text-foreground truncate">
+            {isViewingOverview
+              ? "Documentation Directory"
+              : activePage?.title || "Living Documentation"}
+          </span>
+          <span
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+              activeDoc.isPublishedGlobally ? "bg-emerald-500" : "bg-blue-500"
             }`}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            <span>Overview</span>
-          </button>
+            title={activeDoc.isPublishedGlobally ? "Published Live" : "Draft Mode"}
+          />
+          {activePage?.folderId && (
+            <span className="hidden sm:inline-block text-xs text-muted-foreground font-mono">
+              / {activeDoc.folders.find((f) => f.id === activePage.folderId)?.title || "Section"}
+            </span>
+          )}
+          {activeDoc.isPublishedGlobally ? (
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              Live
+            </span>
+          ) : (
+            <span className="hidden md:inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono text-muted-foreground border border-border/60">
+              Draft
+            </span>
+          )}
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-2">
-          {/* Edit / Preview Toggle */}
-          <div className="flex items-center rounded-xl border border-border/60 bg-muted/40 p-0.5 text-xs font-medium">
-            <button
-              type="button"
-              onClick={() => setIsDocEditing(false)}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all ${
-                !isDocEditing
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>Preview</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsDocEditing(true)}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all ${
-                isDocEditing
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              <span>Edit</span>
-            </button>
-          </div>
+        {/* Right Actions: Repo Pill, Overview Toggle, Edit/Preview Switch, Export, Publish & Inspector */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Sync Provider / Project Repo Badge (matching other tabs) */}
+          {credentials?.repo ? (
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
+              <FolderGit2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="font-semibold text-foreground truncate max-w-[130px]">
+                {credentials.repo}
+              </span>
+              <span className="text-[10px]">@{credentials.branch || "main"}</span>
+            </div>
+          ) : currentProject ? (
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
+              <FolderGit2 className="w-3.5 h-3.5 text-primary" />
+              <span className="font-semibold text-foreground truncate max-w-[130px]">
+                {currentProject.name}
+              </span>
+            </div>
+          ) : null}
 
-          {/* Markdown Export */}
-          <button
-            type="button"
-            onClick={handleExportMarkdown}
-            className="flex items-center gap-1.5 rounded-xl border border-border/60 bg-background/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            title="Export page as markdown"
+          {/* Overview Directory Switcher Button */}
+          <Button
+            variant={isViewingOverview ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setIsViewingOverview(!isViewingOverview)}
+            className="h-8 text-xs gap-1.5 font-medium"
+            title="Toggle Documentation Overview"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Export</span>
-          </button>
+            <LayoutGrid className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="hidden sm:inline">Overview</span>
+          </Button>
 
-          {/* Share & Publish Modal Button */}
-          <button
-            type="button"
+          {/* Edit / Preview Segmented Switch */}
+          {!isViewingOverview && activeDoc.pages.length > 0 && (
+            <div className="flex items-center rounded-md border border-border bg-background p-0.5">
+              <button
+                type="button"
+                onClick={() => setIsDocEditing(false)}
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+                  !isDocEditing
+                    ? "bg-muted text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Preview</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDocEditing(true)}
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+                  isDocEditing
+                    ? "bg-muted text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Edit</span>
+              </button>
+            </div>
+          )}
+
+          {/* Markdown Export Button */}
+          {activePage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportMarkdown}
+              className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              title="Export page as markdown"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Export</span>
+            </Button>
+          )}
+
+          {/* Solid Green CTA Button matching `+ Add option` in other tabs */}
+          <Button
+            size="sm"
             onClick={() => setPublishModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+            className="gap-1.5 h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer"
           >
-            <Globe className="h-3.5 w-3.5" />
+            <Globe className="w-3.5 h-3.5" />
             <span>Publish</span>
             {activeDoc.isPublishedGlobally && (
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             )}
-          </button>
+          </Button>
 
-          {/* Inspector Toggle */}
-          <button
-            type="button"
-            onClick={() => setInspectorOpen((prev) => !prev)}
-            className={`rounded-xl border p-1.5 transition-colors ${
-              inspectorOpen
-                ? "border-primary/50 bg-primary/10 text-primary"
-                : "border-border/60 text-muted-foreground hover:bg-muted"
-            }`}
-            title="Toggle Inspector"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </button>
+          {/* Inspector Drawer Toggle */}
+          {!isViewingOverview && activeDoc.pages.length > 0 && (
+            <Button
+              variant={inspectorOpen ? "secondary" : "outline"}
+              size="icon-sm"
+              onClick={() => setInspectorOpen((prev) => !prev)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Toggle Inspector Drawer"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       </header>
 
