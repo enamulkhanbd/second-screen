@@ -51,6 +51,7 @@ import {
   List,
   ChevronsUpDown,
   ChevronsDownUp,
+  PanelLeftOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ import {
 
 interface ThemeMatrixProps {
   onOpenSettings?: () => void;
+  onOpenContextNavigation?: () => void;
 }
 
 const CATEGORY_CONFIG: Record<
@@ -144,7 +146,7 @@ const CATEGORY_CONFIG: Record<
   },
 };
 
-export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
+export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpenContextNavigation }) => {
   const {
     rawTokens,
     themeGroups,
@@ -356,7 +358,9 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       >
         {/* Token Key Name + Type Icon */}
         <td
-          className="py-2.5 px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed"
+          className={`sticky left-0 z-10 py-2.5 px-3 sm:px-4 xl:px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed shadow-[2px_0_0_hsl(var(--border)/0.45)] ${
+            isHighlighted ? "bg-primary/15" : "bg-background group-hover:bg-muted/40"
+          }`}
           style={{ paddingLeft: isGrouped ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
         >
           <div className="flex items-center gap-2.5">
@@ -382,7 +386,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
           const cellData = row.cells[option.name];
 
           return (
-            <td key={option.id} className="py-2 px-6 align-middle">
+            <td key={option.id} className="py-2 px-3 sm:px-4 xl:px-6 align-middle">
               <MatrixPillCell
                 cellData={cellData}
                 rawTokens={rawTokens}
@@ -397,7 +401,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         })}
 
         {/* Far Right Action Menu Column */}
-        <td className="py-2 px-4 text-right align-middle w-12">
+        <td className="py-2 px-3 sm:px-4 xl:px-6 text-right align-middle w-12">
           <div className="flex items-center justify-end">
             <MatrixRowActionMenu
               row={row}
@@ -452,8 +456,8 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         >
           <td
             colSpan={totalCols}
-            className="py-2.5 px-6 align-middle"
-            style={{ paddingLeft: `${Math.max(20, (node.level - 1) * 20 + 20)}px` }}
+            className="py-2.5 px-3 sm:px-4 xl:px-6 align-middle"
+            style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
@@ -540,10 +544,22 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden select-none">
       {/* Top Controls Sub-Header Bar */}
-      <div className="h-12 px-6 border-b border-border bg-muted/20 flex items-center justify-between flex-shrink-0 transition-colors">
+      <div className="min-h-12 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/20 flex items-center justify-between gap-3 flex-shrink-0 transition-colors">
         {/* Left: Active Theme Group Badge & Actions */}
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm text-foreground">{typeof activeGroup?.name === "string" ? activeGroup.name : String(activeGroup?.name || "Theme")}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          {onOpenContextNavigation && (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={onOpenContextNavigation}
+              className="xl:hidden h-8 w-8 flex-shrink-0"
+              aria-label="Open theme groups"
+              title="Open theme groups"
+            >
+              <PanelLeftOpen className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          <span className="font-semibold text-sm text-foreground truncate">{typeof activeGroup?.name === "string" ? activeGroup.name : String(activeGroup?.name || "Theme")}</span>
           <span
             className="w-2.5 h-2.5 rounded-full"
             style={{ backgroundColor: activeGroup?.color || "#7c3aed" }}
@@ -640,10 +656,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         </div>
 
         {/* Right: Search Filter & + Add option Button */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Sync Provider Badge */}
           {credentials.repo && (
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
               <FolderGit2 className="w-3.5 h-3.5 text-primary" />
               <span className="font-semibold text-foreground truncate max-w-[120px]">{credentials.repo}</span>
               <span className="text-[10px]">@{credentials.branch || "main"}</span>
@@ -657,7 +673,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               placeholder="Filter tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs font-mono w-52"
+              className="pl-8 h-8 text-xs font-mono w-36 lg:w-44 xl:w-52"
             />
           </div>
 
@@ -668,17 +684,17 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
             title={`Add option to ${activeGroup?.name || "Theme"}`}
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add option</span>
+            <span className="hidden sm:inline">Add option</span>
           </Button>
         </div>
       </div>
 
       {/* Sync Provider Notification Banner when unlinked */}
       {!credentials.repo && (
-        <div className="px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="px-3 sm:px-4 xl:px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between gap-3 text-xs text-muted-foreground flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
             <FolderGit2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-            <span>
+            <span className="truncate">
               Connect a <strong>Git Sync Provider</strong> (GitHub, GitLab, Azure DevOps, Bitbucket) to version and sync multi-theme tokens with your repository.
             </span>
           </div>
@@ -687,7 +703,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
               variant="outline"
               size="sm"
               onClick={onOpenSettings}
-              className="h-6 text-[11px] px-2 font-medium"
+              className="h-6 text-[11px] px-2 font-medium flex-shrink-0"
             >
               Connect Provider
             </Button>
@@ -696,9 +712,9 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       )}
 
       {/* Minimal Token Type Filter, Grouping Switcher & Actions Sub-Bar */}
-      <div className="h-11 px-6 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
+      <div className="h-11 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/30 flex items-center justify-between gap-3 flex-shrink-0 select-none overflow-x-auto overflow-y-hidden scrollbar-none transition-colors">
         {/* Left: Minimal Type Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 flex-shrink-0">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Type:</span>
@@ -759,7 +775,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
         </div>
 
         {/* Right: Grouping Level Dropdown Selector & Expand/Collapse Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {groupDepth !== 1 && (
             <div className="flex items-center gap-0.5">
               <Button
@@ -890,24 +906,24 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
       </div>
 
       {/* Main Table Matrix */}
-      <div className="flex-1 overflow-auto bg-background transition-colors">
+      <div className="flex-1 min-h-0 overflow-auto bg-background transition-colors">
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center select-none">
             <p className="text-base font-semibold text-foreground">No matching tokens found</p>
             <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search filter or selected token type.</p>
           </div>
         ) : (
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full min-w-[960px] text-left border-collapse text-xs">
             {/* Table Header: TOKEN | OPTION_A | OPTION_B | (ACTIONS) */}
             <thead className="sticky top-0 z-20 bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider shadow-xs backdrop-blur-md">
               <tr>
-                <th className="py-3 px-6 w-1/3 font-bold uppercase text-muted-foreground">
+                <th className="sticky left-0 z-30 py-3 px-3 sm:px-4 xl:px-6 w-1/3 min-w-[240px] font-bold uppercase text-muted-foreground bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">
                   TOKEN {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                 </th>
                 {activeGroup?.options.map((option) => (
                   <th
                     key={option.id}
-                    className="py-3 px-6 font-bold uppercase text-foreground"
+                    className="py-3 px-3 sm:px-4 xl:px-6 font-bold uppercase text-foreground"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{typeof option.name === "string" ? option.name : String(option.name || "")}</span>
@@ -915,7 +931,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
                     </div>
                   </th>
                 ))}
-                <th className="py-3 px-4 w-12 text-right"></th>
+                <th className="py-3 px-3 sm:px-4 xl:px-6 w-12 text-right"></th>
               </tr>
             </thead>
 
@@ -933,7 +949,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings }) => {
 
       {/* Pagination & Token Count Status Bar */}
       {totalFilteredCount > 0 && (
-        <div className="h-10 px-6 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
+        <div className="h-10 px-3 sm:px-4 xl:px-6 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0 overflow-x-auto scrollbar-none">
           <div className="flex items-center gap-3">
             <span>
               Showing <strong className="text-foreground font-semibold font-mono">{displayRows.length}</strong> of{" "}

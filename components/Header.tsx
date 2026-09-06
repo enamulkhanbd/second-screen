@@ -23,6 +23,7 @@ import {
   Sparkles,
   Activity,
   Rocket,
+  PanelLeftOpen,
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
@@ -70,9 +71,10 @@ import {
 
 interface HeaderProps {
   onOpenSettings: () => void;
+  onOpenNavigation?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation }) => {
   const {
     credentials,
     setCredentials,
@@ -465,6 +467,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 text-xs select-none transition-colors">
         {/* Left: Brand + Breadcrumbs */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {onOpenNavigation && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onOpenNavigation}
+              className="lg:hidden h-8 w-8 flex-shrink-0"
+              aria-label="Open navigation"
+              title="Open navigation"
+            >
+              <PanelLeftOpen className="w-4 h-4" />
+            </Button>
+          )}
           {/* Tokens Platform Logo & Brand -> Redirects to Dashboard */}
           <button
             onClick={() => setSidebarTab("dashboard")}

@@ -28,10 +28,13 @@ import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWizardDismissed, setIsWizardDismissed] = useState(false);
+  const [isPrimaryNavOpen, setIsPrimaryNavOpen] = useState(false);
+  const [isContextNavOpen, setIsContextNavOpen] = useState(false);
   const {
     initializeFromStorage,
     viewMode,
@@ -48,6 +51,11 @@ export default function Home() {
     // Restore tokens, theme matrix, and credentials securely from client storage on reload
     initializeFromStorage();
   }, [initializeFromStorage]);
+
+  useEffect(() => {
+    setIsPrimaryNavOpen(false);
+    setIsContextNavOpen(false);
+  }, [sidebarTab]);
 
   const hasTokens = Object.keys(rawTokens).length > 0;
   const isGitConnected = Boolean(credentials.owner && credentials.repo);
@@ -89,15 +97,54 @@ export default function Home() {
   return (
     <main className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
       {/* Top Header: Logo, Clean Status, Theme Switcher & Auth */}
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} />
+      <Header
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenNavigation={() => setIsPrimaryNavOpen(true)}
+      />
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
         {/* 1. Primary Navigation Sidebar */}
-        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+        <div className="hidden lg:flex h-full">
+          <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+        </div>
+
+        <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
+          <SheetContent
+            side="left"
+            className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
+          >
+            <SheetTitle className="sr-only">Primary navigation</SheetTitle>
+            <Sidebar
+              mode="drawer"
+              className="border-r-0 pt-10"
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
+          </SheetContent>
+        </Sheet>
 
         {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
-        {(sidebarTab === "tokens" || sidebarTab === "themes") && <SecondarySidebar />}
+        {(sidebarTab === "tokens" || sidebarTab === "themes") && (
+          <>
+            <div className="hidden xl:flex h-full">
+              <SecondarySidebar />
+            </div>
+            <Sheet open={isContextNavOpen} onOpenChange={setIsContextNavOpen}>
+              <SheetContent
+                side="left"
+                className="!w-[min(20rem,calc(100vw-2rem))] p-0 xl:hidden"
+              >
+                <SheetTitle className="sr-only">
+                  {sidebarTab === "tokens" ? "Token sets" : "Theme groups"}
+                </SheetTitle>
+                <SecondarySidebar
+                  className="w-full border-r-0 pt-10"
+                  onItemSelected={() => setIsContextNavOpen(false)}
+                />
+              </SheetContent>
+            </Sheet>
+          </>
+        )}
 
         {/* 3. Main Workspace Page Views */}
         {sidebarTab === "dashboard" || (sidebarTab as string) === "workspaces" ? (
@@ -127,11 +174,17 @@ export default function Home() {
         ) : sidebarTab === "changelog" ? (
           <SystemChangelogView />
         ) : sidebarTab === "tokens" ? (
-          <TokensWorkspace onOpenSettings={() => setIsSettingsOpen(true)} />
+          <TokensWorkspace
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenContextNavigation={() => setIsContextNavOpen(true)}
+          />
         ) : viewMode === "flow" ? (
           <TokenFlow />
         ) : (
-          <ThemeMatrix onOpenSettings={() => setIsSettingsOpen(true)} />
+          <ThemeMatrix
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenContextNavigation={() => setIsContextNavOpen(true)}
+          />
         )}
       </div>
 

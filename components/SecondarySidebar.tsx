@@ -19,8 +19,14 @@ import { AddSetModal } from "@/components/AddSetModal";
 import { buildSetFolderTree, getValidTokenSetNames, SetTreeNode } from "@/utils/themeHelpers";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-export const SecondarySidebar: React.FC = () => {
+interface SecondarySidebarProps {
+  className?: string;
+  onItemSelected?: () => void;
+}
+
+export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, onItemSelected }) => {
   const {
     sidebarTab,
     rawTokens,
@@ -120,7 +126,10 @@ export const SecondarySidebar: React.FC = () => {
     return (
       <button
         key={node.id}
-        onClick={() => setActiveSet(node.fullPath)}
+        onClick={() => {
+          setActiveSet(node.fullPath);
+          onItemSelected?.();
+        }}
         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
           isSelected
             ? "bg-primary/10 text-primary font-semibold shadow-xs"
@@ -144,7 +153,7 @@ export const SecondarySidebar: React.FC = () => {
   }
 
   return (
-    <aside className="w-60 flex-shrink-0 border-r border-border bg-sidebar/50 dark:bg-[#0c0c10] flex flex-col h-full select-none text-xs font-sans">
+    <aside className={cn("w-60 flex-shrink-0 border-r border-border bg-sidebar/50 dark:bg-[#0c0c10] flex flex-col h-full select-none text-xs font-sans", className)}>
       {/* ================= TOKENS SECONDARY SIDEBAR ================= */}
       {sidebarTab === "tokens" && (
         <>
@@ -234,7 +243,10 @@ export const SecondarySidebar: React.FC = () => {
               return (
                 <div key={grp.id} className="space-y-1.5">
                   <div
-                    onClick={() => setActiveThemeGroup(grp.id)}
+                    onClick={() => {
+                      setActiveThemeGroup(grp.id);
+                      onItemSelected?.();
+                    }}
                     className={`flex items-center justify-between text-xs font-bold rounded-md px-1.5 py-1 cursor-pointer transition-colors ${
                       isGroupActive ? "bg-muted/70 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     }`}
@@ -271,6 +283,7 @@ export const SecondarySidebar: React.FC = () => {
                           onClick={() => {
                             setActiveThemeGroup(grp.id);
                             setActiveThemeOption(opt.id);
+                            onItemSelected?.();
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
                             isSelected

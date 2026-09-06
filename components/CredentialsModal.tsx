@@ -208,7 +208,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
               {/* Provider Selector */}
               <div className="space-y-1.5">
                 <Label>Git Provider</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => handleProviderChange("github")}
@@ -251,7 +251,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="gh-branch">Branch</Label>
                       <Input
@@ -292,7 +292,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="az-org">Azure Organization</Label>
                       <Input
@@ -319,7 +319,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="az-repo">Repository Name</Label>
                       <Input

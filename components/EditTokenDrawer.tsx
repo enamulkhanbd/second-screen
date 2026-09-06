@@ -200,7 +200,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Font Weight</Label>
                   <TokenAliasInput
@@ -226,7 +226,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Line Height</Label>
                   <TokenAliasInput

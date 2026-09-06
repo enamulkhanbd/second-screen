@@ -266,7 +266,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-background overflow-y-auto select-none">
       {/* Top Workspace Header & Actions Banner */}
-      <div className="border-b border-border bg-card/60 backdrop-blur-md px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0 transition-colors">
+      <div className="border-b border-border bg-card/60 backdrop-blur-md px-4 lg:px-6 2xl:px-8 py-5 lg:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0 transition-colors">
         {/* Left: Active Workspace Brand & Switcher */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md flex-shrink-0">
@@ -383,7 +383,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
       </div>
 
       {/* Main Workspace Body */}
-      <div className="flex-1 p-8 space-y-6 max-w-7xl w-full mx-auto">
+      <div className="flex-1 p-4 lg:p-6 2xl:p-8 space-y-6 max-w-7xl w-full mx-auto">
         {/* Workspace Summary Stats & Search Toolbar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -439,7 +439,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onOpenSettings }) 
           </div>
         ) : (
           /* Responsive Projects Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredProjects.map((proj) => {
               const hasGit = Boolean(proj.gitConfig?.repo);
               const hasFigma = Boolean(

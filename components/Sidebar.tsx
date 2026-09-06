@@ -46,12 +46,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   onOpenSettings?: () => void;
+  mode?: "docked" | "drawer";
+  className?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked", className }) => {
   const {
     currentUser,
     setCurrentUser,
@@ -75,7 +78,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   } = useTokenStore();
 
   const [showCreateProj, setShowCreateProj] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsedState, setIsCollapsed] = useState(false);
+  const isCollapsed = mode === "docked" && isCollapsedState;
 
   const userRole = getCurrentUserRole();
   const roleDef = ROLE_DEFINITIONS[userRole];
@@ -101,9 +105,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
 
   return (
     <aside
-      className={`flex-shrink-0 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col h-full select-none text-xs font-sans transition-all duration-200 ${
-        isCollapsed ? "w-16" : "w-[18rem]"
-      }`}
+      className={cn(`flex-shrink-0 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col h-full select-none text-xs font-sans transition-all duration-200 ${
+        mode === "drawer" ? "w-full" : isCollapsed ? "w-16" : "w-[18rem]"
+      }`, className)}
     >
       {/* 1. Header: Workspace & Project Selector + Collapse/Expand Toggle */}
       <div className="p-2.5 border-b border-sidebar-border flex items-center justify-between gap-1.5">
@@ -266,13 +270,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
             </DropdownMenu>
 
             {/* Collapse Toggle Button */}
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors flex-shrink-0"
-              title="Collapse Sidebar"
-            >
-              <PanelLeftClose className="size-4" />
-            </button>
+            {mode === "docked" && (
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors flex-shrink-0"
+                title="Collapse Sidebar"
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+            )}
           </>
         )}
       </div>

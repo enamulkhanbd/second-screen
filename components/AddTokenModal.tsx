@@ -108,7 +108,7 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
           {/* Target Set & Token Category */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Token Set</Label>
               <Select value={targetSet} onValueChange={setTargetSet}>
@@ -197,7 +197,7 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
               <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
                 Composite Typography Properties
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="typo-fam" className="text-[11px]">Font Family</Label>
                   <Input

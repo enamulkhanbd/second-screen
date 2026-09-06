@@ -37,6 +37,7 @@ import {
   ChevronsDownUp,
   ChevronDown,
   ChevronRight,
+  PanelLeftOpen,
 } from "lucide-react";
 import { AddTokenModal } from "@/components/AddTokenModal";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,10 @@ import { buildTokenGroupTree, TokenGroupNode } from "@/utils/themeHelpers";
 
 interface TokensWorkspaceProps {
   onOpenSettings?: () => void;
+  onOpenContextNavigation?: () => void;
 }
 
-export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings }) => {
+export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings, onOpenContextNavigation }) => {
   const {
     rawTokens,
     resolvedTokens,
@@ -197,8 +199,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         >
           <td
             colSpan={4}
-            className="py-2.5 px-6 align-middle"
-            style={{ paddingLeft: `${Math.max(20, (node.level - 1) * 20 + 20)}px` }}
+            className="py-2.5 px-3 sm:px-4 xl:px-6 align-middle"
+            style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
@@ -362,14 +364,26 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background font-sans select-none">
       {/* 1. Main Workspace Top Header Toolbar with View Switcher (Matches Themes tab design) */}
-      <div className="h-12 px-6 border-b border-border bg-muted/20 flex items-center justify-between flex-shrink-0 transition-colors">
+      <div className="min-h-12 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/20 flex items-center justify-between gap-3 flex-shrink-0 transition-colors">
         {/* Left: Active Set Title & Badge */}
         <div className="flex items-center gap-2.5 min-w-0">
+          {onOpenContextNavigation && (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={onOpenContextNavigation}
+              className="xl:hidden h-8 w-8 flex-shrink-0"
+              aria-label="Open token sets"
+              title="Open token sets"
+            >
+              <PanelLeftOpen className="w-3.5 h-3.5" />
+            </Button>
+          )}
           <span className="font-semibold text-sm text-foreground truncate">
             {activeSet === "ALL" ? "All Token Sets" : relativeFileName}
           </span>
 
-          <Badge variant="outline" className="text-[11px] font-mono py-0 px-2">
+          <Badge variant="outline" className="hidden sm:inline-flex text-[11px] font-mono py-0 px-2 flex-shrink-0">
             {displayedTokens.length} tokens
           </Badge>
 
@@ -388,10 +402,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         </div>
 
         {/* Right: Actions + Switcher aligned on the right */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Sync Provider Badge */}
           {credentials.repo && (
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
               <FolderGit2 className="w-3.5 h-3.5 text-primary" />
               <span className="font-semibold text-foreground truncate max-w-[120px]">{credentials.repo}</span>
               <span className="text-[10px]">@{credentials.branch || "main"}</span>
@@ -407,7 +421,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                   placeholder="Search tokens..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-xs font-mono w-52"
+                  className="pl-8 h-8 text-xs font-mono w-36 lg:w-44 xl:w-52"
                 />
               </div>
 
@@ -427,7 +441,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 className="gap-1.5 h-8 text-xs font-semibold"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Token</span>
+                <span className="hidden sm:inline">Add Token</span>
               </Button>
             </div>
           ) : (
@@ -440,7 +454,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 title="Prettify JSON"
               >
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
-                <span>Format</span>
+                <span className="hidden sm:inline">Format</span>
               </Button>
 
               {hasUnsavedChanges && (
@@ -451,7 +465,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                   className="gap-1 h-8 text-xs font-semibold"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Discard</span>
+                  <span className="hidden lg:inline">Discard</span>
                 </Button>
               )}
 
@@ -463,7 +477,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 title="Save JSON (Ctrl+S)"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>Save</span>
+                <span className="hidden sm:inline">Save</span>
               </Button>
             </div>
           )}
@@ -502,10 +516,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
 
       {/* Sync Provider Notification Banner when unlinked */}
       {!credentials.repo && (
-        <div className="px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="px-3 sm:px-4 xl:px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between gap-3 text-xs text-muted-foreground flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
             <FolderGit2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-            <span>
+            <span className="truncate">
               Connect a <strong>Git Sync Provider</strong> (GitHub, GitLab, Azure DevOps, Bitbucket) to version and sync design tokens with your repository.
             </span>
           </div>
@@ -514,7 +528,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
               variant="outline"
               size="sm"
               onClick={onOpenSettings}
-              className="h-6 text-[11px] px-2 font-medium"
+              className="h-6 text-[11px] px-2 font-medium flex-shrink-0"
             >
               Connect Provider
             </Button>
@@ -526,9 +540,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
       {tokensViewMode === "preview" ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
           {/* Category Filter Chips Bar & Grouping Switcher */}
-          <div className="h-11 px-6 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0 select-none overflow-x-auto scrollbar-none transition-colors">
+          <div className="h-11 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/30 flex items-center justify-between gap-3 flex-shrink-0 select-none overflow-x-auto overflow-y-hidden scrollbar-none transition-colors">
             {/* Left: Type Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 flex-shrink-0">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>Type:</span>
@@ -569,7 +583,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
             </div>
 
             {/* Right: Grouping Level Dropdown Selector & Expand/Collapse Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {groupDepth !== 1 && (
                 <div className="flex items-center gap-0.5">
                   <Button
@@ -700,7 +714,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           </div>
 
           {/* Table Content with generous top/bottom padding */}
-          <div className="flex-1 overflow-y-auto pb-8">
+          <div className="flex-1 min-h-0 overflow-auto pb-8">
             {displayedTokens.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center select-none text-muted-foreground">
                 <SearchX className="w-10 h-10 mb-3 opacity-40" />
@@ -712,36 +726,34 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[960px] text-left border-collapse text-xs">
-                  <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    <tr>
-                      <th className="py-3.5 px-6 w-64 min-w-[200px]">
-                        Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
-                      </th>
-                      <th className="py-3.5 px-6 min-w-[360px]">Raw Value / Properties</th>
-                      <th className="py-3.5 px-6 min-w-[280px]">Visual Preview</th>
-                      <th className="py-3.5 px-6 w-44 min-w-[130px] text-right">Set / Type</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border font-mono">
-                    {groupDepth !== 1
-                      ? groupTree.map((node) => renderWorkspaceGroupTree(node))
-                      : displayedTokens.map((token) => (
-                          <TokenPreviewRow
-                            key={token.id}
-                            token={token}
-                            level={0}
-                            isGrouped={false}
-                            onUpdate={updateSingleToken}
-                            onEdit={() => setEditingToken(token)}
-                            onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
-                            onDelete={() => deleteToken(token.setName, token.name.split("."))}
-                          />
-                        ))}
-                  </tbody>
-                </table>
-              </div>
+              <table className="w-full min-w-[960px] text-left border-collapse text-xs">
+                <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <tr>
+                    <th className="sticky left-0 z-20 py-3.5 px-3 sm:px-4 xl:px-6 w-64 min-w-[200px] bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">
+                      Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
+                    </th>
+                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[360px]">Raw Value / Properties</th>
+                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[280px]">Visual Preview</th>
+                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 w-44 min-w-[130px] text-right">Set / Type</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-mono">
+                  {groupDepth !== 1
+                    ? groupTree.map((node) => renderWorkspaceGroupTree(node))
+                    : displayedTokens.map((token) => (
+                        <TokenPreviewRow
+                          key={token.id}
+                          token={token}
+                          level={0}
+                          isGrouped={false}
+                          onUpdate={updateSingleToken}
+                          onEdit={() => setEditingToken(token)}
+                          onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
+                          onDelete={() => deleteToken(token.setName, token.name.split("."))}
+                        />
+                      ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -750,7 +762,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
           {/* Syntax Error Banner */}
           {jsonError && (
-            <div className="px-6 py-2 bg-destructive/10 border-b border-destructive/30 text-destructive text-xs flex items-center gap-2 font-mono select-text flex-shrink-0">
+            <div className="px-3 sm:px-4 xl:px-6 py-2 bg-destructive/10 border-b border-destructive/30 text-destructive text-xs flex items-center gap-2 font-mono select-text flex-shrink-0">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{jsonError}</span>
             </div>
@@ -852,7 +864,7 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
     <tr className="hover:bg-muted/40 transition-colors group">
       {/* Token Name & Description */}
       <td
-        className="py-3 px-6 align-middle w-64 min-w-[200px]"
+        className="sticky left-0 z-[1] py-3 px-3 sm:px-4 xl:px-6 align-middle w-64 min-w-[200px] bg-background group-hover:bg-muted/40 shadow-[2px_0_0_hsl(var(--border)/0.45)]"
         style={{ paddingLeft: isGrouped ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
       >
         <div className="flex flex-col">
@@ -873,17 +885,17 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
       </td>
 
       {/* Raw Value / Structured Composite Properties */}
-      <td className="py-3 px-6 align-middle min-w-[360px]">
+      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle min-w-[360px]">
         <TokenRawValueCell token={token} onUpdate={onUpdate} />
       </td>
 
       {/* Rich Visual Specimen / Swatch Preview */}
-      <td className="py-3 px-6 align-middle min-w-[280px]">
+      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle min-w-[280px]">
         <TokenVisualPreviewCell token={token} />
       </td>
 
       {/* Set, Type Badges & 3-Dots Context Menu */}
-      <td className="py-3 px-6 align-middle text-right w-48 min-w-[150px]">
+      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle text-right w-48 min-w-[150px]">
         <div className="flex items-center justify-end gap-2 relative">
           <Badge variant="outline" className="text-[10px] font-mono">
             {typeof token.setName === "string" ? token.setName : String(token.setName || "")}
