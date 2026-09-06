@@ -3041,15 +3041,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const targetGroup = themeGroups.find((g) => g.id === groupId);
     if (!targetGroup) return;
 
-    if (themeGroups.length <= 1) {
-      get().addToast({
-        type: "error",
-        title: "Cannot Delete Group",
-        message: "You must have at least one Theme Group.",
-      });
-      return;
-    }
-
     const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
 
     let existingThemes: any[] = Array.isArray(rawTokens[themesKey])

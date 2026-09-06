@@ -541,6 +541,36 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
     );
   }
 
+  // Empty state if no theme groups defined
+  if (themeGroups.length === 0 || !activeGroup) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-background">
+        <div className="max-w-md w-full bg-card border border-border rounded-2xl p-8 shadow-xl space-y-5 text-foreground">
+          <div className="w-14 h-14 rounded-2xl bg-violet-500/10 text-violet-500 flex items-center justify-center mx-auto">
+            <Palette className="w-7 h-7" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-base font-bold tracking-tight">No Theme Groups Defined</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Theme groups let you organize modes (e.g. Light/Dark, Brand themes, Density) and compare them in the Matrix.
+            </p>
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={() => setShowAddOptionModal(true)}
+              className="gap-2 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Theme</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden select-none">
       {/* Top Controls Sub-Header Bar */}
@@ -643,8 +673,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setShowDeleteConfirm(true)}
-                    disabled={themeGroups.length <= 1}
-                    className="gap-2 text-xs text-destructive focus:text-destructive"
+                    className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete theme group</span>
