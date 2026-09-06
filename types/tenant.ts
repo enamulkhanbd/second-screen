@@ -114,6 +114,8 @@ export interface Project {
   assetGitConfig?: AssetGitConfig | null;
   assetFigmaConfig?: AssetFigmaConfig | null;
   assets?: ProjectAsset[];
+  hasChunkedAssets?: boolean;
+  assetsCount?: number;
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];
   figmaVariables?: RawTokensDocument;

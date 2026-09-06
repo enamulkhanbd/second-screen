@@ -59,6 +59,7 @@ import {
   saveProjectGitConfig,
   saveProjectFigmaVariables,
   saveProjectAssets,
+  loadProjectAssets,
   saveProjectAssetGitConfig,
   saveProjectAssetFigmaConfig,
   createOrganizationInvitation,
@@ -686,6 +687,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isSyncingAssets: false,
         isSyncingFigmaAssets: false,
       });
+
+      // Hydrate chunked assets from Firestore subcollection if stored as chunks or main doc assets is empty
+      if (proj.hasChunkedAssets || !proj.assets || proj.assets.length === 0) {
+        loadProjectAssets(proj.orgId, proj.id).then((loadedAssets) => {
+          if (loadedAssets && loadedAssets.length > 0 && isScopeActive(proj.orgId, proj.id)) {
+            set({ assets: loadedAssets });
+          }
+        });
+      }
 
       // 4. Restore scoped localStorage data (releases, targets, config, activities)
       const scopeOrgId = get().currentOrg?.id;

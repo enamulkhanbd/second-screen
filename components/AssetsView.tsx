@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ProjectAsset, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
+import { saveProjectAssets } from "@/services/organizationService";
 import JSZip from "jszip";
 import {
   Image as ImageIcon,
@@ -261,6 +262,7 @@ function parseRawPathMeta(relativePath: string): { derivedType?: string; derived
 
 export const AssetsView: React.FC = () => {
   const {
+    currentOrg,
     currentProject,
     assets: storeAssets,
     uploadAssets,
@@ -443,6 +445,19 @@ export const AssetsView: React.FC = () => {
   React.useEffect(() => {
     setVisibleCount(ASSET_BATCH_SIZE);
   }, [selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
+
+  // Auto-persist: Ensure large icon libraries in memory are saved to chunked sub-documents
+  React.useEffect(() => {
+    if (
+      currentOrg?.id &&
+      currentProject?.id &&
+      storeAssets &&
+      storeAssets.length > 150 &&
+      !currentProject.hasChunkedAssets
+    ) {
+      saveProjectAssets(currentOrg.id, currentProject.id, storeAssets);
+    }
+  }, [currentOrg?.id, currentProject?.id, storeAssets?.length, currentProject?.hasChunkedAssets]);
 
   // Infinite scroll intersection observer to smoothly load the next batch
   React.useEffect(() => {
