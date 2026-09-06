@@ -312,10 +312,20 @@ interface TokenStoreState {
     tokenPath: string[],
     tokenData: { value: any; type: string; description?: string }
   ) => void;
+  renameToken: (setName: string, oldPath: string[], newName: string) => void;
   deleteToken: (setName: string, tokenPath: string[]) => void;
   duplicateToken: (setName: string, tokenPath: string[], newName: string) => void;
   addNewSet: (setName: string) => void;
+  renameSet: (oldSetName: string, newSetName: string) => void;
   deleteSet: (setName: string) => void;
+  renameFolder: (oldFolderPrefix: string, newFolderPrefix: string) => void;
+  deleteFolder: (folderPrefix: string) => void;
+  updateThemeOption: (
+    groupId: string,
+    optionId: string,
+    updates: { name?: string; color?: string }
+  ) => void;
+  deleteThemeOption: (groupId: string, optionId: string) => void;
   initializeBlankWorkspace: () => void;
 }
 
@@ -3012,6 +3022,140 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
   },
 
+  updateThemeOption: (groupId, optionId, updates) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot update theme options.",
+      });
+      return;
+    }
+    const { rawTokens, themeGroups, activeSet } = get();
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+    let existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+
+    if (existingThemes.length === 0) {
+      themeGroups.forEach((grp) => {
+        grp.options.forEach((opt) => {
+          existingThemes.push({
+            id: opt.id,
+            name: opt.name,
+            group: grp.name,
+            selectedTokenSets: opt.selectedTokenSets || {},
+            color: opt.color || "#ffffff",
+          });
+        });
+      });
+    }
+
+    const updatedThemes = existingThemes.map((t) => {
+      if (t.id === optionId) {
+        return {
+          ...t,
+          ...(updates.name ? { name: updates.name.trim() } : {}),
+          ...(updates.color ? { color: updates.color } : {}),
+        };
+      }
+      return t;
+    });
+
+    const updatedRawDoc = {
+      ...rawTokens,
+      [themesKey]: updatedThemes as any,
+    };
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().addToast({
+      type: "success",
+      title: "Theme Option Updated",
+      message: updates.name ? `Renamed to "${updates.name}".` : "Option updated.",
+    });
+  },
+
+  deleteThemeOption: (groupId, optionId) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot delete theme options.",
+      });
+      return;
+    }
+    const { rawTokens, themeGroups, activeSet, activeThemeOptionId } = get();
+    const targetGroup = themeGroups.find((g) => g.id === groupId);
+    if (targetGroup && targetGroup.options.length <= 1) {
+      get().addToast({
+        type: "error",
+        title: "Cannot Delete Option",
+        message: "A theme group must have at least one option.",
+      });
+      return;
+    }
+
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+    let existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+
+    if (existingThemes.length === 0) {
+      themeGroups.forEach((grp) => {
+        grp.options.forEach((opt) => {
+          existingThemes.push({
+            id: opt.id,
+            name: opt.name,
+            group: grp.name,
+            selectedTokenSets: opt.selectedTokenSets || {},
+            color: opt.color || "#ffffff",
+          });
+        });
+      });
+    }
+
+    const updatedThemes = existingThemes.filter((t) => t.id !== optionId);
+    const updatedRawDoc = {
+      ...rawTokens,
+      [themesKey]: updatedThemes as any,
+    };
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const remainingGroup = updatedGroups.find((g) => g.id === groupId) || updatedGroups[0];
+    const newActiveOptionId =
+      activeThemeOptionId === optionId
+        ? remainingGroup?.options[0]?.id || ""
+        : activeThemeOptionId;
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeOptionId: newActiveOptionId,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().addToast({
+      type: "info",
+      title: "Theme Option Deleted",
+      message: "Theme option removed.",
+    });
+  },
+
   addNewToken: (setName, tokenPath, tokenData) => {
     if (!get().canUserEdit()) {
       get().addToast({
@@ -3135,6 +3279,67 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
   },
 
+  renameToken: (setName, oldPath, newName) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot rename tokens.",
+      });
+      return;
+    }
+    const cleanNewName = newName.trim();
+    if (!cleanNewName) return;
+    const oldKey = oldPath.join(".");
+    if (cleanNewName === oldKey) return;
+
+    const { rawTokens, activeSet, resolvedTokens } = get();
+    const existing = resolvedTokens.find(
+      (t) => t.setName === setName && t.name === oldKey
+    );
+    if (!existing) return;
+
+    const newPathSegments = cleanNewName.split(".");
+    const oldFullPath = [setName, ...oldPath];
+    const newFullPath = [setName, ...newPathSegments];
+
+    let updatedRawDoc = createTokenAtKeyPath(rawTokens, newFullPath, {
+      value: existing.rawValue,
+      type: existing.type,
+      description: existing.description,
+    });
+    updatedRawDoc = deleteTokenAtKeyPath(updatedRawDoc, oldFullPath);
+
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Token Renamed",
+      description: `Renamed token "${oldKey}" to "${cleanNewName}" in set "${setName}".`,
+      metadata: {
+        oldToken: oldKey,
+        newToken: cleanNewName,
+        set: setName,
+      },
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Token Renamed",
+      message: `Renamed to "${cleanNewName}".`,
+    });
+  },
+
   addNewSet: (setName) => {
     if (!get().canUserEdit()) {
       get().addToast({
@@ -3217,6 +3422,259 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "info",
       title: "Set Deleted",
       message: `Deleted token set "${setName}".`,
+    });
+  },
+
+  renameSet: (oldSetName, newSetName) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot rename token sets.",
+      });
+      return;
+    }
+    const cleanOld = oldSetName.trim();
+    const cleanNew = newSetName.trim();
+    if (!cleanNew || cleanOld === cleanNew) return;
+
+    const { rawTokens, activeSet } = get();
+    if (!rawTokens[cleanOld] || rawTokens[cleanNew]) {
+      get().addToast({
+        type: "error",
+        title: "Cannot Rename Set",
+        message: rawTokens[cleanNew]
+          ? `A set named "${cleanNew}" already exists.`
+          : `Set "${cleanOld}" not found.`,
+      });
+      return;
+    }
+
+    const updatedRawDoc = { ...rawTokens };
+    updatedRawDoc[cleanNew] = updatedRawDoc[cleanOld];
+    delete updatedRawDoc[cleanOld];
+
+    // Update $metadata.json / $metadata tokenSetOrder
+    const metaKey = updatedRawDoc["$metadata.json"] ? "$metadata.json" : "$metadata";
+    if (updatedRawDoc[metaKey] && Array.isArray(updatedRawDoc[metaKey].tokenSetOrder)) {
+      updatedRawDoc[metaKey] = {
+        ...updatedRawDoc[metaKey],
+        tokenSetOrder: updatedRawDoc[metaKey].tokenSetOrder.map((s: string) =>
+          s === cleanOld ? cleanNew : s
+        ),
+      };
+    }
+
+    // Update themes selectedTokenSets mapping
+    const themesKey = updatedRawDoc["$themes.json"] ? "$themes.json" : "$themes";
+    if (Array.isArray(updatedRawDoc[themesKey])) {
+      updatedRawDoc[themesKey] = updatedRawDoc[themesKey].map((theme: any) => {
+        if (theme.selectedTokenSets && theme.selectedTokenSets[cleanOld] !== undefined) {
+          const sets = { ...theme.selectedTokenSets };
+          sets[cleanNew] = sets[cleanOld];
+          delete sets[cleanOld];
+          return { ...theme, selectedTokenSets: sets };
+        }
+        return theme;
+      });
+    }
+
+    const newActiveSet = activeSet === cleanOld ? cleanNew : activeSet;
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      activeSet: newActiveSet,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Token Set Renamed",
+      description: `Renamed set "${cleanOld}" to "${cleanNew}".`,
+      metadata: {
+        oldSet: cleanOld,
+        newSet: cleanNew,
+      },
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Set Renamed",
+      message: `Renamed to "${cleanNew}".`,
+    });
+  },
+
+  renameFolder: (oldFolderPrefix, newFolderPrefix) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot rename folders.",
+      });
+      return;
+    }
+    const cleanOld = oldFolderPrefix.trim();
+    const cleanNew = newFolderPrefix.trim();
+    if (!cleanNew || cleanOld === cleanNew) return;
+
+    const { rawTokens, activeSet } = get();
+    const updatedRawDoc = { ...rawTokens };
+
+    const matchingSets = Object.keys(updatedRawDoc).filter(
+      (k) => !k.startsWith("$") && (k === cleanOld || k.startsWith(`${cleanOld}/`))
+    );
+
+    if (matchingSets.length === 0) return;
+
+    const renameMap: Record<string, string> = {};
+    matchingSets.forEach((oldSet) => {
+      const remainder = oldSet === cleanOld ? "" : oldSet.slice(cleanOld.length + 1);
+      const newSet = remainder ? `${cleanNew}/${remainder}` : cleanNew;
+      renameMap[oldSet] = newSet;
+      updatedRawDoc[newSet] = updatedRawDoc[oldSet];
+      delete updatedRawDoc[oldSet];
+    });
+
+    const metaKey = updatedRawDoc["$metadata.json"] ? "$metadata.json" : "$metadata";
+    if (updatedRawDoc[metaKey] && Array.isArray(updatedRawDoc[metaKey].tokenSetOrder)) {
+      updatedRawDoc[metaKey] = {
+        ...updatedRawDoc[metaKey],
+        tokenSetOrder: updatedRawDoc[metaKey].tokenSetOrder.map((s: string) =>
+          renameMap[s] || s
+        ),
+      };
+    }
+
+    const themesKey = updatedRawDoc["$themes.json"] ? "$themes.json" : "$themes";
+    if (Array.isArray(updatedRawDoc[themesKey])) {
+      updatedRawDoc[themesKey] = updatedRawDoc[themesKey].map((theme: any) => {
+        if (!theme.selectedTokenSets) return theme;
+        const sets = { ...theme.selectedTokenSets };
+        let modified = false;
+        Object.entries(renameMap).forEach(([oldS, newS]) => {
+          if (sets[oldS] !== undefined) {
+            sets[newS] = sets[oldS];
+            delete sets[oldS];
+            modified = true;
+          }
+        });
+        return modified ? { ...theme, selectedTokenSets: sets } : theme;
+      });
+    }
+
+    const newActiveSet = renameMap[activeSet] || activeSet;
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      activeSet: newActiveSet,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Folder Renamed",
+      description: `Renamed folder "${cleanOld}" to "${cleanNew}" (${matchingSets.length} sets updated).`,
+      metadata: {
+        oldFolder: cleanOld,
+        newFolder: cleanNew,
+      },
+    });
+
+    get().addToast({
+      type: "success",
+      title: "Folder Renamed",
+      message: `Renamed folder "${cleanOld}" to "${cleanNew}".`,
+    });
+  },
+
+  deleteFolder: (folderPrefix) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot delete folders.",
+      });
+      return;
+    }
+    const cleanPrefix = folderPrefix.trim();
+    if (!cleanPrefix) return;
+
+    const { rawTokens, activeSet } = get();
+    const updatedRawDoc = { ...rawTokens };
+
+    const matchingSets = Object.keys(updatedRawDoc).filter(
+      (k) => !k.startsWith("$") && (k === cleanPrefix || k.startsWith(`${cleanPrefix}/`))
+    );
+
+    if (matchingSets.length === 0) return;
+
+    matchingSets.forEach((setName) => {
+      delete updatedRawDoc[setName];
+    });
+
+    const metaKey = updatedRawDoc["$metadata.json"] ? "$metadata.json" : "$metadata";
+    if (updatedRawDoc[metaKey] && Array.isArray(updatedRawDoc[metaKey].tokenSetOrder)) {
+      updatedRawDoc[metaKey] = {
+        ...updatedRawDoc[metaKey],
+        tokenSetOrder: updatedRawDoc[metaKey].tokenSetOrder.filter(
+          (s: string) => !matchingSets.includes(s)
+        ),
+      };
+    }
+
+    const themesKey = updatedRawDoc["$themes.json"] ? "$themes.json" : "$themes";
+    if (Array.isArray(updatedRawDoc[themesKey])) {
+      updatedRawDoc[themesKey] = updatedRawDoc[themesKey].map((theme: any) => {
+        if (!theme.selectedTokenSets) return theme;
+        const sets = { ...theme.selectedTokenSets };
+        matchingSets.forEach((s) => delete sets[s]);
+        return { ...theme, selectedTokenSets: sets };
+      });
+    }
+
+    const remainingSets = Object.keys(updatedRawDoc).filter((k) => !k.startsWith("$"));
+    const newActiveSet = matchingSets.includes(activeSet)
+      ? remainingSets[0] || "ALL"
+      : activeSet;
+
+    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      activeSet: newActiveSet,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Folder Deleted",
+      description: `Deleted folder "${cleanPrefix}" and its ${matchingSets.length} sets.`,
+      metadata: {
+        folder: cleanPrefix,
+      },
+    });
+
+    get().addToast({
+      type: "info",
+      title: "Folder Deleted",
+      message: `Deleted folder "${cleanPrefix}" and ${matchingSets.length} sets.`,
     });
   },
 

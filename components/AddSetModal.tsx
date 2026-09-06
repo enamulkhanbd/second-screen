@@ -18,11 +18,18 @@ import { Label } from "@/components/ui/label";
 interface AddSetModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialName?: string;
 }
 
-export const AddSetModal: React.FC<AddSetModalProps> = ({ isOpen, onClose }) => {
+export const AddSetModal: React.FC<AddSetModalProps> = ({ isOpen, onClose, initialName }) => {
   const { addNewSet, rawTokens, addToast } = useTokenStore();
-  const [setName, setSetName] = useState("");
+  const [setName, setSetName] = useState(initialName || "");
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setSetName(initialName || "");
+    }
+  }, [isOpen, initialName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

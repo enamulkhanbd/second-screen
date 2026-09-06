@@ -24,6 +24,9 @@ import {
   Activity,
   Rocket,
   PanelLeftOpen,
+  Save,
+  CheckCheck,
+  Undo2,
 } from "lucide-react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
@@ -601,11 +604,103 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
         {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
-          {/* Unsaved changes badge */}
+          {/* Unsaved changes interactive badge & quick save actions */}
           {isDirty && (
-            <Badge variant="warning" className="animate-pulse text-[10px] py-0 px-2">
-              unsaved changes
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer shadow-2xs outline-none"
+                  title="Click to review, save, or push changes"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>unsaved changes</span>
+                  <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72 p-2 text-xs shadow-xl space-y-1">
+                <div className="px-2 py-1">
+                  <div className="font-semibold text-foreground text-xs flex items-center justify-between">
+                    <span>Working Draft Changes</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {diffSummary.totalAdded + diffSummary.totalModified + diffSummary.totalDeleted} diffs
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    Tokens are auto-saved to your project workspace. Push to Git to version and publish them.
+                  </p>
+                </div>
+
+                <DropdownMenuSeparator />
+
+                {isGitConfigured ? (
+                  <DropdownMenuItem
+                    onClick={() => setShowPushModal(true)}
+                    className="gap-2.5 px-2 py-2 text-xs text-primary font-medium cursor-pointer"
+                  >
+                    <UploadCloud className="w-4 h-4 text-primary flex-shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold">Push to Git Repository</span>
+                      <span className="text-[10px] text-muted-foreground font-mono truncate">
+                        {credentials.repo} @ {credentials.branch || "main"}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={onOpenSettings}
+                    className="gap-2.5 px-2 py-2 text-xs text-primary font-medium cursor-pointer"
+                  >
+                    <UploadCloud className="w-4 h-4 text-primary flex-shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold">Connect Git to Push</span>
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        Configure GitHub / GitLab repository
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuItem
+                  onClick={() => {
+                    resetDirtyState();
+                    addToast({
+                      type: "success",
+                      title: "Baseline Saved",
+                      message: "All current token changes have been marked as saved baseline.",
+                    });
+                  }}
+                  className="gap-2.5 px-2 py-2 text-xs cursor-pointer"
+                >
+                  <CheckCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium">Mark as Saved Baseline</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Clears unsaved indicator locally
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => {
+                    const { originalTokens } = useTokenStore.getState();
+                    if (originalTokens && Object.keys(originalTokens).length > 0) {
+                      setRawTokens(JSON.parse(JSON.stringify(originalTokens)));
+                      resetDirtyState();
+                      addToast({
+                        type: "info",
+                        title: "Changes Discarded",
+                        message: "Reverted all tokens back to original baseline.",
+                      });
+                    }
+                  }}
+                  className="gap-2.5 px-2 py-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <Undo2 className="w-4 h-4 text-destructive flex-shrink-0" />
+                  <span>Discard Local Changes</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           {/* Matrix vs Flow Switcher */}

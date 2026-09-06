@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { FlattenedToken } from "@/types/tokens";
+import { useTokenStore } from "@/store/useTokenStore";
 import {
   X,
   Save,
@@ -13,6 +14,7 @@ import { TokenAliasInput } from "@/components/TokenAliasInput";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface EditTokenDrawerProps {
   token: FlattenedToken | null;
@@ -27,6 +29,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   onClose,
   onSave,
 }) => {
+  const { renameToken } = useTokenStore();
+  const [tokenName, setTokenName] = useState("");
   const [description, setDescription] = useState("");
   const [rawValue, setRawValue] = useState("");
   const [typographyFields, setTypographyFields] = useState({
@@ -44,6 +48,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   // Sync state on token change
   useEffect(() => {
     if (!token) return;
+    setTokenName(token.name);
     setDescription(token.description || "");
     setRawValue(token.rawValue);
 
@@ -75,6 +80,15 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   const isTypography = token.type === "typography";
 
   const handleSave = () => {
+    // 1. Rename token key if changed
+    const cleanName = tokenName.trim();
+    let currentPath = token.path;
+    if (cleanName && cleanName !== token.name) {
+      renameToken(token.setName, token.path, cleanName);
+      currentPath = cleanName.split(".");
+    }
+
+    // 2. Update value/typography
     if (isTypography) {
       const obj: Record<string, any> = {};
       if (typographyFields.fontFamily) obj.fontFamily = typographyFields.fontFamily;
@@ -86,9 +100,9 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
       if (typographyFields.textCase && typographyFields.textCase !== "none") obj.textCase = typographyFields.textCase;
       if (typographyFields.textDecoration && typographyFields.textDecoration !== "none") obj.textDecoration = typographyFields.textDecoration;
 
-      onSave(token.path, obj);
+      onSave(currentPath, obj);
     } else {
-      onSave(token.path, rawValue);
+      onSave(currentPath, rawValue);
     }
 
     setSavedSuccess(true);
@@ -185,6 +199,20 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
             )}
           </div>
 
+          {/* Token Name Field */}
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Token Name</Label>
+            <Input
+              value={tokenName}
+              onChange={(e) => setTokenName(e.target.value)}
+              placeholder="e.g. primary.500"
+              className="h-8 text-xs font-mono font-medium"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Rename this token key. Path dot notation (e.g. <span className="font-mono">color.brand.primary</span>) is supported.
+            </p>
+          </div>
+
           {/* Form Fields: Typography Composite Fields */}
           {isTypography ? (
             <div className="space-y-3.5">
@@ -259,6 +287,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 value={rawValue}
                 onChange={(val) => setRawValue(val)}
                 categoryFilter={token.type}
+                excludeTokenId={token.id}
+                excludeTokenName={token.name}
                 placeholder="e.g. #3b82f6 or {colors.brand.500}"
               />
             </div>

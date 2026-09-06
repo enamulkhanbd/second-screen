@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TokenAliasInput } from "@/components/TokenAliasInput";
 import {
   Select,
   SelectContent,
@@ -61,9 +62,10 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tokenName.trim()) return;
+    const cleanRaw = tokenName.replace(/[{}]/g, "").trim();
+    if (!cleanRaw) return;
 
-    const pathSegments = tokenName.trim().replace(/^[\.\/]+|[\.\/]+$/g, "").split(/[\.\/]+/);
+    const pathSegments = cleanRaw.replace(/^[\.\/]+|[\.\/]+$/g, "").split(/[\.\/]+/);
 
     let finalValue: any;
     if (tokenType === "typography") {
@@ -159,29 +161,36 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
               type="text"
               required
               autoFocus
-              placeholder="e.g. brand.primary or button.padding.x"
+              placeholder="e.g. blue.500 or info.500"
               value={tokenName}
               onChange={(e) => setTokenName(e.target.value)}
               className="font-mono text-xs"
             />
-            <p className="text-[11px] text-muted-foreground">
-              Use dot or slash notation for nested groups (e.g. <code className="font-mono bg-muted px-1 rounded">colors.primary.500</code>).
-            </p>
+            {tokenName.includes("{") ? (
+              <p className="text-[11px] text-amber-500 font-medium">
+                Token names should not contain curly braces <code className="font-mono">{`{}`}</code>. Curly braces are for referencing tokens in the Value field below.
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Use dot or slash notation for nested groups (e.g. <code className="font-mono bg-muted px-1 rounded">colors.primary.500</code>).
+              </p>
+            )}
           </div>
 
           {/* Type Specific Fields */}
           {tokenType === "color" && (
             <div className="space-y-1.5">
-              <Label htmlFor="tok-color">Color Value</Label>
+              <Label>Color Value</Label>
               <div className="flex items-center gap-2">
-                <Input
-                  id="tok-color"
-                  type="text"
-                  value={colorValue}
-                  onChange={(e) => setColorValue(e.target.value)}
-                  placeholder="#7c3aed or {colors.purple.600}"
-                  className="font-mono text-xs flex-1"
-                />
+                <div className="flex-1">
+                  <TokenAliasInput
+                    value={colorValue}
+                    onChange={setColorValue}
+                    placeholder="#7c3aed or {colors.purple.600}"
+                    categoryFilter={["color", "colors"]}
+                    excludeTokenName={tokenName}
+                  />
+                </div>
                 <input
                   type="color"
                   value={colorValue.startsWith("#") ? colorValue : "#7c3aed"}
@@ -199,43 +208,39 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label htmlFor="typo-fam" className="text-[11px]">Font Family</Label>
-                  <Input
-                    id="typo-fam"
-                    type="text"
+                  <Label className="text-[11px]">Font Family</Label>
+                  <TokenAliasInput
                     value={typoFamily}
-                    onChange={(e) => setTypoFamily(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    onChange={setTypoFamily}
+                    categoryFilter={["fontFamilies", "font", "family"]}
+                    placeholder="e.g. Inter or {font.primary}"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="typo-w" className="text-[11px]">Font Weight</Label>
-                  <Input
-                    id="typo-w"
-                    type="text"
+                  <Label className="text-[11px]">Font Weight</Label>
+                  <TokenAliasInput
                     value={typoWeight}
-                    onChange={(e) => setTypoWeight(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    onChange={setTypoWeight}
+                    categoryFilter={["fontWeights", "weight"]}
+                    placeholder="e.g. 500 or {font.weight.bold}"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="typo-sz" className="text-[11px]">Font Size</Label>
-                  <Input
-                    id="typo-sz"
-                    type="text"
+                  <Label className="text-[11px]">Font Size</Label>
+                  <TokenAliasInput
                     value={typoSize}
-                    onChange={(e) => setTypoSize(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    onChange={setTypoSize}
+                    categoryFilter={["fontSize", "fontSizes", "size"]}
+                    placeholder="e.g. 16px or {font.size.md}"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="typo-lh" className="text-[11px]">Line Height</Label>
-                  <Input
-                    id="typo-lh"
-                    type="text"
+                  <Label className="text-[11px]">Line Height</Label>
+                  <TokenAliasInput
                     value={typoLineHeight}
-                    onChange={(e) => setTypoLineHeight(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    onChange={setTypoLineHeight}
+                    categoryFilter={["lineHeight", "lineHeights"]}
+                    placeholder="e.g. 24px or {font.lineHeight.normal}"
                   />
                 </div>
               </div>
@@ -244,14 +249,12 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
 
           {tokenType !== "color" && tokenType !== "typography" && (
             <div className="space-y-1.5">
-              <Label htmlFor="tok-dim">Token Value</Label>
-              <Input
-                id="tok-dim"
-                type="text"
+              <Label>Token Value</Label>
+              <TokenAliasInput
                 value={dimensionValue}
-                onChange={(e) => setDimensionValue(e.target.value)}
+                onChange={setDimensionValue}
                 placeholder="e.g. 16px, 1rem, or {spacing.4}"
-                className="font-mono text-xs"
+                categoryFilter={[tokenType]}
               />
             </div>
           )}
