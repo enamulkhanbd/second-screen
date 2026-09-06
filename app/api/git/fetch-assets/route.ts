@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
         return itemLower.startsWith(cleanFolder + "/") || itemLower === cleanFolder;
       });
 
-      const targetFiles = svgFiles.slice(0, 300);
+      const targetFiles = svgFiles.slice(0, 5000);
 
       // Fetch raw contents in concurrent batches of 10
       const batchSize = 10;
@@ -291,7 +291,7 @@ export async function POST(req: NextRequest) {
         return itemLower.startsWith(cleanFolder + "/") || itemLower === cleanFolder;
       });
 
-      const targetFiles = svgFiles.slice(0, 300);
+      const targetFiles = svgFiles.slice(0, 5000);
       for (const file of targetFiles) {
         try {
           const rawUrl = `https://gitlab.com/api/v4/projects/${projectId}/repository/files/${encodeURIComponent(
@@ -366,39 +366,45 @@ export async function POST(req: NextRequest) {
         return itemLower.startsWith(cleanFolder + "/") || itemLower === cleanFolder;
       });
 
-      const targetFiles = svgFiles.slice(0, 300);
-      for (const file of targetFiles) {
-        try {
-          const itemUrl = `https://dev.azure.com/${azureOrg}/${azureProj}/_apis/git/repositories/${repo}/items?path=${encodeURIComponent(
-            file.path
-          )}&versionDescriptor.version=${encodeURIComponent(branch)}&includeContent=true&api-version=6.0`;
+      const targetFiles = svgFiles.slice(0, 5000);
+      const batchSize = 15;
+      for (let i = 0; i < targetFiles.length; i += batchSize) {
+        const batch = targetFiles.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async (file) => {
+            try {
+              const itemUrl = `https://dev.azure.com/${azureOrg}/${azureProj}/_apis/git/repositories/${repo}/items?path=${encodeURIComponent(
+                file.path
+              )}&versionDescriptor.version=${encodeURIComponent(branch)}&includeContent=true&api-version=6.0`;
 
-          const fileRes = await fetch(itemUrl, {
-            headers: { Authorization: authHeader },
-          });
-
-          if (fileRes.ok) {
-            const rawSvg = await fileRes.text();
-            const sanitized = sanitizeSvg(rawSvg);
-            if (sanitized.includes("<svg")) {
-              const meta = parseIconMeta(file.path.replace(/^\//, ""), cleanFolder, metadataMap);
-              assets.push({
-                id: `git_${file.path.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
-                name: meta.name,
-                title: meta.title,
-                type: meta.type,
-                tag: meta.tag,
-                category: meta.category,
-                svg: sanitized,
-                path: file.path,
-                updatedAt: new Date().toISOString(),
-                source: "git",
+              const fileRes = await fetch(itemUrl, {
+                headers: { Authorization: authHeader },
               });
+
+              if (fileRes.ok) {
+                const rawSvg = await fileRes.text();
+                const sanitized = sanitizeSvg(rawSvg);
+                if (sanitized.includes("<svg")) {
+                  const meta = parseIconMeta(file.path.replace(/^\//, ""), cleanFolder, metadataMap);
+                  assets.push({
+                    id: `git_${file.path.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+                    name: meta.name,
+                    title: meta.title,
+                    type: meta.type,
+                    tag: meta.tag,
+                    category: meta.category,
+                    svg: sanitized,
+                    path: file.path,
+                    updatedAt: new Date().toISOString(),
+                    source: "git",
+                  });
+                }
+              }
+            } catch (err) {
+              console.warn(`Failed fetching Azure DevOps SVG ${file.path}:`, err);
             }
-          }
-        } catch (err) {
-          console.warn(`Failed fetching Azure DevOps SVG ${file.path}:`, err);
-        }
+          })
+        );
       }
     } else if (provider === "bitbucket") {
       // 4. Fetch from Bitbucket
