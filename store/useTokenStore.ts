@@ -639,9 +639,54 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   loadTenantData: async (uid, email) => {
-    set({ isLoadingTenant: true });
+    // 1. Instant Cache Hydration: If cached tenant orgs and projects exist in localStorage, restore them immediately
+    if (typeof window !== "undefined") {
+      try {
+        const cachedOrgsStr = localStorage.getItem("ts_cached_user_orgs");
+        const savedOrgId = localStorage.getItem("ts_active_org_id");
+        if (cachedOrgsStr) {
+          const cachedOrgs: Organization[] = JSON.parse(cachedOrgsStr);
+          if (Array.isArray(cachedOrgs) && cachedOrgs.length > 0) {
+            let activeOrg = cachedOrgs[0];
+            if (savedOrgId) {
+              const found = cachedOrgs.find((o) => o.id === savedOrgId);
+              if (found) activeOrg = found;
+            }
+            set({ userOrgs: cachedOrgs, currentOrg: activeOrg });
+
+            const cachedProjectsStr = localStorage.getItem(`ts_cached_org_projects_${activeOrg.id}`);
+            const savedProjId = localStorage.getItem("ts_active_project_id");
+            if (cachedProjectsStr) {
+              const cachedProjects: Project[] = JSON.parse(cachedProjectsStr);
+              if (Array.isArray(cachedProjects) && cachedProjects.length > 0) {
+                let activeProj = cachedProjects[0];
+                if (savedProjId) {
+                  const found = cachedProjects.find((p) => p.id === savedProjId);
+                  if (found) activeProj = found;
+                }
+                set({ orgProjects: cachedProjects });
+                get().setCurrentProject(activeProj);
+              }
+            }
+            // Immediately unblock loading screen so UI renders instantly
+            set({ isLoadingTenant: false });
+          }
+        }
+      } catch {}
+    }
+
+    if (!get().currentOrg) {
+      set({ isLoadingTenant: true });
+    }
+
+    // 2. Fetch fresh tenant data in parallel/background
     try {
       const orgs = await getUserOrganizations(uid, email);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_cached_user_orgs", JSON.stringify(orgs));
+        } catch {}
+      }
       set({ userOrgs: orgs });
 
       let activeOrg = orgs[0] || null;
@@ -655,6 +700,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       if (activeOrg) {
         const projects = await getOrgProjects(activeOrg.id);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`ts_cached_org_projects_${activeOrg.id}`, JSON.stringify(projects));
+          } catch {}
+        }
         set({ orgProjects: projects });
 
         let activeProj = projects[0] || null;

@@ -36,23 +36,22 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
 
   try {
     const orgsMap = new Map<string, Organization>();
+    const ownerQ = query(collection(db, "organizations"), where("ownerUid", "==", uid));
+    const orgsRef = collection(db, "organizations");
 
-    // 1. Direct query where user is the owner
-    try {
-      const ownerQ = query(collection(db, "organizations"), where("ownerUid", "==", uid));
-      const ownerSnap = await getDocs(ownerQ);
-      ownerSnap.forEach((d) => {
+    const [ownerRes, allRes] = await Promise.allSettled([
+      getDocs(ownerQ),
+      getDocs(orgsRef),
+    ]);
+
+    if (ownerRes.status === "fulfilled") {
+      ownerRes.value.forEach((d) => {
         orgsMap.set(d.id, d.data() as Organization);
       });
-    } catch (err) {
-      console.warn("Firestore owner query error:", err);
     }
 
-    // 2. Query all accessible orgs for membership
-    try {
-      const orgsRef = collection(db, "organizations");
-      const snap = await getDocs(orgsRef);
-      snap.forEach((d) => {
+    if (allRes.status === "fulfilled") {
+      allRes.value.forEach((d) => {
         const data = d.data() as Organization;
         const isMember =
           data.ownerUid === uid ||
@@ -65,8 +64,6 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
           orgsMap.set(d.id, data);
         }
       });
-    } catch (err) {
-      console.warn("Firestore membership scan error:", err);
     }
 
     return Array.from(orgsMap.values());
