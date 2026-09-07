@@ -67,6 +67,8 @@ export interface ProjectDocumentation {
   isPublishedGlobally: boolean;
   publishedUrlSlug?: string;
   allowPublicAccess: boolean;
+  publishedTokens?: import("./tokens").RawTokensDocument;
+  publishedVariables?: import("./tokens").RawTokensDocument;
   updatedAt: string;
 }
 

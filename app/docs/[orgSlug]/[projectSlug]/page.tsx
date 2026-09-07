@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useTokenStore } from "@/store/useTokenStore";
+import { flattenAndResolveTokens } from "@/utils/transformTokens";
 
 export default function PublicDocsReaderPage() {
   const params = useParams();
@@ -54,6 +56,26 @@ export default function PublicDocsReaderPage() {
           const firstPub = result.documentation.pages.find((p) => p.isPublished);
           if (firstPub) {
             setActivePageId(firstPub.id);
+          }
+
+          // Populate tokens and figma variables in store so blocks render them
+          const rawToUse = result.documentation.publishedTokens || result.rawTokens || {};
+          const figmaToUse = result.documentation.publishedVariables || result.figmaVariables || {};
+
+          if (Object.keys(rawToUse).length > 0) {
+            const resolved = flattenAndResolveTokens(rawToUse, "ALL");
+            useTokenStore.setState({
+              rawTokens: rawToUse,
+              resolvedTokens: resolved,
+            });
+          }
+
+          if (Object.keys(figmaToUse).length > 0) {
+            const resolvedFigma = flattenAndResolveTokens(figmaToUse, "ALL");
+            useTokenStore.setState({
+              figmaVariables: figmaToUse,
+              figmaResolvedVariables: resolvedFigma,
+            });
           }
         }
       }

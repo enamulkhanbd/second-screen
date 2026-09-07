@@ -4188,7 +4188,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   publishEntireDocumentation: async (isPublishedGlobally: boolean, allowPublicAccess: boolean = true) => {
-    const { documentation, currentProject, currentOrg } = get();
+    const { documentation, currentProject, currentOrg, rawTokens, figmaVariables } = get();
     if (!documentation) return;
     const cleanSlug =
       documentation.publishedUrlSlug ||
@@ -4200,6 +4200,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       allowPublicAccess:
         allowPublicAccess !== undefined ? allowPublicAccess : documentation.allowPublicAccess,
       publishedUrlSlug: cleanSlug,
+      publishedTokens: rawTokens || {},
+      publishedVariables: figmaVariables || {},
       updatedAt: new Date().toISOString(),
     };
     set({ documentation: updatedDoc });

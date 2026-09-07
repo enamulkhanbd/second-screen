@@ -74,9 +74,24 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
   // Filtered and sorted variables
   const processedVariables = useMemo(() => {
     let result = sourceItems.filter((item) => {
-      // 1. Collection filter
-      if (collection && collection !== "all" && item.setName !== collection) {
-        return false;
+      // 1. Collection filter (case-insensitive & slash/dot-agnostic matching)
+      if (collection && collection !== "all") {
+        const normCol = collection.trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normSet = (item.setName || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normGroup = (item.group || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normId = (item.id || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+
+        const matches =
+          normSet === normCol ||
+          normSet.endsWith("/" + normCol) ||
+          normCol.endsWith("/" + normSet) ||
+          normGroup === normCol ||
+          normId.startsWith(normCol + "/") ||
+          normId.includes("/" + normCol + "/");
+
+        if (!matches) {
+          return false;
+        }
       }
 
       // 2. Type filter

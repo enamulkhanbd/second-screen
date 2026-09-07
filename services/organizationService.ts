@@ -969,6 +969,9 @@ export async function getPublishedProjectDocs(
   orgName: string;
   projectName: string;
   documentation: import("@/types/documentation").ProjectDocumentation;
+  rawTokens?: import("@/types/tokens").RawTokensDocument;
+  figmaVariables?: import("@/types/tokens").RawTokensDocument;
+  themeGroups?: import("@/types/tokens").ThemeGroup[];
 } | null> {
   if (!isFirebaseConfigured || !db) return null;
   try {
@@ -1011,10 +1014,36 @@ export async function getPublishedProjectDocs(
       return null;
     }
 
+    // Extract tokens to serve with public docs
+    let rawTokensToReturn = proj.documentation.publishedTokens;
+    let figmaVariablesToReturn = proj.documentation.publishedVariables;
+
+    if (!rawTokensToReturn || Object.keys(rawTokensToReturn).length === 0) {
+      if (proj.branches && proj.branches.length > 0) {
+        const activeB =
+          proj.branches.find((b) => b.name === (proj.activeBranch || "main")) ||
+          proj.branches.find((b) => b.isDefault) ||
+          proj.branches[0];
+        if (activeB && activeB.rawTokens && Object.keys(activeB.rawTokens).length > 0) {
+          rawTokensToReturn = activeB.rawTokens;
+        }
+      }
+      if (!rawTokensToReturn || Object.keys(rawTokensToReturn).length === 0) {
+        rawTokensToReturn = proj.rawTokens || {};
+      }
+    }
+
+    if (!figmaVariablesToReturn || Object.keys(figmaVariablesToReturn).length === 0) {
+      figmaVariablesToReturn = proj.figmaVariables || {};
+    }
+
     return {
       orgName: orgData.name,
       projectName: proj.name,
       documentation: proj.documentation,
+      rawTokens: rawTokensToReturn || {},
+      figmaVariables: figmaVariablesToReturn || {},
+      themeGroups: proj.themeGroups || [],
     };
   } catch (e) {
     console.warn("Error fetching published project docs:", e);

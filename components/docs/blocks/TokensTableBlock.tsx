@@ -28,7 +28,15 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
 
   const filtered = useMemo(() => {
     return resolvedTokens.filter((t) => {
-      if (tokenSetName && t.setName !== tokenSetName) return false;
+      if (tokenSetName && tokenSetName !== "all") {
+        const normTarget = tokenSetName.trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normSet = (t.setName || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const matches =
+          normSet === normTarget ||
+          normSet.endsWith("/" + normTarget) ||
+          normTarget.endsWith("/" + normSet);
+        if (!matches) return false;
+      }
       if (filterType !== "all" && t.type !== filterType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();

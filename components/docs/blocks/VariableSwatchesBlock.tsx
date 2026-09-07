@@ -35,11 +35,32 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
   const colorItems = useMemo(() => {
     const source = figmaResolvedVariables.length > 0 ? figmaResolvedVariables : resolvedTokens;
     return source.filter((item) => {
-      if (item.type !== "color") return false;
+      const isColor =
+        item.type === "color" ||
+        /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(item.resolvedValue || "").trim()) ||
+        /^(rgba?|hsla?|oklch|lch|color|lab)\(/i.test(String(item.resolvedValue || "").trim()) ||
+        Boolean(item.resolvedHex);
 
-      // Collection filter
-      if (collection && collection !== "all" && item.setName !== collection) {
-        return false;
+      if (!isColor) return false;
+
+      // Collection filter (case-insensitive & slash/dot-agnostic matching)
+      if (collection && collection !== "all") {
+        const normCol = collection.trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normSet = (item.setName || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normGroup = (item.group || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+        const normId = (item.id || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
+
+        const matches =
+          normSet === normCol ||
+          normSet.endsWith("/" + normCol) ||
+          normCol.endsWith("/" + normSet) ||
+          normGroup === normCol ||
+          normId.startsWith(normCol + "/") ||
+          normId.includes("/" + normCol + "/");
+
+        if (!matches) {
+          return false;
+        }
       }
 
       // Block filter query
@@ -57,7 +78,7 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchName = String(item.name || "").toLowerCase().includes(q);
-        const matchVal = String(item.resolvedValue || item.rawValue || "").toLowerCase().includes(q);
+        const matchVal = String(item.resolvedValue || item.rawValue || item.resolvedHex || "").toLowerCase().includes(q);
         if (!matchName && !matchVal) return false;
       }
 
@@ -131,7 +152,7 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
                 <div
                   className="relative h-20 w-full border-b border-border/40 transition-transform group-hover:scale-102"
                   style={{
-                    backgroundColor: rawVal,
+                    backgroundColor: c.resolvedHex || rawVal,
                     backgroundImage:
                       "linear-gradient(45deg, #00000008 25%, transparent 25%), linear-gradient(-45deg, #00000008 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #00000008 75%), linear-gradient(-45deg, transparent 75%, #00000008 75%)",
                     backgroundSize: "16px 16px",
@@ -140,9 +161,9 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
                 >
                   <button
                     type="button"
-                    onClick={() => handleCopy(rawVal, key, c.name)}
+                    onClick={() => handleCopy(c.resolvedHex || rawVal, key, c.name)}
                     className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
-                    title="Click to copy HEX"
+                    title={`Click to copy: ${c.resolvedHex || rawVal}`}
                   >
                     {isCopied ? (
                       <span className="flex items-center gap-1 rounded bg-black/80 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
@@ -162,7 +183,9 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
                     {c.name}
                   </span>
                   <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
-                    <span className="truncate uppercase">{rawVal}</span>
+                    <span className="truncate uppercase" title={rawVal}>
+                      {c.resolvedHex || rawVal}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleCopy(`var(${cssVar})`, `${key}-var`, cssVar)}
