@@ -200,9 +200,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           <td
             colSpan={4}
             className="py-2.5 px-3 sm:px-4 xl:px-6 align-middle"
-            style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
           >
-            <div className="flex items-center justify-between">
+            <div
+              className="flex items-center justify-between min-w-0 w-full"
+              style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-muted-foreground p-0.5 rounded transition-transform">
                   {isCollapsed ? (
@@ -223,7 +225,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 )}
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                 <Badge variant="outline" className="text-[10px] font-mono py-0 px-2 bg-background/60">
                   {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
                 </Badge>
@@ -726,15 +728,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 </p>
               </div>
             ) : (
-              <table className="w-full min-w-[960px] text-left border-collapse text-xs">
-                <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <table className="w-full min-w-0 sm:min-w-[640px] text-left border-collapse text-xs">
+                <thead className="bg-muted/80 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   <tr>
-                    <th className="sticky left-0 z-20 py-3.5 px-3 sm:px-4 xl:px-6 w-64 min-w-[200px] bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">
+                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[24%] min-w-[170px]">
                       Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                     </th>
-                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[360px]">Raw Value / Properties</th>
-                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 min-w-[280px]">Visual Preview</th>
-                    <th className="py-3.5 px-3 sm:px-4 xl:px-6 w-44 min-w-[130px] text-right">Set / Type</th>
+                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[32%] min-w-[190px]">Raw Value / Properties</th>
+                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[28%] min-w-[170px]">Visual Preview</th>
+                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[16%] min-w-[120px] text-right">Set / Type</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border font-mono">
@@ -864,11 +866,11 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
     <tr className="hover:bg-muted/40 transition-colors group">
       {/* Token Name & Description */}
       <td
-        className="sticky left-0 z-[1] py-3 px-3 sm:px-4 xl:px-6 align-middle w-64 min-w-[200px] bg-background group-hover:bg-muted/40 shadow-[2px_0_0_hsl(var(--border)/0.45)]"
-        style={{ paddingLeft: isGrouped ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
+        className="py-3 px-3 sm:px-4 xl:px-6 align-middle w-[24%] min-w-[170px]"
+        style={{ paddingLeft: isGrouped ? `${Math.max(20, (level + 1) * 16 + 12)}px` : "20px" }}
       >
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
             {isGrouped ? relativeName : typeof token.name === "string" ? token.name : String(token.name || "")}
           </span>
           {isGrouped && relativeName !== token.name && (
@@ -877,7 +879,10 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
             </span>
           )}
           {token.description && (
-            <span className="text-[11px] text-muted-foreground font-sans truncate max-w-xs mt-0.5">
+            <span
+              className="text-[11px] text-muted-foreground font-sans truncate max-w-[160px] sm:max-w-xs mt-0.5"
+              title={typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
+            >
               {typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
             </span>
           )}
@@ -885,17 +890,17 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
       </td>
 
       {/* Raw Value / Structured Composite Properties */}
-      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle min-w-[360px]">
+      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle w-[32%] min-w-[190px]">
         <TokenRawValueCell token={token} onUpdate={onUpdate} />
       </td>
 
       {/* Rich Visual Specimen / Swatch Preview */}
-      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle min-w-[280px]">
+      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle w-[28%] min-w-[170px]">
         <TokenVisualPreviewCell token={token} />
       </td>
 
       {/* Set, Type Badges & 3-Dots Context Menu */}
-      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle text-right w-48 min-w-[150px]">
+      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle text-right w-[16%] min-w-[120px]">
         <div className="flex items-center justify-end gap-2 relative">
           <Badge variant="outline" className="text-[10px] font-mono">
             {typeof token.setName === "string" ? token.setName : String(token.setName || "")}

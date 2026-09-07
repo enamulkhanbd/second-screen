@@ -221,7 +221,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
           </div>
         ) : (
           <table className="w-full text-left border-collapse text-xs">
-            <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <thead className="bg-muted/90 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-5 w-1/4">Token Name</th>
                 <th className="py-3 px-5 w-1/3">Raw Value (Editable)</th>

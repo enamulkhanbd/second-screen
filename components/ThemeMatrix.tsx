@@ -358,10 +358,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
       >
         {/* Token Key Name + Type Icon */}
         <td
-          className={`sticky left-0 z-10 py-2.5 px-3 sm:px-4 xl:px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed shadow-[2px_0_0_hsl(var(--border)/0.45)] ${
-            isHighlighted ? "bg-primary/15" : "bg-background group-hover:bg-muted/40"
+          className={`py-2.5 px-3 sm:px-4 xl:px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed min-w-[170px] ${
+            isHighlighted ? "bg-primary/15" : ""
           }`}
-          style={{ paddingLeft: isGrouped ? `${Math.max(24, (level + 1) * 20 + 16)}px` : "24px" }}
+          style={{ paddingLeft: isGrouped ? `${Math.max(20, (level + 1) * 16 + 12)}px` : "20px" }}
         >
           <div className="flex items-center gap-2.5">
             <span
@@ -457,9 +457,11 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
           <td
             colSpan={totalCols}
             className="py-2.5 px-3 sm:px-4 xl:px-6 align-middle"
-            style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
           >
-            <div className="flex items-center justify-between">
+            <div
+              className="flex items-center justify-between min-w-0 w-full"
+              style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-muted-foreground p-0.5 rounded transition-transform">
                   {isCollapsed ? (
@@ -480,7 +482,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
                 )}
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                 <Badge variant="outline" className="text-[10px] font-mono py-0 px-2 bg-background/60">
                   {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
                 </Badge>
@@ -942,11 +944,11 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
             <p className="text-xs text-muted-foreground mt-1.5">Try adjusting your search filter or selected token type.</p>
           </div>
         ) : (
-          <table className="w-full min-w-[960px] text-left border-collapse text-xs">
+          <table className="w-full min-w-0 sm:min-w-[640px] text-left border-collapse text-xs">
             {/* Table Header: TOKEN | OPTION_A | OPTION_B | (ACTIONS) */}
-            <thead className="sticky top-0 z-20 bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider shadow-xs backdrop-blur-md">
+            <thead className="bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider">
               <tr>
-                <th className="sticky left-0 z-30 py-3 px-3 sm:px-4 xl:px-6 w-1/3 min-w-[240px] font-bold uppercase text-muted-foreground bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">
+                <th className="py-3 px-3 sm:px-4 xl:px-6 w-1/4 sm:w-1/3 min-w-[180px] sm:min-w-[220px] font-bold uppercase text-muted-foreground">
                   TOKEN {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                 </th>
                 {activeGroup?.options.map((option) => (

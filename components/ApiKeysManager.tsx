@@ -296,55 +296,57 @@ export const ApiKeysManager: React.FC = () => {
             </p>
           </div>
         ) : (
-          <table className="w-full min-w-[680px] text-left text-xs border-collapse">
-            <thead className="bg-muted/60 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-              <tr>
-                <th className="py-2.5 px-4">Name & Key Prefix</th>
-                <th className="py-2.5 px-4">Scopes</th>
-                <th className="py-2.5 px-4">Created</th>
-                <th className="py-2.5 px-4">Expires</th>
-                <th className="py-2.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border font-mono text-[11px]">
-              {keys.map((k) => (
-                <tr key={k.id} className="hover:bg-muted/40 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="font-sans font-bold text-xs text-foreground">
-                      {k.name}
-                    </div>
-                    <div className="text-muted-foreground text-[10px] mt-0.5 font-mono">{k.keyPrefix}</div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-1 font-sans">
-                      {k.scopes.map((s) => (
-                        <Badge key={s} variant="violet" className="text-[10px] py-0 px-1.5 font-sans">
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-muted-foreground font-sans">
-                    {new Date(k.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="py-3 px-4 text-muted-foreground font-sans">
-                    {k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : "Never"}
-                  </td>
-                  <td className="py-3 px-4 text-right font-sans">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteKey(k.id, k.name)}
-                      className="text-muted-foreground hover:text-destructive h-7 w-7 p-0"
-                      title="Revoke Token"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </td>
+          <div className="w-full overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-0 sm:min-w-[560px] text-left text-xs border-collapse">
+              <thead className="bg-muted/60 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-4">Name & Key Prefix</th>
+                  <th className="py-2.5 px-4">Scopes</th>
+                  <th className="py-2.5 px-4">Created</th>
+                  <th className="py-2.5 px-4">Expires</th>
+                  <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border font-mono text-[11px]">
+                {keys.map((k) => (
+                  <tr key={k.id} className="hover:bg-muted/40 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="font-sans font-bold text-xs text-foreground">
+                        {k.name}
+                      </div>
+                      <div className="text-muted-foreground text-[10px] mt-0.5 font-mono">{k.keyPrefix}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1 font-sans">
+                        {k.scopes.map((s) => (
+                          <Badge key={s} variant="violet" className="text-[10px] py-0 px-1.5 font-sans">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground font-sans">
+                      {new Date(k.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground font-sans">
+                      {k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : "Never"}
+                    </td>
+                    <td className="py-3 px-4 text-right font-sans">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteKey(k.id, k.name)}
+                        className="text-muted-foreground hover:text-destructive h-7 w-7 p-0"
+                        title="Revoke Token"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

@@ -608,11 +608,11 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               </div>
             ) : (
               /* TABLE VIEW */
-              <div className="min-w-[980px] rounded-xl border border-border bg-card shadow-xs">
+              <div className="w-full min-w-0 sm:min-w-[640px] rounded-xl border border-border bg-card shadow-xs overflow-x-auto">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="sticky top-0 z-10 bg-muted/50 border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
+                  <thead className="bg-muted/50 border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
                     <tr>
-                      <th className="sticky left-0 z-20 py-2.5 px-4 bg-muted/95 shadow-[2px_0_0_hsl(var(--border)/0.65)]">Collection</th>
+                      <th className="py-2.5 px-4">Collection</th>
                       <th className="py-2.5 px-4">Variable Name</th>
                       <th className="py-2.5 px-4">Preview</th>
                       <th className="py-2.5 px-4">Resolved Value</th>
@@ -627,7 +627,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
                       return (
                         <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
-                          <td className="sticky left-0 z-[1] py-2.5 px-4 bg-card group-hover:bg-muted/30 shadow-[2px_0_0_hsl(var(--border)/0.45)]">
+                          <td className="py-2.5 px-4">
                             <Badge variant="outline" className="text-[9px] font-mono uppercase">
                               {item.setName}
                             </Badge>
