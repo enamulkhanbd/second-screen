@@ -155,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
       }`, className)}
     >
       {/* 1. Header: Workspace & Project Selector + Collapse/Expand Toggle */}
-      <div className="p-2.5 border-b border-sidebar-border flex items-center justify-between gap-1.5">
+      <div className="h-14 px-2.5 border-b border-sidebar-border flex items-center justify-between gap-1.5 flex-shrink-0">
         {isCollapsed ? (
           /* Collapsed View Header */
           <div className="w-full flex flex-col items-center gap-2">

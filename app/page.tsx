@@ -95,33 +95,36 @@ export default function Home() {
   }
 
   return (
-    <main className="flex flex-col h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
-      {/* Top Header: Logo, Clean Status, Theme Switcher & Auth */}
-      <Header
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenNavigation={() => setIsPrimaryNavOpen(true)}
-      />
+    <main className="flex h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
+      {/* 1. Primary Navigation Sidebar - Full height to top */}
+      <div className="hidden lg:flex h-full flex-shrink-0">
+        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+      </div>
 
-      {/* Main Workspace */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* 1. Primary Navigation Sidebar */}
-        <div className="hidden lg:flex h-full">
-          <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
-        </div>
+      <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
+        <SheetContent
+          side="left"
+          className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
+        >
+          <SheetTitle className="sr-only">Primary navigation</SheetTitle>
+          <Sidebar
+            mode="drawer"
+            className="border-r-0 pt-10"
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
+        </SheetContent>
+      </Sheet>
 
-        <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
-          <SheetContent
-            side="left"
-            className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
-          >
-            <SheetTitle className="sr-only">Primary navigation</SheetTitle>
-            <Sidebar
-              mode="drawer"
-              className="border-r-0 pt-10"
-              onOpenSettings={() => setIsSettingsOpen(true)}
-            />
-          </SheetContent>
-        </Sheet>
+      {/* 2. Main Content & Header Column */}
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+        {/* Top Header: Clean Status, Theme Switcher & Auth */}
+        <Header
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenNavigation={() => setIsPrimaryNavOpen(true)}
+        />
+
+        {/* Main Workspace */}
+        <div className="flex-1 flex overflow-hidden">
 
         {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
         {(sidebarTab === "tokens" || sidebarTab === "themes") && (
@@ -190,6 +193,7 @@ export default function Home() {
             onOpenContextNavigation={() => setIsContextNavOpen(true)}
           />
         )}
+      </div>
       </div>
 
       {/* Onboarding Wizard Modal for fresh accounts */}
