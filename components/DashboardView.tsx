@@ -70,9 +70,10 @@ export const DashboardView: React.FC = () => {
   }, [userActivities]);
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row h-full overflow-y-auto bg-background text-foreground font-sans select-none">
-      {/* Main Left Content Area (Matching Video Frame 001) */}
-      <div className="flex-1 p-6 md:p-8 xl:p-10 max-w-5xl space-y-8 min-w-0">
+    <div className="flex-1 h-full overflow-y-auto bg-background text-foreground font-sans select-none">
+      <div className="max-w-7xl w-full mx-auto flex flex-col xl:flex-row min-h-full">
+        {/* Main Left Content Area */}
+        <div className="flex-1 p-6 md:p-8 xl:p-10 space-y-8 min-w-0">
         {/* Project Header: Green Square Icon + Title + Edit */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#ecfdf5] dark:bg-[#064e3b]/50 border border-[#a7f3d0] dark:border-[#065f46] text-[#059669] flex items-center justify-center font-bold text-sm shrink-0">
@@ -272,8 +273,8 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Rail Info Column (Matching Video Frame 001) */}
-      <div className="w-full xl:w-80 border-t xl:border-t-0 xl:border-l border-border p-6 md:p-8 space-y-6 bg-muted/10 shrink-0 text-xs">
+      {/* Right Rail Info Column */}
+      <div className="w-full xl:w-72 2xl:w-80 border-t xl:border-t-0 xl:border-l border-border/60 p-6 md:p-8 space-y-6 shrink-0 text-xs">
         {/* About */}
         <div className="space-y-1">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -352,6 +353,7 @@ export const DashboardView: React.FC = () => {
             {releases && releases.length > 0 ? (releases[0] as any)?.version || (releases[0] as any)?.name || "v1.0.0" : "No release yet"}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
