@@ -32,12 +32,11 @@ export const DashboardView: React.FC = () => {
     currentUser,
   } = useTokenStore();
 
-  const projectName = currentProject?.name || "Planet";
+  const projectName = currentProject?.name || "Select Project";
 
-  const totalTokensCount = resolvedTokens.length || 543;
+  const totalTokensCount = resolvedTokens.length;
   const tokenSetsCount = useMemo(() => {
-    const keys = Object.keys(rawTokens).filter((k) => !k.startsWith("$"));
-    return keys.length || 16;
+    return Object.keys(rawTokens).filter((k) => !k.startsWith("$")).length;
   }, [rawTokens]);
 
   const themesCount = useMemo(() => {
@@ -45,13 +44,13 @@ export const DashboardView: React.FC = () => {
     (themeGroups || []).forEach((g) => {
       count += g.options?.length || 0;
     });
-    return Math.max(count, 4);
+    return count;
   }, [themeGroups]);
 
   const branchesCount = branches?.length || 1;
   const releasesCount = releases?.length || 0;
 
-  // Normalized activities matching frame 001
+  // Normalized activities from store
   const recentActivities = useMemo(() => {
     if (userActivities && userActivities.length > 0) {
       return userActivities.slice(0, 5).map((act) => {
@@ -67,40 +66,8 @@ export const DashboardView: React.FC = () => {
         };
       });
     }
-    const defaultActor = currentUser?.email?.split("@")[0] || "enamulkhanbd";
-    return [
-      {
-        id: "1",
-        actor: defaultActor,
-        actionText: "deleted theme Unknown",
-        timeAgo: "2m ago",
-      },
-      {
-        id: "2",
-        actor: defaultActor,
-        actionText: "changed theme Unknown",
-        timeAgo: "3m ago",
-      },
-      {
-        id: "3",
-        actor: defaultActor,
-        actionText: "created theme JustGo",
-        timeAgo: "3m ago",
-      },
-      {
-        id: "4",
-        actor: defaultActor,
-        actionText: "created theme Brand",
-        timeAgo: "3m ago",
-      },
-      {
-        id: "5",
-        actor: defaultActor,
-        actionText: "changed theme Unknown",
-        timeAgo: "3m ago",
-      },
-    ];
-  }, [userActivities, currentUser]);
+    return [];
+  }, [userActivities]);
 
   return (
     <div className="flex-1 flex flex-col xl:flex-row h-full overflow-y-auto bg-background text-foreground font-sans select-none">
@@ -279,22 +246,28 @@ export const DashboardView: React.FC = () => {
           </div>
 
           <div className="divide-y divide-border/50 border border-border rounded-xl bg-card overflow-hidden shadow-2xs">
-            {recentActivities.map((act, i) => (
-              <div key={act.id || i} className="p-3.5 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-[#14b8a6] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                    {act.actor?.[0]?.toUpperCase() || "E"}
-                  </div>
-                  <div className="truncate">
-                    <span className="font-semibold text-foreground">{act.actor}</span>{" "}
-                    <span className="text-muted-foreground">{act.actionText}</span>
-                  </div>
-                </div>
-                <span className="text-[11px] text-muted-foreground font-mono shrink-0 ml-3">
-                  {act.timeAgo}
-                </span>
+            {recentActivities.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                No recent activity recorded yet.
               </div>
-            ))}
+            ) : (
+              recentActivities.map((act, i) => (
+                <div key={act.id || i} className="p-3.5 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-6 h-6 rounded-full bg-[#14b8a6] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                      {act.actor?.[0]?.toUpperCase() || "E"}
+                    </div>
+                    <div className="truncate">
+                      <span className="font-semibold text-foreground">{act.actor}</span>{" "}
+                      <span className="text-muted-foreground">{act.actionText}</span>
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-mono shrink-0 ml-3">
+                    {act.timeAgo}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -375,7 +348,9 @@ export const DashboardView: React.FC = () => {
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             Latest Release
           </div>
-          <div className="text-muted-foreground">No release yet</div>
+          <div className="text-muted-foreground font-mono">
+            {releases && releases.length > 0 ? (releases[0] as any)?.version || (releases[0] as any)?.name || "v1.0.0" : "No release yet"}
+          </div>
         </div>
       </div>
     </div>

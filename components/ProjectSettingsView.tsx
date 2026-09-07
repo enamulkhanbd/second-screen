@@ -35,8 +35,6 @@ export const ProjectSettingsView: React.FC = () => {
   const [projectSlug, setProjectSlug] = useState(currentProject?.slug || "planet-justgo");
   const [projectDescription, setProjectDescription] = useState(currentProject?.description || "");
   const [basePermission, setBasePermission] = useState("write");
-  const [requireBranchApproval, setRequireBranchApproval] = useState(false);
-  const [releaseExports, setReleaseExports] = useState("all");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -174,50 +172,36 @@ export const ProjectSettingsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Require branch approval */}
-          <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-semibold text-foreground">Require branch approval</div>
-              <p className="text-[11px] text-muted-foreground">
-                When on, a branch must be approved and have no unresolved blocking comments before it can be merged into main.
-              </p>
+          {/* Project ID */}
+          {currentProject?.id && (
+            <div className="space-y-1.5 pt-2 border-t border-border/60">
+              <Label className="text-xs font-semibold text-foreground">Project ID</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  value={currentProject.id}
+                  readOnly
+                  className="h-9 text-xs font-mono bg-muted/40 text-muted-foreground select-all"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(currentProject.id);
+                    addToast({
+                      type: "success",
+                      title: "Copied",
+                      message: "Project ID copied to clipboard.",
+                    });
+                  }}
+                  className="h-9 px-3 text-xs shrink-0 cursor-pointer"
+                >
+                  Copy
+                </Button>
+              </div>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={requireBranchApproval}
-              onClick={() => setRequireBranchApproval(!requireBranchApproval)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                requireBranchApproval ? "bg-[#6366f1]" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  requireBranchApproval ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Release exports */}
-          <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <div className="text-xs font-semibold text-foreground">Release exports</div>
-              <p className="text-[11px] text-muted-foreground">
-                Which exports are generated and stored when a release is created. Raw JSON and a manifest are always included.
-              </p>
-            </div>
-            <Select value={releaseExports} onValueChange={setReleaseExports}>
-              <SelectTrigger className="w-48 h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="text-xs">
-                <SelectItem value="all">All saved exports</SelectItem>
-                <SelectItem value="css">CSS Variables only</SelectItem>
-                <SelectItem value="json">Raw JSON only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          )}
 
           {/* Action Buttons */}
           <div className="pt-4 flex items-center gap-2">

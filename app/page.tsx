@@ -18,7 +18,6 @@ import { AssetsView } from "@/components/AssetsView";
 import { ExportsView } from "@/components/ExportsView";
 import { ActivityView } from "@/components/ActivityView";
 import { BranchesView } from "@/components/BranchesView";
-import { IntegrationsView } from "@/components/IntegrationsView";
 import { McpCliView } from "@/components/McpCliView";
 import { ProjectSettingsView } from "@/components/ProjectSettingsView";
 import { MembersView } from "@/components/MembersView";

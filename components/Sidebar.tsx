@@ -19,6 +19,7 @@ import {
   Building2,
   Link2,
   Code2,
+  Variable,
   ChevronsUpDown,
   Check,
   Crown,
@@ -194,10 +195,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                   {/* Project and Workspace Info */}
                   <div className="flex-1 min-w-0 leading-tight">
                     <div className="font-semibold text-xs truncate text-sidebar-foreground">
-                      {currentProject?.name || "Planet"}
+                      {currentProject?.name || "Select Project"}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {currentOrg?.name || "JustGo"}
+                      {currentOrg?.name || "Workspace"}
                     </div>
                   </div>
 
@@ -248,9 +249,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                     className="flex size-5 items-center justify-center rounded text-white text-[10px] font-bold"
                     style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
                   >
-                    {currentOrg?.name?.charAt(0)?.toUpperCase() || "J"}
+                    {currentOrg?.name?.charAt(0)?.toUpperCase() || "W"}
                   </div>
-                  <span className="truncate text-xs flex-1">{currentOrg?.name || "JustGo"}</span>
+                  <span className="truncate text-xs flex-1">{currentOrg?.name || "Workspace"}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -370,18 +371,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             )}
           </button>
 
-          {/* Schema Marketplace */}
+          {/* Variables */}
           <button
             onClick={() => setSidebarTab("variables")}
-            title="Schema Marketplace"
+            title="Variables"
             className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
               sidebarTab === "variables"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
             }`}
           >
-            <Lightbulb className="size-4 flex-shrink-0 text-muted-foreground" />
-            {!isCollapsed && <span>Schema Marketplace</span>}
+            <Variable className="size-4 flex-shrink-0" />
+            {!isCollapsed && <span>Variables</span>}
           </button>
 
           {/* Exports */}
@@ -533,30 +534,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
         </div>
       </div>
 
-      {/* 3. Trial Notice Card (When Expanded) */}
+      {/* 3. Support & Utility Links */}
       {!isCollapsed && (
-        <div className="px-2 pt-1">
-          <div className="p-3 rounded-xl bg-[#FEFCE8] border border-[#FEF08A] text-foreground">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="size-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1 flex-1">
-                <div className="font-semibold text-xs text-amber-900 leading-tight">13 days left in trial</div>
-                <div className="text-[11px] text-amber-700/90 leading-tight">Add a payment method to keep access</div>
-                <button
-                  onClick={() => setSidebarTab("org-settings")}
-                  className="mt-2 w-full py-1.5 px-2.5 rounded-lg bg-[#FDE047] hover:bg-[#FACC15] text-amber-950 font-semibold text-xs transition-colors cursor-pointer text-center"
-                >
-                  Add billing details
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Support & Utility Links */}
-      {!isCollapsed && (
-        <div className="px-2 py-1 space-y-0.5 text-xs text-muted-foreground border-t border-sidebar-border mt-2">
+        <div className="px-2 py-1 space-y-0.5 text-xs text-muted-foreground border-t border-sidebar-border mt-auto">
           <button
             onClick={() => setSidebarTab("documentation")}
             className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
@@ -572,30 +552,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             <Sparkles className="size-4 flex-shrink-0" />
             <span>Changelog</span>
           </button>
-
-          <button
-            onClick={() =>
-              addToast({
-                type: "info",
-                title: "Support",
-                message: "Connecting to Tokens Studio support team...",
-              })
-            }
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
-          >
-            <MessageSquare className="size-4 flex-shrink-0" />
-            <span>Chat with Support</span>
-          </button>
         </div>
       )}
 
-      {/* 5. Footer: User Account */}
+      {/* 4. Footer: User Account */}
       <div className="p-2 border-t border-sidebar-border">
         {currentUser ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className={`w-full flex items-center ${isCollapsed ? "justify-center p-1" : "gap-2.5 p-2"} rounded-lg hover:bg-sidebar-accent transition-colors text-left group cursor-pointer`}>
-                <div className="size-7 rounded-full bg-fuchsia-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                <div className="size-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {currentUser.displayName
                     ? currentUser.displayName
                         .split(" ")
@@ -603,19 +569,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         .join("")
                         .substring(0, 2)
                         .toUpperCase()
-                    : "EK"}
+                    : currentUser.email
+                    ? currentUser.email.charAt(0).toUpperCase()
+                    : "U"}
                 </div>
                 {!isCollapsed && (
                   <>
                     <div className="grid flex-1 text-left leading-tight truncate">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate font-semibold text-xs text-sidebar-foreground">
-                          {currentUser.displayName || "Enamul Khan"}
+                          {currentUser.displayName || currentUser.email?.split("@")[0] || "User"}
                         </span>
                         {userRole === "owner" && <Crown className="size-3 text-amber-500 flex-shrink-0" />}
                       </div>
                       <span className="truncate text-[11px] text-muted-foreground">
-                        {currentUser.email || "enamulkhanbd@yahoo.com"}
+                        {currentUser.email || ""}
                       </span>
                     </div>
                     <ChevronsUpDown className="ml-auto size-4 text-muted-foreground group-hover:text-sidebar-foreground flex-shrink-0" />
@@ -631,7 +599,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2.5 px-2 py-1.5 text-left text-xs">
-                  <div className="size-7 rounded-full bg-fuchsia-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  <div className="size-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0">
                     {currentUser.displayName
                       ? currentUser.displayName
                           .split(" ")
@@ -639,14 +607,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                           .join("")
                           .substring(0, 2)
                           .toUpperCase()
-                      : "EK"}
+                      : currentUser.email
+                      ? currentUser.email.charAt(0).toUpperCase()
+                      : "U"}
                   </div>
                   <div className="grid flex-1 leading-tight truncate">
                     <span className="truncate font-semibold text-foreground">
-                      {currentUser.displayName || "Enamul Khan"}
+                      {currentUser.displayName || currentUser.email?.split("@")[0] || "User"}
                     </span>
                     <span className="truncate text-[11px] text-muted-foreground">
-                      {currentUser.email || "enamulkhanbd@yahoo.com"}
+                      {currentUser.email || ""}
                     </span>
                   </div>
                 </div>
