@@ -347,6 +347,9 @@ interface TokenStoreState {
       color?: string;
       description?: string;
       selectedTokenSets?: Record<string, "enabled" | "disabled" | "source">;
+      figmaVariableReferences?: Record<string, string>;
+      figmaCollectionId?: string;
+      figmaModeId?: string;
     }
   ) => void;
   deleteThemeOption: (groupId: string, optionId: string) => void;
@@ -3156,6 +3159,24 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ...(updates.color ? { color: updates.color } : {}),
           ...(updates.description !== undefined ? { description: updates.description } : {}),
           ...(updates.selectedTokenSets !== undefined ? { selectedTokenSets: updates.selectedTokenSets } : {}),
+          ...(updates.figmaVariableReferences !== undefined
+            ? {
+                $figmaVariableReferences: updates.figmaVariableReferences,
+                figmaVariableReferences: updates.figmaVariableReferences,
+              }
+            : {}),
+          ...(updates.figmaCollectionId !== undefined
+            ? {
+                $figmaCollectionId: updates.figmaCollectionId,
+                figmaCollectionId: updates.figmaCollectionId,
+              }
+            : {}),
+          ...(updates.figmaModeId !== undefined
+            ? {
+                $figmaModeId: updates.figmaModeId,
+                figmaModeId: updates.figmaModeId,
+              }
+            : {}),
         };
       }
       return t;

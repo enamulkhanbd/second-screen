@@ -70,6 +70,9 @@ export interface ThemeOption {
   selectedTokenSets: Record<string, "enabled" | "disabled" | "source">;
   color?: string; // Color dot (e.g. "#f97316", "#3b82f6", "#10b981", "#ef4444", "#a855f7")
   description?: string;
+  figmaVariableReferences?: Record<string, string>;
+  figmaCollectionId?: string;
+  figmaModeId?: string;
 }
 
 export interface ThemeGroup {

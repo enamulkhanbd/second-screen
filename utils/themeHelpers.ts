@@ -343,6 +343,9 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
             ? "#ffffff"
             : GROUP_PALETTE[idx % GROUP_PALETTE.length]),
         description: typeof item.description === "string" ? item.description : "",
+        figmaVariableReferences: item.$figmaVariableReferences || item.figmaVariableReferences || undefined,
+        figmaCollectionId: item.$figmaCollectionId || item.figmaCollectionId || undefined,
+        figmaModeId: item.$figmaModeId || item.figmaModeId || undefined,
       };
 
       if (!groupMap.has(groupName)) {
