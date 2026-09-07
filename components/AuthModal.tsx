@@ -158,10 +158,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setError(err.message || "Google sign in failed");
+      if (err.code === "auth/unauthorized-domain" || err.message?.includes("unauthorized-domain")) {
+        setError("Firebase auth/unauthorized-domain: This domain is not in Firebase Authorized Domains. Access via http://localhost:3000 or add this domain in Firebase Console.");
+      } else {
+        setError(err.message || "Google sign in failed");
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoSignIn = () => {
+    setCurrentUser({
+      uid: "usr_google_demo",
+      email: "designer@company.com",
+      displayName: "Design Lead",
+    });
+    addToast({
+      type: "success",
+      title: "Signed In (Demo Mode)",
+      message: "Logged in as Design Lead.",
+    });
+    onClose();
+    if (onSuccess) onSuccess();
   };
 
   const handleSignOut = async () => {
@@ -256,9 +275,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </DialogHeader>
 
             {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs space-y-2 font-medium">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span className="leading-snug">{error}</span>
+                </div>
+                {error.includes("unauthorized-domain") && (
+                  <div className="pt-2 border-t border-destructive/20 flex flex-col gap-2">
+                    <p className="text-[11px] text-muted-foreground font-normal leading-relaxed">
+                      Use <span className="font-mono font-semibold text-foreground">http://localhost:3000</span> instead of <span className="font-mono">127.0.0.1</span>, or add your current domain to Firebase Authorized Domains.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleDemoSignIn}
+                      className="h-7 text-xs self-start cursor-pointer font-semibold"
+                    >
+                      Bypass &amp; Continue in Demo Mode
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
