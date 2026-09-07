@@ -155,14 +155,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
       }`, className)}
     >
       {/* 1. Header: Workspace & Project Selector + Collapse/Expand Toggle */}
-      <div className="h-14 px-2.5 border-b border-sidebar-border flex items-center justify-between gap-1.5 flex-shrink-0">
+      <div
+        className={cn(
+          "border-b border-sidebar-border flex flex-shrink-0 transition-all",
+          isCollapsed
+            ? "py-3 px-2 flex-col items-center justify-center gap-2"
+            : "h-14 px-2.5 items-center justify-between gap-1.5"
+        )}
+      >
         {isCollapsed ? (
           /* Collapsed View Header */
           <div className="w-full flex flex-col items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-xs hover:scale-105 transition-transform cursor-pointer"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer"
                   style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
                   title={`${currentOrg?.name || "Workspace"} · ${currentProject?.name || "Project"}`}
                 >
@@ -173,36 +180,122 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-60 rounded-xl p-1.5 font-sans" align="start" side="right" sideOffset={8}>
-                <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-2 py-1">
-                  Workspaces ({userOrgs.length})
-                </DropdownMenuLabel>
-                {userOrgs.map((org) => {
-                  const isSelected = org.id === currentOrg?.id;
-                  return (
-                    <DropdownMenuItem
-                      key={org.id}
-                      onClick={() => setCurrentOrg(org)}
-                      className="gap-2 px-2 py-1.5 cursor-pointer"
+              <DropdownMenuContent className="w-72 rounded-xl p-2 font-sans shadow-xl" align="start" side="right" sideOffset={8}>
+                {/* 1. Organizations / Workspaces Section */}
+                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                  <span>ORGANIZATIONS</span>
+                  {canUserEdit() && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCreateOrg((prev) => !prev);
+                      }}
+                      className="text-[#15803d] dark:text-[#22c55e] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer text-[11px] capitalize"
+                      title="Create Organization"
                     >
-                      <div
-                        className="flex size-6 items-center justify-center rounded-md text-white font-semibold text-xs"
-                        style={{ backgroundColor: org.color || "#6366f1" }}
+                      <Plus className="size-3" />
+                      <span>New Org</span>
+                    </button>
+                  )}
+                </div>
+
+                {showCreateOrg && (
+                  <form onSubmit={handleCreateOrg} className="px-2 py-1.5 flex gap-1.5 animate-in fade-in duration-150">
+                    <Input
+                      type="text"
+                      required
+                      placeholder="Org name..."
+                      value={newOrgName}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOrgName(e.target.value)}
+                      className="h-7 text-xs flex-1 bg-background"
+                      autoFocus
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs bg-[#15803d] hover:bg-[#166534] text-white cursor-pointer shadow-2xs"
+                    >
+                      Add
+                    </Button>
+                  </form>
+                )}
+
+                <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                  {userOrgs.map((org) => {
+                    const isSelected = org.id === currentOrg?.id;
+                    return (
+                      <DropdownMenuItem
+                        key={org.id}
+                        onClick={() => setCurrentOrg(org)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
+                            : "text-foreground hover:bg-muted/70 font-medium"
+                        }`}
                       >
-                        {org.icon || org.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="truncate font-medium flex-1 text-xs">{org.name}</span>
-                      {isSelected && <Check className="size-3.5 text-primary" />}
-                    </DropdownMenuItem>
-                  );
-                })}
+                        <span className="truncate flex-1">{org.name}</span>
+                        {isSelected && <Check className="size-4 text-[#15803d] dark:text-[#4ade80] shrink-0" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+
+                <DropdownMenuSeparator className="my-2" />
+
+                {/* 2. Projects Section */}
+                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                  <span>PROJECTS ({orgProjects.length})</span>
+                  {canUserEdit() && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCreateProj(true);
+                      }}
+                      className="text-[#15803d] dark:text-[#22c55e] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer text-[11px] capitalize"
+                      title="Create Project"
+                    >
+                      <Plus className="size-3" />
+                      <span>New Project</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                  {orgProjects.map((proj) => {
+                    const isSelected = proj.id === currentProject?.id;
+                    return (
+                      <DropdownMenuItem
+                        key={proj.id}
+                        onClick={() => setCurrentProject(proj)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
+                            : "text-foreground hover:bg-muted/70 font-medium"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <Layers className="size-3.5 text-muted-foreground/70 shrink-0" />
+                          <span className="truncate flex-1">{proj.name}</span>
+                        </div>
+                        {isSelected && <Check className="size-4 text-[#15803d] dark:text-[#4ade80] shrink-0" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {orgProjects.length === 0 && (
+                    <div className="px-2.5 py-2 text-[11px] text-muted-foreground text-center">
+                      No projects in this organization yet
+                    </div>
+                  )}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Expand Button */}
             <button
               onClick={() => setIsCollapsed(false)}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              className="size-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors cursor-pointer"
               title="Expand Sidebar"
             >
               <PanelLeftOpen className="size-4" />
