@@ -4,9 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
-import { ThemeMatrix } from "@/components/ThemeMatrix";
 import { ThemeConfigurationView } from "@/components/ThemeConfigurationView";
-import { TokenFlow } from "@/components/TokenFlow";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
@@ -186,16 +184,9 @@ export default function Home() {
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenContextNavigation={() => setIsContextNavOpen(true)}
           />
-        ) : viewMode === "flow" ? (
-          <TokenFlow />
-        ) : viewMode === "matrix" ? (
-          <ThemeMatrix
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenContextNavigation={() => setIsContextNavOpen(true)}
-          />
-        ) : (
+        ) : sidebarTab === "themes" ? (
           <ThemeConfigurationView />
-        )}
+        ) : null}
       </div>
       </div>
 

@@ -585,48 +585,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         <div className="flex items-center gap-2">
 
 
-          {/* Theme Views Switcher: Sets, Matrix, Flow */}
-          {hasTokens && sidebarTab === "themes" && (
-            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium">
-              <button
-                onClick={() => setViewMode("sets")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  viewMode === "sets"
-                    ? "bg-background text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Token Sets Configuration"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Sets</span>
-              </button>
 
-              <button
-                onClick={() => setViewMode("matrix")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                  viewMode === "matrix"
-                    ? "bg-background text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Theme Matrix Comparison Grid"
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Matrix</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode("flow")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${viewMode === "flow"
-                    ? "bg-background text-primary font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                  }`}
-                title="Visual Token Flow & Dependency Graph"
-              >
-                <Workflow className="w-3.5 h-3.5" />
-                <span>Flow Graph</span>
-              </button>
-            </div>
-          )}
 
           {/* 1. Sync from Figma Cloud Button - ONLY if Figma Plugin is connected */}
           {isFigmaConnected && (
