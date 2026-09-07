@@ -105,12 +105,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     currentUser && credentials.provider && credentials.owner && credentials.repo
   );
 
-  useEffect(() => {
-    if (isGitConfigured && sidebarTab === "branches") {
-      setSidebarTab("tokens");
-    }
-  }, [isGitConfigured, sidebarTab, setSidebarTab]);
-
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrgName.trim()) return;

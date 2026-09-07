@@ -179,6 +179,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       items.push({
         label: setName,
       });
+    } else if (sidebarTab === "branches") {
+      items.push({
+        label: "Branches",
+        onClick: () => setSidebarTab("branches"),
+      });
+      if (activeBranch) {
+        items.push({
+          label: activeBranch,
+        });
+      }
     } else {
       const tabLabels: Record<string, string> = {
         dashboard: "Dashboard",

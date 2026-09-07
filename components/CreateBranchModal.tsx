@@ -138,104 +138,107 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <GitBranch className="w-4 h-4" />
-            </div>
-            <div>
-              <DialogTitle className="text-base font-bold">Create New Branch</DialogTitle>
-              <DialogDescription className="text-xs">
-                Fork an isolated branch to build and test tokens safely.
-              </DialogDescription>
-            </div>
-          </div>
+      <DialogContent className="sm:max-w-[480px] bg-[#121216] border border-[#23232a] text-foreground p-6 rounded-2xl shadow-2xl">
+        <DialogHeader className="space-y-1 text-left pb-2">
+          <DialogTitle className="text-lg font-bold text-foreground tracking-tight">
+            Create New Branch
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {/* Branch Title */}
           <div className="space-y-1.5">
-            <Label htmlFor="branch-title" className="text-xs font-semibold">
-              Branch Title <span className="text-destructive">*</span>
+            <Label htmlFor="branch-title" className="text-xs font-semibold text-foreground">
+              Branch Title <span className="text-muted-foreground font-normal">*</span>
             </Label>
-            <Input
-              id="branch-title"
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="e.g. New color palette, Dark mode overhaul"
-              className="text-xs"
-              autoFocus
-            />
             <p className="text-[11px] text-muted-foreground">
-              A human-readable name for your branch.
+              A human-readable name for your branch
             </p>
-          </div>
-
-          {/* Branch Name / Slug */}
-          <div className="space-y-1.5">
-            <Label htmlFor="branch-name" className="text-xs font-semibold">
-              Branch Name <span className="text-destructive">*</span>
-            </Label>
             <div className="relative">
               <Input
-                id="branch-name"
-                value={name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="e.g. new-color-palette"
-                className="text-xs font-mono pr-8"
+                id="branch-title"
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder="New color palette"
+                className="text-xs bg-[#18181e] border-[#2c2c36] h-9 pr-9 focus-visible:ring-1 focus-visible:ring-primary"
+                autoFocus
               />
-              <Sparkles className="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+              <button
+                type="button"
+                tabIndex={-1}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs px-1 py-0.5 rounded bg-muted/40 font-mono"
+                title="Options"
+              >
+                •••
+              </button>
             </div>
+          </div>
+
+          {/* Branch Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="branch-name" className="text-xs font-semibold text-foreground">
+              Branch Name <span className="text-muted-foreground font-normal">*</span>
+            </Label>
             <p className="text-[11px] text-muted-foreground">
-              Use lowercase letters, numbers, and hyphens (auto-generated from title).
+              Use lowercase letters, numbers, and hyphens
             </p>
+            <Input
+              id="branch-name"
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="new-color-palette"
+              className="text-xs font-mono bg-[#18181e] border-[#2c2c36] h-9 focus-visible:ring-1 focus-visible:ring-primary text-muted-foreground"
+            />
           </div>
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="branch-desc" className="text-xs font-semibold">
-              Description <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+            <Label htmlFor="branch-desc" className="text-xs font-semibold text-foreground">
+              Description
             </Label>
+            <p className="text-[11px] text-muted-foreground">
+              What are you working on in this branch?
+            </p>
             <Textarea
               id="branch-desc"
               value={description}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
               placeholder="What are you working on in this branch?"
               rows={3}
-              className="text-xs resize-none"
+              className="text-xs resize-none bg-[#18181e] border-[#2c2c36] focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground/60"
             />
           </div>
 
           {/* Based On Branch */}
           <div className="space-y-1.5">
-            <Label htmlFor="based-on" className="text-xs font-semibold">
+            <Label htmlFor="based-on" className="text-xs font-semibold text-foreground">
               Based On Branch
             </Label>
+            <p className="text-[11px] text-muted-foreground">
+              This branch will start with all tokens from the selected branch
+            </p>
             <Select value={basedOn} onValueChange={setBasedOn}>
-              <SelectTrigger id="based-on" className="text-xs font-mono">
+              <SelectTrigger id="based-on" className="text-xs bg-[#18181e] border-[#2c2c36] h-9 focus:ring-1 focus:ring-primary">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#18181e] border-[#2c2c36]">
                 {branches.map((b) => (
-                  <SelectItem key={b.id} value={b.name} className="font-mono text-xs">
+                  <SelectItem key={b.id} value={b.name} className="text-xs cursor-pointer">
                     {b.name} {b.isDefault ? "(default)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">
-              This branch will start with all tokens from the selected branch.
-            </p>
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-4 flex items-center justify-end gap-2 border-t border-[#23232a]/60 mt-4">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isSubmitting}
+              className="h-8 text-xs bg-[#18181e] border-[#2c2c36] text-foreground hover:bg-muted/40 cursor-pointer"
             >
               Cancel
             </Button>
@@ -243,10 +246,9 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
               type="submit"
               size="sm"
               disabled={isSubmitting || !title.trim() || !name.trim()}
-              className="gap-1.5 font-semibold"
+              className="h-8 text-xs font-medium bg-[#8b5cf6] hover:bg-[#7c3aed] text-white cursor-pointer px-4 shadow-xs"
             >
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>{isSubmitting ? "Creating..." : "Create Branch"}</span>
+              {isSubmitting ? "Creating..." : "Create Branch"}
             </Button>
           </DialogFooter>
         </form>
