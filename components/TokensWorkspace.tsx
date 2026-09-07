@@ -23,6 +23,7 @@ import {
   AlignLeft,
   Braces,
   MoreHorizontal,
+  MoreVertical,
   Edit2,
   Copy,
   Plus,
@@ -155,10 +156,42 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   const [groupDepth, setGroupDepth] = useState<number>(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
+  // Sorting & Multi-select states
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
+
   // Multi-level recursive group tree from displayed tokens with chosen grouping depth
   const groupTree = useMemo(() => {
     return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."), groupDepth);
   }, [displayedTokens, groupDepth]);
+
+  const sortedTokens = useMemo(() => {
+    const list = [...displayedTokens];
+    list.sort((a, b) => {
+      const cmp = a.name.localeCompare(b.name);
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return list;
+  }, [displayedTokens, sortDirection]);
+
+  const toggleSelectToken = (id: string) => {
+    setSelectedTokenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTokenIds.size === displayedTokens.length && displayedTokens.length > 0) {
+      setSelectedTokenIds(new Set());
+    } else {
+      setSelectedTokenIds(new Set(displayedTokens.map((t) => t.id)));
+    }
+  };
+
+  const allSelected = displayedTokens.length > 0 && selectedTokenIds.size === displayedTokens.length;
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => ({
@@ -183,27 +216,20 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
 
   const renderWorkspaceGroupTree = (node: TokenGroupNode<FlattenedToken>): React.ReactNode => {
     const isCollapsed = Boolean(collapsedGroups[node.id]);
-    const levelBg = [
-      "bg-background text-foreground font-bold border-t border-b border-border", // Level 1
-      "bg-background text-foreground font-semibold border-t border-b border-border/80", // Level 2
-      "bg-background text-foreground/90 font-medium border-t border-b border-border/60", // Level 3
-      "bg-background text-foreground/80 font-medium border-t border-border/40", // Level 4+
-    ];
-    const headerClass = levelBg[Math.min(node.level - 1, levelBg.length - 1)];
 
     return (
       <React.Fragment key={node.id}>
         <tr
           onClick={() => toggleGroup(node.id)}
-          className={`${headerClass} hover:bg-muted/40 transition-colors cursor-pointer select-none`}
+          className="bg-muted/30 hover:bg-muted/50 border-b border-border/40 transition-colors cursor-pointer select-none"
         >
           <td
-            colSpan={4}
-            className="py-2.5 px-3 sm:px-4 xl:px-6 align-middle"
+            colSpan={8}
+            className="py-2 px-4 align-middle"
           >
             <div
               className="flex items-center justify-between min-w-0 w-full"
-              style={{ paddingLeft: `${Math.max(16, (node.level - 1) * 20 + 16)}px` }}
+              style={{ paddingLeft: `${Math.max(8, (node.level - 1) * 16 + 8)}px` }}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-muted-foreground p-0.5 rounded transition-transform">
@@ -226,9 +252,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <Badge variant="outline" className="text-[10px] font-mono py-0 px-2 bg-background/60">
+                <span className="text-[10px] font-mono text-muted-foreground">
                   {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
-                </Badge>
+                </span>
               </div>
             </div>
           </td>
@@ -244,6 +270,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
                 level={node.level}
                 isGrouped={groupDepth !== 1}
                 parentGroupPath={node.fullPath}
+                isSelected={selectedTokenIds.has(token.id)}
+                onToggleSelect={() => toggleSelectToken(token.id)}
                 onUpdate={updateSingleToken}
                 onEdit={() => setEditingToken(token)}
                 onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
@@ -729,25 +757,47 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
               </div>
             ) : (
               <table className="w-full min-w-0 sm:min-w-[640px] text-left border-collapse text-xs">
-                <thead className="bg-muted/80 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <thead className="bg-muted/40 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
                   <tr>
-                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[24%] min-w-[170px]">
-                      Token Name {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
+                    <th className="w-10 px-3 py-2.5 text-center border-r border-border/30">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="h-3.5 w-3.5 rounded-full border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
+                        title="Select all"
+                      />
                     </th>
-                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[32%] min-w-[190px]">Raw Value / Properties</th>
-                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[28%] min-w-[170px]">Visual Preview</th>
-                    <th className="py-3 px-3 sm:px-4 xl:px-6 w-[16%] min-w-[120px] text-right">Set / Type</th>
+                    <th
+                      onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
+                      className="px-4 py-2.5 text-left border-r border-border/30 cursor-pointer hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>NAME</span>
+                        <span className="text-xs font-normal">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      </div>
+                    </th>
+                    <th className="w-24 px-4 py-2.5 text-left border-r border-border/30">TYPE</th>
+                    <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[140px]">VALUE</th>
+                    <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[160px]">RESOLVED</th>
+                    <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[180px]">DESCRIPTION</th>
+                    <th className="w-32 px-4 py-2.5 text-left border-r border-border/30">SET</th>
+                    <th className="w-10 px-2 py-2.5 text-center"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border font-mono">
+                <tbody className="divide-y divide-border/30 font-mono">
                   {groupDepth !== 1
                     ? groupTree.map((node) => renderWorkspaceGroupTree(node))
-                    : displayedTokens.map((token) => (
+                    : sortedTokens.map((token) => (
                         <TokenPreviewRow
                           key={token.id}
                           token={token}
                           level={0}
                           isGrouped={false}
+                          isSelected={selectedTokenIds.has(token.id)}
+                          onToggleSelect={() => toggleSelectToken(token.id)}
                           onUpdate={updateSingleToken}
                           onEdit={() => setEditingToken(token)}
                           onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
@@ -822,6 +872,8 @@ interface TokenPreviewRowProps {
   level?: number;
   isGrouped?: boolean;
   parentGroupPath?: string;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
   onUpdate: (path: string[], newValue: any) => void;
   onEdit: () => void;
   onDuplicate: (newName: string) => void;
@@ -833,6 +885,8 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
   level = 0,
   isGrouped = false,
   parentGroupPath,
+  isSelected = false,
+  onToggleSelect,
   onUpdate,
   onEdit,
   onDuplicate,
@@ -862,125 +916,182 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
     relativeName = tokenParts[tokenParts.length - 1];
   }
 
+  const isColor =
+    token.type === "color" ||
+    /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(token.resolvedValue || "").trim()) ||
+    /^rgba?\(.+\)$/i.test(String(token.resolvedValue || "").trim()) ||
+    /^hsla?\(.+\)$/i.test(String(token.resolvedValue || "").trim()) ||
+    /^(oklch|lch|color|lab)\(.+\)$/i.test(String(token.resolvedValue || "").trim());
+
+  const isAlias =
+    token.isAlias ||
+    (typeof token.rawValue === "string" && token.rawValue.startsWith("{") && token.rawValue.endsWith("}"));
+
+  const isOverridden =
+    token.resolvedValue === "overridden" ||
+    (typeof token.rawValue === "string" && token.rawValue.includes("overridden"));
+
   return (
-    <tr className="hover:bg-muted/40 transition-colors group">
-      {/* Token Name & Description */}
+    <tr className="hover:bg-muted/30 transition-colors group">
+      {/* 1. Selection Checkbox */}
+      <td className="w-10 px-3 py-2.5 text-center border-r border-border/30 align-middle">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggleSelect}
+          className="h-3.5 w-3.5 rounded-full border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
+        />
+      </td>
+
+      {/* 2. NAME */}
       <td
-        className="py-3 px-3 sm:px-4 xl:px-6 align-middle w-[24%] min-w-[170px]"
-        style={{ paddingLeft: isGrouped ? `${Math.max(20, (level + 1) * 16 + 12)}px` : "20px" }}
+        className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle"
+        style={{ paddingLeft: isGrouped ? `${Math.max(16, (level + 1) * 16)}px` : "16px" }}
       >
-        <div className="flex flex-col min-w-0">
-          <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-            {isGrouped ? relativeName : typeof token.name === "string" ? token.name : String(token.name || "")}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            onClick={onEdit}
+            className="font-medium text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
+            title={token.name}
+          >
+            {isGrouped ? relativeName : token.name}
           </span>
-          {isGrouped && relativeName !== token.name && (
-            <span className="text-[10px] text-muted-foreground font-mono truncate opacity-60">
-              {token.name}
-            </span>
-          )}
-          {token.description && (
+          {isOverridden && (
             <span
-              className="text-[11px] text-muted-foreground font-sans truncate max-w-[160px] sm:max-w-xs mt-0.5"
-              title={typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
-            >
-              {typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
-            </span>
+              className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"
+              title="Overridden value"
+            />
           )}
         </div>
       </td>
 
-      {/* Raw Value / Structured Composite Properties */}
-      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle w-[32%] min-w-[190px]">
-        <TokenRawValueCell token={token} onUpdate={onUpdate} />
+      {/* 3. TYPE */}
+      <td className="w-24 px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle">
+        {token.type}
       </td>
 
-      {/* Rich Visual Specimen / Swatch Preview */}
-      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle w-[28%] min-w-[170px]">
-        <TokenVisualPreviewCell token={token} />
+      {/* 4. VALUE */}
+      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
+        {isAlias ? (
+          <span
+            onClick={onEdit}
+            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 cursor-pointer hover:border-blue-300 transition-colors"
+          >
+            {token.rawValue}
+          </span>
+        ) : (
+          <span
+            onClick={onEdit}
+            className="font-bold text-foreground cursor-pointer hover:text-primary transition-colors"
+          >
+            {typeof token.rawValue === "object" ? JSON.stringify(token.rawValue) : String(token.rawValue || "")}
+          </span>
+        )}
       </td>
 
-      {/* Set, Type Badges & 3-Dots Context Menu */}
-      <td className="py-3 px-3 sm:px-4 xl:px-6 align-middle text-right w-[16%] min-w-[120px]">
-        <div className="flex items-center justify-end gap-2 relative">
-          <Badge variant="outline" className="text-[10px] font-mono">
-            {typeof token.setName === "string" ? token.setName : String(token.setName || "")}
-          </Badge>
-          <Badge variant="violet" className="text-[10px] font-mono">
-            {typeof token.type === "string" ? token.type : String(token.type || "")}
-          </Badge>
+      {/* 5. RESOLVED */}
+      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
+        {isOverridden ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100/80 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800/60">
+            overridden
+          </span>
+        ) : isColor ? (
+          <div
+            onClick={() => handleCopy(token.resolvedValue, "resolved")}
+            className="flex items-center gap-2 cursor-pointer group/swatch"
+            title={`Click to copy: ${token.resolvedValue}`}
+          >
+            <div
+              className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
+              style={{ backgroundColor: token.resolvedHex || token.resolvedValue }}
+            />
+            <span className="text-foreground group-hover/swatch:text-primary transition-colors">
+              {token.resolvedHex || token.resolvedValue}
+            </span>
+          </div>
+        ) : (
+          <span className="text-foreground">
+            {typeof token.resolvedValue === "object" ? JSON.stringify(token.resolvedValue) : String(token.resolvedValue || "")}
+          </span>
+        )}
+      </td>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                title="More actions"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {isEditable && (
-                <>
-                  <DropdownMenuItem
-                    onClick={onEdit}
-                    className="gap-2 text-xs"
-                  >
-                    <Edit2 className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-semibold">Edit token</span>
-                  </DropdownMenuItem>
+      {/* 6. DESCRIPTION */}
+      <td className="px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground truncate max-w-xs align-middle">
+        {token.description ? (
+          <span title={typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}>
+            {typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
+          </span>
+        ) : (
+          <span className="opacity-40">—</span>
+        )}
+      </td>
 
-                  <DropdownMenuItem
-                    onClick={() => {
-                      const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
-                      if (newName && newName.trim()) {
-                        onDuplicate(newName.trim());
-                      }
-                    }}
-                    className="gap-2 text-xs"
-                  >
-                    <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Duplicate token</span>
-                  </DropdownMenuItem>
-                </>
-              )}
+      {/* 7. SET */}
+      <td className="w-32 px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs text-muted-foreground align-middle">
+        {token.setName}
+      </td>
 
-              <DropdownMenuItem
-                onClick={() => handleCopy(cssVarName, "var")}
-                className="gap-2 text-xs"
-              >
-                <Copy className="w-3.5 h-3.5 text-blue-500" />
-                <span>Copy CSS Var ({cssVarName})</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() => handleCopy(token.name, "name")}
-                className="gap-2 text-xs"
-              >
-                <Copy className="w-3.5 h-3.5 text-amber-500" />
-                <span>Copy token name</span>
-              </DropdownMenuItem>
-
-              {isEditable && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
-                        onDelete();
-                      }
-                    }}
-                    className="gap-2 text-xs text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete token</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      {/* 8. ACTIONS (⋮) */}
+      <td className="w-10 px-2 py-2.5 text-center align-middle">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground p-0 mx-auto"
+              title="More actions"
+            >
+              <MoreVertical className="w-3.5 h-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {isEditable && (
+              <>
+                <DropdownMenuItem onClick={onEdit} className="gap-2 text-xs">
+                  <Edit2 className="w-3.5 h-3.5 text-primary" />
+                  <span className="font-semibold">Edit token</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
+                    if (newName && newName.trim()) {
+                      onDuplicate(newName.trim());
+                    }
+                  }}
+                  className="gap-2 text-xs"
+                >
+                  <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Duplicate token</span>
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuItem onClick={() => handleCopy(cssVarName, "var")} className="gap-2 text-xs">
+              <Copy className="w-3.5 h-3.5 text-blue-500" />
+              <span>Copy CSS Var</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCopy(token.name, "name")} className="gap-2 text-xs">
+              <Copy className="w-3.5 h-3.5 text-amber-500" />
+              <span>Copy token name</span>
+            </DropdownMenuItem>
+            {isEditable && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
+                      onDelete();
+                    }
+                  }}
+                  className="gap-2 text-xs text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete token</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </td>
     </tr>
   );

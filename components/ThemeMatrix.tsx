@@ -358,10 +358,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
       >
         {/* Token Key Name + Type Icon */}
         <td
-          className={`py-2.5 px-3 sm:px-4 xl:px-6 text-foreground text-[13px] font-mono select-text align-middle leading-relaxed min-w-[170px] ${
+          className={`py-2 px-3 sm:px-4 border-r border-border/30 text-foreground text-xs font-mono select-text align-middle leading-relaxed min-w-[170px] ${
             isHighlighted ? "bg-primary/15" : ""
           }`}
-          style={{ paddingLeft: isGrouped ? `${Math.max(20, (level + 1) * 16 + 12)}px` : "20px" }}
+          style={{ paddingLeft: isGrouped ? `${Math.max(16, (level + 1) * 16)}px` : "16px" }}
         >
           <div className="flex items-center gap-2.5">
             <span
@@ -386,7 +386,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
           const cellData = row.cells[option.name];
 
           return (
-            <td key={option.id} className="py-2 px-3 sm:px-4 xl:px-6 align-middle">
+            <td key={option.id} className="py-2 px-3 sm:px-4 border-r border-border/30 align-middle">
               <MatrixPillCell
                 cellData={cellData}
                 rawTokens={rawTokens}
@@ -946,15 +946,15 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
         ) : (
           <table className="w-full min-w-0 sm:min-w-[640px] text-left border-collapse text-xs">
             {/* Table Header: TOKEN | OPTION_A | OPTION_B | (ACTIONS) */}
-            <thead className="bg-muted/80 border-b border-border text-xs font-bold text-foreground tracking-wider">
+            <thead className="bg-muted/40 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
               <tr>
-                <th className="py-3 px-3 sm:px-4 xl:px-6 w-1/4 sm:w-1/3 min-w-[180px] sm:min-w-[220px] font-bold uppercase text-muted-foreground">
+                <th className="py-2.5 px-4 w-1/4 sm:w-1/3 min-w-[180px] sm:min-w-[220px] font-bold uppercase text-[10px] text-muted-foreground border-r border-border/30">
                   TOKEN {groupDepth !== 1 && <span className="text-[10px] font-normal lowercase">({groupTree.length} groups)</span>}
                 </th>
                 {activeGroup?.options.map((option) => (
                   <th
                     key={option.id}
-                    className="py-3 px-3 sm:px-4 xl:px-6 font-bold uppercase text-foreground"
+                    className="py-2.5 px-4 font-bold uppercase text-[10px] text-foreground border-r border-border/30"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{typeof option.name === "string" ? option.name : String(option.name || "")}</span>
@@ -967,7 +967,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
             </thead>
 
             {/* Table Body: Grouped Hierarchical View vs Flat View */}
-            <tbody className="divide-y divide-border font-mono">
+            <tbody className="divide-y divide-border/30 font-mono">
               {groupDepth !== 1 ? (
                 groupTree.map((node) => renderGroupTree(node))
               ) : (

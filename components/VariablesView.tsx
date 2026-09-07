@@ -610,51 +610,51 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               /* TABLE VIEW */
               <div className="w-full min-w-0 sm:min-w-[640px] rounded-xl border border-border bg-card shadow-xs overflow-x-auto">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-muted/50 border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
+                  <thead className="bg-muted/40 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                     <tr>
-                      <th className="py-2.5 px-4">Collection</th>
-                      <th className="py-2.5 px-4">Variable Name</th>
-                      <th className="py-2.5 px-4">Preview</th>
-                      <th className="py-2.5 px-4">Resolved Value</th>
-                      <th className="py-2.5 px-4">Type</th>
-                      <th className="py-2.5 px-4">Alias Binding</th>
+                      <th className="py-2.5 px-4 border-r border-border/30">Collection</th>
+                      <th className="py-2.5 px-4 border-r border-border/30">Variable Name</th>
+                      <th className="py-2.5 px-4 border-r border-border/30">Preview</th>
+                      <th className="py-2.5 px-4 border-r border-border/30">Resolved Value</th>
+                      <th className="py-2.5 px-4 border-r border-border/30">Type</th>
+                      <th className="py-2.5 px-4 border-r border-border/30">Alias Binding</th>
                       <th className="py-2.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/30">
                     {filteredVariables.map((item) => {
                       const isColor = item.type === "color";
 
                       return (
                         <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
-                          <td className="py-2.5 px-4">
-                            <Badge variant="outline" className="text-[9px] font-mono uppercase">
-                              {item.setName}
-                            </Badge>
+                          <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground">
+                            {item.setName}
                           </td>
-                          <td className="py-2.5 px-4 font-mono font-semibold text-foreground truncate max-w-[200px]">
+                          <td className="py-2.5 px-4 border-r border-border/30 font-mono font-medium text-foreground truncate max-w-[200px]">
                             {item.name}
                           </td>
-                          <td className="py-2.5 px-4">
+                          <td className="py-2.5 px-4 border-r border-border/30">
                             {isColor ? (
                               <div
-                                className="w-5 h-5 rounded border border-black/10 shadow-xs"
+                                className="w-4 h-4 rounded-full border border-black/15 shadow-2xs"
                                 style={{ backgroundColor: typeof (item.resolvedValue || item.rawValue) === "string" ? (item.resolvedValue || item.rawValue) : undefined }}
                               />
                             ) : (
                               <span className="font-mono text-[11px] text-muted-foreground">—</span>
                             )}
                           </td>
-                          <td className="py-2.5 px-4 font-mono text-foreground">
+                          <td className="py-2.5 px-4 border-r border-border/30 font-mono text-foreground">
                             {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
                           </td>
-                          <td className="py-2.5 px-4">
-                            <Badge variant="secondary" className="text-[9px] capitalize">
-                              {item.type}
-                            </Badge>
+                          <td className="py-2.5 px-4 border-r border-border/30 font-sans text-xs text-muted-foreground lowercase">
+                            {item.type}
                           </td>
-                          <td className="py-2.5 px-4 font-mono text-[10px] text-muted-foreground truncate max-w-[150px]">
-                            {item.isAlias ? (typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")) : "—"}
+                          <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground truncate max-w-[150px]">
+                            {item.isAlias ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+                                {typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")}
+                              </span>
+                            ) : "—"}
                           </td>
                           <td className="py-2.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
