@@ -1,4 +1,6 @@
 import { RawTokensDocument, RawTokenLeaf, FlattenedToken, TokenType } from "@/types/tokens";
+import { extractColorModifier, applyColorModifier, ColorModifier } from "./colorModifier";
+import Color from "colorjs.io";
 
 // Check if a leaf is a token node (has 'value' or '$value')
 export function isTokenLeaf(node: any): node is RawTokenLeaf {
@@ -241,7 +243,25 @@ export function resolveTokenAlias(
 
     if (foundLeaf) {
       const rawVal = getLeafValue(foundLeaf);
-      return resolveTokenAlias(rawVal, allTokens, currentSet, newVisited);
+      const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, newVisited);
+      const modifier = extractColorModifier(foundLeaf);
+      if (modifier) {
+        let resolvedMixColor: string | undefined = undefined;
+        if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
+          resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, newVisited);
+        }
+        let resolvedModValue = modifier.value;
+        if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
+          resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, newVisited);
+        }
+        const modToApply: ColorModifier = {
+          ...modifier,
+          value: resolvedModValue,
+        };
+        const modResult = applyColorModifier(baseResolved, modToApply, resolvedMixColor);
+        return modResult.resolvedValue;
+      }
+      return baseResolved;
     }
 
     return match;
@@ -544,7 +564,45 @@ export function flattenAndResolveTokens(
         const name = currentPath.join(".");
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
         const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
-        const resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName);
+        let resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName);
+
+        const modifier = extractColorModifier(node);
+        let resolvedHex: string | undefined = undefined;
+
+        if (modifier) {
+          let resolvedMixColor: string | undefined = undefined;
+          if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
+            resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, setName);
+          }
+          let resolvedModValue = modifier.value;
+          if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
+            resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, setName);
+          }
+          const modToApply: ColorModifier = {
+            ...modifier,
+            value: resolvedModValue,
+          };
+          const modResult = applyColorModifier(
+            typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+            modToApply,
+            resolvedMixColor
+          );
+          resolvedValue = modResult.resolvedValue;
+          resolvedHex = modResult.hex;
+        } else if (typeof resolvedValue === "string") {
+          const s = resolvedValue.trim();
+          if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) {
+            resolvedHex = s;
+          } else {
+            try {
+              const col = new Color(s);
+              resolvedHex = col.to("srgb").toString({ format: "hex" });
+            } catch {
+              // Not a color
+            }
+          }
+        }
+
         const rawDesc = node.description ?? node.$description;
         const description =
           typeof rawDesc === "string"
@@ -565,6 +623,8 @@ export function flattenAndResolveTokens(
           type: getLeafType(node, group),
           rawValue: typeof rawValue === "string" ? rawValue : JSON.stringify(rawValue),
           resolvedValue: typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+          resolvedHex,
+          modify: modifier || undefined,
           isAlias,
           aliasTarget: aliasMatch ? String(aliasMatch[1]) : undefined,
           description,

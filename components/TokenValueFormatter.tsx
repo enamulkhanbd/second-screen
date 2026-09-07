@@ -169,7 +169,8 @@ export const TokenVisualPreviewCell: React.FC<{
     token.type === "color" ||
     /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(token.resolvedValue.trim()) ||
     /^rgba?\(.+\)$/i.test(token.resolvedValue.trim()) ||
-    /^hsla?\(.+\)$/i.test(token.resolvedValue.trim());
+    /^hsla?\(.+\)$/i.test(token.resolvedValue.trim()) ||
+    /^(oklch|lch|color|lab)\(.+\)$/i.test(token.resolvedValue.trim());
 
   const handleCopy = (valToCopy: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -233,29 +234,44 @@ export const TokenVisualPreviewCell: React.FC<{
     const whiteCompliance = calculateContrastRatio(token.resolvedValue, "#ffffff");
     const blackCompliance = calculateContrastRatio(token.resolvedValue, "#000000");
     const bestRatio = Math.max(whiteCompliance?.ratio || 1, blackCompliance?.ratio || 1);
+    const hasDifferentHex =
+      token.resolvedHex &&
+      token.resolvedHex.toLowerCase() !== token.resolvedValue.trim().toLowerCase();
 
     return (
       <div
         onClick={() => handleCopy(token.resolvedValue)}
-        className="group relative flex items-center gap-3 cursor-pointer select-none"
-        title={`Click to copy: ${token.resolvedValue} (Contrast: ${bestRatio}:1)`}
+        className="group relative flex items-center gap-2.5 cursor-pointer select-none max-w-full"
+        title={`Click to copy: ${token.resolvedValue}${token.resolvedHex ? ` (${token.resolvedHex})` : ""} (Contrast: ${bestRatio}:1)`}
       >
         <div
           className="w-7 h-7 rounded-lg border border-black/15 dark:border-white/20 shadow-xs flex-shrink-0 transition-transform group-hover:scale-105"
-          style={{ backgroundColor: token.resolvedValue }}
+          style={{ backgroundColor: token.resolvedHex || token.resolvedValue }}
         />
-        <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate">
-          {token.resolvedValue}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate max-w-[180px]">
+            {token.resolvedValue}
+          </span>
+          {hasDifferentHex && (
+            <span className="font-mono text-[11px] text-muted-foreground shrink-0">
+              {token.resolvedHex}
+            </span>
+          )}
+          {token.modify && (
+            <Badge variant="outline" className="text-[9px] font-mono py-0 px-1 text-muted-foreground/80 border-border/50 shrink-0">
+              {token.modify.type} {token.modify.space || "lch"}
+            </Badge>
+          )}
+        </div>
 
         {bestRatio >= 4.5 && (
-          <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5">
+          <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 shrink-0 ml-auto sm:ml-0">
             {bestRatio}:1
           </Badge>
         )}
 
         <button
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-foreground rounded-md"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-foreground rounded-md shrink-0"
           tabIndex={-1}
         >
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}

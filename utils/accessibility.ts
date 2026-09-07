@@ -1,6 +1,7 @@
 /**
  * WCAG 2.1 Color Contrast and Accessibility Utilities
  */
+import Color from "colorjs.io";
 
 export interface ColorRGB {
   r: number;
@@ -90,7 +91,19 @@ export function parseColorToRgb(colorStr: string): ColorRGB | null {
     return NAMED_COLORS[s];
   }
 
-  return null;
+  // Fallback: parse CSS color strings including oklch, lch, lab, hsl, p3 using colorjs.io
+  try {
+    const col = new Color(s);
+    const srgb = col.to("srgb");
+    return {
+      r: Math.round(Math.min(255, Math.max(0, srgb.r * 255))),
+      g: Math.round(Math.min(255, Math.max(0, srgb.g * 255))),
+      b: Math.round(Math.min(255, Math.max(0, srgb.b * 255))),
+      a: col.alpha !== undefined ? col.alpha : 1,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

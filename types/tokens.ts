@@ -56,6 +56,8 @@ export interface FlattenedToken {
   type: TokenType;
   rawValue: string;
   resolvedValue: string;
+  resolvedHex?: string;
+  modify?: any;
   isAlias: boolean;
   aliasTarget?: string;
   description?: string;

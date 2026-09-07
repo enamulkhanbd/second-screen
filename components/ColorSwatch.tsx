@@ -19,7 +19,8 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
     type === "color" ||
     /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(valStr.trim()) ||
     /^rgba?\(.+\)$/i.test(valStr.trim()) ||
-    /^hsla?\(.+\)$/i.test(valStr.trim());
+    /^hsla?\(.+\)$/i.test(valStr.trim()) ||
+    /^(oklch|lch|color|lab)\(.+\)$/i.test(valStr.trim());
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
