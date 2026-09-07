@@ -31,7 +31,6 @@ import {
   GitCommit,
 } from "lucide-react";
 import { CreateBranchModal } from "@/components/CreateBranchModal";
-import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { TokenDiffViewer } from "@/components/TokenDiffViewer";
@@ -44,14 +43,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -475,8 +466,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   return (
     <TooltipProvider>
       <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 text-xs select-none transition-colors">
-        {/* Left: Brand + Breadcrumbs */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {/* Left: Mobile Navigation Button */}
+        <div className="flex items-center gap-2 min-w-0">
           {onOpenNavigation && (
             <Button
               variant="ghost"
@@ -488,123 +479,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             >
               <PanelLeftOpen className="w-4 h-4" />
             </Button>
-          )}
-          {/* Tokens Platform Logo & Brand -> Redirects to Dashboard */}
-          <button
-            onClick={() => setSidebarTab("dashboard")}
-            className="flex items-center gap-2 cursor-pointer group focus-visible:outline-none"
-            title="Dashboard (Home)"
-          >
-            <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
-              <Layers className="w-3.5 h-3.5" />
-            </div>
-            <span className="font-semibold text-foreground text-xs tracking-tight group-hover:text-primary transition-colors hidden md:inline">
-              Tokens Platform
-            </span>
-          </button>
-
-          {/* Breadcrumb Hierarchy */}
-          {Boolean(currentUser) && (
-            <>
-              <Separator orientation="vertical" className="h-4 mx-1 hidden sm:block opacity-60" />
-
-              <Breadcrumb className="hidden sm:flex">
-                <BreadcrumbList>
-                  {/* Org / Project Switcher as Breadcrumb Item */}
-                  <BreadcrumbItem>
-                    <OrgSwitcher onOpenAuth={() => setIsAuthOpen(true)} />
-                  </BreadcrumbItem>
-
-                  {/* Git Repo Name if configured */}
-                  {credentials.repo && (
-                    <>
-                      <BreadcrumbSeparator />
-                      <BreadcrumbItem>
-                        <BreadcrumbLink onClick={onOpenSettings} className="font-medium text-foreground/80 hover:text-foreground">
-                          {credentials.repo}
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                    </>
-                  )}
-
-                  {/* Active Page / Section */}
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    {sidebarTab === "dashboard" && <BreadcrumbPage>Dashboard</BreadcrumbPage>}
-                    {sidebarTab === "documentation" && <BreadcrumbPage>Documentation</BreadcrumbPage>}
-                    {sidebarTab === "assets" && <BreadcrumbPage>Assets</BreadcrumbPage>}
-                    {sidebarTab === "exports" && <BreadcrumbPage>Exports</BreadcrumbPage>}
-                    {sidebarTab === "releases" && <BreadcrumbPage>Releases</BreadcrumbPage>}
-                    {sidebarTab === "activity" && <BreadcrumbPage>Git Log</BreadcrumbPage>}
-                    {sidebarTab === "changelog" && <BreadcrumbPage>What&apos;s New &amp; Releases</BreadcrumbPage>}
-                    {sidebarTab === "integrations" && <BreadcrumbPage>Integrations</BreadcrumbPage>}
-                    {sidebarTab === "mcp" && <BreadcrumbPage>MCP &amp; CLI</BreadcrumbPage>}
-                    {sidebarTab === "members" && <BreadcrumbPage>Team Members</BreadcrumbPage>}
-                    {sidebarTab === "org-settings" && <BreadcrumbPage>Organization Settings</BreadcrumbPage>}
-                    {sidebarTab === "project-settings" && <BreadcrumbPage>Project Settings</BreadcrumbPage>}
-
-                    {(sidebarTab === "variables" || sidebarTab === "tokens") && (
-                      <div className="flex items-center gap-1.5">
-                        <BreadcrumbLink onClick={() => setSidebarTab("tokens")}>Tokens</BreadcrumbLink>
-                        <span className="text-muted-foreground/40 font-normal">/</span>
-                        <BreadcrumbPage className="truncate max-w-[140px]">{activeSet}</BreadcrumbPage>
-                      </div>
-                    )}
-
-                    {sidebarTab === "themes" && (
-                      <div className="flex items-center gap-1.5">
-                        <BreadcrumbLink onClick={() => setSidebarTab("themes")}>Themes</BreadcrumbLink>
-                        {themeGroups.length > 0 && (
-                          <>
-                            <span className="text-muted-foreground/40 font-normal">/</span>
-                            <div className="relative">
-                              <button
-                                onClick={() => setShowThemeGroupMenu(!showThemeGroupMenu)}
-                                className="flex items-center gap-1 font-semibold text-foreground hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-muted/70 cursor-pointer"
-                              >
-                                <span>{activeGroup?.name || "Theme"}</span>
-                                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                              </button>
-                              {showThemeGroupMenu && (
-                                <>
-                                  <div
-                                    className="fixed inset-0 z-40"
-                                    onClick={() => setShowThemeGroupMenu(false)}
-                                  />
-                                  <div className="absolute left-0 top-full mt-1 w-48 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                    <div className="px-3 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                                      Theme Groups
-                                    </div>
-                                    {themeGroups.map((grp) => (
-                                      <button
-                                        key={grp.id}
-                                        onClick={() => {
-                                          setActiveThemeGroup(grp.id);
-                                          setShowThemeGroupMenu(false);
-                                        }}
-                                        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer ${grp.id === activeThemeGroupId
-                                            ? "bg-primary/10 text-primary font-semibold"
-                                            : "text-foreground hover:bg-muted"
-                                          }`}
-                                      >
-                                        <span>{grp.name}</span>
-                                        {grp.id === activeThemeGroupId && (
-                                          <Check className="w-3 h-3 text-primary" />
-                                        )}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </>
           )}
         </div>
 
