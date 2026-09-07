@@ -342,6 +342,7 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
           (groupName.toLowerCase() === "theme" || groupName.toLowerCase() === "mode"
             ? "#ffffff"
             : GROUP_PALETTE[idx % GROUP_PALETTE.length]),
+        description: typeof item.description === "string" ? item.description : "",
       };
 
       if (!groupMap.has(groupName)) {

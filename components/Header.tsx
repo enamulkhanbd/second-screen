@@ -43,6 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -77,8 +78,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     setCredentials,
     rawTokens,
     syncMeta,
+    currentOrg,
+    currentProject,
     themeGroups,
     activeThemeGroupId,
+    activeThemeOptionId,
     setActiveThemeGroup,
     isDirty,
     viewMode,
@@ -133,7 +137,78 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   const [branchSearch, setBranchSearch] = useState("");
 
   const hasTokens = Object.keys(rawTokens).length > 0;
-  const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
+  const activeGroup = useMemo(() => {
+    return themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
+  }, [themeGroups, activeThemeGroupId]);
+
+  const activeOption = useMemo(() => {
+    return activeGroup?.options.find((o) => o.id === activeThemeOptionId) || activeGroup?.options[0];
+  }, [activeGroup, activeThemeOptionId]);
+
+  // Global Breadcrumb computation
+  const breadcrumbItems = useMemo(() => {
+    const projName = currentProject?.name || currentOrg?.name || "Planet";
+    const items: Array<{ label: string; onClick?: () => void; isLast?: boolean }> = [
+      {
+        label: projName,
+        onClick: () => setSidebarTab("dashboard"),
+      },
+    ];
+
+    if (sidebarTab === "themes") {
+      items.push({
+        label: "Themes Groups",
+        onClick: () => setSidebarTab("themes"),
+      });
+      if (activeGroup) {
+        items.push({
+          label: activeGroup.name,
+        });
+      }
+      if (activeOption) {
+        items.push({
+          label: activeOption.name,
+        });
+      }
+    } else if (sidebarTab === "tokens") {
+      items.push({
+        label: "Tokens",
+        onClick: () => setSidebarTab("tokens"),
+      });
+      const setName = activeSet === "ALL" || !activeSet ? "All tokens" : activeSet;
+      items.push({
+        label: setName,
+      });
+    } else {
+      const tabLabels: Record<string, string> = {
+        dashboard: "Dashboard",
+        variables: "Variables",
+        documentation: "Documentation",
+        assets: "Assets",
+        exports: "Exports",
+        releases: "Releases",
+        branches: "Branches",
+        activity: "Activity",
+        members: "Members",
+        "project-settings": "Project Settings",
+        "org-settings": "Organization Settings",
+        integrations: "Integrations",
+        sync: "Integrations",
+        mcp: "MCP & CLI",
+        changelog: "Changelog",
+        workspaces: "Workspaces & Projects",
+      };
+      items.push({
+        label: tabLabels[sidebarTab] || sidebarTab,
+      });
+    }
+
+    if (items.length > 0) {
+      items[items.length - 1].isLast = true;
+    }
+
+    return items;
+  }, [currentProject?.name, currentOrg?.name, sidebarTab, activeGroup, activeOption, activeSet, setSidebarTab]);
 
   // Compute live diff summary between baseline and current state
   const diffSummary = useMemo(() => {
@@ -466,8 +541,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   return (
     <TooltipProvider>
       <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 text-xs select-none transition-colors">
-        {/* Left: Mobile Navigation Button */}
-        <div className="flex items-center gap-2 min-w-0">
+        {/* Left: Mobile Navigation Button & Global Breadcrumbs */}
+        <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
           {onOpenNavigation && (
             <Button
               variant="ghost"
@@ -480,21 +555,59 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
               <PanelLeftOpen className="w-4 h-4" />
             </Button>
           )}
+
+          {/* Global Breadcrumbs */}
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 truncate select-none">
+            {breadcrumbItems.map((item, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 && <span className="text-muted-foreground/40 font-light select-none">/</span>}
+                {item.isLast ? (
+                  <span className="text-foreground font-semibold truncate">
+                    {item.label}
+                  </span>
+                ) : (
+                  <span
+                    onClick={item.onClick}
+                    className={cn(
+                      "truncate transition-colors",
+                      item.onClick ? "hover:text-foreground cursor-pointer" : ""
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
+          </nav>
         </div>
 
         {/* Right: Conditional Controls */}
         <div className="flex items-center gap-2">
 
 
-          {/* Matrix vs Flow Switcher */}
+          {/* Theme Views Switcher: Sets, Matrix, Flow */}
           {hasTokens && sidebarTab === "themes" && (
             <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/60 text-[11px] font-medium">
               <button
-                onClick={() => setViewMode("matrix")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${viewMode === "matrix"
+                onClick={() => setViewMode("sets")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  viewMode === "sets"
                     ? "bg-background text-foreground font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
-                  }`}
+                }`}
+                title="Token Sets Configuration"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Sets</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode("matrix")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  viewMode === "matrix"
+                    ? "bg-background text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
                 title="Theme Matrix Comparison Grid"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />

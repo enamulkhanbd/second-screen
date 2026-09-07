@@ -278,8 +278,8 @@ interface TokenStoreState {
   loadStarterDocumentationTemplate: () => Promise<void>;
 
   // View Mode & Filters
-  viewMode: "matrix" | "flow";
-  setViewMode: (mode: "matrix" | "flow") => void;
+  viewMode: "sets" | "matrix" | "flow";
+  setViewMode: (mode: "sets" | "matrix" | "flow") => void;
   tokensViewMode: "preview" | "json";
   setTokensViewMode: (mode: "preview" | "json") => void;
   activeSet: string;
@@ -342,7 +342,12 @@ interface TokenStoreState {
   updateThemeOption: (
     groupId: string,
     optionId: string,
-    updates: { name?: string; color?: string }
+    updates: {
+      name?: string;
+      color?: string;
+      description?: string;
+      selectedTokenSets?: Record<string, "enabled" | "disabled" | "source">;
+    }
   ) => void;
   deleteThemeOption: (groupId: string, optionId: string) => void;
   initializeBlankWorkspace: () => void;
@@ -2091,7 +2096,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     set({ activeThemeOptionId: optionId });
   },
 
-  viewMode: "matrix",
+  viewMode: "sets",
   setViewMode: (mode) => {
     set({ viewMode: mode });
     if (typeof window !== "undefined") {
@@ -3149,6 +3154,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ...t,
           ...(updates.name ? { name: updates.name.trim() } : {}),
           ...(updates.color ? { color: updates.color } : {}),
+          ...(updates.description !== undefined ? { description: updates.description } : {}),
+          ...(updates.selectedTokenSets !== undefined ? { selectedTokenSets: updates.selectedTokenSets } : {}),
         };
       }
       return t;

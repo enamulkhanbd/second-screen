@@ -69,6 +69,7 @@ export interface ThemeOption {
   group: string; // e.g. "Theme", "Semantic", "Components", "Brands"
   selectedTokenSets: Record<string, "enabled" | "disabled" | "source">;
   color?: string; // Color dot (e.g. "#f97316", "#3b82f6", "#10b981", "#ef4444", "#a855f7")
+  description?: string;
 }
 
 export interface ThemeGroup {

@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
 import { ThemeMatrix } from "@/components/ThemeMatrix";
+import { ThemeConfigurationView } from "@/components/ThemeConfigurationView";
 import { TokenFlow } from "@/components/TokenFlow";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
@@ -187,11 +188,13 @@ export default function Home() {
           />
         ) : viewMode === "flow" ? (
           <TokenFlow />
-        ) : (
+        ) : viewMode === "matrix" ? (
           <ThemeMatrix
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenContextNavigation={() => setIsContextNavOpen(true)}
           />
+        ) : (
+          <ThemeConfigurationView />
         )}
       </div>
       </div>

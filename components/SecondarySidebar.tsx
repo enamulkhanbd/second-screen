@@ -554,20 +554,24 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
       {sidebarTab === "themes" && (
         <>
           {/* Header */}
-          <div className="p-3 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Palette className="size-4 text-violet-500" />
-              <span className="font-bold text-xs text-foreground">Theme Groups</span>
-              {themeGroups.length > 0 && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0 font-mono">
-                  {themeGroups.length}
-                </Badge>
-              )}
-            </div>
+          <div className="h-10 px-3 border-b border-border flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              THEME GROUPS
+            </span>
+            {isEditable && (
+              <button
+                type="button"
+                onClick={() => setAddModalGroupId(activeThemeGroupId || themeGroups[0]?.id || null)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                title="Add Theme Option"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Theme Groups List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          <div className="flex-1 overflow-y-auto p-2 space-y-3">
             {themeGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center px-2">
                 <Palette className="size-8 text-muted-foreground/30 mb-2.5" />
@@ -578,155 +582,159 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
               </div>
             ) : (
               themeGroups.map((grp) => {
-              const isGroupActive = activeThemeGroupId === grp.id;
-              return (
-                <div key={grp.id} className="space-y-1.5">
-                  <div
-                    onClick={() => {
-                      setActiveThemeGroup(grp.id);
-                      onItemSelected?.();
-                    }}
-                    className={`group flex items-center justify-between text-xs font-bold rounded-md px-1.5 py-1 cursor-pointer transition-colors ${
-                      isGroupActive ? "bg-muted/70 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate min-w-0 pr-1">
-                      <span
-                        className="size-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: grp.color }}
-                      />
-                      <span className="truncate uppercase tracking-wider text-[11px] font-bold">
-                        {grp.name}
-                      </span>
+                const isGroupActive = activeThemeGroupId === grp.id;
+                return (
+                  <div key={grp.id} className="space-y-1">
+                    <div
+                      onClick={() => {
+                        setActiveThemeGroup(grp.id);
+                        if (grp.options.length > 0) {
+                          setActiveThemeOption(grp.options[0].id);
+                        }
+                        onItemSelected?.();
+                      }}
+                      className={`group flex items-center justify-between text-xs font-semibold rounded-md px-2 py-1.5 cursor-pointer transition-colors ${
+                        isGroupActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate min-w-0 pr-1">
+                        <Folder className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate text-xs font-semibold">
+                          {grp.name}
+                        </span>
+                      </div>
+
+                      {/* Colored option dots indicator on right */}
+                      <div className="flex items-center gap-1 shrink-0 ml-auto mr-1.5">
+                        {grp.options.slice(0, 4).map((opt) => (
+                          <span
+                            key={opt.id}
+                            className="size-1.5 rounded-full"
+                            style={{ backgroundColor: opt.color || grp.color || "#6366f1" }}
+                          />
+                        ))}
+                      </div>
+
+                      {isEditable && (
+                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddModalGroupId(grp.id);
+                            }}
+                            className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                            title="Add Theme Option"
+                          >
+                            <Plus className="size-3" />
+                          </button>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                                title="Group options"
+                              >
+                                <MoreVertical className="size-3" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40 text-xs">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditGroupId(grp.id);
+                                }}
+                                className="gap-2 text-xs cursor-pointer"
+                              >
+                                <Edit2 className="size-3.5" />
+                                <span>Edit / Rename</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDelete("group", grp.id, grp.name);
+                                }}
+                                className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                              >
+                                <Trash2 className="size-3.5" />
+                                <span>Delete Group</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
                     </div>
 
-                    {isEditable && (
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAddModalGroupId(grp.id);
-                          }}
-                          className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="Add Theme Option"
-                        >
-                          <Plus className="size-3.5" />
-                        </button>
+                    {/* Indented Theme Options List */}
+                    <div className="pl-5 space-y-0.5">
+                      {grp.options.map((opt) => {
+                        const isSelected = activeThemeGroupId === grp.id && activeThemeOptionId === opt.id;
+                        return (
+                          <div
+                            key={opt.id}
+                            onClick={() => {
+                              setActiveThemeGroup(grp.id);
+                              setActiveThemeOption(opt.id);
+                              onItemSelected?.();
+                            }}
+                            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-muted text-foreground font-semibold shadow-2xs"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
+                            }`}
+                          >
+                            <span className="truncate pr-1">{opt.name}</span>
 
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title="Group options"
-                            >
-                              <MoreVertical className="size-3" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40 text-xs">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditGroupId(grp.id);
-                              }}
-                              className="gap-2 text-xs cursor-pointer"
-                            >
-                              <Edit2 className="size-3.5" />
-                              <span>Edit / Rename</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenDelete("group", grp.id, grp.name);
-                              }}
-                              className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                            >
-                              <Trash2 className="size-3.5" />
-                              <span>Delete Group</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    {grp.options.map((opt) => {
-                      const isSelected = activeThemeGroupId === grp.id && activeThemeOptionId === opt.id;
-                      return (
-                        <div
-                          key={opt.id}
-                          onClick={() => {
-                            setActiveThemeGroup(grp.id);
-                            setActiveThemeOption(opt.id);
-                            onItemSelected?.();
-                          }}
-                          className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
-                          }`}
-                        >
-                          <span className="truncate pr-1">{opt.name}</span>
-
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            {isSelected && (
-                              <span className="size-1.5 rounded-full bg-primary-foreground flex-shrink-0" />
-                            )}
-
-                            {isEditable && (
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                    <button
-                                      type="button"
-                                      className={`p-0.5 rounded ${
-                                        isSelected
-                                          ? "text-primary-foreground hover:bg-primary-foreground/20"
-                                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                      }`}
-                                      title="Option actions"
-                                    >
-                                      <MoreVertical className="size-3" />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-40 text-xs">
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenRename("option", opt.id, opt.name, grp.id);
-                                      }}
-                                      className="gap-2 text-xs cursor-pointer"
-                                    >
-                                      <Edit2 className="size-3.5" />
-                                      <span>Rename Option</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenDelete("option", opt.id, opt.name, grp.id);
-                                      }}
-                                      className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                      <span>Delete Option</span>
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {isEditable && (
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                        title="Option actions"
+                                      >
+                                        <MoreVertical className="size-3" />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-40 text-xs">
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenRename("option", opt.id, opt.name, grp.id);
+                                        }}
+                                        className="gap-2 text-xs cursor-pointer"
+                                      >
+                                        <Edit2 className="size-3.5" />
+                                        <span>Rename Option</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenDelete("option", opt.id, opt.name, grp.id);
+                                        }}
+                                        className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                                      >
+                                        <Trash2 className="size-3.5" />
+                                        <span>Delete Option</span>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
           </div>
         </>
       )}
