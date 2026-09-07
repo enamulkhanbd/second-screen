@@ -17,6 +17,7 @@ import {
   Edit2,
   Trash2,
   FolderPlus,
+  Settings,
 } from "lucide-react";
 import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
 import { AddSetModal } from "@/components/AddSetModal";
@@ -52,6 +53,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const {
     sidebarTab,
     rawTokens,
+    resolvedTokens,
     activeSet,
     setActiveSet,
     themeGroups,
@@ -77,6 +79,45 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const [addSetInitialName, setAddSetInitialName] = useState("");
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [searchFilter, setSearchFilter] = useState("");
+
+  // Token counts by set name
+  const setCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    resolvedTokens.forEach((t) => {
+      counts[t.setName] = (counts[t.setName] || 0) + 1;
+    });
+    return counts;
+  }, [resolvedTokens]);
+
+  // Theme indicator dot colors for sets
+  const setThemeMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    const themeColors = ["#38bdf8", "#f43f5e", "#10b981", "#fbbf24", "#a855f7"];
+    themeGroups.forEach((group, gIdx) => {
+      group.options.forEach((opt, oIdx) => {
+        if (opt.selectedTokenSets) {
+          Object.entries(opt.selectedTokenSets).forEach(([setName, status]) => {
+            if (status === "enabled" || status === "source") {
+              if (!map[setName]) map[setName] = [];
+              const col = opt.color || themeColors[(gIdx * 2 + oIdx) % themeColors.length];
+              if (!map[setName].includes(col)) {
+                map[setName].push(col);
+              }
+            }
+          });
+        }
+      });
+    });
+    return map;
+  }, [themeGroups]);
+
+  // Calculate recursive folder count
+  const getFolderTotalCount = (node: SetTreeNode): number => {
+    if (!node.isFolder) {
+      return setCounts[node.fullPath] || 0;
+    }
+    return (node.children || []).reduce((sum, child) => sum + getFolderTotalCount(child), 0);
+  };
 
   // Rename Dialog state
   const [renameModal, setRenameModal] = useState<{
@@ -197,6 +238,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const renderTreeNode = (node: SetTreeNode, depth: number = 0) => {
     if (node.isFolder) {
       const isCollapsed = Boolean(collapsedFolders[node.id]);
+      const folderCount = getFolderTotalCount(node);
 
       if (searchFilter) {
         const matchesName = node.name.toLowerCase().includes(searchFilter.toLowerCase());
@@ -240,62 +282,68 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
               </span>
             </div>
 
-            {/* Folder Actions Menu */}
-            {isEditable && (
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 flex-shrink-0">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                      title="Folder actions"
-                    >
-                      <MoreVertical className="size-3" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 text-xs">
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAddSetInitialName(`${node.id}/`);
-                        setIsAddSetOpen(true);
-                      }}
-                      className="gap-2 text-xs cursor-pointer"
-                    >
-                      <FolderPlus className="size-3.5 text-primary" />
-                      <span>Add Set in Folder</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenRename("folder", node.id, node.name);
-                      }}
-                      className="gap-2 text-xs cursor-pointer"
-                    >
-                      <Edit2 className="size-3.5" />
-                      <span>Rename Folder</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenDelete(
-                          "folder",
-                          node.id,
-                          node.name,
-                          undefined,
-                          node.children?.length || 0
-                        );
-                      }}
-                      className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                    >
-                      <Trash2 className="size-3.5" />
-                      <span>Delete Folder</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {folderCount}
+              </span>
+
+              {/* Folder Actions Menu */}
+              {isEditable && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                        title="Folder actions"
+                      >
+                        <MoreVertical className="size-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44 text-xs font-sans">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAddSetInitialName(`${node.id}/`);
+                          setIsAddSetOpen(true);
+                        }}
+                        className="gap-2 text-xs cursor-pointer"
+                      >
+                        <FolderPlus className="size-3.5 text-primary" />
+                        <span>Add Set in Folder</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenRename("folder", node.id, node.name);
+                        }}
+                        className="gap-2 text-xs cursor-pointer"
+                      >
+                        <Edit2 className="size-3.5" />
+                        <span>Rename Folder</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDelete(
+                            "folder",
+                            node.id,
+                            node.name,
+                            undefined,
+                            node.children?.length || 0
+                          );
+                        }}
+                        className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span>Delete Folder</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
           </div>
 
           {!isCollapsed && node.children && (
@@ -313,30 +361,45 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     }
 
     const isSelected = activeSet === node.fullPath;
+    const tokenCount = setCounts[node.fullPath] || 0;
+    const themeDots = setThemeMap[node.fullPath] || [];
 
     return (
       <div
         key={node.id}
         className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
           isSelected
-            ? "bg-primary/10 text-primary font-semibold shadow-xs"
+            ? "bg-muted text-foreground font-semibold shadow-2xs"
             : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
         }`}
-        style={{ paddingLeft: `${Math.max(depth * 12 + 18, 18)}px` }}
+        style={{ paddingLeft: `${Math.max(depth * 12 + 20, 20)}px` }}
         onClick={() => {
           setActiveSet(node.fullPath);
           onItemSelected?.();
         }}
       >
         <div className="flex items-center gap-2 truncate min-w-0 pr-1">
-          <File className={`size-3.5 flex-shrink-0 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
           <span className="truncate">{node.name}</span>
         </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {isSelected && (
-            <span className="size-1.5 rounded-full bg-primary flex-shrink-0" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Theme participation indicator dots */}
+          {themeDots.length > 0 && (
+            <div className="flex items-center -space-x-1" title="Assigned to active themes">
+              {themeDots.slice(0, 4).map((col, idx) => (
+                <span
+                  key={idx}
+                  className="size-2 rounded-full border border-background"
+                  style={{ backgroundColor: col }}
+                />
+              ))}
+            </div>
           )}
+
+          {/* Set token count */}
+          <span className="text-[11px] font-mono text-muted-foreground min-w-[14px] text-right">
+            {tokenCount}
+          </span>
 
           {/* Set Actions Menu */}
           {isEditable && (
@@ -351,7 +414,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                     <MoreVertical className="size-3" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 text-xs">
+                <DropdownMenuContent align="end" className="w-40 text-xs font-sans">
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
@@ -392,28 +455,37 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
       {sidebarTab === "tokens" && (
         <>
           {/* Header */}
-          <div className="p-3 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="size-4 text-primary" />
-              <span className="font-bold text-xs text-foreground">Token Sets</span>
-              {allSetNames.length > 0 && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0 font-mono">
-                  {allSetNames.length}
-                </Badge>
+          <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              TOKEN SETS
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() =>
+                  addToast({
+                    type: "info",
+                    title: "Token Set Settings",
+                    message: "Manage token set ordering and configuration.",
+                  })
+                }
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                title="Settings"
+              >
+                <Settings className="size-3.5" />
+              </button>
+              {isEditable && (
+                <button
+                  onClick={() => {
+                    setAddSetInitialName("");
+                    setIsAddSetOpen(true);
+                  }}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  title="Add Token Set"
+                >
+                  <Plus className="size-3.5" />
+                </button>
               )}
             </div>
-            {isEditable && (
-              <button
-                onClick={() => {
-                  setAddSetInitialName("");
-                  setIsAddSetOpen(true);
-                }}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Add Token Set"
-              >
-                <Plus className="size-3.5" />
-              </button>
-            )}
           </div>
 
           {/* Search Filter */}
@@ -424,7 +496,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Filter token sets..."
-                className="h-8 text-xs pl-7 pr-6 bg-background/60"
+                className="h-7 text-xs pl-7 pr-6 bg-background/60"
               />
               {searchFilter && (
                 <button
@@ -438,7 +510,25 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
           </div>
 
           {/* Sets Tree List */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            {/* All tokens row */}
+            <div
+              onClick={() => {
+                setActiveSet("ALL");
+                onItemSelected?.();
+              }}
+              className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+                activeSet === "ALL" || !activeSet
+                  ? "bg-muted text-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+              }`}
+            >
+              <span className="truncate">All tokens</span>
+              <span className="text-[11px] font-mono text-muted-foreground font-semibold">
+                {resolvedTokens.length}
+              </span>
+            </div>
+
             {setTree.map((node) => renderTreeNode(node, 0))}
           </div>
 
@@ -450,7 +540,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                   setAddSetInitialName("");
                   setIsAddSetOpen(true);
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border hover:border-primary/50 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border hover:border-primary/50 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 <span>Add Token Set</span>

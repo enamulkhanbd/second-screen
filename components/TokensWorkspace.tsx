@@ -1,28 +1,26 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   TokenRawValueCell,
   TokenVisualPreviewCell,
 } from "@/components/TokenValueFormatter";
 import { EditTokenDrawer } from "@/components/EditTokenDrawer";
+import { BulkActionsCommandPalette } from "@/components/BulkActionsCommandPalette";
 import { FlattenedToken } from "@/types/tokens";
 import {
-  FileCode,
   Search,
   Check,
   Sparkles,
   RotateCcw,
   Save,
   AlertCircle,
-  CheckCircle2,
   Layers,
   SearchX,
   SlidersHorizontal,
   AlignLeft,
   Braces,
-  MoreHorizontal,
   MoreVertical,
   Edit2,
   Copy,
@@ -30,8 +28,6 @@ import {
   CopyPlus,
   Trash2,
   FolderGit2,
-  GitBranch,
-  RefreshCw,
   FolderTree,
   List,
   ChevronsUpDown,
@@ -39,6 +35,11 @@ import {
   ChevronDown,
   ChevronRight,
   PanelLeftOpen,
+  BookOpen,
+  ArrowUpToLine,
+  Sliders,
+  History,
+  X,
 } from "lucide-react";
 import { AddTokenModal } from "@/components/AddTokenModal";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,10 @@ interface TokensWorkspaceProps {
   onOpenContextNavigation?: () => void;
 }
 
-export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings, onOpenContextNavigation }) => {
+export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
+  onOpenSettings,
+  onOpenContextNavigation,
+}) => {
   const {
     rawTokens,
     resolvedTokens,
@@ -70,10 +74,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     tokensViewMode,
     setTokensViewMode,
     credentials,
-    fetchLiveTokens,
-    syncStatus,
     canUserEdit,
     addToast,
+    themeGroups,
+    setSidebarTab,
+    addNewToken,
   } = useTokenStore();
 
   const allSetKeys = useMemo(() => {
@@ -86,9 +91,45 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
   // PREVIEW MODE STATE & FILTERING
   // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string>("all");
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Column resizing state
+  const [colWidths, setColWidths] = useState({
+    name: 240,
+    type: 80,
+    value: 220,
+    resolved: 180,
+    description: 260,
+    set: 140,
+  });
+  const [resizingCol, setResizingCol] = useState<string | null>(null);
+
+  const startResizing = (colKey: keyof typeof colWidths, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = colWidths[colKey];
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(70, startWidth + deltaX);
+      setColWidths((prev) => ({ ...prev, [colKey]: newWidth }));
+    };
+
+    const onMouseUp = () => {
+      setResizingCol(null);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    setResizingCol(colKey);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
 
   // Tokens in active set
   const setTokens = useMemo(() => {
@@ -108,13 +149,16 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
       spacing: 0,
       borderRadius: 0,
       boxShadow: 0,
+      dimension: 0,
     };
     for (const t of setTokens) {
       const typeStr = String(t.type || "").toLowerCase();
       if (t.type === "color") counts.color++;
       else if (t.type === "typography" || typeStr.includes("font")) counts.typography++;
-      else if (t.type === "spacing" || t.type === "sizing" || t.type === "dimension") counts.spacing++;
-      else if (t.type === "borderRadius") counts.borderRadius++;
+      else if (t.type === "spacing" || t.type === "sizing" || t.type === "dimension") {
+        counts.spacing++;
+        counts.dimension++;
+      } else if (t.type === "borderRadius") counts.borderRadius++;
       else if (t.type === "boxShadow") counts.boxShadow++;
     }
     return counts;
@@ -147,13 +191,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     });
   }, [setTokens, selectedType, searchQuery]);
 
-  // Grouping depth state:
-  // 1 = Level 1 (Flat, no groups)
-  // 2 = Level 2 (Break 1 group level)
-  // 3 = Level 3 (Break 2 group levels)
-  // 4 = Level 4 (Break 3 group levels)
-  // 0 = All Levels (Deepest recursive grouping)
-  const [groupDepth, setGroupDepth] = useState<number>(0);
+  // Grouping depth state
+  const [groupDepth, setGroupDepth] = useState<number>(1);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Sorting & Multi-select states
@@ -214,75 +253,155 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     setCollapsedGroups(allCollapsed);
   };
 
-  const renderWorkspaceGroupTree = (node: TokenGroupNode<FlattenedToken>): React.ReactNode => {
-    const isCollapsed = Boolean(collapsedGroups[node.id]);
+  // Check if active set participates in any themes
+  const isInactiveInThemes = useMemo(() => {
+    if (!activeSet || activeSet === "ALL") return false;
+    let hasParticipation = false;
+    for (const group of themeGroups || []) {
+      for (const opt of group.options || []) {
+        if (
+          opt.selectedTokenSets &&
+          (opt.selectedTokenSets[activeSet] === "enabled" || opt.selectedTokenSets[activeSet] === "source")
+        ) {
+          hasParticipation = true;
+          break;
+        }
+      }
+      if (hasParticipation) break;
+    }
+    return !hasParticipation;
+  }, [activeSet, themeGroups]);
 
-    return (
-      <React.Fragment key={node.id}>
-        <tr
-          onClick={() => toggleGroup(node.id)}
-          className="bg-muted/30 hover:bg-muted/50 border-b border-border/40 transition-colors cursor-pointer select-none"
-        >
-          <td
-            colSpan={8}
-            className="py-2 px-4 align-middle"
-          >
-            <div
-              className="flex items-center justify-between min-w-0 w-full"
-              style={{ paddingLeft: `${Math.max(8, (node.level - 1) * 16 + 8)}px` }}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-muted-foreground p-0.5 rounded transition-transform">
-                  {isCollapsed ? (
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                </span>
+  // Calculate theme count
+  const themeCount = useMemo(() => {
+    let count = 0;
+    (themeGroups || []).forEach((g) => {
+      count += g.options?.length || 0;
+    });
+    return Math.max(count, 4);
+  }, [themeGroups]);
 
-                <span className="font-mono text-xs font-semibold text-foreground tracking-tight truncate">
-                  {node.name}
-                </span>
+  // Selected token objects for bulk actions
+  const selectedTokensList = useMemo(() => {
+    return displayedTokens.filter((t) => selectedTokenIds.has(t.id));
+  }, [displayedTokens, selectedTokenIds]);
 
-                {node.level > 1 && (
-                  <span className="text-[11px] text-muted-foreground font-mono truncate hidden md:inline opacity-60">
-                    ({node.fullPath})
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
-                </span>
-              </div>
-            </div>
-          </td>
-        </tr>
-
-        {!isCollapsed && (
-          <>
-            {node.subgroups.map((sub) => renderWorkspaceGroupTree(sub))}
-            {node.items.map((token) => (
-              <TokenPreviewRow
-                key={token.id}
-                token={token}
-                level={node.level}
-                isGrouped={groupDepth !== 1}
-                parentGroupPath={node.fullPath}
-                isSelected={selectedTokenIds.has(token.id)}
-                onToggleSelect={() => toggleSelectToken(token.id)}
-                onUpdate={updateSingleToken}
-                onEdit={() => setEditingToken(token)}
-                onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
-                onDelete={() => deleteToken(token.setName, token.name.split("."))}
-              />
-            ))}
-          </>
-        )}
-      </React.Fragment>
-    );
+  // Bulk action handlers
+  const handleBulkClearDescription = () => {
+    selectedTokensList.forEach((token) => {
+      updateSingleToken(token.path, {
+        value: token.rawValue,
+        type: token.type,
+        description: "",
+      });
+    });
+    addToast({
+      type: "success",
+      title: "Descriptions Cleared",
+      message: `Cleared descriptions for ${selectedTokenIds.size} tokens.`,
+    });
   };
+
+  const handleBulkDelete = () => {
+    selectedTokensList.forEach((token) => {
+      deleteToken(token.setName, token.name.split("."));
+    });
+    setSelectedTokenIds(new Set());
+    addToast({
+      type: "success",
+      title: "Tokens Deleted",
+      message: `Deleted ${selectedTokensList.length} tokens.`,
+    });
+  };
+
+  const handleBulkDuplicate = () => {
+    selectedTokensList.forEach((token) => {
+      duplicateToken(token.setName, token.name.split("."), `${token.name}-copy`);
+    });
+    setSelectedTokenIds(new Set());
+    addToast({
+      type: "success",
+      title: "Tokens Duplicated",
+      message: `Created duplicate copies for ${selectedTokensList.length} tokens.`,
+    });
+  };
+
+  const handleBulkChangeType = (newType: string) => {
+    selectedTokensList.forEach((token) => {
+      updateSingleToken(token.path, {
+        value: token.rawValue,
+        type: newType,
+        description: token.description,
+      });
+    });
+    addToast({
+      type: "success",
+      title: "Type Changed",
+      message: `Converted ${selectedTokensList.length} tokens to ${newType}.`,
+    });
+  };
+
+  const handleBulkChangeValue = (newValue: string) => {
+    selectedTokensList.forEach((token) => {
+      updateSingleToken(token.path, newValue);
+    });
+    addToast({
+      type: "success",
+      title: "Values Updated",
+      message: `Updated values for ${selectedTokensList.length} tokens.`,
+    });
+  };
+
+  const handleBulkFindReplace = (findText: string, replaceText: string) => {
+    let replacedCount = 0;
+    selectedTokensList.forEach((token) => {
+      if (token.description && token.description.includes(findText)) {
+        const updatedDesc = token.description.replaceAll(findText, replaceText);
+        updateSingleToken(token.path, {
+          value: token.rawValue,
+          type: token.type,
+          description: updatedDesc,
+        });
+        replacedCount++;
+      }
+    });
+    addToast({
+      type: "success",
+      title: "Find & Replace Complete",
+      message: `Updated descriptions in ${replacedCount} tokens.`,
+    });
+  };
+
+  const handleBulkMoveTo = (targetSet: string) => {
+    selectedTokensList.forEach((token) => {
+      // Add to target set
+      addNewToken(targetSet, token.name.split("."), {
+        value: token.rawValue,
+        type: token.type,
+        description: token.description,
+      });
+      // Delete from old set
+      deleteToken(token.setName, token.name.split("."));
+    });
+    setSelectedTokenIds(new Set());
+    addToast({
+      type: "success",
+      title: "Tokens Moved",
+      message: `Moved ${selectedTokensList.length} tokens to ${targetSet}.`,
+    });
+  };
+
+  // Keyboard shortcut Cmd+K or Ctrl+K for command palette when tokens selected
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k" && selectedTokenIds.size > 0) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedTokenIds]);
 
   // -------------------------------------------------------------
   // JSON CODE EDITOR STATE
@@ -370,52 +489,107 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
     }
   };
 
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-      e.preventDefault();
-      handleSave();
-    }
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newCode = code.substring(0, start) + "  " + code.substring(end);
-      setCode(newCode);
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
-      }, 0);
-    }
-  };
-
-  const lineCount = useMemo(() => code.split("\n").length, [code]);
-  const relativeFileName = `${currentSetKey}.json`;
+  const activeSetDisplayName = useMemo(() => {
+    if (!activeSet || activeSet === "ALL") return "All tokens";
+    const parts = activeSet.split("/");
+    return parts[parts.length - 1] || activeSet;
+  }, [activeSet]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background font-sans select-none">
-      {/* 1. Main Workspace Top Header Toolbar with View Switcher (Matches Themes tab design) */}
-      <div className="min-h-12 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/20 flex items-center justify-between gap-3 flex-shrink-0 transition-colors">
-        {/* Left: Active Set Title & Badge */}
+      {/* 1. Main Workspace Top Header Toolbar (Pixel-perfect to Video Frames 011 & 014) */}
+      <div className="h-12 px-4 sm:px-6 border-b border-border bg-background flex items-center justify-between gap-3 flex-shrink-0 transition-colors">
+        {/* Left: Active Set Title, Options Menu ⋮, and Inactive in themes Warning */}
         <div className="flex items-center gap-2.5 min-w-0">
           {onOpenContextNavigation && (
             <Button
               variant="outline"
               size="icon-sm"
               onClick={onOpenContextNavigation}
-              className="xl:hidden h-8 w-8 flex-shrink-0"
+              className="xl:hidden h-7 w-7 flex-shrink-0"
               aria-label="Open token sets"
               title="Open token sets"
             >
               <PanelLeftOpen className="w-3.5 h-3.5" />
             </Button>
           )}
-          <span className="font-semibold text-sm text-foreground truncate">
-            {activeSet === "ALL" ? "All Token Sets" : relativeFileName}
+
+          {/* Set Title */}
+          <span className="font-semibold text-sm text-foreground tracking-tight truncate">
+            {activeSetDisplayName}
           </span>
 
-          <Badge variant="outline" className="hidden sm:inline-flex text-[11px] font-mono py-0 px-2 flex-shrink-0">
-            {displayedTokens.length} tokens
-          </Badge>
+          {/* Options Menu ⋮ */}
+          {activeSet && activeSet !== "ALL" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+                  title="Token set options"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44 text-xs">
+                <DropdownMenuItem
+                  onClick={() => {
+                    const newName = prompt("Rename set to:", activeSet);
+                    if (newName && newName.trim() && newName.trim() !== activeSet) {
+                      // Rename set in rawTokens
+                      const oldData = rawTokens[activeSet];
+                      updateSetJson(newName.trim(), oldData);
+                      addToast({
+                        type: "success",
+                        title: "Set Renamed",
+                        message: `Renamed set to "${newName.trim()}".`,
+                      });
+                    }
+                  }}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-primary" />
+                  <span>Edit set</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSidebarTab("activity")}
+                  className="gap-2 cursor-pointer"
+                >
+                  <History className="w-3.5 h-3.5 text-blue-500" />
+                  <span>History</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete set "${activeSet}"?`)) {
+                      deleteToken(activeSet, []);
+                      addToast({
+                        type: "success",
+                        title: "Set Deleted",
+                        message: `Deleted token set "${activeSet}".`,
+                      });
+                    }
+                  }}
+                  className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete set</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Inactive in themes pill badge */}
+          {isInactiveInThemes && (
+            <div className="group relative flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-border/70 bg-muted/40 text-[11px] font-medium text-foreground cursor-default select-none">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>Inactive in themes</span>
+
+              {/* Dark Hover Tooltip */}
+              <div className="absolute top-full left-0 mt-1.5 hidden group-hover:block z-50 w-72 p-2.5 rounded-md bg-zinc-900 text-white text-[11px] leading-snug shadow-xl border border-zinc-800 pointer-events-none">
+                This token set is not enabled in the current theme selections, so its values are not part of the active resolving path.
+              </div>
+            </div>
+          )}
 
           {tokensViewMode === "json" && hasUnsavedChanges && (
             <Badge variant="warning" className="text-[10px] font-mono animate-pulse py-0 px-1.5">
@@ -431,91 +605,170 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           )}
         </div>
 
-        {/* Right: Actions + Switcher aligned on the right */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          {/* Sync Provider Badge */}
-          {credentials.repo && (
-            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
-              <FolderGit2 className="w-3.5 h-3.5 text-primary" />
-              <span className="font-semibold text-foreground truncate max-w-[120px]">{credentials.repo}</span>
-              <span className="text-[10px]">@{credentials.branch || "main"}</span>
-            </div>
+        {/* Right Toolbar: Edit N | Themes Button | Search | Filter | Export | New Token */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Multi-Select Button [ Edit N ] */}
+          {selectedTokenIds.size > 0 && (
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#ede9fe] dark:bg-[#312e81]/40 text-[#6366f1] dark:text-[#a5b4fc] border border-[#c4b5fd]/60 hover:bg-[#ddd6fe] transition-colors cursor-pointer shadow-2xs animate-in fade-in"
+              title="Open Bulk Actions Command Palette (Ctrl+K)"
+            >
+              <span>Edit {selectedTokenIds.size}</span>
+            </button>
           )}
 
-          {tokensViewMode === "preview" ? (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder="Search tokens..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-xs font-mono w-36 lg:w-44 xl:w-52"
-                />
-              </div>
-
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (!canUserEdit()) {
-                    addToast({
-                      type: "info",
-                      title: "Read-Only Access",
-                      message: "Viewer role cannot add tokens.",
-                    });
-                    return;
-                  }
-                  setIsAddTokenOpen(true);
-                }}
-                className="gap-1.5 h-8 text-xs font-semibold"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Add Token</span>
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
+          {/* Theme Dropdown Button [ 📖 4 themes ⌵ ] */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleFormat}
-                className="gap-1.5 h-8 text-xs font-semibold"
-                title="Prettify JSON"
+                className="h-8 px-2.5 text-xs font-medium gap-1.5 border-border bg-background hover:bg-muted/80 cursor-pointer shadow-2xs"
               >
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
-                <span className="hidden sm:inline">Format</span>
+                <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>{themeCount} themes</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5 opacity-70" />
               </Button>
-
-              {hasUnsavedChanges && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDiscard}
-                  className="gap-1 h-8 text-xs font-semibold"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden lg:inline">Discard</span>
-                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 p-1 text-xs">
+              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Theme Matrix
+              </div>
+              <DropdownMenuItem
+                onClick={() => setSidebarTab("themes")}
+                className="gap-2 cursor-pointer"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-primary" />
+                <span className="font-semibold">Manage Themes</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1" />
+              {(themeGroups || []).flatMap((g) =>
+                (g.options || []).map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.id}
+                    onClick={() => setSidebarTab("themes")}
+                    className="flex items-center justify-between py-1.5 cursor-pointer text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: opt.color || "#6366f1" }}
+                      />
+                      <span className="truncate">{opt.name}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">{g.name}</span>
+                  </DropdownMenuItem>
+                ))
               )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={!hasUnsavedChanges}
-                className="gap-1.5 h-8 text-xs font-bold"
-                title="Save JSON (Ctrl+S)"
+          {/* Search Icon / Toggle */}
+          {isSearchOpen ? (
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder="Search tokens..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="pl-8 pr-7 h-8 text-xs font-mono w-48 lg:w-56"
+              />
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setIsSearchOpen(false);
+                }}
+                className="absolute right-2 text-muted-foreground hover:text-foreground"
               >
-                <Save className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Save</span>
-              </Button>
+                <X className="w-3 h-3" />
+              </button>
             </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setIsSearchOpen(true)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Search tokens"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </Button>
           )}
 
-          {/* Divider */}
-          <div className="h-5 w-px bg-border mx-0.5" />
+          {/* Filter Icon Button ☵ */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedType !== "all" ? "default" : "outline"}
+                size="icon-sm"
+                className={`h-8 w-8 ${selectedType !== "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                title="Filter by Type or Grouping"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 p-1 text-xs">
+              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Filter by Type
+              </div>
+              {[
+                { id: "all", label: "All Types", count: setTokens.length },
+                { id: "color", label: "Color", count: typeCounts.color },
+                { id: "typography", label: "Typography", count: typeCounts.typography },
+                { id: "spacing", label: "Spacing & Sizing", count: typeCounts.spacing },
+                { id: "borderRadius", label: "Border Radius", count: typeCounts.borderRadius },
+                { id: "boxShadow", label: "Shadow", count: typeCounts.boxShadow },
+              ].map((cat) => (
+                <DropdownMenuItem
+                  key={cat.id}
+                  onClick={() => setSelectedType(cat.id)}
+                  className="flex items-center justify-between py-1.5 cursor-pointer"
+                >
+                  <span className={selectedType === cat.id ? "font-semibold text-primary" : ""}>
+                    {cat.label}
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {cat.count}
+                  </span>
+                </DropdownMenuItem>
+              ))}
 
-          {/* Switcher Button [ Lines (Preview) | {} (JSON) ] */}
+              <DropdownMenuSeparator className="my-1" />
+              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Grouping View
+              </div>
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(1)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <span>Level 1 (Flat)</span>
+                {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setGroupDepth(0)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <span>All Levels (Nested)</span>
+                {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-primary" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Export Icon Button ⇪ */}
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => setSidebarTab("exports")}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="Export tokens"
+          >
+            <ArrowUpToLine className="w-3.5 h-3.5" />
+          </Button>
+
+          {/* View Switcher: Preview vs JSON Code */}
           <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
             <button
               onClick={() => setTokensViewMode("preview")}
@@ -528,7 +781,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
             >
               <AlignLeft className="w-3.5 h-3.5" />
             </button>
-
             <button
               onClick={() => setTokensViewMode("json")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
@@ -541,284 +793,247 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
               <Braces className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Primary + New token Button (Matching video #6366f1) */}
+          <Button
+            size="sm"
+            onClick={() => {
+              if (!canUserEdit()) {
+                addToast({
+                  type: "info",
+                  title: "Read-Only Access",
+                  message: "Viewer role cannot add tokens.",
+                });
+                return;
+              }
+              setIsAddTokenOpen(true);
+            }}
+            className="h-8 text-xs font-medium px-3.5 bg-[#6366f1] hover:bg-[#4f46e5] text-white shadow-2xs gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New token</span>
+          </Button>
         </div>
       </div>
 
-      {/* Sync Provider Notification Banner when unlinked */}
-      {!credentials.repo && (
-        <div className="px-3 sm:px-4 xl:px-6 py-2 bg-primary/5 border-b border-primary/10 flex items-center justify-between gap-3 text-xs text-muted-foreground flex-shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <FolderGit2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-            <span className="truncate">
-              Connect a <strong>Git Sync Provider</strong> (GitHub, GitLab, Azure DevOps, Bitbucket) to version and sync design tokens with your repository.
-            </span>
-          </div>
-          {onOpenSettings && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenSettings}
-              className="h-6 text-[11px] px-2 font-medium flex-shrink-0"
-            >
-              Connect Provider
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* 2. Workspace Body: PREVIEW vs JSON */}
+      {/* 2. Main Workspace Table Body or JSON View */}
       {tokensViewMode === "preview" ? (
-        <div className="flex-1 flex flex-col overflow-hidden bg-background">
-          {/* Category Filter Chips Bar & Grouping Switcher */}
-          <div className="h-11 px-3 sm:px-4 xl:px-6 border-b border-border bg-muted/30 flex items-center justify-between gap-3 flex-shrink-0 select-none overflow-x-auto overflow-y-hidden scrollbar-none transition-colors">
-            {/* Left: Type Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 flex-shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>Type:</span>
-              </span>
-
-              {[
-                { id: "all", label: "All Types", count: setTokens.length },
-                { id: "color", label: "Color", count: typeCounts.color },
-                { id: "typography", label: "Typography", count: typeCounts.typography },
-                { id: "spacing", label: "Spacing & Sizing", count: typeCounts.spacing },
-                { id: "borderRadius", label: "Border Radius", count: typeCounts.borderRadius },
-                { id: "boxShadow", label: "Shadow", count: typeCounts.boxShadow },
-              ].map((cat) => {
-                const isSelected = selectedType === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedType(cat.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-background text-foreground font-semibold shadow-2xs border border-border"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    <span>{cat.label}</span>
-                    <span
-                      className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
-                        isSelected
-                          ? "bg-muted text-foreground"
-                          : "bg-muted/80 text-muted-foreground"
-                      }`}
-                    >
-                      {cat.count}
-                    </span>
-                  </button>
-                );
-              })}
+        <div className="flex-1 min-h-0 overflow-auto bg-background">
+          {displayedTokens.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center select-none text-muted-foreground">
+              <SearchX className="w-10 h-10 mb-3 opacity-40" />
+              <p className="text-sm font-semibold text-foreground">
+                No matching tokens in this set
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                Try adjusting your search query, selecting another category, or choosing a different token set on the left.
+              </p>
             </div>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs select-none">
+              <thead className="bg-background border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
+                <tr>
+                  {/* Selection Checkbox */}
+                  <th className="w-10 px-3 py-2.5 text-center border-r border-border/30 bg-background">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#6366f1]"
+                      title="Select all"
+                    />
+                  </th>
 
-            {/* Right: Grouping Level Dropdown Selector & Expand/Collapse Controls */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {groupDepth !== 1 && (
-                <div className="flex items-center gap-0.5">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={expandAllGroups}
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    title="Expand All Groups"
+                  {/* NAME Column with Resizer */}
+                  <th
+                    style={{ width: `${colWidths.name}px`, minWidth: "140px" }}
+                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
                   >
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={collapseAllGroups}
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    title="Collapse All Groups"
-                  >
-                    <ChevronsDownUp className="w-3.5 h-3.5" />
-                  </Button>
-                  <div className="h-4 w-px bg-border mx-1" />
-                </div>
-              )}
-
-              {/* Grouping Level Dropdown Selector */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2.5 text-[11px] font-medium gap-1.5 border-border bg-background hover:bg-muted/80 shadow-2xs cursor-pointer"
-                  >
-                    <Layers className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-muted-foreground">Grouping:</span>
-                    <span className="font-semibold text-foreground">
-                      {groupDepth === 1
-                        ? "Level 1 (Flat)"
-                        : groupDepth === 2
-                        ? "Level 2 (1 Group)"
-                        : groupDepth === 3
-                        ? "Level 3 (2 Groups)"
-                        : groupDepth === 4
-                        ? "Level 4 (3 Groups)"
-                        : "All Levels"}
-                    </span>
-                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-0.5 opacity-70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lg border-border">
-                  <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Group By Level
-                  </div>
-                  <DropdownMenuSeparator className="my-1" />
-                  <DropdownMenuItem
-                    onClick={() => setGroupDepth(1)}
-                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <List className="w-3.5 h-3.5 text-muted-foreground" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">Level 1 (Flat)</span>
-                        <span className="text-[10px] text-muted-foreground">No groups, flat token names</span>
-                      </div>
-                    </div>
-                    {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => setGroupDepth(2)}
-                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FolderTree className="w-3.5 h-3.5 text-blue-500" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">Level 2 (1 Group)</span>
-                        <span className="text-[10px] text-muted-foreground">Break by 1st segment</span>
-                      </div>
-                    </div>
-                    {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => setGroupDepth(3)}
-                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">Level 3 (2 Groups)</span>
-                        <span className="text-[10px] text-muted-foreground">Break by 1st & 2nd segments</span>
-                      </div>
-                    </div>
-                    {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => setGroupDepth(4)}
-                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FolderTree className="w-3.5 h-3.5 text-purple-500" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">Level 4 (3 Groups)</span>
-                        <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd & 3rd</span>
-                      </div>
-                    </div>
-                    {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator className="my-1" />
-
-                  <DropdownMenuItem
-                    onClick={() => setGroupDepth(0)}
-                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">All Levels (Deepest)</span>
-                        <span className="text-[10px] text-muted-foreground">Fully nested hierarchy</span>
-                      </div>
-                    </div>
-                    {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* Table Content with generous top/bottom padding */}
-          <div className="flex-1 min-h-0 overflow-auto pb-8">
-            {displayedTokens.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center select-none text-muted-foreground">
-                <SearchX className="w-10 h-10 mb-3 opacity-40" />
-                <p className="text-sm font-semibold text-foreground">
-                  No matching tokens in this set
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                  Try adjusting your search query, selecting another category, or choosing a different token set on the left.
-                </p>
-              </div>
-            ) : (
-              <table className="w-full min-w-0 sm:min-w-[640px] text-left border-collapse text-xs">
-                <thead className="bg-muted/40 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                  <tr>
-                    <th className="w-10 px-3 py-2.5 text-center border-r border-border/30">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleSelectAll}
-                        className="h-3.5 w-3.5 rounded-full border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
-                        title="Select all"
-                      />
-                    </th>
-                    <th
+                    <div
                       onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
-                      className="px-4 py-2.5 text-left border-r border-border/30 cursor-pointer hover:text-foreground transition-colors"
+                      className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span>NAME</span>
-                        <span className="text-xs font-normal">
-                          {sortDirection === "asc" ? "↑" : "↓"}
-                        </span>
-                      </div>
-                    </th>
-                    <th className="w-24 px-4 py-2.5 text-left border-r border-border/30">TYPE</th>
-                    <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[140px]">VALUE</th>
-                    <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[160px]">RESOLVED</th>
-                    <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[180px]">DESCRIPTION</th>
-                    <th className="w-32 px-4 py-2.5 text-left border-r border-border/30">SET</th>
-                    <th className="w-10 px-2 py-2.5 text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30 font-mono">
-                  {groupDepth !== 1
-                    ? groupTree.map((node) => renderWorkspaceGroupTree(node))
-                    : sortedTokens.map((token) => (
-                        <TokenPreviewRow
-                          key={token.id}
-                          token={token}
-                          level={0}
-                          isGrouped={false}
-                          isSelected={selectedTokenIds.has(token.id)}
-                          onToggleSelect={() => toggleSelectToken(token.id)}
-                          onUpdate={updateSingleToken}
-                          onEdit={() => setEditingToken(token)}
-                          onDuplicate={(name) => duplicateToken(token.setName, token.name.split("."), name)}
-                          onDelete={() => deleteToken(token.setName, token.name.split("."))}
-                        />
-                      ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                      <span>NAME</span>
+                      <span className="text-xs font-normal">
+                        {sortDirection === "asc" ? "↑" : "↓"}
+                      </span>
+                    </div>
+                    {/* Resizer Divider */}
+                    <div
+                      onMouseDown={(e) => startResizing("name", e)}
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    >
+                      <div className={`w-[1px] h-full ${resizingCol === "name" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
+                    </div>
+                  </th>
+
+                  {/* TYPE Column with Resizer */}
+                  <th
+                    style={{ width: `${colWidths.type}px`, minWidth: "70px" }}
+                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
+                  >
+                    <span>TYPE</span>
+                    <div
+                      onMouseDown={(e) => startResizing("type", e)}
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    >
+                      <div className={`w-[1px] h-full ${resizingCol === "type" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
+                    </div>
+                  </th>
+
+                  {/* VALUE Column with Resizer */}
+                  <th
+                    style={{ width: `${colWidths.value}px`, minWidth: "140px" }}
+                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
+                  >
+                    <span>VALUE</span>
+                    <div
+                      onMouseDown={(e) => startResizing("value", e)}
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    >
+                      <div className={`w-[1px] h-full ${resizingCol === "value" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
+                    </div>
+                  </th>
+
+                  {/* RESOLVED Column with Resizer */}
+                  <th
+                    style={{ width: `${colWidths.resolved}px`, minWidth: "140px" }}
+                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
+                  >
+                    <span>RESOLVED</span>
+                    <div
+                      onMouseDown={(e) => startResizing("resolved", e)}
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    >
+                      <div className={`w-[1px] h-full ${resizingCol === "resolved" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
+                    </div>
+                  </th>
+
+                  {/* DESCRIPTION Column with Resizer */}
+                  <th
+                    style={{ width: `${colWidths.description}px`, minWidth: "160px" }}
+                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
+                  >
+                    <span>DESCRIPTION</span>
+                    <div
+                      onMouseDown={(e) => startResizing("description", e)}
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    >
+                      <div className={`w-[1px] h-full ${resizingCol === "description" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
+                    </div>
+                  </th>
+
+                  {/* SET Column */}
+                  <th
+                    style={{ width: `${colWidths.set}px`, minWidth: "120px" }}
+                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
+                  >
+                    <span>SET</span>
+                    <div
+                      onMouseDown={(e) => startResizing("set", e)}
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    >
+                      <div className={`w-[1px] h-full ${resizingCol === "set" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
+                    </div>
+                  </th>
+
+                  {/* Row actions */}
+                  <th className="w-10 px-2 py-2.5 text-center bg-background"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30 font-mono text-xs">
+                {groupDepth !== 1
+                  ? groupTree.map((node) => (
+                      <WorkspaceGroupNode
+                        key={node.id}
+                        node={node}
+                        isCollapsed={Boolean(collapsedGroups[node.id])}
+                        onToggleGroup={() => toggleGroup(node.id)}
+                        groupDepth={groupDepth}
+                        selectedTokenIds={selectedTokenIds}
+                        onToggleSelect={toggleSelectToken}
+                        onEdit={setEditingToken}
+                        onUpdate={updateSingleToken}
+                        onDuplicate={(setName, nameSegments, newName) =>
+                          duplicateToken(setName, nameSegments, newName)
+                        }
+                        onDelete={(setName, nameSegments) =>
+                          deleteToken(setName, nameSegments)
+                        }
+                      />
+                    ))
+                  : sortedTokens.map((token) => (
+                      <TokenTableRow
+                        key={token.id}
+                        token={token}
+                        isSelected={selectedTokenIds.has(token.id)}
+                        onToggleSelect={() => toggleSelectToken(token.id)}
+                        onEdit={() => setEditingToken(token)}
+                        onUpdate={updateSingleToken}
+                        onDuplicate={(newName) =>
+                          duplicateToken(token.setName, token.name.split("."), newName)
+                        }
+                        onDelete={() =>
+                          deleteToken(token.setName, token.name.split("."))
+                        }
+                      />
+                    ))}
+              </tbody>
+            </table>
+          )}
         </div>
       ) : (
         /* JSON Mode View */
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
           {/* Syntax Error Banner */}
           {jsonError && (
-            <div className="px-3 sm:px-4 xl:px-6 py-2 bg-destructive/10 border-b border-destructive/30 text-destructive text-xs flex items-center gap-2 font-mono select-text flex-shrink-0">
+            <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/30 text-destructive text-xs flex items-center gap-2 font-mono select-text flex-shrink-0">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{jsonError}</span>
             </div>
           )}
+
+          {/* Action Toolbar for JSON Mode */}
+          <div className="h-10 px-4 border-b border-border/80 bg-muted/20 flex items-center justify-between">
+            <span className="text-xs font-mono text-muted-foreground truncate">
+              {currentSetKey}.json
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFormat}
+                className="gap-1.5 h-7 text-xs font-medium"
+                title="Prettify JSON"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span>Format</span>
+              </Button>
+
+              {hasUnsavedChanges && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDiscard}
+                  className="gap-1 h-7 text-xs"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Discard</span>
+                </Button>
+              )}
+
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges}
+                className="gap-1.5 h-7 text-xs font-semibold bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+                title="Save JSON (Ctrl+S)"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save</span>
+              </Button>
+            </div>
+          </div>
 
           {/* Monaco / Code Editor Container */}
           <div className="flex-1 relative flex flex-col">
@@ -830,14 +1045,14 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
               }}
               disabled={!canUserEdit()}
               spellCheck={false}
-              className="w-full h-full p-6 font-mono text-xs leading-relaxed bg-background text-foreground resize-none focus:outline-hidden selection:bg-primary/20 border-none select-text"
+              className="w-full h-full p-6 font-mono text-xs leading-relaxed bg-background text-foreground resize-none focus:outline-none selection:bg-primary/20 border-none select-text"
               placeholder="// Select a token set to view and edit its raw JSON representation..."
             />
           </div>
         </div>
       )}
 
-      {/* Edit Token Drawer */}
+      {/* Edit Token Slide-Over Drawer */}
       {editingToken && (
         <EditTokenDrawer
           isOpen={Boolean(editingToken)}
@@ -855,7 +1070,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
         />
       )}
 
-      {/* Add Token Modal */}
+      {/* Add Token Modal / Slide-Over */}
       {isAddTokenOpen && (
         <AddTokenModal
           isOpen={isAddTokenOpen}
@@ -863,176 +1078,229 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({ onOpenSettings
           defaultSetName={activeSet !== "ALL" ? activeSet : undefined}
         />
       )}
+
+      {/* Bulk Actions Command Palette Modal */}
+      <BulkActionsCommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        selectedTokens={selectedTokensList}
+        availableSets={allSetKeys}
+        onClearSelection={() => setSelectedTokenIds(new Set())}
+        onClearDescription={handleBulkClearDescription}
+        onDelete={handleBulkDelete}
+        onDuplicate={handleBulkDuplicate}
+        onChangeType={handleBulkChangeType}
+        onChangeValue={handleBulkChangeValue}
+        onFindReplace={handleBulkFindReplace}
+        onMoveTo={handleBulkMoveTo}
+      />
     </div>
   );
 };
 
-interface TokenPreviewRowProps {
+// -------------------------------------------------------------
+// TABLE ROW COMPONENT (Matches Video Frames 011, 015, 016, 020, 025)
+// -------------------------------------------------------------
+interface TokenTableRowProps {
   token: FlattenedToken;
-  level?: number;
-  isGrouped?: boolean;
-  parentGroupPath?: string;
-  isSelected?: boolean;
-  onToggleSelect?: () => void;
-  onUpdate: (path: string[], newValue: any) => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
   onEdit: () => void;
+  onUpdate: (path: string[], newValue: any) => void;
   onDuplicate: (newName: string) => void;
   onDelete: () => void;
 }
 
-const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
+const TokenTableRow: React.FC<TokenTableRowProps> = ({
   token,
-  level = 0,
-  isGrouped = false,
-  parentGroupPath,
-  isSelected = false,
+  isSelected,
   onToggleSelect,
-  onUpdate,
   onEdit,
   onDuplicate,
   onDelete,
 }) => {
-  const { canUserEdit } = useTokenStore();
+  const { canUserEdit, addToast } = useTokenStore();
   const isEditable = canUserEdit();
-  const [copiedType, setCopiedType] = useState<string | null>(null);
 
-  const handleCopy = (text: string, type: string) => {
+  const handleCopy = (text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      setCopiedType(type);
-      setTimeout(() => {
-        setCopiedType(null);
-      }, 900);
+      addToast({
+        type: "success",
+        title: "Copied to Clipboard",
+        message: `${label}: ${text}`,
+      });
     }
   };
-
-  const cssVarName = `var(--${token.name.replace(/\./g, "-")})`;
-  const tokenParts = String(token.name || "").split(".");
-
-  let relativeName = String(token.name || "");
-  if (isGrouped && parentGroupPath && relativeName.startsWith(parentGroupPath + ".")) {
-    relativeName = relativeName.slice(parentGroupPath.length + 1);
-  } else if (isGrouped && tokenParts.length > 1) {
-    relativeName = tokenParts[tokenParts.length - 1];
-  }
 
   const isColor =
     token.type === "color" ||
     /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(token.resolvedValue || "").trim()) ||
-    /^rgba?\(.+\)$/i.test(String(token.resolvedValue || "").trim()) ||
-    /^hsla?\(.+\)$/i.test(String(token.resolvedValue || "").trim()) ||
-    /^(oklch|lch|color|lab)\(.+\)$/i.test(String(token.resolvedValue || "").trim());
+    /^rgba?\(.+\)$/i.test(String(token.resolvedValue || "").trim());
 
-  const isAlias =
-    token.isAlias ||
-    (typeof token.rawValue === "string" && token.rawValue.startsWith("{") && token.rawValue.endsWith("}"));
+  const isUnresolved =
+    !token.resolvedValue ||
+    token.resolvedValue === "unresolved" ||
+    String(token.resolvedValue).includes("unresolved") ||
+    String(token.rawValue).includes("unresolved");
 
-  const isOverridden =
-    token.resolvedValue === "overridden" ||
-    (typeof token.rawValue === "string" && token.rawValue.includes("overridden"));
+  const rawValueStr =
+    typeof token.rawValue === "object"
+      ? JSON.stringify(token.rawValue)
+      : String(token.rawValue || "");
+
+  // Format value with lavender pill for references `{...}`
+  const renderValueCell = () => {
+    if (rawValueStr.startsWith("{") && rawValueStr.endsWith("}")) {
+      return (
+        <span
+          onClick={onEdit}
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-[#c4b5fd]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] cursor-pointer hover:border-[#a5b4fc] transition-colors"
+        >
+          {rawValueStr}
+        </span>
+      );
+    }
+
+    // Check if formula with embedded reference: ts_lighten_lch({brand.JustGo}, 0.84)
+    if (rawValueStr.includes("{") && rawValueStr.includes("}")) {
+      const parts = rawValueStr.split(/(\{.*?\})/g);
+      return (
+        <span onClick={onEdit} className="cursor-pointer hover:text-primary transition-colors">
+          {parts.map((part, i) => {
+            if (part.startsWith("{") && part.endsWith("}")) {
+              return (
+                <span
+                  key={i}
+                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-mono border border-[#c4b5fd]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] mx-0.5"
+                >
+                  {part}
+                </span>
+              );
+            }
+            return <span key={i}>{part}</span>;
+          })}
+        </span>
+      );
+    }
+
+    return (
+      <span
+        onClick={onEdit}
+        className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+      >
+        {rawValueStr}
+      </span>
+    );
+  };
+
+  const renderResolvedCell = () => {
+    if (isUnresolved) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60">
+          unresolved
+        </span>
+      );
+    }
+
+    if (isColor) {
+      const swatchColor = token.resolvedHex || token.resolvedValue;
+      return (
+        <div
+          onClick={() => handleCopy(token.resolvedValue, "Color")}
+          className="flex items-center gap-2 cursor-pointer group/swatch"
+          title={`Click to copy: ${token.resolvedValue}`}
+        >
+          <div
+            className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
+            style={{ backgroundColor: swatchColor }}
+          />
+          <span className="text-foreground group-hover/swatch:text-primary transition-colors">
+            {swatchColor}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <span className="text-foreground truncate">
+        {typeof token.resolvedValue === "object"
+          ? JSON.stringify(token.resolvedValue)
+          : String(token.resolvedValue || "")}
+      </span>
+    );
+  };
+
+  const isCompositeTypography = token.type === "typography";
 
   return (
-    <tr className="hover:bg-muted/30 transition-colors group">
+    <tr
+      className={`border-b border-border/30 hover:bg-muted/20 transition-colors group ${
+        isSelected ? "bg-primary/5" : ""
+      }`}
+    >
       {/* 1. Selection Checkbox */}
       <td className="w-10 px-3 py-2.5 text-center border-r border-border/30 align-middle">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
-          className="h-3.5 w-3.5 rounded-full border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
+          className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#6366f1]"
         />
       </td>
 
       {/* 2. NAME */}
-      <td
-        className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle"
-        style={{ paddingLeft: isGrouped ? `${Math.max(16, (level + 1) * 16)}px` : "16px" }}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
+      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
+        <div className="flex items-center justify-between gap-1.5 min-w-0">
           <span
             onClick={onEdit}
             className="font-medium text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
             title={token.name}
           >
-            {isGrouped ? relativeName : token.name}
+            {token.name}
           </span>
-          {isOverridden && (
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"
-              title="Overridden value"
-            />
+          {isCompositeTypography && (
+            <button
+              onClick={onEdit}
+              className="w-4 h-4 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+              title="Expand composite properties"
+            >
+              <ChevronRight className="w-2.5 h-2.5" />
+            </button>
           )}
         </div>
       </td>
 
       {/* 3. TYPE */}
-      <td className="w-24 px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle">
+      <td className="px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle">
         {token.type}
       </td>
 
       {/* 4. VALUE */}
       <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
-        {isAlias ? (
-          <span
-            onClick={onEdit}
-            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 cursor-pointer hover:border-blue-300 transition-colors"
-          >
-            {token.rawValue}
-          </span>
-        ) : (
-          <span
-            onClick={onEdit}
-            className="font-bold text-foreground cursor-pointer hover:text-primary transition-colors"
-          >
-            {typeof token.rawValue === "object" ? JSON.stringify(token.rawValue) : String(token.rawValue || "")}
-          </span>
-        )}
+        {renderValueCell()}
       </td>
 
       {/* 5. RESOLVED */}
       <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
-        {isOverridden ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100/80 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800/60">
-            overridden
-          </span>
-        ) : isColor ? (
-          <div
-            onClick={() => handleCopy(token.resolvedValue, "resolved")}
-            className="flex items-center gap-2 cursor-pointer group/swatch"
-            title={`Click to copy: ${token.resolvedValue}`}
-          >
-            <div
-              className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
-              style={{ backgroundColor: token.resolvedHex || token.resolvedValue }}
-            />
-            <span className="text-foreground group-hover/swatch:text-primary transition-colors">
-              {token.resolvedHex || token.resolvedValue}
-            </span>
-          </div>
-        ) : (
-          <span className="text-foreground">
-            {typeof token.resolvedValue === "object" ? JSON.stringify(token.resolvedValue) : String(token.resolvedValue || "")}
-          </span>
-        )}
+        {renderResolvedCell()}
       </td>
 
       {/* 6. DESCRIPTION */}
       <td className="px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground truncate max-w-xs align-middle">
         {token.description ? (
-          <span title={typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}>
-            {typeof token.description === "object" ? JSON.stringify(token.description) : String(token.description)}
-          </span>
+          <span title={String(token.description)}>{String(token.description)}</span>
         ) : (
           <span className="opacity-40">—</span>
         )}
       </td>
 
       {/* 7. SET */}
-      <td className="w-32 px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs text-muted-foreground align-middle">
+      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs text-muted-foreground truncate align-middle">
         {token.setName}
       </td>
 
-      {/* 8. ACTIONS (⋮) */}
+      {/* 8. ACTIONS ⋮ */}
       <td className="w-10 px-2 py-2.5 text-center align-middle">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1045,10 +1313,10 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
               <MoreVertical className="w-3.5 h-3.5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-48 text-xs">
             {isEditable && (
               <>
-                <DropdownMenuItem onClick={onEdit} className="gap-2 text-xs">
+                <DropdownMenuItem onClick={onEdit} className="gap-2">
                   <Edit2 className="w-3.5 h-3.5 text-primary" />
                   <span className="font-semibold">Edit token</span>
                 </DropdownMenuItem>
@@ -1059,18 +1327,24 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
                       onDuplicate(newName.trim());
                     }
                   }}
-                  className="gap-2 text-xs"
+                  className="gap-2"
                 >
                   <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
                   <span>Duplicate token</span>
                 </DropdownMenuItem>
               </>
             )}
-            <DropdownMenuItem onClick={() => handleCopy(cssVarName, "var")} className="gap-2 text-xs">
+            <DropdownMenuItem
+              onClick={() => handleCopy(`var(--${token.name.replace(/\./g, "-")})`, "CSS Variable")}
+              className="gap-2"
+            >
               <Copy className="w-3.5 h-3.5 text-blue-500" />
               <span>Copy CSS Var</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleCopy(token.name, "name")} className="gap-2 text-xs">
+            <DropdownMenuItem
+              onClick={() => handleCopy(token.name, "Token Name")}
+              className="gap-2"
+            >
               <Copy className="w-3.5 h-3.5 text-amber-500" />
               <span>Copy token name</span>
             </DropdownMenuItem>
@@ -1083,7 +1357,7 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
                       onDelete();
                     }
                   }}
-                  className="gap-2 text-xs text-destructive focus:text-destructive"
+                  className="gap-2 text-destructive focus:text-destructive"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete token</span>
@@ -1094,5 +1368,107 @@ const TokenPreviewRow: React.FC<TokenPreviewRowProps> = ({
         </DropdownMenu>
       </td>
     </tr>
+  );
+};
+
+// -------------------------------------------------------------
+// WORKSPACE GROUP NODE COMPONENT (For nested groupings)
+// -------------------------------------------------------------
+interface WorkspaceGroupNodeProps {
+  node: TokenGroupNode<FlattenedToken>;
+  isCollapsed: boolean;
+  onToggleGroup: () => void;
+  groupDepth: number;
+  selectedTokenIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onEdit: (token: FlattenedToken) => void;
+  onUpdate: (path: string[], newValue: any) => void;
+  onDuplicate: (setName: string, nameSegments: string[], newName: string) => void;
+  onDelete: (setName: string, nameSegments: string[]) => void;
+}
+
+const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
+  node,
+  isCollapsed,
+  onToggleGroup,
+  groupDepth,
+  selectedTokenIds,
+  onToggleSelect,
+  onEdit,
+  onUpdate,
+  onDuplicate,
+  onDelete,
+}) => {
+  return (
+    <React.Fragment>
+      <tr
+        onClick={onToggleGroup}
+        className="bg-muted/20 hover:bg-muted/40 border-b border-border/40 transition-colors cursor-pointer select-none"
+      >
+        <td colSpan={8} className="py-2 px-4 align-middle">
+          <div
+            className="flex items-center justify-between min-w-0 w-full"
+            style={{ paddingLeft: `${Math.max(8, (node.level - 1) * 16 + 8)}px` }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-muted-foreground p-0.5 rounded transition-transform">
+                {isCollapsed ? (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </span>
+              <span className="font-mono text-xs font-semibold text-foreground tracking-tight truncate">
+                {node.name}
+              </span>
+              {node.level > 1 && (
+                <span className="text-[11px] text-muted-foreground font-mono truncate hidden md:inline opacity-60">
+                  ({node.fullPath})
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
+              </span>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      {!isCollapsed && (
+        <>
+          {node.subgroups.map((sub) => (
+            <WorkspaceGroupNode
+              key={sub.id}
+              node={sub}
+              isCollapsed={false}
+              onToggleGroup={onToggleGroup}
+              groupDepth={groupDepth}
+              selectedTokenIds={selectedTokenIds}
+              onToggleSelect={onToggleSelect}
+              onEdit={onEdit}
+              onUpdate={onUpdate}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+            />
+          ))}
+          {node.items.map((token) => (
+            <TokenTableRow
+              key={token.id}
+              token={token}
+              isSelected={selectedTokenIds.has(token.id)}
+              onToggleSelect={() => onToggleSelect(token.id)}
+              onEdit={() => onEdit(token)}
+              onUpdate={onUpdate}
+              onDuplicate={(newName) =>
+                onDuplicate(token.setName, token.name.split("."), newName)
+              }
+              onDelete={() => onDelete(token.setName, token.name.split("."))}
+            />
+          ))}
+        </>
+      )}
+    </React.Fragment>
   );
 };

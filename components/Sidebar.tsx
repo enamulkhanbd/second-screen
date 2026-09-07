@@ -26,6 +26,10 @@ import {
   Plus,
   PanelLeftClose,
   PanelLeftOpen,
+  Lightbulb,
+  MessageSquare,
+  BookOpen,
+  AlertTriangle,
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
@@ -182,36 +186,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent transition-all text-left flex-1 min-w-0 group cursor-pointer">
-                  {/* Organization Avatar */}
-                  <div
-                    className="flex size-8 items-center justify-center rounded-lg text-white font-bold text-xs flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
-                    style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
-                  >
-                    {currentOrg?.logoUrl ? (
-                      <img src={currentOrg.logoUrl} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-                    ) : (
-                      <span>{currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "🏢"}</span>
-                    )}
+                  {/* Organization/Project Avatar */}
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs flex-shrink-0">
+                    {currentProject?.name?.charAt(0)?.toUpperCase() || "P"}
                   </div>
 
-                  {/* Org and Project Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs truncate text-sidebar-foreground">
-                        {currentOrg?.name || "Select Workspace"}
-                      </span>
-                      {userRole === "owner" && (
-                        <Crown className="size-3 text-amber-500 flex-shrink-0" />
-                      )}
+                  {/* Project and Workspace Info */}
+                  <div className="flex-1 min-w-0 leading-tight">
+                    <div className="font-semibold text-xs truncate text-sidebar-foreground">
+                      {currentProject?.name || "Planet"}
                     </div>
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
-                      <span className="truncate font-medium">{currentProject?.name || "Project"}</span>
-                      {userRole && (
-                        <>
-                          <span>•</span>
-                          <span className="capitalize text-[10px]">{userRole}</span>
-                        </>
-                      )}
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {currentOrg?.name || "JustGo"}
                     </div>
                   </div>
 
@@ -220,43 +206,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               </DropdownMenuTrigger>
 
               <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans" align="start">
-                <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-2 py-1">
-                  Workspaces ({userOrgs.length})
-                </DropdownMenuLabel>
-                {userOrgs.map((org) => {
-                  const isSelected = org.id === currentOrg?.id;
-                  return (
-                    <DropdownMenuItem
-                      key={org.id}
-                      onClick={() => setCurrentOrg(org)}
-                      className="gap-2 px-2 py-1.5 cursor-pointer"
-                    >
-                      <div
-                        className="flex size-6 items-center justify-center rounded-md text-white font-semibold text-xs"
-                        style={{ backgroundColor: org.color || "#6366f1" }}
-                      >
-                        {org.icon || org.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="truncate font-medium flex-1 text-xs">{org.name}</span>
-                      {isSelected && <Check className="size-3.5 text-primary" />}
-                    </DropdownMenuItem>
-                  );
-                })}
-
-                <DropdownMenuSeparator className="my-1" />
-
-                {/* Projects List */}
-                <div className="flex items-center justify-between px-2 py-1">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                    Projects ({orgProjects.length})
-                  </span>
+                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                  <span>RECENT PROJECTS</span>
                   {canUserEdit() && (
                     <button
                       onClick={() => setShowCreateProj(true)}
-                      className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
+                      className="p-0.5 hover:text-foreground transition-colors cursor-pointer"
+                      title="Add project"
                     >
                       <Plus className="size-3" />
-                      <span>New</span>
                     </button>
                   )}
                 </div>
@@ -268,17 +226,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                       onClick={() => setCurrentProject(proj)}
                       className="gap-2 px-2 py-1.5 cursor-pointer"
                     >
-                      <div
-                        className="flex size-5 items-center justify-center rounded text-white text-[10px]"
-                        style={{ backgroundColor: proj.color || "#6366f1" }}
-                      >
-                        {proj.icon || "🎯"}
+                      <div className="flex size-5 items-center justify-center rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                        {proj.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="truncate text-xs flex-1">{proj.name}</span>
                       {isSelected && <Check className="size-3.5 text-primary" />}
                     </DropdownMenuItem>
                   );
                 })}
+
+                <DropdownMenuSeparator className="my-1" />
+
+                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                  <span>CURRENT WORKSPACE</span>
+                </div>
+                <DropdownMenuItem
+                  onClick={() => setSidebarTab("org-settings")}
+                  className="gap-2 px-2 py-1.5 cursor-pointer"
+                >
+                  <div
+                    className="flex size-5 items-center justify-center rounded text-white text-[10px] font-bold"
+                    style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
+                  >
+                    {currentOrg?.name?.charAt(0)?.toUpperCase() || "J"}
+                  </div>
+                  <span className="truncate text-xs flex-1">{currentOrg?.name || "JustGo"}</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -298,15 +271,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
       {/* 2. Main Navigation Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4 font-sans">
-        {/* ------------------------------------------------------------- */}
-        {/* 1. DESIGN TOKENS GROUP */}
-        {/* ------------------------------------------------------------- */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Design Token
-            </div>
-          )}
+        <div className="space-y-0.5">
+          {/* Dashboard */}
+          <button
+            onClick={() => setSidebarTab("dashboard")}
+            title="Dashboard"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "dashboard"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <Home className="size-4 flex-shrink-0" />
+            {!isCollapsed && <span>Dashboard</span>}
+          </button>
 
           {/* Tokens */}
           <button
@@ -319,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             }`}
           >
             <div className="flex items-center gap-2.5 truncate">
-              <Layers className={`size-4 flex-shrink-0 ${sidebarTab === "tokens" ? "text-primary" : "text-muted-foreground"}`} />
+              <Layers className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Tokens</span>}
             </div>
             {!isCollapsed && allSetNames.length > 0 && (
@@ -329,7 +307,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             )}
           </button>
 
-          {/* Themes & Modes */}
+          {/* Themes */}
           <button
             onClick={() => setSidebarTab("themes")}
             title="Themes"
@@ -340,106 +318,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             }`}
           >
             <div className="flex items-center gap-2.5 truncate">
-              <Palette className={`size-4 flex-shrink-0 ${sidebarTab === "themes" ? "text-violet-500" : "text-muted-foreground"}`} />
+              <Palette className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Themes</span>}
             </div>
             {!isCollapsed && themeGroups.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
                 {themeGroups.length}
-              </span>
-            )}
-          </button>
-
-          {/* Branches (Native Versioning) - ONLY if project does NOT have a sync provider */}
-          {!isGitConfigured && (
-            <button
-              onClick={() => setSidebarTab("branches")}
-              title="Branches"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-                sidebarTab === "branches"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-              }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <GitBranch className={`size-4 flex-shrink-0 ${sidebarTab === "branches" ? "text-emerald-500" : "text-muted-foreground"}`} />
-                {!isCollapsed && <span>Branches</span>}
-              </div>
-              {!isCollapsed && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {branches.length > 0 ? branches.length : 1}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* Variables (Figma Native) */}
-          <button
-            onClick={() => setSidebarTab("variables")}
-            title="Variables"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "variables"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Sparkles className={`size-4 flex-shrink-0 ${sidebarTab === "variables" ? "text-violet-500" : "text-muted-foreground"}`} />
-              {!isCollapsed && <span>Variables</span>}
-            </div>
-            {!isCollapsed && (
-              figmaResolvedVariables.length > 0 ? (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-violet-500/10 text-violet-600 dark:text-violet-400 font-bold">
-                  {figmaResolvedVariables.length}
-                </span>
-              ) : (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">Figma</Badge>
-              )
-            )}
-          </button>
-        </div>
-
-        {/* ------------------------------------------------------------- */}
-        {/* 2. OUTPUTS & TOOLS GROUP */}
-        {/* ------------------------------------------------------------- */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Outputs &amp; Tools
-            </div>
-          )}
-
-          {/* Exports */}
-          <button
-            onClick={() => setSidebarTab("exports")}
-            title="Exports"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "exports"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <Download className="size-4 flex-shrink-0 text-muted-foreground" />
-            {!isCollapsed && <span>Exports</span>}
-          </button>
-
-          {/* Releases */}
-          <button
-            onClick={() => setSidebarTab("releases")}
-            title="Releases"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "releases"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Package className="size-4 flex-shrink-0 text-muted-foreground" />
-              {!isCollapsed && <span>Releases</span>}
-            </div>
-            {!isCollapsed && releases.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                {releases.length}
               </span>
             )}
           </button>
@@ -455,19 +339,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             }`}
           >
             <div className="flex items-center gap-2.5 truncate">
-              <FileText className="size-4 flex-shrink-0 text-muted-foreground" />
+              <FileText className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Documentation</span>}
             </div>
             {!isCollapsed && (
-              documentation?.isPublishedGlobally ? (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
-                  Live
-                </span>
-              ) : (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
-                  Docs
-                </Badge>
-              )
+              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
+                Beta
+              </Badge>
             )}
           </button>
 
@@ -482,115 +360,110 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             }`}
           >
             <div className="flex items-center gap-2.5 truncate">
-              <ImageIcon className="size-4 flex-shrink-0 text-muted-foreground" />
+              <ImageIcon className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Assets</span>}
             </div>
-            {!isCollapsed && <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">Beta</Badge>}
-          </button>
-
-          {/* Git Log - ONLY if project HAS a sync provider */}
-          {isGitConfigured && (
-            <button
-              onClick={() => setSidebarTab("activity")}
-              title="Git Log"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-                sidebarTab === "activity"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-              }`}
-            >
-              <GitBranch className="size-4 flex-shrink-0 text-muted-foreground" />
-              {!isCollapsed && <span>Git Log</span>}
-            </button>
-          )}
-        </div>
-
-        {/* ------------------------------------------------------------- */}
-        {/* 3. PLATFORM GROUP */}
-        {/* ------------------------------------------------------------- */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Platform
-            </div>
-          )}
-
-          {/* Workspaces & Projects Management */}
-          <button
-            onClick={() => setSidebarTab("dashboard")}
-            title="Workspaces & Projects"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "dashboard" || (sidebarTab as string) === "workspaces"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Building2 className="size-4 flex-shrink-0 text-muted-foreground" />
-              {!isCollapsed && <span>Workspaces &amp; Projects</span>}
-            </div>
             {!isCollapsed && (
-              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
-                {orgProjects.length}
+              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
+                Beta
               </Badge>
             )}
           </button>
 
-          {/* Sync Providers (Git + Figma Plugin) */}
+          {/* Schema Marketplace */}
           <button
-            onClick={() => setSidebarTab("integrations")}
-            title="Sync Providers"
+            onClick={() => setSidebarTab("variables")}
+            title="Schema Marketplace"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "variables"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <Lightbulb className="size-4 flex-shrink-0 text-muted-foreground" />
+            {!isCollapsed && <span>Schema Marketplace</span>}
+          </button>
+
+          {/* Exports */}
+          <button
+            onClick={() => setSidebarTab("exports")}
+            title="Exports"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "exports"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <Download className="size-4 flex-shrink-0" />
+            {!isCollapsed && <span>Exports</span>}
+          </button>
+
+          {/* Branches */}
+          <button
+            onClick={() => setSidebarTab("branches")}
+            title="Branches"
             className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "integrations" || (sidebarTab as string) === "sync"
+              sidebarTab === "branches"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
             }`}
           >
             <div className="flex items-center gap-2.5 truncate">
-              <Link2 className="size-4 flex-shrink-0 text-muted-foreground" />
-              {!isCollapsed && <span>Sync Providers</span>}
+              <GitBranch className="size-4 flex-shrink-0" />
+              {!isCollapsed && <span>Branches</span>}
             </div>
-            {credentials.owner && credentials.repo ? (
-              <span className="size-2 rounded-full bg-emerald-500 flex-shrink-0" title="Git Connected" />
-            ) : !isCollapsed ? (
-              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">Connect</Badge>
-            ) : null}
+            {!isCollapsed && (
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+                {branches.length > 0 ? branches.length : 1}
+              </span>
+            )}
+          </button>
+
+          {/* Releases */}
+          <button
+            onClick={() => setSidebarTab("releases")}
+            title="Releases"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "releases"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <div className="flex items-center gap-2.5 truncate">
+              <Package className="size-4 flex-shrink-0" />
+              {!isCollapsed && <span>Releases</span>}
+            </div>
+            {!isCollapsed && releases.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+                {releases.length}
+              </span>
+            )}
+          </button>
+
+          {/* Activity */}
+          <button
+            onClick={() => setSidebarTab("activity")}
+            title="Activity"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "activity"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <Clock className="size-4 flex-shrink-0" />
+            {!isCollapsed && <span>Activity</span>}
           </button>
         </div>
 
         {/* ------------------------------------------------------------- */}
-        {/* 4. SETTINGS & TEAM GROUP */}
+        {/* SETTINGS SECTION */}
         {/* ------------------------------------------------------------- */}
-        <div className="space-y-1 pt-2 border-t border-sidebar-border">
+        <div className="space-y-0.5 pt-2 border-t border-sidebar-border">
           {!isCollapsed && (
             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Settings &amp; Team
+              SETTINGS
             </div>
           )}
-
-          {/* Members */}
-          <button
-            onClick={() => {
-              setSidebarTab("members");
-              setMembersSubTab("members");
-            }}
-            title="Team Members"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "members"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Users className="size-4 flex-shrink-0 text-muted-foreground" />
-              {!isCollapsed && <span>Team Members</span>}
-            </div>
-            {!isCollapsed && currentOrg?.members && (
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {currentOrg.members.length}
-              </span>
-            )}
-          </button>
 
           {/* Project Settings */}
           <button
@@ -602,22 +475,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
             }`}
           >
-            <Settings className="size-4 flex-shrink-0 text-muted-foreground" />
+            <Settings className="size-4 flex-shrink-0" />
             {!isCollapsed && <span>Project Settings</span>}
           </button>
 
-          {/* Organization Settings */}
+          {/* Members */}
           <button
-            onClick={() => setSidebarTab("org-settings")}
-            title="Workspace Settings"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "org-settings"
+            onClick={() => {
+              setSidebarTab("members");
+              setMembersSubTab("members");
+            }}
+            title="Members"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "members"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
             }`}
           >
-            <Building2 className="size-4 flex-shrink-0 text-muted-foreground" />
-            {!isCollapsed && <span>Workspace Settings</span>}
+            <div className="flex items-center gap-2.5 truncate">
+              <Users className="size-4 flex-shrink-0" />
+              {!isCollapsed && <span>Members</span>}
+            </div>
+            {!isCollapsed && currentOrg?.members && (
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {currentOrg.members.length}
+              </span>
+            )}
+          </button>
+
+          {/* Integrations */}
+          <button
+            onClick={() => setSidebarTab("integrations")}
+            title="Integrations"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "integrations" || (sidebarTab as string) === "sync"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <Link2 className="size-4 flex-shrink-0" />
+            {!isCollapsed && <span>Integrations</span>}
           </button>
 
           {/* MCP & CLI */}
@@ -630,60 +527,95 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
             }`}
           >
-            <Code2 className="size-4 flex-shrink-0 text-muted-foreground" />
+            <Code2 className="size-4 flex-shrink-0" />
             {!isCollapsed && <span>MCP &amp; CLI</span>}
           </button>
         </div>
       </div>
 
-      {/* 3. System Changelog / What's New dedicated section */}
-      <div className="p-2 border-t border-sidebar-border">
-        <button
-          onClick={() => setSidebarTab("changelog")}
-          title={`What's New & System Changelog (${LATEST_VERSION})`}
-          className={`w-full flex items-center ${
-            isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"
-          } rounded-lg text-xs transition-all cursor-pointer ${
-            sidebarTab === "changelog"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-              : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-          }`}
-        >
-          <div className="flex items-center gap-2.5 truncate">
-            <Rocket className="size-4 flex-shrink-0 text-primary" />
-            {!isCollapsed && <span>What&apos;s New</span>}
+      {/* 3. Trial Notice Card (When Expanded) */}
+      {!isCollapsed && (
+        <div className="px-2 pt-1">
+          <div className="p-3 rounded-xl bg-[#FEFCE8] border border-[#FEF08A] text-foreground">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="size-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1 flex-1">
+                <div className="font-semibold text-xs text-amber-900 leading-tight">13 days left in trial</div>
+                <div className="text-[11px] text-amber-700/90 leading-tight">Add a payment method to keep access</div>
+                <button
+                  onClick={() => setSidebarTab("org-settings")}
+                  className="mt-2 w-full py-1.5 px-2.5 rounded-lg bg-[#FDE047] hover:bg-[#FACC15] text-amber-950 font-semibold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Add billing details
+                </button>
+              </div>
+            </div>
           </div>
-          {!isCollapsed && (
-            <Badge variant="secondary" className="text-[9px] py-0 px-1 font-mono font-semibold">
-              {LATEST_VERSION}
-            </Badge>
-          )}
-        </button>
-      </div>
+        </div>
+      )}
 
-      {/* 4. Footer: User Account & Logout */}
+      {/* 4. Support & Utility Links */}
+      {!isCollapsed && (
+        <div className="px-2 py-1 space-y-0.5 text-xs text-muted-foreground border-t border-sidebar-border mt-2">
+          <button
+            onClick={() => setSidebarTab("documentation")}
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
+          >
+            <BookOpen className="size-4 flex-shrink-0" />
+            <span>Docs</span>
+          </button>
+
+          <button
+            onClick={() => setSidebarTab("changelog")}
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
+          >
+            <Sparkles className="size-4 flex-shrink-0" />
+            <span>Changelog</span>
+          </button>
+
+          <button
+            onClick={() =>
+              addToast({
+                type: "info",
+                title: "Support",
+                message: "Connecting to Tokens Studio support team...",
+              })
+            }
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
+          >
+            <MessageSquare className="size-4 flex-shrink-0" />
+            <span>Chat with Support</span>
+          </button>
+        </div>
+      )}
+
+      {/* 5. Footer: User Account */}
       <div className="p-2 border-t border-sidebar-border">
         {currentUser ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={`w-full flex items-center ${isCollapsed ? "justify-center p-1" : "gap-2.5 p-2"} rounded-lg hover:bg-sidebar-accent transition-colors text-left group`}>
-                <Avatar className="size-8 rounded-lg flex-shrink-0">
-                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.displayName} />
-                  <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-bold text-xs">
-                    {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : "U"}
-                  </AvatarFallback>
-                </Avatar>
+              <button className={`w-full flex items-center ${isCollapsed ? "justify-center p-1" : "gap-2.5 p-2"} rounded-lg hover:bg-sidebar-accent transition-colors text-left group cursor-pointer`}>
+                <div className="size-7 rounded-full bg-fuchsia-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                  {currentUser.displayName
+                    ? currentUser.displayName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .substring(0, 2)
+                        .toUpperCase()
+                    : "EK"}
+                </div>
                 {!isCollapsed && (
                   <>
                     <div className="grid flex-1 text-left leading-tight truncate">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate font-semibold text-xs text-sidebar-foreground">
-                          {currentUser.displayName}
+                          {currentUser.displayName || "Enamul Khan"}
                         </span>
                         {userRole === "owner" && <Crown className="size-3 text-amber-500 flex-shrink-0" />}
                       </div>
                       <span className="truncate text-[11px] text-muted-foreground">
-                        {currentUser.email}
+                        {currentUser.email || "enamulkhanbd@yahoo.com"}
                       </span>
                     </div>
                     <ChevronsUpDown className="ml-auto size-4 text-muted-foreground group-hover:text-sidebar-foreground flex-shrink-0" />
@@ -699,31 +631,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2.5 px-2 py-1.5 text-left text-xs">
-                  <Avatar className="size-8 rounded-lg">
-                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.displayName} />
-                    <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-bold">
-                      {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="size-7 rounded-full bg-fuchsia-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                    {currentUser.displayName
+                      ? currentUser.displayName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .substring(0, 2)
+                          .toUpperCase()
+                      : "EK"}
+                  </div>
                   <div className="grid flex-1 leading-tight truncate">
                     <span className="truncate font-semibold text-foreground">
-                      {currentUser.displayName}
+                      {currentUser.displayName || "Enamul Khan"}
                     </span>
                     <span className="truncate text-[11px] text-muted-foreground">
-                      {currentUser.email}
+                      {currentUser.email || "enamulkhanbd@yahoo.com"}
                     </span>
                   </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => setSidebarTab("changelog")}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Rocket className="size-3.5 text-primary" />
-                  <span>What&apos;s New ({LATEST_VERSION})</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setSidebarTab("org-settings")}
                   className="gap-2 cursor-pointer"

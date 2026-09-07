@@ -3,173 +3,195 @@
 import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
-  Link2,
+  Plus,
+  Check,
   FolderGit2,
-  Globe,
-  Download,
-  Key,
-  CheckCircle2,
-  ExternalLink,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PluginDistributionModal } from "@/components/PluginDistributionModal";
 
-interface IntegrationsViewProps {
-  onOpenSettings?: () => void;
-}
+export const IntegrationsView: React.FC = () => {
+  const { addToast } = useTokenStore();
+  const [showTriggerModal, setShowTriggerModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState("github");
 
-export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onOpenSettings }) => {
-  const { credentials, currentOrg, addToast } = useTokenStore();
-  const [isPluginModalOpen, setIsPluginModalOpen] = useState(false);
+  const providers = [
+    { id: "github", name: "GitHub", icon: "🐙" },
+    { id: "gitlab", name: "GitLab", icon: "🦊" },
+    { id: "azure", name: "Azure DevOps", icon: "🔷" },
+    { id: "bitbucket", name: "Bitbucket", icon: "🪣" },
+    { id: "circleci", name: "CircleCI", icon: "⭕" },
+  ];
+
+  const handleCreateTrigger = () => {
+    addToast({
+      type: "success",
+      title: "CI Trigger Created",
+      message: `Outbound CI trigger created for ${providers.find((p) => p.id === selectedProvider)?.name}.`,
+    });
+    setShowTriggerModal(false);
+  };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none">
-      {/* Header */}
-      <header className="h-14 border-b border-border px-6 flex items-center justify-between bg-card flex-shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-            <Link2 className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-foreground">
-              Integrations &amp; Connected Services
-            </h1>
-            <p className="text-[11px] text-muted-foreground">
-              Figma plugin, Git version control, and token distribution endpoints
-            </p>
-          </div>
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans select-none p-6 md:p-10">
+      <div className="max-w-4xl w-full mx-auto space-y-6">
+        {/* Header (Matching Video Frame 008) */}
+        <div>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">Integrations</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Connect Studio to the tools and services your team uses.
+          </p>
         </div>
-      </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 1. Figma Companion Plugin */}
-          <Card className="flex flex-col justify-between hover:border-primary/50 transition-all">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center font-bold text-base">
-                  F
-                </div>
-                <Badge variant="violet" className="text-[10px]">Private Plugin</Badge>
-              </div>
-              <CardTitle className="text-sm font-bold mt-2">Figma Desktop Plugin</CardTitle>
-              <CardDescription className="text-xs">
-                Bi-directional sync between Figma Variables, Theme Modes, Paint Styles and Tokens Platform Cloud.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsPluginModalOpen(true)}
-                className="w-full gap-1.5 text-xs font-semibold"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Get Figma Plugin Bundle</span>
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Integrations List Card */}
+        <div className="rounded-xl border border-border bg-card divide-y divide-border/60 shadow-xs">
+          {/* 1. CI Integration (Inbound) */}
+          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold text-foreground">CI Integration (Inbound)</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Let your CI pipeline authenticate with Studio to fetch tokens during builds.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                addToast({
+                  type: "info",
+                  title: "Inbound CI Key Generated",
+                  message: "Copy your build access token from Settings -> MCP & CLI.",
+                });
+              }}
+              className="h-8 text-xs font-medium gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Integration</span>
+            </Button>
+          </div>
 
-          {/* 2. GitHub Sync */}
-          <Card className="flex flex-col justify-between hover:border-primary/50 transition-all">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                  <FolderGit2 className="w-5 h-5" />
-                </div>
-                {credentials.provider === "github" && credentials.repo ? (
-                  <Badge variant="success" className="text-[10px]">Connected</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px]">Configurable</Badge>
-                )}
-              </div>
-              <CardTitle className="text-sm font-bold mt-2">GitHub Repository</CardTitle>
-              <CardDescription className="text-xs">
-                Commit token changes, open Pull Requests, and switch branches automatically on GitHub.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onOpenSettings}
-                className="w-full gap-1.5 text-xs font-semibold"
-              >
-                <FolderGit2 className="w-3.5 h-3.5" />
-                <span>{credentials.provider === "github" ? "Manage GitHub Sync" : "Connect GitHub"}</span>
-              </Button>
-            </CardContent>
-          </Card>
+          {/* 2. Service Account Tokens */}
+          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold text-foreground">Service Account Tokens</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Create tokens for CI/CD pipelines and automated tools.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                addToast({
+                  type: "success",
+                  title: "Service Token Created",
+                  message: "Generated new service token with read access.",
+                });
+              }}
+              className="h-8 text-xs font-medium gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Token</span>
+            </Button>
+          </div>
 
-          {/* 3. Azure DevOps */}
-          <Card className="flex flex-col justify-between hover:border-primary/50 transition-all">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base">
-                  AZ
-                </div>
-                {credentials.provider === "azure" && credentials.repo ? (
-                  <Badge variant="success" className="text-[10px]">Connected</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px]">Configurable</Badge>
-                )}
-              </div>
-              <CardTitle className="text-sm font-bold mt-2">Azure DevOps Repos</CardTitle>
-              <CardDescription className="text-xs">
-                Full Azure Repos token sync with PAT authentication and branch governance.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onOpenSettings}
-                className="w-full gap-1.5 text-xs font-semibold"
-              >
-                <FolderGit2 className="w-3.5 h-3.5" />
-                <span>{credentials.provider === "azure" ? "Manage Azure Sync" : "Connect Azure DevOps"}</span>
-              </Button>
-            </CardContent>
-          </Card>
+          {/* 3. Webhooks */}
+          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold text-foreground">Webhooks</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Receive notifications when events occur in Studio.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const url = prompt("Enter webhook URL endpoint:");
+                if (url && url.trim()) {
+                  addToast({
+                    type: "success",
+                    title: "Webhook Added",
+                    message: `Webhook registered for ${url.trim()}.`,
+                  });
+                }
+              }}
+              className="h-8 text-xs font-medium gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Webhook</span>
+            </Button>
+          </div>
 
-          {/* 4. Personal API Tokens */}
-          <Card className="flex flex-col justify-between hover:border-primary/50 transition-all">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                  <Key className="w-5 h-5" />
-                </div>
-                <Badge variant="outline" className="text-[10px]">REST API</Badge>
-              </div>
-              <CardTitle className="text-sm font-bold mt-2">Personal Access Tokens</CardTitle>
-              <CardDescription className="text-xs">
-                Use PATs to authenticate CI/CD pipelines, CLI scripts, and automated releases.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onOpenSettings}
-                className="w-full gap-1.5 text-xs font-semibold"
-              >
-                <Key className="w-3.5 h-3.5" />
-                <span>Generate PATs</span>
-              </Button>
-            </CardContent>
-          </Card>
+          {/* 4. CI Trigger (Outbound) */}
+          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold text-foreground">CI Trigger (Outbound)</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Studio triggers your CI/CD pipeline when events happen (e.g. a release).
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTriggerModal(true)}
+              className="h-8 text-xs font-medium gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Trigger</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Figma Plugin Modal */}
-      <Dialog open={isPluginModalOpen} onOpenChange={setIsPluginModalOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <PluginDistributionModal />
+      {/* Create CI Trigger (Outbound) Modal (Matching Frame 008) */}
+      <Dialog open={showTriggerModal} onOpenChange={setShowTriggerModal}>
+        <DialogContent className="sm:max-w-md p-6 border border-border shadow-2xl rounded-xl space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-foreground">Create CI Trigger (Outbound)</h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Triggers automatically start your CI/CD pipeline when events happen in Studio (e.g. a release is created). Studio calls your provider API to kick off the pipeline run.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-foreground">CI Provider</label>
+            <div className="grid grid-cols-2 gap-2">
+              {providers.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedProvider(p.id)}
+                  className={`flex items-center gap-2.5 p-3 rounded-lg border text-xs font-medium text-left transition-all cursor-pointer ${
+                    selectedProvider === p.id
+                      ? "border-[#6366f1] bg-[#6366f1]/5 text-foreground font-semibold shadow-2xs"
+                      : "border-border hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className="text-base">{p.icon}</span>
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTriggerModal(false)}
+              className="h-8 text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateTrigger}
+              className="h-8 text-xs bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-pointer shadow-2xs"
+            >
+              Create Trigger
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -301,7 +301,7 @@ interface TokenStoreState {
   setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
-  updateSingleToken: (path: string[], newValue: string) => void;
+  updateSingleToken: (path: string[], newValue: any) => void;
   updateSetJson: (setName: string, newJsonContent: any) => void;
   setActiveSet: (setName: string) => void;
   setActiveGroup: (group: string) => void;
