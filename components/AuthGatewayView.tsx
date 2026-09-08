@@ -138,11 +138,17 @@ export const AuthGatewayView: React.FC = () => {
   };
 
   const handleDemoSignIn = () => {
-    setCurrentUser({
+    const demoUser = {
       uid: "usr_google_demo",
       email: "designer@company.com",
       displayName: "Design Lead",
-    });
+    };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_tokens_platform_user", JSON.stringify(demoUser));
+      } catch {}
+    }
+    setCurrentUser(demoUser);
     addToast({
       type: "success",
       title: "Signed In (Demo Mode)",
@@ -314,6 +320,18 @@ export const AuthGatewayView: React.FC = () => {
                 />
               </svg>
               <span>Continue with Google</span>
+            </Button>
+
+            {/* Quick Demo Mode Sign In */}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleDemoSignIn}
+              disabled={loading}
+              className="w-full h-9 gap-2 text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border shadow-xs cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Explore Demo Workspace</span>
             </Button>
 
             {/* Separator */}

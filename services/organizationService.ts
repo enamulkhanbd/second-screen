@@ -549,6 +549,35 @@ export function ensureProjectDefaultBranch(proj: Project): ProjectBranch[] {
   if (proj.branches && proj.branches.length > 0) {
     return proj.branches;
   }
+  const starterTokens: RawTokensDocument = {
+    global: {
+      colors: {
+        brand: {
+          primary: { value: "#6366f1", type: "color", description: "Primary brand color" },
+          secondary: { value: "#ec4899", type: "color", description: "Vibrant accent" },
+        },
+        neutral: {
+          white: { value: "#ffffff", type: "color" },
+          black: { value: "#000000", type: "color" },
+          gray: {
+            100: { value: "#f3f4f6", type: "color" },
+            900: { value: "#111827", type: "color" },
+          },
+        },
+      },
+      spacing: {
+        xs: { value: "4px", type: "spacing" },
+        sm: { value: "8px", type: "spacing" },
+        md: { value: "16px", type: "spacing" },
+        lg: { value: "24px", type: "spacing" },
+      },
+    },
+  };
+  const effectiveTokens =
+    proj.rawTokens && Object.keys(proj.rawTokens).length > 0
+      ? proj.rawTokens
+      : starterTokens;
+
   const defaultBranch: ProjectBranch = {
     id: `branch_main_${proj.id}`,
     name: "main",
@@ -561,7 +590,7 @@ export function ensureProjectDefaultBranch(proj: Project): ProjectBranch[] {
       name: proj.createdByName || "Team Member",
       email: "user@example.com",
     },
-    rawTokens: proj.rawTokens || {},
+    rawTokens: effectiveTokens,
     themeGroups: proj.themeGroups || [],
     commits: [
       {
@@ -573,7 +602,7 @@ export function ensureProjectDefaultBranch(proj: Project): ProjectBranch[] {
           name: proj.createdByName || "Team Member",
           email: "user@example.com",
         },
-        totalAdded: Object.keys(proj.rawTokens || {}).length,
+        totalAdded: Object.keys(effectiveTokens || {}).length,
         totalModified: 0,
         totalDeleted: 0,
         changes: [],

@@ -28,6 +28,7 @@ import {
   CopyPlus,
   Trash2,
   FolderGit2,
+  GitBranch,
   FolderTree,
   List,
   ChevronsUpDown,
@@ -53,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buildTokenGroupTree, TokenGroupNode } from "@/utils/themeHelpers";
+import { cn } from "@/lib/utils";
 
 interface TokensWorkspaceProps {
   onOpenSettings?: () => void;
@@ -78,8 +80,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     addToast,
     themeGroups,
     setSidebarTab,
+    branches,
+    activeBranch,
+    switchBranchAction,
     addNewToken,
   } = useTokenStore();
+
+  const isGitConfigured = Boolean(
+    credentials.provider && credentials.owner && credentials.repo
+  );
 
   const allSetKeys = useMemo(() => {
     return Object.keys(rawTokens).filter((k) => !k.startsWith("$"));
@@ -96,38 +105,83 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const tableRef = useRef<HTMLTableElement>(null);
 
-  // Column resizing state
+  // Column resizing state with persistent storage
   const [colWidths, setColWidths] = useState({
-    name: 240,
-    type: 80,
-    value: 220,
-    resolved: 180,
+    name: 260,
+    type: 90,
+    value: 240,
+    resolved: 190,
     description: 260,
     set: 140,
   });
-  const [resizingCol, setResizingCol] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ts_tokens_col_widths");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setColWidths((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+  }, []);
 
   const startResizing = (colKey: keyof typeof colWidths, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
     const startWidth = colWidths[colKey];
+    const minW = colKey === "type" ? 60 : colKey === "set" ? 80 : 100;
+    let currentNewWidth = startWidth;
+
+    const tableEl = tableRef.current;
+    if (!tableEl) return;
+
+    const colEl = tableEl.querySelector<HTMLTableColElement>(`col[data-col="${colKey}"]`);
+    const thEl = tableEl.querySelector<HTMLTableCellElement>(`th[data-col="${colKey}"]`);
+
+    tableEl.setAttribute("data-resizing-col", colKey);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
 
     const onMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      if (moveEvent.buttons === 0) {
+        onMouseUp();
+        return;
+      }
       const deltaX = moveEvent.clientX - startX;
-      const newWidth = Math.max(70, startWidth + deltaX);
-      setColWidths((prev) => ({ ...prev, [colKey]: newWidth }));
+      currentNewWidth = Math.max(minW, startWidth + deltaX);
+
+      // Instant 1:1 hardware-accelerated layout update with zero frame lag
+      if (colEl) {
+        colEl.style.width = `${currentNewWidth}px`;
+      }
+      if (thEl) {
+        thEl.style.width = `${currentNewWidth}px`;
+      }
+      tableEl.style.setProperty(`--col-width-${colKey}`, `${currentNewWidth}px`);
     };
 
     const onMouseUp = () => {
-      setResizingCol(null);
+      tableEl.removeAttribute("data-resizing-col");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+
+      // Commit final width to state and localStorage once at end of drag
+      setColWidths((prev) => {
+        const updated = { ...prev, [colKey]: currentNewWidth };
+        try {
+          localStorage.setItem("ts_tokens_col_widths", JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
     };
 
-    setResizingCol(colKey);
-    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mousemove", onMouseMove, { passive: false });
     window.addEventListener("mouseup", onMouseUp);
   };
 
@@ -554,16 +608,16 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                   onClick={() => setSidebarTab("activity")}
                   className="gap-2 cursor-pointer"
                 >
-                  <History className="w-3.5 h-3.5 text-blue-500" />
-                  <span>History</span>
+                  <History className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Set history</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
-                    if (confirm(`Are you sure you want to delete set "${activeSet}"?`)) {
+                    if (confirm(`Are you sure you want to delete the set "${activeSet}"?`)) {
                       deleteToken(activeSet, []);
                       addToast({
-                        type: "success",
+                        type: "info",
                         title: "Set Deleted",
                         message: `Deleted token set "${activeSet}".`,
                       });
@@ -576,6 +630,66 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+
+          {/* Active Branch Pill & Quick Switcher (Native branches when no Git; Git branch badge when Git configured) */}
+          {!isGitConfigured ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border/80 bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
+                  title={`Active branch: ${activeBranch || "main"}`}
+                >
+                  <GitBranch className="w-3.5 h-3.5 text-primary" />
+                  <span className="max-w-[120px] truncate">{activeBranch || "main"}</span>
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60 text-xs">
+                <div className="px-2 py-1.5 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                  Switch Branch
+                </div>
+                <DropdownMenuSeparator />
+                <div className="max-h-56 overflow-y-auto space-y-0.5">
+                  {(branches && branches.length > 0 ? branches : [{ id: "main", name: "main", title: "Main branch" }]).map((b) => {
+                    const bName = typeof b === "string" ? b : b.name;
+                    const isCurrent = bName === (activeBranch || "main");
+                    return (
+                      <DropdownMenuItem
+                        key={bName}
+                        onClick={() => switchBranchAction(bName)}
+                        className={cn(
+                          "flex items-center justify-between font-mono cursor-pointer",
+                          isCurrent && "font-semibold text-primary bg-primary/10"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="truncate">{bName}</span>
+                        </div>
+                        {isCurrent && <Check className="w-3.5 h-3.5 text-primary" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setSidebarTab("branches")}
+                  className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
+                >
+                  <FolderGit2 className="w-3.5 h-3.5" />
+                  <span>Manage all branches</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border/80 bg-muted/40 text-foreground select-none"
+              title={`Git branch: ${credentials.branch || "main"}`}
+            >
+              <GitBranch className="w-3.5 h-3.5 text-primary" />
+              <span className="max-w-[120px] truncate">{credentials.branch || "main"}</span>
+            </div>
           )}
 
           {/* Inactive in themes pill badge */}
@@ -830,117 +944,177 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               </p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs select-none">
-              <thead className="bg-background border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
-                <tr>
-                  {/* Selection Checkbox */}
-                  <th className="w-10 px-3 py-2.5 text-center border-r border-border/30 bg-background">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                      className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#6366f1]"
-                      title="Select all"
-                    />
-                  </th>
+            <>
+              <style>{`
+                table[data-resizing-col] {
+                  cursor: col-resize !important;
+                  user-select: none !important;
+                }
+                table[data-resizing-col="name"] [data-resizer="name"] > div,
+                table[data-resizing-col="type"] [data-resizer="type"] > div,
+                table[data-resizing-col="value"] [data-resizer="value"] > div,
+                table[data-resizing-col="resolved"] [data-resizer="resolved"] > div,
+                table[data-resizing-col="description"] [data-resizer="description"] > div,
+                table[data-resizing-col="set"] [data-resizer="set"] > div {
+                  background-color: #6366f1 !important;
+                  opacity: 1 !important;
+                }
+              `}</style>
+              <table
+                ref={tableRef}
+                className="w-full table-fixed text-left border-collapse text-xs select-none"
+                style={{
+                  minWidth: "100%",
+                  ["--col-width-name" as any]: `${colWidths.name}px`,
+                  ["--col-width-type" as any]: `${colWidths.type}px`,
+                  ["--col-width-value" as any]: `${colWidths.value}px`,
+                  ["--col-width-resolved" as any]: `${colWidths.resolved}px`,
+                  ["--col-width-description" as any]: `${colWidths.description}px`,
+                  ["--col-width-set" as any]: `${colWidths.set}px`,
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: "40px" }} />
+                  <col data-col="name" style={{ width: `${colWidths.name}px` }} />
+                  <col data-col="type" style={{ width: `${colWidths.type}px` }} />
+                  <col data-col="value" style={{ width: `${colWidths.value}px` }} />
+                  <col data-col="resolved" style={{ width: `${colWidths.resolved}px` }} />
+                  <col data-col="description" style={{ width: `${colWidths.description}px` }} />
+                  <col data-col="set" style={{ width: `${colWidths.set}px` }} />
+                  <col style={{ width: "40px" }} />
+                  <col className="w-auto" />
+                </colgroup>
+                <thead className="bg-background border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
+                  <tr>
+                    {/* Selection Checkbox */}
+                    <th className="w-10 px-3 py-2.5 text-center border-r border-border/30 bg-background">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#6366f1]"
+                        title="Select all"
+                      />
+                    </th>
 
-                  {/* NAME Column with Resizer */}
-                  <th
-                    style={{ width: `${colWidths.name}px`, minWidth: "140px" }}
-                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
-                  >
-                    <div
-                      onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
-                      className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors"
+                    {/* NAME Column with Resizer */}
+                    <th
+                      data-col="name"
+                      style={{ width: `${colWidths.name}px` }}
+                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <span>NAME</span>
-                      <span className="text-xs font-normal">
-                        {sortDirection === "asc" ? "↑" : "↓"}
-                      </span>
-                    </div>
-                    {/* Resizer Divider */}
-                    <div
-                      onMouseDown={(e) => startResizing("name", e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
-                    >
-                      <div className={`w-[1px] h-full ${resizingCol === "name" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
-                    </div>
-                  </th>
+                      <div
+                        onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
+                        className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors truncate min-w-0"
+                      >
+                        <span>NAME</span>
+                        <span className="text-xs font-normal">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      </div>
+                      {/* Resizer Divider */}
+                      <div
+                        data-resizer="name"
+                        onMouseDown={(e) => startResizing("name", e)}
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        title="Drag to resize NAME column"
+                      >
+                        <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
+                      </div>
+                    </th>
 
-                  {/* TYPE Column with Resizer */}
-                  <th
-                    style={{ width: `${colWidths.type}px`, minWidth: "70px" }}
-                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
-                  >
-                    <span>TYPE</span>
-                    <div
-                      onMouseDown={(e) => startResizing("type", e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    {/* TYPE Column with Resizer */}
+                    <th
+                      data-col="type"
+                      style={{ width: `${colWidths.type}px` }}
+                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <div className={`w-[1px] h-full ${resizingCol === "type" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
-                    </div>
-                  </th>
+                      <span className="truncate">TYPE</span>
+                      <div
+                        data-resizer="type"
+                        onMouseDown={(e) => startResizing("type", e)}
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        title="Drag to resize TYPE column"
+                      >
+                        <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
+                      </div>
+                    </th>
 
-                  {/* VALUE Column with Resizer */}
-                  <th
-                    style={{ width: `${colWidths.value}px`, minWidth: "140px" }}
-                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
-                  >
-                    <span>VALUE</span>
-                    <div
-                      onMouseDown={(e) => startResizing("value", e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    {/* VALUE Column with Resizer */}
+                    <th
+                      data-col="value"
+                      style={{ width: `${colWidths.value}px` }}
+                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <div className={`w-[1px] h-full ${resizingCol === "value" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
-                    </div>
-                  </th>
+                      <span className="truncate">VALUE</span>
+                      <div
+                        data-resizer="value"
+                        onMouseDown={(e) => startResizing("value", e)}
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        title="Drag to resize VALUE column"
+                      >
+                        <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
+                      </div>
+                    </th>
 
-                  {/* RESOLVED Column with Resizer */}
-                  <th
-                    style={{ width: `${colWidths.resolved}px`, minWidth: "140px" }}
-                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
-                  >
-                    <span>RESOLVED</span>
-                    <div
-                      onMouseDown={(e) => startResizing("resolved", e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    {/* RESOLVED Column with Resizer */}
+                    <th
+                      data-col="resolved"
+                      style={{ width: `${colWidths.resolved}px` }}
+                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <div className={`w-[1px] h-full ${resizingCol === "resolved" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
-                    </div>
-                  </th>
+                      <span className="truncate">RESOLVED</span>
+                      <div
+                        data-resizer="resolved"
+                        onMouseDown={(e) => startResizing("resolved", e)}
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        title="Drag to resize RESOLVED column"
+                      >
+                        <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
+                      </div>
+                    </th>
 
-                  {/* DESCRIPTION Column with Resizer */}
-                  <th
-                    style={{ width: `${colWidths.description}px`, minWidth: "160px" }}
-                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
-                  >
-                    <span>DESCRIPTION</span>
-                    <div
-                      onMouseDown={(e) => startResizing("description", e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    {/* DESCRIPTION Column with Resizer */}
+                    <th
+                      data-col="description"
+                      style={{ width: `${colWidths.description}px` }}
+                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <div className={`w-[1px] h-full ${resizingCol === "description" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
-                    </div>
-                  </th>
+                      <span className="truncate">DESCRIPTION</span>
+                      <div
+                        data-resizer="description"
+                        onMouseDown={(e) => startResizing("description", e)}
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        title="Drag to resize DESCRIPTION column"
+                      >
+                        <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
+                      </div>
+                    </th>
 
-                  {/* SET Column */}
-                  <th
-                    style={{ width: `${colWidths.set}px`, minWidth: "120px" }}
-                    className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background"
-                  >
-                    <span>SET</span>
-                    <div
-                      onMouseDown={(e) => startResizing("set", e)}
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-10 select-none flex items-center justify-center hover:bg-primary/20"
+                    {/* SET Column with Resizer */}
+                    <th
+                      data-col="set"
+                      style={{ width: `${colWidths.set}px` }}
+                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <div className={`w-[1px] h-full ${resizingCol === "set" ? "bg-primary w-[2px]" : "bg-transparent"}`} />
-                    </div>
-                  </th>
+                      <span className="truncate">SET</span>
+                      <div
+                        data-resizer="set"
+                        onMouseDown={(e) => startResizing("set", e)}
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        title="Drag to resize SET column"
+                      >
+                        <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
+                      </div>
+                    </th>
 
-                  {/* Row actions */}
-                  <th className="w-10 px-2 py-2.5 text-center bg-background"></th>
-                </tr>
-              </thead>
+                    {/* Row actions */}
+                    <th className="w-10 px-2 py-2.5 text-center bg-background border-r border-border/30"></th>
+
+                    {/* Flexible space filler */}
+                    <th className="bg-background p-0 border-b border-border"></th>
+                  </tr>
+                </thead>
               <tbody className="divide-y divide-border/30 font-mono text-xs">
                 {groupDepth !== 1
                   ? groupTree.map((node) => (
@@ -960,6 +1134,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         onDelete={(setName, nameSegments) =>
                           deleteToken(setName, nameSegments)
                         }
+                        startResizing={startResizing}
                       />
                     ))
                   : sortedTokens.map((token) => (
@@ -976,10 +1151,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         onDelete={() =>
                           deleteToken(token.setName, token.name.split("."))
                         }
+                        startResizing={startResizing}
                       />
                     ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
       ) : (
@@ -1109,6 +1286,7 @@ interface TokenTableRowProps {
   onUpdate: (path: string[], newValue: any) => void;
   onDuplicate: (newName: string) => void;
   onDelete: () => void;
+  startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
 }
 
 const TokenTableRow: React.FC<TokenTableRowProps> = ({
@@ -1118,6 +1296,7 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
   onEdit,
   onDuplicate,
   onDelete,
+  startResizing,
 }) => {
   const { canUserEdit, addToast } = useTokenStore();
   const isEditable = canUserEdit();
@@ -1231,8 +1410,6 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
     );
   };
 
-  const isCompositeTypography = token.type === "typography";
-
   return (
     <tr
       className={`border-b border-border/30 hover:bg-muted/20 transition-colors group ${
@@ -1250,8 +1427,8 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
       </td>
 
       {/* 2. NAME */}
-      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
-        <div className="flex items-center justify-between gap-1.5 min-w-0">
+      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden">
+        <div className="flex items-center gap-1.5 min-w-0">
           <span
             onClick={onEdit}
             className="font-medium text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
@@ -1259,49 +1436,104 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
           >
             {token.name}
           </span>
-          {isCompositeTypography && (
-            <button
-              onClick={onEdit}
-              className="w-4 h-4 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
-              title="Expand composite properties"
-            >
-              <ChevronRight className="w-2.5 h-2.5" />
-            </button>
-          )}
         </div>
+        {startResizing && (
+          <div
+            data-resizer="name"
+            onMouseDown={(e) => startResizing("name", e)}
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            title="Drag to resize NAME column"
+          >
+            <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
+          </div>
+        )}
       </td>
 
       {/* 3. TYPE */}
-      <td className="px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle">
-        {token.type}
+      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle overflow-hidden">
+        <span className="truncate block">{token.type}</span>
+        {startResizing && (
+          <div
+            data-resizer="type"
+            onMouseDown={(e) => startResizing("type", e)}
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            title="Drag to resize TYPE column"
+          >
+            <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
+          </div>
+        )}
       </td>
 
       {/* 4. VALUE */}
-      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
-        {renderValueCell()}
+      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden">
+        <div className="truncate min-w-0 pr-1">
+          {renderValueCell()}
+        </div>
+        {startResizing && (
+          <div
+            data-resizer="value"
+            onMouseDown={(e) => startResizing("value", e)}
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            title="Drag to resize VALUE column"
+          >
+            <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
+          </div>
+        )}
       </td>
 
       {/* 5. RESOLVED */}
-      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle">
-        {renderResolvedCell()}
+      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden">
+        <div className="truncate min-w-0 pr-1">
+          {renderResolvedCell()}
+        </div>
+        {startResizing && (
+          <div
+            data-resizer="resolved"
+            onMouseDown={(e) => startResizing("resolved", e)}
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            title="Drag to resize RESOLVED column"
+          >
+            <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
+          </div>
+        )}
       </td>
 
       {/* 6. DESCRIPTION */}
-      <td className="px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground truncate max-w-xs align-middle">
+      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground truncate align-middle overflow-hidden">
         {token.description ? (
-          <span title={String(token.description)}>{String(token.description)}</span>
+          <span title={String(token.description)} className="truncate block">{String(token.description)}</span>
         ) : (
           <span className="opacity-40">—</span>
+        )}
+        {startResizing && (
+          <div
+            data-resizer="description"
+            onMouseDown={(e) => startResizing("description", e)}
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            title="Drag to resize DESCRIPTION column"
+          >
+            <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
+          </div>
         )}
       </td>
 
       {/* 7. SET */}
-      <td className="px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs text-muted-foreground truncate align-middle">
-        {token.setName}
+      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs text-muted-foreground truncate align-middle overflow-hidden">
+        <span className="truncate block">{token.setName}</span>
+        {startResizing && (
+          <div
+            data-resizer="set"
+            onMouseDown={(e) => startResizing("set", e)}
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            title="Drag to resize SET column"
+          >
+            <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
+          </div>
+        )}
       </td>
 
       {/* 8. ACTIONS ⋮ */}
-      <td className="w-10 px-2 py-2.5 text-center align-middle">
+      <td className="w-10 px-2 py-2.5 text-center align-middle border-r border-border/30">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -1367,6 +1599,9 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
           </DropdownMenuContent>
         </DropdownMenu>
       </td>
+
+      {/* 9. Flexible tail filler cell */}
+      <td className="p-0 border-b border-border/30" />
     </tr>
   );
 };
@@ -1385,6 +1620,7 @@ interface WorkspaceGroupNodeProps {
   onUpdate: (path: string[], newValue: any) => void;
   onDuplicate: (setName: string, nameSegments: string[], newName: string) => void;
   onDelete: (setName: string, nameSegments: string[]) => void;
+  startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
 }
 
 const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
@@ -1398,6 +1634,7 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
   onUpdate,
   onDuplicate,
   onDelete,
+  startResizing,
 }) => {
   return (
     <React.Fragment>
@@ -1405,7 +1642,7 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
         onClick={onToggleGroup}
         className="bg-muted/20 hover:bg-muted/40 border-b border-border/40 transition-colors cursor-pointer select-none"
       >
-        <td colSpan={8} className="py-2 px-4 align-middle">
+        <td colSpan={9} className="py-2 px-4 align-middle">
           <div
             className="flex items-center justify-between min-w-0 w-full"
             style={{ paddingLeft: `${Math.max(8, (node.level - 1) * 16 + 8)}px` }}
@@ -1451,6 +1688,7 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
               onUpdate={onUpdate}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
+              startResizing={startResizing}
             />
           ))}
           {node.items.map((token) => (
@@ -1465,6 +1703,7 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
                 onDuplicate(token.setName, token.name.split("."), newName)
               }
               onDelete={() => onDelete(token.setName, token.name.split("."))}
+              startResizing={startResizing}
             />
           ))}
         </>

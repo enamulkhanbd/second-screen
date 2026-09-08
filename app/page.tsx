@@ -151,7 +151,7 @@ export default function Home() {
         {/* 3. Main Workspace Page Views */}
         {sidebarTab === "dashboard" ? (
           <DashboardView />
-        ) : (sidebarTab as string) === "workspaces" ? (
+        ) : sidebarTab === "projects" || (sidebarTab as string) === "workspaces" ? (
           <WorkspacesProjectsView />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />

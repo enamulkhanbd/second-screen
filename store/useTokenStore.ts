@@ -109,7 +109,7 @@ interface TokenStoreState {
   updateOrgAction: (orgId: string, updates: { name?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
   deleteOrgAction: (orgId: string) => Promise<void>;
   createProjectAction: (name: string, description?: string, icon?: string, color?: string, logoUrl?: string) => Promise<Project | null>;
-  updateProjectAction: (orgId: string, projectId: string, updates: { name: string; description?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Project | null>;
+  updateProjectAction: (orgId: string, projectId: string, updates: { name?: string; description?: string; icon?: string; color?: string; logoUrl?: string; isArchived?: boolean }) => Promise<Project | null>;
   deleteProjectAction: (orgId: string, projectId: string) => Promise<void>;
   loadInvitations: (orgId: string) => Promise<void>;
   sendInvitationAction: (email: string, role: UserRole) => Promise<OrganizationInvitation | null>;
@@ -195,13 +195,15 @@ interface TokenStoreState {
   addBranchCommentAction: (branchName: string, text: string) => Promise<void>;
   resolveBranchCommentAction: (branchName: string, commentId: string) => Promise<void>;
 
-  // Theme Mode (light/dark)
-  themeMode: "light" | "dark";
-  setThemeMode: (mode: "light" | "dark") => void;
+  // Theme Mode (light/dark/system)
+  themeMode: "light" | "dark" | "system";
+  setThemeMode: (mode: "light" | "dark" | "system") => void;
 
   // Sidebar Tab
   sidebarTab:
     | "dashboard"
+    | "projects"
+    | "workspaces"
     | "variables"
     | "tokens"
     | "themes"
@@ -220,6 +222,8 @@ interface TokenStoreState {
   setSidebarTab: (
     tab:
       | "dashboard"
+      | "projects"
+      | "workspaces"
       | "variables"
       | "tokens"
       | "themes"
@@ -409,6 +413,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           `ts_cached_org_projects_${currentOrg.id}`,
           JSON.stringify(updatedOrgProjects)
         );
+        if (updatedBranches) {
+          localStorage.setItem(`ts_project_branches_${currentProject.id}`, JSON.stringify(updatedBranches));
+        }
+        if (newActiveBranch) {
+          localStorage.setItem(`ts_project_branch_${currentProject.id}`, newActiveBranch);
+          localStorage.setItem("ts_active_branch", newActiveBranch);
+        }
       } catch {}
     }
   };
@@ -505,6 +516,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setCurrentUser: (user) => {
     set({ currentUser: user });
     if (user?.uid) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_tokens_platform_user", JSON.stringify(user));
+        } catch {}
+      }
       get().loadTenantData(user.uid, user.email);
       if (user.email) {
         getPendingInvitationsForEmail(user.email).then((invs) => {
@@ -530,6 +546,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       if (typeof window !== "undefined") {
         try {
+          localStorage.removeItem("ts_tokens_platform_user");
           sessionStorage.removeItem("ts_tokens_platform_pat");
           localStorage.removeItem("ts_tokens_platform_pat_enc");
           localStorage.removeItem("ts_active_org_id");
@@ -663,19 +680,87 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       // 1. Native Branches & Token Dictionary
-      const projectBranches = ensureProjectDefaultBranch(proj);
-      const activeBranchName = proj.activeBranch || "main";
+      let projectBranches = ensureProjectDefaultBranch(proj);
+      if (typeof window !== "undefined") {
+        try {
+          const cachedBranches = localStorage.getItem(`ts_project_branches_${proj.id}`);
+          if (cachedBranches) {
+            const parsed = JSON.parse(cachedBranches);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              projectBranches = parsed;
+            }
+          }
+        } catch {}
+      }
+      let activeBranchName = proj.activeBranch || "main";
+      if (typeof window !== "undefined") {
+        try {
+          const savedBranch =
+            localStorage.getItem(`ts_project_branch_${proj.id}`) ||
+            localStorage.getItem("ts_active_branch");
+          if (savedBranch && projectBranches.some((b) => b.name === savedBranch)) {
+            activeBranchName = savedBranch;
+          }
+        } catch {}
+      }
       const activeBranchObj = projectBranches.find((b) => b.name === activeBranchName) || projectBranches[0];
 
-      const initialTokens =
-        activeBranchObj && activeBranchObj.rawTokens !== undefined
+      let initialTokens =
+        activeBranchObj && activeBranchObj.rawTokens && Object.keys(activeBranchObj.rawTokens).length > 0
           ? activeBranchObj.rawTokens
-          : proj.rawTokens || {};
+          : proj.rawTokens && Object.keys(proj.rawTokens).length > 0
+          ? proj.rawTokens
+          : {};
+
+      if (!initialTokens || Object.keys(initialTokens).length === 0) {
+        if (typeof window !== "undefined") {
+          try {
+            const cached = localStorage.getItem("ts_tokens_platform_raw_tokens");
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (parsed && Object.keys(parsed).length > 0) {
+                initialTokens = parsed;
+              }
+            }
+          } catch {}
+        }
+      }
+
+      if (!initialTokens || Object.keys(initialTokens).length === 0) {
+        initialTokens = {
+          global: {
+            colors: {
+              brand: {
+                primary: { value: "#6366f1", type: "color", description: "Primary brand color" },
+                secondary: { value: "#ec4899", type: "color", description: "Vibrant accent" },
+              },
+              neutral: {
+                white: { value: "#ffffff", type: "color" },
+                black: { value: "#000000", type: "color" },
+                gray: {
+                  100: { value: "#f3f4f6", type: "color" },
+                  900: { value: "#111827", type: "color" },
+                },
+              },
+            },
+            spacing: {
+              xs: { value: "4px", type: "spacing" },
+              sm: { value: "8px", type: "spacing" },
+              md: { value: "16px", type: "spacing" },
+              lg: { value: "24px", type: "spacing" },
+            },
+          },
+        };
+      }
+
+      if (activeBranchObj && (!activeBranchObj.rawTokens || Object.keys(activeBranchObj.rawTokens).length === 0) && Object.keys(initialTokens).length > 0) {
+        activeBranchObj.rawTokens = initialTokens;
+      }
 
       const initialThemes =
-        activeBranchObj && activeBranchObj.themeGroups !== undefined
+        activeBranchObj && activeBranchObj.themeGroups !== undefined && activeBranchObj.themeGroups.length > 0
           ? activeBranchObj.themeGroups
-          : proj.themeGroups !== undefined
+          : proj.themeGroups !== undefined && proj.themeGroups.length > 0
           ? proj.themeGroups
           : extractThemeGroups(initialTokens);
 
@@ -862,6 +947,49 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (savedOrgId) {
         const found = orgs.find((o) => o.id === savedOrgId);
         if (found) activeOrg = found;
+      }
+      if (!activeOrg) {
+        try {
+          const defaultOrg = await get().createOrgAction("Planet Design System");
+          if (defaultOrg) {
+            activeOrg = defaultOrg;
+            const defaultProj = await get().createProjectAction(
+              "Core Tokens",
+              "Primary design token system",
+              "🎨",
+              "#6366f1"
+            );
+            if (defaultProj) {
+              const defaultTokens: RawTokensDocument = {
+                global: {
+                  colors: {
+                    brand: {
+                      primary: { value: "#6366f1", type: "color", description: "Primary brand color" },
+                      secondary: { value: "#ec4899", type: "color", description: "Vibrant accent" },
+                    },
+                    neutral: {
+                      white: { value: "#ffffff", type: "color" },
+                      black: { value: "#000000", type: "color" },
+                      gray: {
+                        100: { value: "#f3f4f6", type: "color" },
+                        900: { value: "#111827", type: "color" },
+                      },
+                    },
+                  },
+                  spacing: {
+                    xs: { value: "4px", type: "spacing" },
+                    sm: { value: "8px", type: "spacing" },
+                    md: { value: "16px", type: "spacing" },
+                    lg: { value: "24px", type: "spacing" },
+                  },
+                },
+              };
+              get().setRawTokens(defaultTokens);
+            }
+          }
+        } catch (initErr) {
+          console.warn("Failed initializing default org/project:", initErr);
+        }
       }
 
       set({ currentOrg: activeOrg });
@@ -1146,14 +1274,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   updateProjectAction: async (orgId, projectId, updates) => {
     try {
-      const slug = updates.name ? String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") : "";
-      const projectUpdates = {
-        name: updates.name,
-        description: updates.description || "",
-        slug,
+      const slug = updates.name ? String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") : undefined;
+      const projectUpdates: any = {
+        ...(updates.name ? { name: updates.name, slug } : {}),
+        ...(updates.description !== undefined ? { description: updates.description } : {}),
         ...(updates.icon ? { icon: updates.icon } : {}),
         ...(updates.color ? { color: updates.color } : {}),
         ...(updates.logoUrl !== undefined ? { logoUrl: updates.logoUrl } : {}),
+        ...(updates.isArchived !== undefined ? { isArchived: updates.isArchived } : {}),
       };
       await updateProject(orgId, projectId, projectUpdates);
       const updatedProjects = get().orgProjects.map((p) =>
@@ -2110,7 +2238,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   // Theme mode initialization (default follows system)
-  themeMode: "light",
+  themeMode: "system",
   setThemeMode: (mode) => {
     set({ themeMode: mode });
     if (typeof window !== "undefined") {
@@ -2118,7 +2246,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         localStorage.setItem("ts_theme_mode", mode);
         // Apply/remove dark class on <html>
         const root = document.documentElement;
-        if (mode === "dark") {
+        const isDark =
+          mode === "dark"
+            ? true
+            : mode === "light"
+            ? false
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (isDark) {
           root.classList.add("dark");
         } else {
           root.classList.remove("dark");
@@ -2460,20 +2594,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const userProfile = savedUser ? JSON.parse(savedUser) : null;
       const savedViewMode = (localStorage.getItem("ts_view_mode") as "matrix" | "flow") || "matrix";
 
-      // 4. Restore Theme Mode (light/dark)
-      const savedTheme = localStorage.getItem("ts_theme_mode") as "light" | "dark" | null;
-      let initialTheme: "light" | "dark" = "light";
-      if (savedTheme) {
+      // 4. Restore Theme Mode (light/dark/system)
+      const savedTheme = localStorage.getItem("ts_theme_mode") as "light" | "dark" | "system" | null;
+      let initialTheme: "light" | "dark" | "system" = "system";
+      if (savedTheme && (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system")) {
         initialTheme = savedTheme;
-      } else {
-        const prefersDark = typeof window !== "undefined" && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        initialTheme = prefersDark ? "dark" : "light";
       }
 
       // Apply the theme class immediately
       if (typeof window !== "undefined") {
         const root = document.documentElement;
-        if (initialTheme === "dark") {
+        const isDark =
+          initialTheme === "dark"
+            ? true
+            : initialTheme === "light"
+            ? false
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (isDark) {
           root.classList.add("dark");
         } else {
           root.classList.remove("dark");
@@ -2490,13 +2627,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "assets",
         "exports",
         "releases",
+        "branches",
         "activity",
         "integrations",
+        "sync",
         "mcp",
         "project-settings",
         "members",
         "org-settings",
         "changelog",
+        "workspaces",
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const initialTab: any =
@@ -2597,6 +2737,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               }
             }
           } else {
+            const savedLocal = typeof window !== "undefined" ? localStorage.getItem("ts_tokens_platform_user") : null;
+            if (savedLocal) {
+              try {
+                const userObj = JSON.parse(savedLocal);
+                if (userObj?.uid) {
+                  set({ currentUser: userObj });
+                  await get().loadTenantData(userObj.uid, userObj.email);
+                  return;
+                }
+              } catch {}
+            }
             set({ currentUser: null, isLoadingTenant: false });
           }
         });
@@ -2622,10 +2773,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       groups.find((g) => g && typeof g.name === "string" && g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // Synchronize loaded tokens with active Project in Cloud Firestore
-    const { currentOrg, currentProject } = get();
+    // Synchronize loaded tokens with active Project in Cloud Firestore and Active Branch
+    const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
+    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups).catch(() => {});
+      if (!hasSyncProvider && branches && branches.length > 0) {
+        const updatedBranches = branches.map((b) =>
+          b.name === activeBranch
+            ? {
+                ...b,
+                rawTokens: canonical,
+                themeGroups: groups || b.themeGroups,
+                updatedAt: new Date().toISOString(),
+              }
+            : b
+        );
+        saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
+        set({ branches: updatedBranches });
+        updateProjectInMemoryAndCache(updatedBranches, canonical, groups, activeBranch);
+      }
     }
 
     set({
@@ -4283,12 +4450,25 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     const baseBranchName = basedOn || activeBranch || "main";
     const baseBranch = branches.find((b) => b.name === baseBranchName);
-    const initialRaw = baseBranch
-      ? JSON.parse(JSON.stringify(baseBranch.rawTokens || {}))
-      : JSON.parse(JSON.stringify(rawTokens || {}));
-    const initialThemes = baseBranch
-      ? JSON.parse(JSON.stringify(baseBranch.themeGroups || []))
-      : JSON.parse(JSON.stringify(themeGroups || []));
+    const baseTokens =
+      baseBranch?.rawTokens && Object.keys(baseBranch.rawTokens).length > 0
+        ? baseBranch.rawTokens
+        : rawTokens && Object.keys(rawTokens).length > 0
+        ? rawTokens
+        : currentProject?.rawTokens && Object.keys(currentProject.rawTokens).length > 0
+        ? currentProject.rawTokens
+        : {};
+    const baseThemes =
+      baseBranch?.themeGroups && baseBranch.themeGroups.length > 0
+        ? baseBranch.themeGroups
+        : themeGroups && themeGroups.length > 0
+        ? themeGroups
+        : currentProject?.themeGroups && currentProject.themeGroups.length > 0
+        ? currentProject.themeGroups
+        : extractThemeGroups(baseTokens);
+
+    const initialRaw = JSON.parse(JSON.stringify(baseTokens));
+    const initialThemes = JSON.parse(JSON.stringify(baseThemes));
 
     const newBranch: ProjectBranch = {
       id: `branch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -4354,6 +4534,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
     }
 
+    if (typeof window !== "undefined") {
+      try {
+        if (currentProject) {
+          localStorage.setItem(`ts_project_branch_${currentProject.id}`, cleanName);
+        }
+        localStorage.setItem("ts_active_branch", cleanName);
+      } catch {}
+    }
+
+    if (!credentials.provider || !credentials.owner || !credentials.repo) {
+      set({ credentials: { ...get().credentials, branch: cleanName } });
+    }
+
     get().addToast({
       type: "success",
       title: "Branch Created",
@@ -4409,8 +4602,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       activeThemeOptionId: targetThemes[0]?.options?.[0]?.id || "",
     });
 
+    if (!credentials.provider || !credentials.owner || !credentials.repo) {
+      set({ credentials: { ...get().credentials, branch: targetBranchName } });
+    }
+
     const resolved = flattenAndResolveTokens(targetRaw, get().activeSet || "ALL");
     set({ resolvedTokens: resolved });
+
+    if (typeof window !== "undefined") {
+      try {
+        if (currentProject) {
+          localStorage.setItem(`ts_project_branch_${currentProject.id}`, targetBranchName);
+        }
+        localStorage.setItem("ts_active_branch", targetBranchName);
+      } catch {}
+    }
 
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, targetBranchName).catch(console.error);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project, Organization } from "@/types/tenant";
 import {
@@ -35,6 +35,10 @@ import {
   Smile,
   Crown,
   AlertTriangle,
+  Archive,
+  ArchiveRestore,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,13 +99,27 @@ export const WorkspacesProjectsView: React.FC = () => {
     updateProjectAction,
     deleteProjectAction,
     getCurrentUserRole,
+    sidebarTab,
     setSidebarTab,
     addToast,
   } = useTokenStore();
 
-  const [activeTab, setActiveTab] = useState<"projects" | "workspaces">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "workspaces">(
+    sidebarTab === "workspaces" ? "workspaces" : "projects"
+  );
+  const [projectStatusFilter, setProjectStatusFilter] = useState<"active" | "archived">("active");
+  const [projectLayoutMode, setProjectLayoutMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [showManageTeamModal, setShowManageTeamModal] = useState(false);
+
+  // Sync tab with sidebar selection
+  useEffect(() => {
+    if (sidebarTab === "workspaces") {
+      setActiveTab("workspaces");
+    } else if (sidebarTab === "projects") {
+      setActiveTab("projects");
+    }
+  }, [sidebarTab]);
 
   // -------------------------------------------------------------
   // Workspace Form State (Create / Edit in-page)
@@ -133,17 +151,32 @@ export const WorkspacesProjectsView: React.FC = () => {
   const userRole = getCurrentUserRole();
   const canManage = userRole === "owner" || userRole === "admin";
 
-  // Filter projects by search
+  // Project status counts
+  const activeProjectsCount = useMemo(() => {
+    return orgProjects.filter((p) => !p.isArchived).length;
+  }, [orgProjects]);
+
+  const archivedProjectsCount = useMemo(() => {
+    return orgProjects.filter((p) => p.isArchived === true).length;
+  }, [orgProjects]);
+
+  // Filter projects by search & active/archived
   const filteredProjects = useMemo(() => {
-    if (!searchQuery.trim()) return orgProjects;
+    let list = orgProjects;
+    if (projectStatusFilter === "archived") {
+      list = list.filter((p) => p.isArchived === true);
+    } else {
+      list = list.filter((p) => !p.isArchived);
+    }
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return orgProjects.filter(
+    return list.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.description && p.description.toLowerCase().includes(q)) ||
         (p.slug && p.slug.toLowerCase().includes(q))
     );
-  }, [orgProjects, searchQuery]);
+  }, [orgProjects, projectStatusFilter, searchQuery]);
 
   // Filter workspaces by search
   const filteredWorkspaces = useMemo(() => {
@@ -348,6 +381,27 @@ export const WorkspacesProjectsView: React.FC = () => {
   const handleConfigureSync = (project: Project) => {
     setCurrentProject(project);
     setSidebarTab("integrations");
+  };
+
+  const handleToggleArchiveProject = async (project: Project) => {
+    if (!currentOrg) return;
+    try {
+      const updated = !project.isArchived;
+      await updateProjectAction(currentOrg.id, project.id, {
+        isArchived: updated,
+      });
+      addToast({
+        type: "success",
+        title: updated ? "Project Archived" : "Project Restored",
+        message: `"${project.name}" has been ${updated ? "moved to archived" : "restored to active"}.`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Action Failed",
+        message: err.message || "Could not update project status.",
+      });
+    }
   };
 
   // Format relative time helper
@@ -673,30 +727,339 @@ export const WorkspacesProjectsView: React.FC = () => {
               </SheetContent>
             </Sheet>
 
-            {/* Projects Grid */}
+            {/* Filter Toolbar: Active / Archived Tabs & Grid/List View Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card/40 p-2.5 rounded-xl border border-border">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setProjectStatusFilter("active")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    projectStatusFilter === "active"
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <span>Active</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      projectStatusFilter === "active"
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {activeProjectsCount}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setProjectStatusFilter("archived")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    projectStatusFilter === "archived"
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>Archived</span>
+                  {archivedProjectsCount > 0 && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        projectStatusFilter === "archived"
+                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {archivedProjectsCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border">
+                  <button
+                    onClick={() => setProjectLayoutMode("list")}
+                    title="List View"
+                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                      projectLayoutMode === "list"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setProjectLayoutMode("grid")}
+                    title="Grid View"
+                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                      projectLayoutMode === "grid"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <Button
+                  onClick={handleOpenCreateProject}
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Project</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Projects Container (Empty State vs List vs Grid) */}
             {filteredProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border bg-card/40 space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                  <FolderGit2 className="w-7 h-7" />
+                  {projectStatusFilter === "archived" ? (
+                    <Archive className="w-7 h-7" />
+                  ) : (
+                    <FolderGit2 className="w-7 h-7" />
+                  )}
                 </div>
                 <div className="space-y-1 max-w-sm">
                   <h3 className="text-base font-bold text-foreground">
-                    {searchQuery ? "No matching projects found" : "No projects in this workspace"}
+                    {searchQuery
+                      ? "No matching projects found"
+                      : projectStatusFilter === "archived"
+                      ? "No archived projects"
+                      : "No active projects in this workspace"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {searchQuery
-                      ? "Try searching for a different project name."
+                      ? "Try searching for a different project name or slug."
+                      : projectStatusFilter === "archived"
+                      ? "Projects you archive will appear here."
                       : "Create your first project to organize tokens and configure synchronization."}
                   </p>
                 </div>
-                {!searchQuery && (
+                {!searchQuery && projectStatusFilter === "active" && (
                   <Button onClick={handleOpenCreateProject} size="sm" className="gap-1.5 mt-2">
                     <Plus className="w-3.5 h-3.5" />
                     <span>Create New Project</span>
                   </Button>
                 )}
               </div>
+            ) : projectLayoutMode === "list" ? (
+              /* ======================================================= */
+              /* LIST / ROW VIEW (Matches Video Style)                   */
+              /* ======================================================= */
+              <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border shadow-2xs">
+                {/* List Header */}
+                <div className="grid grid-cols-12 items-center px-5 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
+                  <div className="col-span-5 sm:col-span-4">Project</div>
+                  <div className="col-span-3 sm:col-span-3">Content</div>
+                  <div className="hidden sm:block sm:col-span-3">Sync &amp; Status</div>
+                  <div className="col-span-4 sm:col-span-2 text-right">Actions</div>
+                </div>
+
+                {/* List Rows */}
+                {filteredProjects.map((proj) => {
+                  const hasGit = Boolean(proj.gitConfig?.repo);
+                  const hasFigma = Boolean(
+                    proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0
+                  );
+                  const rawTokensCount = proj.rawTokens
+                    ? getValidTokenSetNames(proj.rawTokens).length
+                    : 0;
+                  const themeGroupsCount = proj.themeGroups?.length || 0;
+                  const isActive = currentProject?.id === proj.id;
+                  const projColor = proj.color || "#6366f1";
+
+                  return (
+                    <div
+                      key={proj.id}
+                      className={`relative grid grid-cols-12 items-center px-5 py-3.5 hover:bg-muted/40 transition-colors gap-3 group ${
+                        isActive ? "bg-primary/5" : ""
+                      }`}
+                    >
+                      {/* Col 1: Project Identity */}
+                      <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform"
+                          style={{ backgroundColor: projColor }}
+                        >
+                          {proj.logoUrl ? (
+                            <img
+                              src={proj.logoUrl}
+                              alt={proj.name || "Project Logo"}
+                              className="w-full h-full object-cover rounded-xl"
+                            />
+                          ) : (
+                            <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <h3
+                              onClick={() => handleOpenProjectInStudio(proj)}
+                              className="font-bold text-xs text-foreground truncate hover:text-primary transition-colors cursor-pointer"
+                            >
+                              {proj.name || "Untitled Project"}
+                            </h3>
+                            {isActive && (
+                              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-primary border-primary/40">
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-mono text-muted-foreground block truncate">
+                            {proj.slug || proj.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Col 2: Content (Sets & Themes) */}
+                      <div className="col-span-3 sm:col-span-3 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[11px] font-mono text-foreground">
+                          <Layers className="w-3 h-3 text-muted-foreground" />
+                          <span>{rawTokensCount} sets</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[11px] font-mono text-foreground">
+                          <Palette className="w-3 h-3 text-muted-foreground" />
+                          <span>{themeGroupsCount} themes</span>
+                        </span>
+                      </div>
+
+                      {/* Col 3: Sync & Status */}
+                      <div className="hidden sm:flex sm:col-span-3 items-center gap-2 flex-wrap">
+                        {hasGit ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="truncate max-w-[120px]">{proj.gitConfig?.repo}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[10px] text-muted-foreground">
+                            No Git Sync
+                          </span>
+                        )}
+
+                        {hasFigma && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-mono">
+                            <Zap className="w-2.5 h-2.5 text-amber-500" />
+                            <span>Figma</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Col 4: Actions */}
+                      <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-1.5">
+                        <Button
+                          onClick={() => handleOpenProjectInStudio(proj)}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2.5 text-xs font-semibold gap-1 hover:bg-primary/10 hover:text-primary cursor-pointer"
+                        >
+                          <span>Open</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </Button>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onClick={() => handleOpenProjectInStudio(proj)}
+                              className="gap-2 text-xs cursor-pointer"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span>Open in Studio</span>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                              onClick={() => handleOpenEditProject(proj)}
+                              className="gap-2 text-xs cursor-pointer"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span>Edit Project Details</span>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                              onClick={() => handleConfigureSync(proj)}
+                              className="gap-2 text-xs cursor-pointer"
+                            >
+                              <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span>Configure Sync</span>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem
+                              onClick={() => handleToggleArchiveProject(proj)}
+                              className="gap-2 text-xs cursor-pointer"
+                            >
+                              {proj.isArchived ? (
+                                <>
+                                  <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span>Restore to Active</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Archive className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span>Archive Project</span>
+                                </>
+                              )}
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                              onClick={() => setDeletingProjectId(proj.id)}
+                              className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Project</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {/* In-Row Delete Confirmation */}
+                      {deletingProjectId === proj.id && (
+                        <div className="absolute inset-0 bg-background/95 px-5 py-2.5 flex items-center justify-between z-20 border border-destructive/50 animate-in fade-in rounded-xl">
+                          <div className="flex items-center gap-2 text-destructive font-bold text-xs">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>Delete &ldquo;{proj.name}&rdquo; permanently?</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeletingProjectId(null)}
+                              className="text-xs h-7"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteProject(proj.id)}
+                              className="text-xs h-7"
+                            >
+                              Confirm Delete
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
+              /* ======================================================= */
+              /* GRID / CARD VIEW                                        */
+              /* ======================================================= */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredProjects.map((proj) => {
                   const hasGit = Boolean(proj.gitConfig?.repo);
@@ -757,6 +1120,14 @@ export const WorkspacesProjectsView: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem
+                                onClick={() => handleOpenProjectInStudio(proj)}
+                                className="gap-2 text-xs cursor-pointer"
+                              >
+                                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>Open in Studio</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
                                 onClick={() => handleOpenEditProject(proj)}
                                 className="gap-2 text-xs cursor-pointer"
                               >
@@ -773,6 +1144,23 @@ export const WorkspacesProjectsView: React.FC = () => {
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator />
+
+                              <DropdownMenuItem
+                                onClick={() => handleToggleArchiveProject(proj)}
+                                className="gap-2 text-xs cursor-pointer"
+                              >
+                                {proj.isArchived ? (
+                                  <>
+                                    <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>Restore to Active</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Archive className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>Archive Project</span>
+                                  </>
+                                )}
+                              </DropdownMenuItem>
 
                               <DropdownMenuItem
                                 onClick={() => setDeletingProjectId(proj.id)}

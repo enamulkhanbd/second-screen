@@ -138,7 +138,7 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px] bg-[#121216] border border-[#23232a] text-foreground p-6 rounded-2xl shadow-2xl">
+      <DialogContent className="sm:max-w-[480px] bg-card border border-border text-foreground p-6 rounded-2xl shadow-2xl">
         <DialogHeader className="space-y-1 text-left pb-2">
           <DialogTitle className="text-lg font-bold text-foreground tracking-tight">
             Create New Branch
@@ -159,8 +159,8 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
                 id="branch-title"
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="New color palette"
-                className="text-xs bg-[#18181e] border-[#2c2c36] h-9 pr-9 focus-visible:ring-1 focus-visible:ring-primary"
+                placeholder="e.g. New color palette"
+                className="text-xs bg-background border-input h-9 pr-9 focus-visible:ring-1 focus-visible:ring-primary text-foreground placeholder:text-muted-foreground/40"
                 autoFocus
               />
               <button
@@ -186,8 +186,8 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
               id="branch-name"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="new-color-palette"
-              className="text-xs font-mono bg-[#18181e] border-[#2c2c36] h-9 focus-visible:ring-1 focus-visible:ring-primary text-muted-foreground"
+              placeholder="e.g. new-color-palette"
+              className="text-xs font-mono bg-background border-input h-9 focus-visible:ring-1 focus-visible:ring-primary text-foreground placeholder:text-muted-foreground/40"
             />
           </div>
 
@@ -205,7 +205,7 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
               placeholder="What are you working on in this branch?"
               rows={3}
-              className="text-xs resize-none bg-[#18181e] border-[#2c2c36] focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground/60"
+              className="text-xs resize-none bg-background border-input focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground/60"
             />
           </div>
 
@@ -218,10 +218,10 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
               This branch will start with all tokens from the selected branch
             </p>
             <Select value={basedOn} onValueChange={setBasedOn}>
-              <SelectTrigger id="based-on" className="text-xs bg-[#18181e] border-[#2c2c36] h-9 focus:ring-1 focus:ring-primary">
+              <SelectTrigger id="based-on" className="text-xs bg-background border-input h-9 focus:ring-1 focus:ring-primary">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#18181e] border-[#2c2c36]">
+              <SelectContent className="bg-popover border-border text-popover-foreground">
                 {branches.map((b) => (
                   <SelectItem key={b.id} value={b.name} className="text-xs cursor-pointer">
                     {b.name} {b.isDefault ? "(default)" : ""}
@@ -231,14 +231,14 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
             </Select>
           </div>
 
-          <DialogFooter className="pt-4 flex items-center justify-end gap-2 border-t border-[#23232a]/60 mt-4">
+          <DialogFooter className="pt-4 flex items-center justify-end gap-2 border-t border-border mt-4">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isSubmitting}
-              className="h-8 text-xs bg-[#18181e] border-[#2c2c36] text-foreground hover:bg-muted/40 cursor-pointer"
+              className="h-8 text-xs cursor-pointer"
             >
               Cancel
             </Button>
@@ -246,7 +246,7 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
               type="submit"
               size="sm"
               disabled={isSubmitting || !title.trim() || !name.trim()}
-              className="h-8 text-xs font-medium bg-[#8b5cf6] hover:bg-[#7c3aed] text-white cursor-pointer px-4 shadow-xs"
+              className="h-8 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer px-4 shadow-xs"
             >
               {isSubmitting ? "Creating..." : "Create Branch"}
             </Button>

@@ -17,6 +17,7 @@ import {
   Settings,
   Users,
   Building2,
+  FolderGit2,
   Link2,
   Code2,
   Variable,
@@ -31,6 +32,9 @@ import {
   MessageSquare,
   BookOpen,
   AlertTriangle,
+  Sun,
+  Moon,
+  Laptop,
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
@@ -85,6 +89,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     branches,
     activeBranch,
     createOrgAction,
+    themeMode,
+    setThemeMode,
   } = useTokenStore();
 
   const [showCreateProj, setShowCreateProj] = useState(false);
@@ -102,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   }, [rawTokens]);
 
   const isGitConfigured = Boolean(
-    currentUser && credentials.provider && credentials.owner && credentials.repo
+    credentials.provider && credentials.owner && credentials.repo
   );
 
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -217,11 +223,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
                 <div className="space-y-0.5 max-h-40 overflow-y-auto">
                   {userOrgs.map((org) => {
-                    const isSelected = org.id === currentOrg?.id;
+                    const isSelected = org.id === currentOrg?.id && !currentProject;
                     return (
                       <DropdownMenuItem
                         key={org.id}
-                        onClick={() => setCurrentOrg(org)}
+                        onClick={() => {
+                          setCurrentOrg(org);
+                          setCurrentProject(null);
+                          setSidebarTab("dashboard");
+                        }}
                         className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
                           isSelected
                             ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
@@ -262,7 +272,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                     return (
                       <DropdownMenuItem
                         key={proj.id}
-                        onClick={() => setCurrentProject(proj)}
+                        onClick={() => {
+                          setCurrentProject(proj);
+                          if (
+                            sidebarTab === "dashboard" ||
+                            sidebarTab === "projects" ||
+                            sidebarTab === "members" ||
+                            (sidebarTab as string) === "workspaces"
+                          ) {
+                            setSidebarTab("tokens");
+                          }
+                        }}
                         className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
                           isSelected
                             ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
@@ -302,17 +322,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent transition-all text-left flex-1 min-w-0 group cursor-pointer">
                   {/* Organization/Project Avatar */}
-                  <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs flex-shrink-0">
-                    {currentProject?.name?.charAt(0)?.toUpperCase() || "P"}
+                  <div
+                    className="flex size-7 items-center justify-center rounded-lg font-bold text-xs flex-shrink-0"
+                    style={currentProject
+                      ? { backgroundColor: '#ecfdf5', color: '#15803d' }
+                      : { backgroundColor: currentOrg?.color || '#6366f1', color: '#fff' }
+                    }
+                  >
+                    {currentProject
+                      ? currentProject.name?.charAt(0)?.toUpperCase() || "P"
+                      : currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "W"
+                    }
                   </div>
 
                   {/* Project and Workspace Info */}
                   <div className="flex-1 min-w-0 leading-tight">
                     <div className="font-semibold text-xs truncate text-sidebar-foreground">
-                      {currentProject?.name || "Select Project"}
+                      {currentProject?.name || currentOrg?.name || "Workspace"}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {currentOrg?.name || "Workspace"}
+                      {currentProject ? currentOrg?.name || "Workspace" : "Workspace"}
                     </div>
                   </div>
 
@@ -363,11 +392,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
                 <div className="space-y-0.5 max-h-40 overflow-y-auto">
                   {userOrgs.map((org) => {
-                    const isSelected = org.id === currentOrg?.id;
+                    const isSelected = org.id === currentOrg?.id && !currentProject;
                     return (
                       <DropdownMenuItem
                         key={org.id}
-                        onClick={() => setCurrentOrg(org)}
+                        onClick={() => {
+                          setCurrentOrg(org);
+                          setCurrentProject(null);
+                          setSidebarTab("dashboard");
+                        }}
                         className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
                           isSelected
                             ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
@@ -408,7 +441,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                     return (
                       <DropdownMenuItem
                         key={proj.id}
-                        onClick={() => setCurrentProject(proj)}
+                        onClick={() => {
+                          setCurrentProject(proj);
+                          if (
+                            sidebarTab === "dashboard" ||
+                            sidebarTab === "projects" ||
+                            sidebarTab === "members" ||
+                            (sidebarTab as string) === "workspaces"
+                          ) {
+                            setSidebarTab("tokens");
+                          }
+                        }}
                         className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
                           isSelected
                             ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
@@ -448,20 +491,95 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
       {/* 2. Main Navigation Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4 font-sans">
+        {/* ============================================================= */}
+        {/* 1. WORKSPACE SECTION — Only visible when NO project is selected */}
+        {/* ============================================================= */}
+        {!currentProject && (
+          <div className="space-y-0.5">
+            {!isCollapsed && (
+              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                WORKSPACE
+              </div>
+            )}
+
+            {/* Overview */}
+            <button
+              onClick={() => {
+                setCurrentProject(null);
+                setSidebarTab("dashboard");
+              }}
+              title="Overview"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "dashboard" && !currentProject
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+              }`}
+            >
+              <Home className="size-4 flex-shrink-0" />
+              {!isCollapsed && <span>Overview</span>}
+            </button>
+
+            {/* Projects */}
+            <button
+              onClick={() => {
+                setCurrentProject(null);
+                setSidebarTab("projects");
+              }}
+              title="Projects"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "projects" && !currentProject
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                <FolderGit2 className="size-4 flex-shrink-0" />
+                {!isCollapsed && <span>Projects</span>}
+              </div>
+              {!isCollapsed && orgProjects.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+                  {orgProjects.length}
+                </span>
+              )}
+            </button>
+
+            {/* Members */}
+            <button
+              onClick={() => {
+                setCurrentProject(null);
+                setSidebarTab("members");
+                setMembersSubTab("members");
+              }}
+              title="Members"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "members" && !currentProject
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                <Users className="size-4 flex-shrink-0" />
+                {!isCollapsed && <span>Members</span>}
+              </div>
+              {!isCollapsed && currentOrg?.members && (
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+                  {currentOrg.members.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* ============================================================= */}
+        {/* 2. STUDIO SECTION — Only visible when a project is selected */}
+        {/* ============================================================= */}
+        {currentProject && (
         <div className="space-y-0.5">
-          {/* Dashboard */}
-          <button
-            onClick={() => setSidebarTab("dashboard")}
-            title="Dashboard"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "dashboard"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <Home className="size-4 flex-shrink-0" />
-            {!isCollapsed && <span>Dashboard</span>}
-          </button>
+          {!isCollapsed && (
+            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              STUDIO
+            </div>
+          )}
 
           {/* Tokens */}
           <button
@@ -575,26 +693,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             {!isCollapsed && <span>Exports</span>}
           </button>
 
-          {/* Branches */}
-          <button
-            onClick={() => setSidebarTab("branches")}
-            title="Branches"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "branches"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <GitBranch className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Branches</span>}
-            </div>
-            {!isCollapsed && (
-              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                {branches.length > 0 ? branches.length : 1}
-              </span>
-            )}
-          </button>
+          {/* Branches (Only visible when native branch mode is active / no Git provider configured) */}
+          {!isGitConfigured && (
+            <button
+              onClick={() => setSidebarTab("branches")}
+              title="Branches"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+                sidebarTab === "branches"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                <GitBranch className="size-4 flex-shrink-0" />
+                {!isCollapsed && <span>Branches</span>}
+              </div>
+              {!isCollapsed && (
+                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+                  {branches.length > 0 ? branches.length : 1}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Releases */}
           <button
@@ -631,10 +751,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             {!isCollapsed && <span>Activity</span>}
           </button>
         </div>
+        )}
 
-        {/* ------------------------------------------------------------- */}
-        {/* SETTINGS SECTION */}
-        {/* ------------------------------------------------------------- */}
+        {/* ============================================================= */}
+        {/* 3. SETTINGS SECTION — Only visible when a project is selected */}
+        {/* ============================================================= */}
+        {currentProject && (
         <div className="space-y-0.5 pt-2 border-t border-sidebar-border">
           {!isCollapsed && (
             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -654,30 +776,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
           >
             <Settings className="size-4 flex-shrink-0" />
             {!isCollapsed && <span>Project Settings</span>}
-          </button>
-
-          {/* Members */}
-          <button
-            onClick={() => {
-              setSidebarTab("members");
-              setMembersSubTab("members");
-            }}
-            title="Members"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
-              sidebarTab === "members"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Users className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Members</span>}
-            </div>
-            {!isCollapsed && currentOrg?.members && (
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {currentOrg.members.length}
-              </span>
-            )}
           </button>
 
           {/* Integrations */}
@@ -708,6 +806,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             {!isCollapsed && <span>MCP &amp; CLI</span>}
           </button>
         </div>
+        )}
       </div>
 
       {/* 3. Support & Utility Links */}
@@ -768,9 +867,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-56 rounded-xl p-1.5 font-sans"
+              className={cn(
+                "rounded-xl p-1.5 font-sans shadow-xl",
+                isCollapsed
+                  ? "w-64"
+                  : "w-[var(--radix-dropdown-menu-trigger-width)] min-w-[var(--radix-dropdown-menu-trigger-width)]"
+              )}
               side={isCollapsed ? "right" : "top"}
-              align={isCollapsed ? "end" : "end"}
+              align={isCollapsed ? "end" : "start"}
               sideOffset={8}
             >
               <DropdownMenuLabel className="p-0 font-normal">
@@ -817,6 +921,59 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                   <span>Manage Team</span>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5">
+                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-1.5 px-0.5 select-none">
+                  <span>Theme</span>
+                  <span className="text-[10px] capitalize text-muted-foreground/70 font-mono">
+                    {themeMode}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode("light")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                      themeMode === "light"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Light theme"
+                  >
+                    <Sun className="size-3.5" />
+                    <span className="text-[10px]">Light</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode("dark")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                      themeMode === "dark"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Dark theme"
+                  >
+                    <Moon className="size-3.5" />
+                    <span className="text-[10px]">Dark</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode("system")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                      themeMode === "system"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="System default"
+                  >
+                    <Laptop className="size-3.5" />
+                    <span className="text-[10px]">System</span>
+                  </button>
+                </div>
+              </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleSignOut}

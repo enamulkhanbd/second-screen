@@ -13,8 +13,6 @@ import {
   RefreshCw,
   LayoutGrid,
   Workflow,
-  Sun,
-  Moon,
   Layers,
   User,
   Users,
@@ -35,14 +33,11 @@ import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { TokenDiffViewer } from "@/components/TokenDiffViewer";
 import { UserActivityDrawer } from "@/components/UserActivityDrawer";
-import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -80,6 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     syncMeta,
     currentOrg,
     currentProject,
+    setCurrentProject,
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
@@ -91,9 +87,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     setRawTokens,
     resetDirtyState,
     addToast,
-    // Theme mode
-    themeMode,
-    setThemeMode,
     // Active tab and set
     sidebarTab,
     setSidebarTab,
@@ -102,7 +95,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     activeSet,
     currentUser,
     setCurrentUser,
-    getCurrentUserRole,
     canUserEdit,
     figmaVariables,
     figmaResolvedVariables,
@@ -145,19 +137,46 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     return activeGroup?.options.find((o) => o.id === activeThemeOptionId) || activeGroup?.options[0];
   }, [activeGroup, activeThemeOptionId]);
 
+  // Specific Showing Logic:
+  // 1. Git Sync is configured -> show Git Pull, Push, and Branch dropdown
+  const isGitConfigured = Boolean(
+    credentials.provider && credentials.repo && credentials.owner
+  );
+
   // Global Breadcrumb computation
   const breadcrumbItems = useMemo(() => {
-    const projName = currentProject?.name || currentOrg?.name || "Planet";
-    const items: Array<{ label: string; onClick?: () => void; isLast?: boolean }> = [
-      {
-        label: projName,
+    const orgName = currentOrg?.name || "Planet Design System";
+    const currentBranchName = credentials.branch || activeBranch || "main";
+
+    const items: Array<{ label: string; onClick?: () => void; isLast?: boolean; isBranch?: boolean }> = [];
+
+    if (currentProject) {
+      items.push({
+        label: orgName,
+        onClick: () => {
+          setCurrentProject(null);
+          setSidebarTab("dashboard");
+        },
+      });
+      items.push({
+        label: currentProject.name,
+        onClick: () => setSidebarTab("tokens"),
+      });
+    } else {
+      items.push({
+        label: orgName,
         onClick: () => setSidebarTab("dashboard"),
-      },
-    ];
+      });
+    }
 
     if (sidebarTab === "themes") {
       items.push({
-        label: "Themes Groups",
+        label: currentBranchName,
+        isBranch: true,
+        onClick: !isGitConfigured ? () => setSidebarTab("branches") : undefined,
+      });
+      items.push({
+        label: "Theme Groups",
         onClick: () => setSidebarTab("themes"),
       });
       if (activeGroup) {
@@ -172,6 +191,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       }
     } else if (sidebarTab === "tokens") {
       items.push({
+        label: currentBranchName,
+        isBranch: true,
+        onClick: !isGitConfigured ? () => setSidebarTab("branches") : undefined,
+      });
+      items.push({
         label: "Tokens",
         onClick: () => setSidebarTab("tokens"),
       });
@@ -184,14 +208,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         label: "Branches",
         onClick: () => setSidebarTab("branches"),
       });
-      if (activeBranch) {
+      if (currentBranchName) {
         items.push({
-          label: activeBranch,
+          label: currentBranchName,
+          isBranch: true,
         });
       }
     } else {
       const tabLabels: Record<string, string> = {
-        dashboard: "Dashboard",
+        dashboard: "Overview",
+        projects: "Projects",
         variables: "Variables",
         documentation: "Documentation",
         assets: "Assets",
@@ -206,7 +232,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         sync: "Integrations",
         mcp: "MCP & CLI",
         changelog: "Changelog",
-        workspaces: "Workspaces & Projects",
+        workspaces: "Projects",
       };
       items.push({
         label: tabLabels[sidebarTab] || sidebarTab,
@@ -218,18 +244,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }
 
     return items;
-  }, [currentProject?.name, currentOrg?.name, sidebarTab, activeGroup, activeOption, activeSet, setSidebarTab]);
+  }, [currentProject, currentOrg, sidebarTab, activeGroup, activeOption, activeSet, setSidebarTab, setCurrentProject, credentials.branch, activeBranch, isGitConfigured]);
 
   // Compute live diff summary between baseline and current state
   const diffSummary = useMemo(() => {
     return getDiffSummary();
   }, [getDiffSummary, rawTokens, isDirty]);
-
-  // Specific Showing Logic:
-  // 1. Git Sync is configured -> show Git Pull, Push, and Branch dropdown
-  const isGitConfigured = Boolean(
-    currentUser && credentials.repo && credentials.owner
-  );
 
   // 2. Figma Plugin is connected -> show Sync Figma button
   const isFigmaConnected = Boolean(
@@ -534,19 +554,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      if (auth) {
-        await signOut(auth);
-      }
-    } catch { }
-    setCurrentUser(null);
-    addToast({
-      type: "info",
-      title: "Signed Out",
-      message: "You have been safely signed out.",
-    });
-  };
 
   return (
     <TooltipProvider>
@@ -572,18 +579,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
               <React.Fragment key={idx}>
                 {idx > 0 && <span className="text-muted-foreground/40 font-light select-none">/</span>}
                 {item.isLast ? (
-                  <span className="text-foreground font-semibold truncate">
-                    {item.label}
+                  <span className="text-foreground font-semibold truncate inline-flex items-center">
+                    {item.isBranch && <GitBranch className="w-3 h-3 mr-1 text-primary shrink-0 inline" />}
+                    <span>{item.label}</span>
                   </span>
                 ) : (
                   <span
                     onClick={item.onClick}
                     className={cn(
-                      "truncate transition-colors",
+                      "truncate transition-colors inline-flex items-center",
                       item.onClick ? "hover:text-foreground cursor-pointer" : ""
                     )}
                   >
-                    {item.label}
+                    {item.isBranch && <GitBranch className="w-3 h-3 mr-1 text-primary shrink-0 inline" />}
+                    <span>{item.label}</span>
                   </span>
                 )}
               </React.Fragment>
@@ -877,140 +886,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             )}
           </div>
 
-          {/* Subtle Vertical Divider */}
-          <Separator orientation="vertical" className="h-4 mx-1 opacity-60" />
-
-          {/* Theme Mode Toggle (Light/Dark) */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
-                onClick={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
-              >
-                {themeMode === "dark" ? (
-                  <Sun className="w-4 h-4 text-amber-400" />
-                ) : (
-                  <Moon className="w-4 h-4 text-primary" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {themeMode === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* User Profile Avatar Dropdown Menu */}
-          {currentUser ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex items-center justify-center rounded-lg border border-border/80 bg-muted/40 hover:bg-muted p-1 transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  title={`Signed in as ${currentUser.displayName || currentUser.email}`}
-                >
-                  <div className="relative">
-                    <Avatar className="h-7 w-7 rounded-md">
-                      {currentUser.avatarUrl && (
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.displayName || "User"} />
-                      )}
-                      <AvatarFallback className="rounded-md bg-primary text-primary-foreground text-[11px] font-bold">
-                        {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Online Status Indicator */}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-background" />
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end" className="w-60 p-1.5 text-xs shadow-xl">
-                {/* User Header Profile Card */}
-                <div className="flex items-center gap-3 p-2">
-                  <div className="relative flex-shrink-0">
-                    <Avatar className="h-9 w-9 rounded-lg">
-                      {currentUser.avatarUrl && (
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.displayName || "User"} />
-                      )}
-                      <AvatarFallback className="rounded-lg bg-primary text-primary-foreground text-xs font-bold">
-                        {currentUser.displayName?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-background" />
-                  </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-foreground text-xs truncate">
-                        {currentUser.displayName || currentUser.email.split("@")[0]}
-                      </span>
-                      <Badge variant="secondary" className="text-[9px] font-mono py-0 px-1 capitalize">
-                        {ROLE_DEFINITIONS[getCurrentUserRole()].title}
-                      </Badge>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground truncate">
-                      {currentUser.email}
-                    </span>
-                  </div>
-                </div>
-
-                <DropdownMenuSeparator />
-
-                {/* Activity Log & Team Members */}
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSidebarTab("members");
-                      setMembersSubTab("activity");
-                    }}
-                    className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
-                  >
-                    <Activity className="w-4 h-4 text-muted-foreground" />
-                    <span>Activity log</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => setSidebarTab("changelog")}
-                    className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
-                  >
-                    <Rocket className="w-4 h-4 text-primary" />
-                    <span>What&apos;s New &amp; Releases</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSidebarTab("members");
-                      setMembersSubTab("members");
-                    }}
-                    className="gap-2.5 px-2.5 py-2 cursor-pointer text-xs text-foreground"
-                  >
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span>Manage Team</span>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-
-                <DropdownMenuSeparator />
-
-                {/* Logout */}
-                <DropdownMenuItem
-                  onClick={handleSignOut}
-                  className="gap-2.5 px-2.5 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer text-xs font-medium"
-                >
-                  <LogOut className="w-4 h-4 text-destructive" />
-                  <span>Log Out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAuthOpen(true)}
-              className="h-8 gap-1.5 px-2.5 rounded-md shadow-2xs cursor-pointer font-medium"
-            >
-              <User className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Sign In</span>
-            </Button>
-          )}
         </div>
       </header>
 
