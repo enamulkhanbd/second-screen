@@ -16,7 +16,6 @@ import {
   Rocket,
   Settings,
   Users,
-  Building2,
   FolderGit2,
   Link2,
   Code2,
@@ -34,10 +33,9 @@ import {
   AlertTriangle,
   Sun,
   Moon,
-  Laptop,
+  Monitor,
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
-import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { LATEST_VERSION } from "@/data/systemChangelog";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -100,7 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   const isCollapsed = mode === "docked" && isCollapsedState;
 
   const userRole = getCurrentUserRole();
-  const roleDef = ROLE_DEFINITIONS[userRole];
 
   // Extract all valid set names based on $metadata.json ($themes.json or valid token sets)
   const allSetNames = useMemo(() => {
@@ -919,77 +916,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuGroup>
+
+              {/* Theme Section (Vertical list matching design) */}
+              <div className="py-1">
+                <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground tracking-wider uppercase select-none">
+                  THEME
+                </div>
                 <DropdownMenuItem
-                  onClick={() => setSidebarTab("org-settings")}
-                  className="gap-2 cursor-pointer"
+                  onClick={() => setThemeMode("light")}
+                  className="flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer"
                 >
-                  <Building2 className="size-3.5 text-muted-foreground" />
-                  <span>{currentOrg?.name || "Organization"}</span>
-                  <Badge variant="violet" className="ml-auto text-[9px] px-1 py-0 capitalize">
-                    {roleDef.title}
-                  </Badge>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setSidebarTab("members")}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Users className="size-3.5 text-muted-foreground" />
-                  <span>Manage Team</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5">
-                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-1.5 px-0.5 select-none">
-                  <span>Theme</span>
-                  <span className="text-[10px] capitalize text-muted-foreground/70 font-mono">
-                    {themeMode}
+                  <div className="size-3.5 flex items-center justify-center shrink-0">
+                    {themeMode === "light" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
+                  </div>
+                  <Sun className="size-4 text-foreground/80 shrink-0" />
+                  <span className={cn(themeMode === "light" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                    Light
                   </span>
-                </div>
-                <div className="grid grid-cols-3 gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/40">
-                  <button
-                    type="button"
-                    onClick={() => setThemeMode("light")}
-                    className={cn(
-                      "flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
-                      themeMode === "light"
-                        ? "bg-background text-foreground shadow-xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Light theme"
-                  >
-                    <Sun className="size-3.5" />
-                    <span className="text-[10px]">Light</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setThemeMode("dark")}
-                    className={cn(
-                      "flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
-                      themeMode === "dark"
-                        ? "bg-background text-foreground shadow-xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Dark theme"
-                  >
-                    <Moon className="size-3.5" />
-                    <span className="text-[10px]">Dark</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setThemeMode("system")}
-                    className={cn(
-                      "flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
-                      themeMode === "system"
-                        ? "bg-background text-foreground shadow-xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="System default"
-                  >
-                    <Laptop className="size-3.5" />
-                    <span className="text-[10px]">System</span>
-                  </button>
-                </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setThemeMode("dark")}
+                  className="flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer"
+                >
+                  <div className="size-3.5 flex items-center justify-center shrink-0">
+                    {themeMode === "dark" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
+                  </div>
+                  <Moon className="size-4 text-foreground/80 shrink-0" />
+                  <span className={cn(themeMode === "dark" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                    Dark
+                  </span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setThemeMode("system")}
+                  className="flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer"
+                >
+                  <div className="size-3.5 flex items-center justify-center shrink-0">
+                    {themeMode === "system" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
+                  </div>
+                  <Monitor className="size-4 text-foreground/80 shrink-0" />
+                  <span className={cn(themeMode === "system" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                    System
+                  </span>
+                </DropdownMenuItem>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
