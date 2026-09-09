@@ -36,9 +36,6 @@ import {
   ChevronDown,
   ChevronRight,
   PanelLeftOpen,
-  BookOpen,
-  ArrowUpToLine,
-  Sliders,
   History,
   X,
 } from "lucide-react";
@@ -102,7 +99,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<string>("all");
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -196,42 +192,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     });
   }, [resolvedTokens, activeSet]);
 
-  // Dynamic counts per category
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      color: 0,
-      typography: 0,
-      spacing: 0,
-      borderRadius: 0,
-      boxShadow: 0,
-      dimension: 0,
-    };
-    for (const t of setTokens) {
-      const typeStr = String(t.type || "").toLowerCase();
-      if (t.type === "color") counts.color++;
-      else if (t.type === "typography" || typeStr.includes("font")) counts.typography++;
-      else if (t.type === "spacing" || t.type === "sizing" || t.type === "dimension") {
-        counts.spacing++;
-        counts.dimension++;
-      } else if (t.type === "borderRadius") counts.borderRadius++;
-      else if (t.type === "boxShadow") counts.boxShadow++;
-    }
-    return counts;
-  }, [setTokens]);
-
   // Filter tokens strictly for the active set (or all sets if 'ALL')
   const displayedTokens = useMemo(() => {
     return setTokens.filter((token) => {
-      const typeStr = String(token.type || "").toLowerCase();
-      // Type filter
-      if (selectedType !== "all") {
-        if (selectedType === "color" && token.type !== "color") return false;
-        if (selectedType === "typography" && token.type !== "typography" && !typeStr.includes("font")) return false;
-        if (selectedType === "spacing" && token.type !== "spacing" && token.type !== "sizing" && token.type !== "dimension") return false;
-        if (selectedType === "borderRadius" && token.type !== "borderRadius") return false;
-        if (selectedType === "boxShadow" && token.type !== "boxShadow") return false;
-      }
-
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -244,7 +207,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
       return true;
     });
-  }, [setTokens, selectedType, searchQuery]);
+  }, [setTokens, searchQuery]);
 
   // Grouping depth state (default to 0: All Levels)
   const [groupDepth, setGroupDepth] = useState<number>(0);
@@ -327,14 +290,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     return !hasParticipation;
   }, [activeSet, themeGroups]);
 
-  // Calculate theme count
-  const themeCount = useMemo(() => {
-    let count = 0;
-    (themeGroups || []).forEach((g) => {
-      count += g.options?.length || 0;
-    });
-    return Math.max(count, 4);
-  }, [themeGroups]);
 
   // Selected token objects for bulk actions
   const selectedTokensList = useMemo(() => {
@@ -733,52 +688,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </button>
           )}
 
-          {/* Theme Dropdown Button [ 📖 4 themes ⌵ ] */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2.5 text-xs font-medium gap-1.5 border-border bg-background hover:bg-muted/80 cursor-pointer shadow-2xs"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>{themeCount} themes</span>
-                <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5 opacity-70" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 p-1 text-xs">
-              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Theme Matrix
-              </div>
-              <DropdownMenuItem
-                onClick={() => setSidebarTab("themes")}
-                className="gap-2 cursor-pointer"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-primary" />
-                <span className="font-semibold">Manage Themes</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1" />
-              {(themeGroups || []).flatMap((g) =>
-                (g.options || []).map((opt) => (
-                  <DropdownMenuItem
-                    key={opt.id}
-                    onClick={() => setSidebarTab("themes")}
-                    className="flex items-center justify-between py-1.5 cursor-pointer text-xs"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: opt.color || "#6366f1" }}
-                      />
-                      <span className="truncate">{opt.name}</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-mono">{g.name}</span>
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {/* Search Icon / Toggle */}
           {isSearchOpen ? (
             <div className="relative flex items-center">
@@ -806,90 +715,22 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               variant="outline"
               size="icon-sm"
               onClick={() => setIsSearchOpen(true)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs border-border bg-background hover:bg-muted/80"
               title="Search tokens"
             >
               <Search className="w-3.5 h-3.5" />
             </Button>
           )}
 
-          {/* Filter by Type Icon Button */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant={selectedType !== "all" ? "default" : "outline"}
-                size="icon-sm"
-                className={`h-8 w-8 ${selectedType !== "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                title="Filter by Type"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 p-1 text-xs">
-              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Filter by Type
-              </div>
-              {[
-                { id: "all", label: "All Types", count: setTokens.length },
-                { id: "color", label: "Color", count: typeCounts.color },
-                { id: "typography", label: "Typography", count: typeCounts.typography },
-                { id: "spacing", label: "Spacing & Sizing", count: typeCounts.spacing },
-                { id: "borderRadius", label: "Border Radius", count: typeCounts.borderRadius },
-                { id: "boxShadow", label: "Shadow", count: typeCounts.boxShadow },
-              ].map((cat) => (
-                <DropdownMenuItem
-                  key={cat.id}
-                  onClick={() => setSelectedType(cat.id)}
-                  className="flex items-center justify-between py-1.5 cursor-pointer"
-                >
-                  <span className={selectedType === cat.id ? "font-semibold text-primary" : ""}>
-                    {cat.label}
-                  </span>
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    {cat.count}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Expand / Collapse All Controls */}
-          {groupDepth !== 1 && (
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={expandAllGroups}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                title="Expand All Groups"
-              >
-                <ChevronsUpDown className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={collapseAllGroups}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                title="Collapse All Groups"
-              >
-                <ChevronsDownUp className="w-3.5 h-3.5" />
-              </Button>
-              <div className="h-4 w-px bg-border mx-0.5" />
-            </div>
-          )}
-
-          {/* Grouping Level Dropdown Selector (Matching screenshot) */}
+          {/* Grouping Level Dropdown Selector (Minimal Icon-Only) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                size="sm"
-                className="h-8 px-2.5 text-[11px] font-medium gap-1.5 border-border bg-background hover:bg-muted/80 shadow-2xs cursor-pointer"
-              >
-                <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-muted-foreground">Grouping:</span>
-                <span className="font-semibold text-foreground">
-                  {groupDepth === 1
+                size="icon-sm"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs border-border bg-background hover:bg-muted/80"
+                title={`Grouping: ${
+                  groupDepth === 1
                     ? "Level 1 (Flat)"
                     : groupDepth === 2
                     ? "Level 2 (1 Group)"
@@ -897,9 +738,21 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     ? "Level 3 (2 Groups)"
                     : groupDepth === 4
                     ? "Level 4 (3 Groups)"
-                    : "All Levels"}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-0.5 opacity-70" />
+                    : "All Levels (Deepest)"
+                }`}
+                aria-label="Grouping level"
+              >
+                {groupDepth === 1 ? (
+                  <List className="w-3.5 h-3.5 text-muted-foreground" />
+                ) : groupDepth === 2 ? (
+                  <FolderTree className="w-3.5 h-3.5 text-blue-500" />
+                ) : groupDepth === 3 ? (
+                  <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
+                ) : groupDepth === 4 ? (
+                  <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                ) : (
+                  <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lg border-border">
@@ -981,16 +834,29 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Export Icon Button ⇪ */}
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={() => setSidebarTab("exports")}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            title="Export tokens"
-          >
-            <ArrowUpToLine className="w-3.5 h-3.5" />
-          </Button>
+          {/* Expand / Collapse All Controls */}
+          {groupDepth !== 1 && (
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={expandAllGroups}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Expand All Groups"
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={collapseAllGroups}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Collapse All Groups"
+              >
+                <ChevronsDownUp className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
 
           {/* View Switcher: Preview vs JSON Code */}
           <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
