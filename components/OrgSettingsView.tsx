@@ -16,6 +16,7 @@ import {
   Save,
   CheckCircle2,
   Sparkles,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,12 +32,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+const ICON_PRESETS = ["🏢", "🪐", "🚀", "🎨", "💻", "🎯", "⚡", "💎", "🌟", "🛡️"];
+
 export const OrgSettingsView: React.FC = () => {
   const {
     currentOrg,
+    userOrgs,
     currentUser,
     orgProjects,
     updateOrgAction,
+    deleteOrgAction,
     addToast,
     getCurrentUserRole,
     setSidebarTab,
@@ -47,14 +52,19 @@ export const OrgSettingsView: React.FC = () => {
 
   const [orgName, setOrgName] = useState(currentOrg?.name || "");
   const [orgColor, setOrgColor] = useState(currentOrg?.color || "#6366f1");
+  const [orgIcon, setOrgIcon] = useState(currentOrg?.icon || "🏢");
+  const [orgLogoUrl, setOrgLogoUrl] = useState(currentOrg?.logoUrl || "");
   const [copiedId, setCopiedId] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync state when currentOrg changes
   React.useEffect(() => {
     if (currentOrg) {
       setOrgName(currentOrg.name);
       setOrgColor(currentOrg.color || "#6366f1");
+      setOrgIcon(currentOrg.icon || "🏢");
+      setOrgLogoUrl(currentOrg.logoUrl || "");
     }
   }, [currentOrg]);
 
@@ -81,12 +91,17 @@ export const OrgSettingsView: React.FC = () => {
 
     setIsSaving(true);
     try {
-      await updateOrgAction(currentOrg.id, { name: orgName.trim(), color: orgColor });
+      await updateOrgAction(currentOrg.id, {
+        name: orgName.trim(),
+        color: orgColor,
+        icon: orgIcon,
+        logoUrl: orgLogoUrl.trim(),
+      });
 
       addToast({
         type: "success",
         title: "Organization Updated",
-        message: `Saved workspace name and brand color.`,
+        message: `Saved workspace settings.`,
       });
     } catch (err: any) {
       addToast({
@@ -96,6 +111,38 @@ export const OrgSettingsView: React.FC = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteOrg = async () => {
+    if (!currentOrg) return;
+    if (userOrgs.length <= 1) {
+      addToast({
+        type: "error",
+        title: "Cannot Delete",
+        message: "You cannot delete your only organization. Please create another workspace first.",
+      });
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteOrgAction(currentOrg.id);
+      setShowDeleteConfirm(false);
+      addToast({
+        type: "success",
+        title: "Organization Deleted",
+        message: `Organization "${currentOrg.name}" was permanently removed.`,
+      });
+      setSidebarTab("dashboard");
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Failed to delete organization.",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -134,8 +181,17 @@ export const OrgSettingsView: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setSidebarTab("dashboard")}
+            className="text-xs h-8 gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Overview</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setSidebarTab("members")}
-            className="text-xs h-8 gap-1.5"
+            className="text-xs h-8 gap-1.5 cursor-pointer shadow-2xs"
           >
             <Users className="w-3.5 h-3.5" />
             <span>Manage Members</span>
@@ -228,10 +284,61 @@ export const OrgSettingsView: React.FC = () => {
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold">Workspace Icon / Emoji</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {ICON_PRESETS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setOrgIcon(emoji)}
+                    disabled={!isOwner}
+                    className={`w-8 h-8 rounded-lg text-sm flex items-center justify-center transition-all cursor-pointer ${
+                      orgIcon === emoji
+                        ? "bg-primary/15 border-2 border-primary scale-105"
+                        : "bg-muted/60 hover:bg-muted border border-border"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                <Input
+                  value={orgIcon}
+                  onChange={(e) => setOrgIcon(e.target.value)}
+                  placeholder="Emoji"
+                  disabled={!isOwner}
+                  className="w-16 h-8 text-xs text-center bg-background"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs font-semibold">Brand Color</Label>
               <div className={!isOwner ? "pointer-events-none opacity-60" : undefined}>
                 <ColorPickerWithShades value={orgColor} onChange={setOrgColor} />
               </div>
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold">Logo Image URL (Optional)</Label>
+              <Input
+                value={orgLogoUrl}
+                onChange={(e) => setOrgLogoUrl(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                disabled={!isOwner}
+                className="h-9 text-xs bg-background"
+              />
+              {orgLogoUrl && (
+                <div className="mt-2 flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground">
+                  <img
+                    src={orgLogoUrl}
+                    alt="Logo Preview"
+                    className="w-7 h-7 rounded-md object-cover"
+                    onError={(e) => ((e.target as any).style.display = "none")}
+                  />
+                  <span className="text-[11px]">Workspace logo preview</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
@@ -281,8 +388,15 @@ export const OrgSettingsView: React.FC = () => {
             <div className="flex justify-end pt-2 border-t border-border/70">
               <Button
                 type="submit"
-                disabled={isSaving || !orgName.trim() || (orgName === currentOrg.name && orgColor === (currentOrg.color || "#6366f1"))}
-                className="h-9 text-xs font-bold gap-1.5"
+                disabled={
+                  isSaving ||
+                  !orgName.trim() ||
+                  (orgName === currentOrg.name &&
+                    orgColor === (currentOrg.color || "#6366f1") &&
+                    orgIcon === (currentOrg.icon || "🏢") &&
+                    orgLogoUrl === (currentOrg.logoUrl || ""))
+                }
+                className="h-9 text-xs font-bold gap-1.5 cursor-pointer shadow-xs"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>{isSaving ? "Saving..." : "Save Changes"}</span>
@@ -317,7 +431,7 @@ export const OrgSettingsView: React.FC = () => {
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="h-8 text-xs gap-1.5"
+                className="h-8 text-xs gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete Organization</span>
@@ -367,20 +481,12 @@ export const OrgSettingsView: React.FC = () => {
             <Button
               variant="destructive"
               size="sm"
-              disabled={deleteConfirmText !== currentOrg.name}
-              onClick={() => {
-                setShowDeleteConfirm(false);
-                addToast({
-                  type: "success",
-                  title: "Organization Deleted",
-                  message: `Organization ${currentOrg.name} was removed.`,
-                });
-                setSidebarTab("dashboard");
-              }}
-              className="text-xs h-9 font-bold gap-1.5"
+              disabled={isDeleting || deleteConfirmText !== currentOrg.name}
+              onClick={handleDeleteOrg}
+              className="text-xs h-9 font-bold gap-1.5 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>I understand, delete this organization</span>
+              <span>{isDeleting ? "Deleting..." : "I understand, delete this organization"}</span>
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1232,6 +1232,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       );
       const orgs = [...get().userOrgs, newOrg];
       set({ userOrgs: orgs });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_cached_user_orgs", JSON.stringify(orgs));
+        } catch {}
+      }
       get().setCurrentOrg(newOrg);
       return newOrg;
     } catch (e) {
@@ -1256,6 +1261,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         o.id === orgId ? { ...o, ...orgUpdates, updatedAt: new Date().toISOString() } : o
       );
       set({ userOrgs: updatedOrgs });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_cached_user_orgs", JSON.stringify(updatedOrgs));
+        } catch {}
+      }
       if (get().currentOrg?.id === orgId) {
         set({ currentOrg: { ...get().currentOrg!, ...orgUpdates, updatedAt: new Date().toISOString() } });
       }
@@ -1271,6 +1281,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       await deleteOrganization(orgId);
       const remaining = get().userOrgs.filter((o) => o.id !== orgId);
       set({ userOrgs: remaining });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("ts_cached_user_orgs", JSON.stringify(remaining));
+        } catch {}
+      }
       if (get().currentOrg?.id === orgId) {
         const nextOrg = remaining[0] || null;
         get().setCurrentOrg(nextOrg);
