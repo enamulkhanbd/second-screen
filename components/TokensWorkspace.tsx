@@ -981,8 +981,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                   <col data-col="resolved" style={{ width: `${colWidths.resolved}px` }} />
                   <col data-col="description" style={{ width: `${colWidths.description}px` }} />
                   <col data-col="set" style={{ width: `${colWidths.set}px` }} />
-                  <col style={{ width: "40px" }} />
-                  <col className="w-auto" />
+                  <col style={{ width: "40px", minWidth: "40px", maxWidth: "40px" }} />
                 </colgroup>
                 <thead className="bg-background border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
                   <tr>
@@ -1108,11 +1107,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                       </div>
                     </th>
 
-                    {/* Row actions */}
-                    <th className="w-10 px-2 py-2.5 text-center bg-background border-r border-border/30"></th>
-
-                    {/* Flexible space filler */}
-                    <th className="bg-background p-0 border-b border-border"></th>
+                    {/* Row actions - Sticky Right Edge */}
+                    <th className="sticky right-0 top-0 z-30 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center bg-background border-l border-border/30 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]"></th>
                   </tr>
                 </thead>
               <tbody className="divide-y divide-border/30 font-mono text-xs">
@@ -1532,8 +1528,14 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
         )}
       </td>
 
-      {/* 8. ACTIONS ⋮ */}
-      <td className="w-10 px-2 py-2.5 text-center align-middle border-r border-border/30">
+      {/* 8. ACTIONS ⋮ - Sticky Right Edge */}
+      <td
+        className={`sticky right-0 z-10 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center align-middle border-l border-border/30 transition-colors ${
+          isSelected
+            ? "bg-muted/90 group-hover:bg-muted"
+            : "bg-background group-hover:bg-muted/30"
+        } shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]`}
+      >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -1599,9 +1601,6 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
           </DropdownMenuContent>
         </DropdownMenu>
       </td>
-
-      {/* 9. Flexible tail filler cell */}
-      <td className="p-0 border-b border-border/30" />
     </tr>
   );
 };
@@ -1642,7 +1641,7 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
         onClick={onToggleGroup}
         className="bg-muted/20 hover:bg-muted/40 border-b border-border/40 transition-colors cursor-pointer select-none"
       >
-        <td colSpan={9} className="py-2 px-4 align-middle">
+        <td colSpan={8} className="py-2 px-4 align-middle">
           <div
             className="flex items-center justify-between min-w-0 w-full"
             style={{ paddingLeft: `${Math.max(8, (node.level - 1) * 16 + 8)}px` }}

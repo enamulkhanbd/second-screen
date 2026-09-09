@@ -241,7 +241,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
       </div>
 
       {/* Main Table Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-auto">
         {filteredTokens.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-80 text-center p-6 text-muted-foreground">
             <SearchX className="w-10 h-10 mb-3 opacity-40" />
@@ -252,9 +252,9 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
           </div>
         ) : (
           <table className="w-full text-left border-collapse text-xs">
-            <thead className="bg-muted/40 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+            <thead className="bg-muted/40 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
               <tr>
-                <th className="w-10 px-3 py-2.5 text-center border-r border-border/30">
+                <th className="w-10 px-3 py-2.5 text-center border-r border-border/30 bg-muted/90 backdrop-blur-xs">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -279,7 +279,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
                 <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[160px]">RESOLVED</th>
                 <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[180px]">DESCRIPTION</th>
                 <th className="w-32 px-4 py-2.5 text-left border-r border-border/30">SET</th>
-                <th className="w-10 px-2 py-2.5 text-center"></th>
+                <th className="sticky right-0 top-0 z-30 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center bg-muted/90 backdrop-blur-xs border-l border-border/30 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30 font-mono">
@@ -464,8 +464,14 @@ const TokenRow: React.FC<TokenRowProps> = ({
         {token.setName}
       </td>
 
-      {/* 8. ACTIONS (⋮) */}
-      <td className="w-10 px-2 py-2.5 text-center align-middle">
+      {/* 8. ACTIONS (⋮) - Sticky Right Edge */}
+      <td
+        className={`sticky right-0 z-10 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center align-middle border-l border-border/30 transition-colors ${
+          isSelected
+            ? "bg-muted/90 group-hover:bg-muted"
+            : "bg-background group-hover:bg-muted/30"
+        } shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]`}
+      >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
