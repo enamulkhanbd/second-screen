@@ -31,6 +31,7 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
     setCurrentProject,
     createOrgAction,
     addToast,
+    sidebarTab,
     setSidebarTab,
   } = useTokenStore();
 
@@ -153,6 +154,9 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                     key={org.id}
                     onClick={() => {
                       setCurrentOrg(org);
+                      setCurrentProject(null);
+                      setSidebarTab("dashboard");
+                      setIsOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
                       isSelected
@@ -192,6 +196,14 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                     key={proj.id}
                     onClick={() => {
                       setCurrentProject(proj);
+                      if (
+                        sidebarTab === "dashboard" ||
+                        sidebarTab === "projects" ||
+                        sidebarTab === "members" ||
+                        (sidebarTab as string) === "workspaces"
+                      ) {
+                        setSidebarTab("tokens");
+                      }
                       setIsOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
