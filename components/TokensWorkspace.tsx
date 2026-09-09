@@ -54,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buildTokenGroupTree, TokenGroupNode } from "@/utils/themeHelpers";
+import { naturalCompareTokenKeys } from "@/utils/transformTokens";
 import { cn } from "@/lib/utils";
 
 interface TokensWorkspaceProps {
@@ -255,13 +256,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   // Multi-level recursive group tree from displayed tokens with chosen grouping depth
   const groupTree = useMemo(() => {
-    return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."), groupDepth);
-  }, [displayedTokens, groupDepth]);
+    return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."), groupDepth, sortDirection);
+  }, [displayedTokens, groupDepth, sortDirection]);
 
   const sortedTokens = useMemo(() => {
     const list = [...displayedTokens];
     list.sort((a, b) => {
-      const cmp = a.name.localeCompare(b.name);
+      const cmp = naturalCompareTokenKeys(a.name, b.name);
       return sortDirection === "asc" ? cmp : -cmp;
     });
     return list;

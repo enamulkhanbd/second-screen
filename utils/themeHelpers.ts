@@ -853,7 +853,8 @@ export interface TokenGroupNode<T> {
 export function buildTokenGroupTree<T>(
   items: T[],
   getPathSegments: (item: T) => string[],
-  maxGroupDepth?: number
+  maxGroupDepth?: number,
+  sortDirection: "asc" | "desc" = "asc"
 ): TokenGroupNode<T>[] {
   // If maxGroupDepth is 1 (Level 1 / Flat), return empty tree so tokens render flat
   if (maxGroupDepth === 1) {
@@ -906,14 +907,16 @@ export function buildTokenGroupTree<T>(
   }
 
   function convertNode(rawNode: any): TokenGroupNode<T> {
+    const dir = sortDirection === "desc" ? -1 : 1;
+
     const subgroups: TokenGroupNode<T>[] = Array.from(rawNode.subgroupsMap.values())
       .map(convertNode)
-      .sort((a, b) => naturalCompareTokenKeys(a.name, b.name));
+      .sort((a, b) => naturalCompareTokenKeys(a.name, b.name) * dir);
 
     const sortedItems: T[] = (rawNode.items as T[]).sort((a: any, b: any) => {
       const pathA = getPathSegments(a).join(".");
       const pathB = getPathSegments(b).join(".");
-      return naturalCompareTokenKeys(pathA, pathB);
+      return naturalCompareTokenKeys(pathA, pathB) * dir;
     });
 
     const totalTokenCount = sortedItems.length + subgroups.reduce((acc, g) => acc + g.totalTokenCount, 0);
@@ -929,9 +932,11 @@ export function buildTokenGroupTree<T>(
     };
   }
 
+  const dir = sortDirection === "desc" ? -1 : 1;
+
   return Array.from(rootMap.values())
     .map(convertNode)
-    .sort((a, b) => naturalCompareTokenKeys(a.name, b.name));
+    .sort((a, b) => naturalCompareTokenKeys(a.name, b.name) * dir);
 }
 
 export interface SetTreeNode {

@@ -5,6 +5,7 @@ import { useTokenStore } from "@/store/useTokenStore";
 import { ColorSwatch } from "@/components/ColorSwatch";
 import { FlattenedToken } from "@/types/tokens";
 import { EditTokenDrawer } from "@/components/EditTokenDrawer";
+import { naturalCompareTokenKeys } from "@/utils/transformTokens";
 import {
   Link2,
   SearchX,
@@ -156,7 +157,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
   const sortedTokens = useMemo(() => {
     const list = [...filteredTokens];
     list.sort((a, b) => {
-      const cmp = a.name.localeCompare(b.name);
+      const cmp = naturalCompareTokenKeys(a.name, b.name);
       return sortDirection === "asc" ? cmp : -cmp;
     });
     return list;
