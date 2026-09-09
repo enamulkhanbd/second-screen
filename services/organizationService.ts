@@ -449,17 +449,42 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
  * Dynamically fetches all projects under an Organization from Firestore
  */
 export async function getOrgProjects(orgId: string): Promise<Project[]> {
-  if (!orgId || !isFirebaseConfigured || !db) return [];
-  try {
-    const projsRef = collection(db, "organizations", orgId, "projects");
-    const snap = await getDocs(projsRef);
-    const projs: Project[] = [];
-    snap.forEach((docSnap) => projs.push(docSnap.data() as Project));
-    return projs;
-  } catch (e) {
-    console.warn("Firestore error fetching projects:", e);
-    return [];
+  if (!orgId) return [];
+
+  // 1. Try Firestore if configured
+  if (isFirebaseConfigured && db) {
+    try {
+      const projsRef = collection(db, "organizations", orgId, "projects");
+      const snap = await getDocs(projsRef);
+      const projs: Project[] = [];
+      snap.forEach((docSnap) => projs.push(docSnap.data() as Project));
+      if (projs.length > 0) {
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(projs));
+          } catch {}
+        }
+        return projs;
+      }
+    } catch (e) {
+      console.warn("Firestore error fetching projects:", e);
+    }
   }
+
+  // 2. Fallback to localStorage cache for offline/local continuity
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+
+  return [];
 }
 
 /**
@@ -537,6 +562,16 @@ export async function createProject(
     } catch (e) {
       console.warn("Firestore error creating project:", e);
     }
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const key = `ts_cached_org_projects_${orgId}`;
+      const existing = localStorage.getItem(key);
+      const list: Project[] = existing ? JSON.parse(existing) : [];
+      const updated = [...list.filter((p) => p.id !== projId), newProject];
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
   }
 
   return newProject;
@@ -644,11 +679,23 @@ export async function saveProjectBranches(
  * Deletes a Project from an Organization in Firestore
  */
 export async function deleteProject(orgId: string, projectId: string): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
-  try {
-    await deleteDoc(doc(db, "organizations", orgId, "projects", projectId));
-  } catch (e) {
-    console.warn("Firestore error deleting project:", e);
+  if (isFirebaseConfigured && db) {
+    try {
+      await deleteDoc(doc(db, "organizations", orgId, "projects", projectId));
+    } catch (e) {
+      console.warn("Firestore error deleting project:", e);
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const key = `ts_cached_org_projects_${orgId}`;
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: Project[] = JSON.parse(existing);
+        const updated = list.filter((p) => p.id !== projectId);
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+    } catch {}
   }
 }
 
@@ -660,16 +707,30 @@ export async function updateProject(
   projectId: string,
   updates: Partial<{ name: string; description: string; slug: string; icon: string; color: string; logoUrl: string }>
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
-  try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await updateDoc(projRef, {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (e) {
-    console.warn("Firestore error updating project:", e);
-    throw e;
+  if (isFirebaseConfigured && db && orgId && projectId) {
+    try {
+      const projRef = doc(db, "organizations", orgId, "projects", projectId);
+      await updateDoc(projRef, {
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn("Firestore error updating project:", e);
+      throw e;
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const key = `ts_cached_org_projects_${orgId}`;
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: Project[] = JSON.parse(existing);
+        const updated = list.map((p) =>
+          p.id === projectId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
+        );
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+    } catch {}
   }
 }
 

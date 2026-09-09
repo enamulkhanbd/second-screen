@@ -56,50 +56,12 @@ export const DashboardView: React.FC = () => {
   const orgInitial = orgName[0]?.toUpperCase() || "P";
   const orgColor = currentOrg?.color || "#8b5cf6";
 
-  // Fallback demo projects if orgProjects is empty initially
+  // Only display real projects for this active organization
   const displayProjects: Project[] = useMemo(() => {
-    if (orgProjects && orgProjects.length > 0) {
-      return orgProjects.slice(0, 3);
-    }
-    // Fallback recent projects matching the video
-    return [
-      {
-        id: "proj-planet-app",
-        orgId: currentOrg?.id || "org-1",
-        name: "planet-app",
-        slug: "planet-app",
-        description: "Mobile design tokens & themes",
-        color: "#6366f1",
-        icon: "📱",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
-      } as Project,
-      {
-        id: "proj-planet-web",
-        orgId: currentOrg?.id || "org-1",
-        name: "planet-web",
-        slug: "planet-web",
-        description: "Web design system tokens",
-        color: "#06b6d4",
-        icon: "💻",
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      } as Project,
-      {
-        id: "proj-planet-core",
-        orgId: currentOrg?.id || "org-1",
-        name: "Planet",
-        slug: "planet-core",
-        description: "Core global foundations and palette",
-        color: "#10b981",
-        icon: "🪐",
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-        updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      } as Project,
-    ];
-  }, [orgProjects, currentOrg?.id]);
+    return (orgProjects || []).slice(0, 5);
+  }, [orgProjects]);
 
-  const totalProjectsCount = orgProjects?.length || displayProjects.length;
+  const totalProjectsCount = orgProjects?.length || 0;
   const totalMembersCount = currentOrg?.members?.length || 1;
 
   // Format relative time helper
@@ -122,7 +84,7 @@ export const DashboardView: React.FC = () => {
     }
   };
 
-  // Normalized activities from store
+  // Normalized real activities from store
   const recentActivities = useMemo(() => {
     if (userActivities && userActivities.length > 0) {
       return userActivities.slice(0, 5).map((act) => {
@@ -138,26 +100,7 @@ export const DashboardView: React.FC = () => {
         };
       });
     }
-    return [
-      {
-        id: "act-1",
-        actor: "System",
-        actionText: "created project planet-app",
-        timeAgo: "1m ago",
-      },
-      {
-        id: "act-2",
-        actor: "System",
-        actionText: "created project planet-web",
-        timeAgo: "1d ago",
-      },
-      {
-        id: "act-3",
-        actor: "System",
-        actionText: "created project Planet",
-        timeAgo: "1d ago",
-      },
-    ];
+    return [];
   }, [userActivities]);
 
   const handleOpenProject = (proj: Project) => {
@@ -230,71 +173,91 @@ export const DashboardView: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-2.5">
-              {displayProjects.map((proj) => {
-                const isCurrent = currentProject?.id === proj.id;
-                const tokenCount = proj.rawTokens
-                  ? Object.keys(proj.rawTokens).filter((k) => !k.startsWith("$")).length * 12
-                  : proj.name === "Planet" ? 543 : 0;
-                const setsCount = proj.rawTokens
-                  ? getValidTokenSetNames(proj.rawTokens).length
-                  : proj.name === "Planet" ? 16 : 0;
-                const themesCount = proj.themeGroups?.length || 0;
+            {displayProjects.length === 0 ? (
+              <div className="p-8 rounded-xl border border-dashed border-border bg-card/50 flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                  <FolderGit2 className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground">No projects in this workspace yet</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                  Create your first design tokens project for {orgName} to get started.
+                </p>
+                <Button
+                  onClick={() => setShowCreateProj(true)}
+                  size="sm"
+                  className="mt-4 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Project</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {displayProjects.map((proj) => {
+                  const isCurrent = currentProject?.id === proj.id;
+                  const tokenCount = proj.rawTokens
+                    ? Object.keys(proj.rawTokens).filter((k) => !k.startsWith("$")).length * 12
+                    : 0;
+                  const setsCount = proj.rawTokens
+                    ? getValidTokenSetNames(proj.rawTokens).length
+                    : 0;
+                  const themesCount = proj.themeGroups?.length || 0;
 
-                return (
-                  <div
-                    key={proj.id}
-                    onClick={() => handleOpenProject(proj)}
-                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-primary/40 transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-4 group"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
-                        style={{ backgroundColor: proj.color || "#6366f1" }}
-                      >
-                        {proj.logoUrl ? (
-                          <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-xl" />
-                        ) : (
-                          <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                            {proj.name}
-                          </h3>
-                          {isCurrent && (
-                            <Badge variant="outline" className="text-[9px] py-0 px-1 font-sans text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
-                              Active
-                            </Badge>
+                  return (
+                    <div
+                      key={proj.id}
+                      onClick={() => handleOpenProject(proj)}
+                      className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-primary/40 transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-4 group"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
+                          style={{ backgroundColor: proj.color || "#6366f1" }}
+                        >
+                          {proj.logoUrl ? (
+                            <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-xl" />
+                          ) : (
+                            <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Last changed {formatTimeAgo(proj.updatedAt || proj.createdAt)}
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                              {proj.name}
+                            </h3>
+                            {isCurrent && (
+                              <Badge variant="outline" className="text-[9px] py-0 px-1 font-sans text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Last changed {formatTimeAgo(proj.updatedAt || proj.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Stats matching video */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono shrink-0">
-                      <div className="flex items-center gap-1.5" title="Total Tokens">
-                        <Layers className="w-3.5 h-3.5 text-muted-foreground/70" />
-                        <span>{tokenCount}</span>
+                      {/* Stats */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono shrink-0">
+                        <div className="flex items-center gap-1.5" title="Total Tokens">
+                          <Layers className="w-3.5 h-3.5 text-muted-foreground/70" />
+                          <span>{tokenCount}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Token Sets">
+                          <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground/70" />
+                          <span>{setsCount}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Themes">
+                          <Palette className="w-3.5 h-3.5 text-muted-foreground/70" />
+                          <span>{themesCount}</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
                       </div>
-                      <div className="flex items-center gap-1.5" title="Token Sets">
-                        <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground/70" />
-                        <span>{setsCount}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5" title="Themes">
-                        <Palette className="w-3.5 h-3.5 text-muted-foreground/70" />
-                        <span>{themesCount}</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* 2. Let us help you (9 Cards Grid Matching Video) */}
@@ -409,23 +372,31 @@ export const DashboardView: React.FC = () => {
               </button>
             </div>
 
-            <div className="divide-y divide-border/60 border border-border rounded-xl bg-card overflow-hidden shadow-2xs">
-              {recentActivities.map((act) => (
-                <div key={act.id} className="p-3.5 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
-                      {act.actor?.[0]?.toUpperCase() || "S"}
-                    </div>
-                    <div className="truncate">
-                      <span className="font-semibold text-foreground">{act.actor}</span>{" "}
-                      <span className="text-muted-foreground">{act.actionText}</span>
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-muted-foreground font-mono shrink-0 ml-3">
-                    {act.timeAgo}
-                  </span>
+            <div className="border border-border rounded-xl bg-card overflow-hidden shadow-2xs">
+              {recentActivities.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  No recent activity recorded yet in this workspace.
                 </div>
-              ))}
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {recentActivities.map((act) => (
+                    <div key={act.id} className="p-3.5 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
+                          {act.actor?.[0]?.toUpperCase() || "S"}
+                        </div>
+                        <div className="truncate">
+                          <span className="font-semibold text-foreground">{act.actor}</span>{" "}
+                          <span className="text-muted-foreground">{act.actionText}</span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-mono shrink-0 ml-3">
+                        {act.timeAgo}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

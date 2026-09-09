@@ -623,14 +623,35 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           localStorage.removeItem("ts_active_project_id");
         } catch {}
       }
+
+      // 1. Immediately hydrate cached projects for this org if available
+      let cachedProjects: Project[] = [];
+      if (typeof window !== "undefined") {
+        try {
+          const cachedStr = localStorage.getItem(`ts_cached_org_projects_${org.id}`);
+          if (cachedStr) {
+            const parsed = JSON.parse(cachedStr);
+            if (Array.isArray(parsed)) {
+              cachedProjects = parsed;
+              set({ orgProjects: cachedProjects });
+            }
+          }
+        } catch {}
+      }
+
+      // 2. Fetch fresh projects from service
       const projects = await getOrgProjects(org.id);
       if (switchVersion !== scopeSwitchVersion || get().currentOrg?.id !== org.id) return;
-      set({ orgProjects: projects });
-      if (projects.length > 0) {
-        get().setCurrentProject(projects[0]);
-      } else {
-        set({ currentProject: null });
+
+      const finalProjects = projects.length > 0 ? projects : cachedProjects;
+      set({ orgProjects: finalProjects, currentProject: null });
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`ts_cached_org_projects_${org.id}`, JSON.stringify(finalProjects));
+        } catch {}
       }
+
       get().loadInvitations(org.id);
       get().loadOrganizationActivities(org.id);
     }
@@ -888,6 +909,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         restoreScopedProjectData(scopeOrgId, proj.id);
         get().loadOrganizationActivities(scopeOrgId);
       }
+    } else {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("ts_active_project_id");
+        } catch {}
+      }
     }
   },
 
@@ -911,14 +938,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             const savedProjId = localStorage.getItem("ts_active_project_id");
             if (cachedProjectsStr) {
               const cachedProjects: Project[] = JSON.parse(cachedProjectsStr);
-              if (Array.isArray(cachedProjects) && cachedProjects.length > 0) {
-                let activeProj = cachedProjects[0];
+              if (Array.isArray(cachedProjects)) {
+                set({ orgProjects: cachedProjects });
+                let activeProj: Project | null = null;
                 if (savedProjId) {
                   const found = cachedProjects.find((p) => p.id === savedProjId);
                   if (found) activeProj = found;
                 }
-                set({ orgProjects: cachedProjects });
-                get().setCurrentProject(activeProj);
+                if (activeProj) {
+                  get().setCurrentProject(activeProj);
+                } else {
+                  set({ currentProject: null, sidebarTab: "dashboard" });
+                }
               }
             }
             // Immediately unblock loading screen so UI renders instantly
@@ -1003,7 +1034,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
         set({ orgProjects: projects });
 
-        let activeProj = projects[0] || null;
+        let activeProj: Project | null = null;
         const savedProjId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
         if (savedProjId) {
           const found = projects.find((p) => p.id === savedProjId);
@@ -1022,6 +1053,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ) {
             get().fetchLiveTokens(activeCreds);
           }
+        } else {
+          set({ currentProject: null, sidebarTab: "dashboard" });
         }
         get().loadInvitations(activeOrg.id);
       }
@@ -1262,9 +1295,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         color,
         logoUrl
       );
-      const projs = [...get().orgProjects, newProj];
+      const projs = [...get().orgProjects.filter((p) => p.id !== newProj.id), newProj];
       set({ orgProjects: projs });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`ts_cached_org_projects_${currentOrg.id}`, JSON.stringify(projs));
+        } catch {}
+      }
       get().setCurrentProject(newProj);
+      set({ sidebarTab: "tokens" });
       return newProj;
     } catch (e) {
       console.warn("Failed creating project:", e);
@@ -1288,6 +1327,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         p.id === projectId ? { ...p, ...projectUpdates, updatedAt: new Date().toISOString() } : p
       );
       set({ orgProjects: updatedProjects });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(updatedProjects));
+        } catch {}
+      }
       if (get().currentProject?.id === projectId) {
         set({ currentProject: { ...get().currentProject!, ...projectUpdates, updatedAt: new Date().toISOString() } });
       }
@@ -1303,6 +1347,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       await deleteProject(orgId, projectId);
       const remaining = get().orgProjects.filter((p) => p.id !== projectId);
       set({ orgProjects: remaining });
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(remaining));
+        } catch {}
+      }
       if (get().currentProject?.id === projectId) {
         const nextProj = remaining[0] || null;
         get().setCurrentProject(nextProj);
