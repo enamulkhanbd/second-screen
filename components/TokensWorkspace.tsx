@@ -1636,6 +1636,28 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
   onDelete,
   startResizing,
 }) => {
+  if (node.isRoot) {
+    return (
+      <React.Fragment>
+        {node.items.map((token) => (
+          <TokenTableRow
+            key={token.id}
+            token={token}
+            isSelected={selectedTokenIds.has(token.id)}
+            onToggleSelect={() => onToggleSelect(token.id)}
+            onEdit={() => onEdit(token)}
+            onUpdate={onUpdate}
+            onDuplicate={(newName) =>
+              onDuplicate(token.setName, token.name.split("."), newName)
+            }
+            onDelete={() => onDelete(token.setName, token.name.split("."))}
+            startResizing={startResizing}
+          />
+        ))}
+      </React.Fragment>
+    );
+  }
+
   return (
     <React.Fragment>
       <tr

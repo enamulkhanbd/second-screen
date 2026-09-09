@@ -558,7 +558,7 @@ export function flattenAndResolveTokens(
 
       if (isTokenLeaf(node)) {
         const rawValue = getLeafValue(node);
-        const group = String(currentPath[0] || "general");
+        const group = currentPath.length > 1 ? String(currentPath[0]) : "";
         const subgroup = currentPath.length > 2 ? String(currentPath[1]) : undefined;
         const id = `${setName}.${currentPath.join(".")}`;
         const name = currentPath.join(".");

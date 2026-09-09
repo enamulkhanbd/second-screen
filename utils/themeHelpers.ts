@@ -762,7 +762,7 @@ export function buildThemeMatrix(
         if (!groupTokensMap.has(tokenKey)) {
           groupTokensMap.set(tokenKey, {
             type: getLeafType(node, logicalPath),
-            group: logicalPath[0] || "general",
+            group: logicalPath.length > 1 ? logicalPath[0] : "",
             pathSegments: logicalPath,
           });
         }
@@ -843,6 +843,7 @@ export interface TokenGroupNode<T> {
   totalTokenCount: number;
   subgroups: TokenGroupNode<T>[];
   items: T[]; // leaf token items belonging directly to this group level
+  isRoot?: boolean; // true if this node represents root-level tokens with no parent group
 }
 
 /**
@@ -862,6 +863,7 @@ export function buildTokenGroupTree<T>(
   }
 
   const rootMap = new Map<string, any>();
+  const rootItems: T[] = [];
 
   for (const item of items) {
     const rawSegments = getPathSegments(item).filter(Boolean);
@@ -873,10 +875,15 @@ export function buildTokenGroupTree<T>(
       const allowedParents = maxGroupDepth - 1; // e.g. Level 2 -> 1 parent group; Level 3 -> 2 parent groups
       const maxPossibleParents = Math.max(0, rawSegments.length - 1);
       const parentCount = Math.min(allowedParents, maxPossibleParents);
-      groupSegments = parentCount > 0 ? rawSegments.slice(0, parentCount) : (rawSegments.length > 1 ? [rawSegments[0]] : ["general"]);
+      groupSegments = parentCount > 0 ? rawSegments.slice(0, parentCount) : (rawSegments.length > 1 ? [rawSegments[0]] : []);
     } else {
       // Default: All levels (all parent segments except the leaf)
-      groupSegments = rawSegments.length > 1 ? rawSegments.slice(0, rawSegments.length - 1) : ["general"];
+      groupSegments = rawSegments.length > 1 ? rawSegments.slice(0, rawSegments.length - 1) : [];
+    }
+
+    if (groupSegments.length === 0) {
+      rootItems.push(item);
+      continue;
     }
 
     let currentMap = rootMap;
@@ -933,10 +940,34 @@ export function buildTokenGroupTree<T>(
   }
 
   const dir = sortDirection === "desc" ? -1 : 1;
+  const result: TokenGroupNode<T>[] = [];
 
-  return Array.from(rootMap.values())
+  if (rootItems.length > 0) {
+    const sortedRootItems = [...rootItems].sort((a: any, b: any) => {
+      const pathA = getPathSegments(a).join(".");
+      const pathB = getPathSegments(b).join(".");
+      return naturalCompareTokenKeys(pathA, pathB) * dir;
+    });
+
+    result.push({
+      id: "__root__",
+      name: "",
+      fullPath: "",
+      level: 0,
+      totalTokenCount: sortedRootItems.length,
+      subgroups: [],
+      items: sortedRootItems,
+      isRoot: true,
+    });
+  }
+
+  const groupedNodes = Array.from(rootMap.values())
     .map(convertNode)
     .sort((a, b) => naturalCompareTokenKeys(a.name, b.name) * dir);
+
+  result.push(...groupedNodes);
+
+  return result;
 }
 
 export interface SetTreeNode {

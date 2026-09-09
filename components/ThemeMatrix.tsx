@@ -436,6 +436,14 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
   };
 
   const renderGroupTree = (node: TokenGroupNode<MatrixRowData>): React.ReactNode => {
+    if (node.isRoot) {
+      return (
+        <React.Fragment key={node.id}>
+          {node.items.map((row) => renderMatrixRow(row, 1, ""))}
+        </React.Fragment>
+      );
+    }
+
     const isCollapsed = Boolean(collapsedGroups[node.id]);
     const totalCols = (activeGroup?.options?.length || 0) + 2;
 
