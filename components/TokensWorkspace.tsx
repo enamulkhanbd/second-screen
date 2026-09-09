@@ -1093,8 +1093,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                       <WorkspaceGroupNode
                         key={node.id}
                         node={node}
-                        isCollapsed={Boolean(collapsedGroups[node.id])}
-                        onToggleGroup={() => toggleGroup(node.id)}
+                        collapsedGroups={collapsedGroups}
+                        onToggleGroup={toggleGroup}
                         groupDepth={groupDepth}
                         selectedTokenIds={selectedTokenIds}
                         onToggleSelect={toggleSelectToken}
@@ -1586,8 +1586,8 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
 // -------------------------------------------------------------
 interface WorkspaceGroupNodeProps {
   node: TokenGroupNode<FlattenedToken>;
-  isCollapsed: boolean;
-  onToggleGroup: () => void;
+  collapsedGroups: Record<string, boolean>;
+  onToggleGroup: (groupId: string) => void;
   groupDepth: number;
   selectedTokenIds: Set<string>;
   onToggleSelect: (id: string) => void;
@@ -1600,7 +1600,7 @@ interface WorkspaceGroupNodeProps {
 
 const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
   node,
-  isCollapsed,
+  collapsedGroups,
   onToggleGroup,
   groupDepth,
   selectedTokenIds,
@@ -1633,10 +1633,12 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
     );
   }
 
+  const isCollapsed = Boolean(collapsedGroups[node.id]);
+
   return (
     <React.Fragment>
       <tr
-        onClick={onToggleGroup}
+        onClick={() => onToggleGroup(node.id)}
         className="bg-muted/20 hover:bg-muted/40 border-b border-border/40 transition-colors cursor-pointer select-none"
       >
         <td colSpan={8} className="py-2 px-4 align-middle">
@@ -1676,7 +1678,7 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
             <WorkspaceGroupNode
               key={sub.id}
               node={sub}
-              isCollapsed={false}
+              collapsedGroups={collapsedGroups}
               onToggleGroup={onToggleGroup}
               groupDepth={groupDepth}
               selectedTokenIds={selectedTokenIds}
