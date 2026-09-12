@@ -86,32 +86,6 @@ export const BranchesView: React.FC = () => {
   const [branchToMerge, setBranchToMerge] = useState<string | null>(null);
   const [isMerging, setIsMerging] = useState(false);
 
-  // If a sync provider is active, native branching is disabled
-  if (isGitConfigured) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-background text-foreground">
-        <div className="max-w-md bg-card border border-border p-6 rounded-2xl shadow-xl space-y-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary mx-auto flex items-center justify-center">
-            <GitBranch className="w-6 h-6" />
-          </div>
-          <h2 className="text-base font-bold text-foreground">Sync Provider Active</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            This project is connected to <span className="font-mono font-semibold text-foreground">{credentials.repo}</span> ({credentials.provider}).
-            Branches and token versioning are managed directly through your external sync provider.
-          </p>
-          <div className="pt-2 flex items-center justify-center gap-2">
-            <Button size="sm" onClick={() => setSidebarTab("activity")}>
-              View Git Log
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setSidebarTab("tokens")}>
-              Back to Tokens
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Filtered branches list
   const filteredBranches = useMemo(() => {
     return branches.filter((b) => {
@@ -293,6 +267,32 @@ export const BranchesView: React.FC = () => {
       setIsMerging(false);
     }
   };
+
+  // If a sync provider is active, native branching is disabled (placed after all hooks)
+  if (isGitConfigured) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-background text-foreground">
+        <div className="max-w-md bg-card border border-border p-6 rounded-2xl shadow-xl space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary mx-auto flex items-center justify-center">
+            <GitBranch className="w-6 h-6" />
+          </div>
+          <h2 className="text-base font-bold text-foreground">Sync Provider Active</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This project is connected to <span className="font-mono font-semibold text-foreground">{credentials.repo}</span> ({credentials.provider}).
+            Branches and token versioning are managed directly through your external sync provider.
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <Button size="sm" onClick={() => setSidebarTab("activity")}>
+              View Git Log
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSidebarTab("tokens")}>
+              Back to Tokens
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ==========================================
   // 1. DETAIL VIEW
