@@ -147,6 +147,7 @@ export const App: React.FC = () => {
 
   // Navigation & View State
   const [view, setView] = useState<PluginView>("CONNECT");
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [config, setConfig] = useState<PluginConfig>({
     serverUrl: PRODUCTION_APP_URL,
     pat: "",
@@ -265,11 +266,15 @@ export const App: React.FC = () => {
           }
 
           if (msg.payload.pat) {
-            // Already paired -> fetch orgs and determine view
-            fetchOrgs(loadedServer, msg.payload.pat, msg.payload.orgId, msg.payload.projectId);
+            // Validate & restore session with saved server
+            await fetchOrgs(loadedServer, msg.payload.pat, msg.payload.orgId, msg.payload.projectId);
           } else {
+            setIsRestoringSession(false);
             setView("CONNECT");
           }
+        } else {
+          setIsRestoringSession(false);
+          setView("CONNECT");
         }
       }
 
@@ -326,7 +331,7 @@ export const App: React.FC = () => {
 
   // Poll pairing status every 2 seconds when pairCode is active and user is connecting
   useEffect(() => {
-    if (!pairCode || config.pat || view !== "CONNECT") return;
+    if (!pairCode || view !== "CONNECT") return;
 
     const sUrl = getServerUrl();
     const interval = setInterval(async () => {
@@ -360,15 +365,16 @@ export const App: React.FC = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [pairCode, config.pat, view, config.serverUrl, themeMode, brandColor]);
+  }, [pairCode, view, config.serverUrl, themeMode, brandColor]);
 
   // Handle "CONNECT TO STUDIO" button click
   const handleConnectToStudio = async (customUrl?: string) => {
     setIsConnecting(true);
     setErrorBanner(null);
-    const targetUrl = customUrl ? customUrl.trim() : PRODUCTION_APP_URL;
+    const targetUrl = customUrl ? customUrl.trim() : getServerUrl();
 
-    const updated = { ...config, serverUrl: targetUrl, themeMode, brandColor };
+    // Clear any stale PAT so new connection starts fresh
+    const updated = { ...config, pat: "", serverUrl: targetUrl, themeMode, brandColor };
     setConfig(updated);
     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
 
@@ -430,8 +436,14 @@ export const App: React.FC = () => {
       // Default to Select Organization screen
       setView("SELECT_ORG");
     } catch (err: any) {
-      setErrorBanner(err.message || "Failed to load organizations");
+      console.warn("Could not restore organization list:", err);
+      // Invalidate stale token so user is cleanly disconnected
+      const cleared = { ...config, pat: "", orgId: "", projectId: "" };
+      setConfig(cleared);
+      parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: cleared } }, "*");
       setView("CONNECT");
+    } finally {
+      setIsRestoringSession(false);
     }
   };
 
@@ -707,7 +719,7 @@ export const App: React.FC = () => {
             </>
           )}
 
-          {config.pat && (
+          {view !== "CONNECT" && config.pat && (
             <DropdownMenuItem
               onClick={handleLogout}
               className="text-xs text-rose-500 hover:text-rose-400 cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-rose-500/10"
@@ -824,15 +836,32 @@ export const App: React.FC = () => {
   };
 
   // --------------------------------------------------------------------------
+  // INITIAL LOADING: Session restoration check
+  // --------------------------------------------------------------------------
+  if (isRestoringSession) {
+    return (
+      <div
+        style={dynamicCssVars}
+        className="flex flex-col items-center justify-center h-screen w-full bg-background text-foreground font-sans select-none space-y-3"
+      >
+        <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground font-medium">Connecting to Tokens Platform...</span>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
   // RENDER: SCREEN 1 - CONNECT (Minimalist, Focused, Frictionless)
   // --------------------------------------------------------------------------
   if (view === "CONNECT") {
+    const isLocalServer = config.serverUrl.includes("localhost");
+
     return (
       <div
         style={dynamicCssVars}
         className="flex flex-col h-screen w-full bg-background text-foreground font-sans select-none overflow-y-auto"
       >
-        {/* Top Header Bar */}
+        {/* Top Header Bar (Clean, no contradictory Disconnect button) */}
         <div className="h-11 px-4 border-b border-border/80 flex items-center justify-between bg-card/60 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div
@@ -843,7 +872,33 @@ export const App: React.FC = () => {
             </div>
             <span className="text-xs font-semibold text-foreground tracking-tight">Tokens Platform</span>
           </div>
-          {renderHeaderActions(false)}
+
+          <div className="flex items-center gap-1">
+            {/* Theme Toggle */}
+            <button
+              onClick={() => {
+                const next = themeMode === "dark" ? "light" : "dark";
+                saveThemePreferences(next, brandColor);
+              }}
+              title={`Switch to ${themeMode === "dark" ? "Light" : "Dark"} mode`}
+              className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              {themeMode === "dark" ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Moon className="w-3.5 h-3.5 text-indigo-500" />
+              )}
+            </button>
+
+            {/* Brand Color Picker */}
+            <button
+              onClick={() => setIsBrandModalOpen(true)}
+              title="Customize Brand Color"
+              className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <Palette className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Error Banner */}
@@ -928,15 +983,35 @@ export const App: React.FC = () => {
                 )}
               </Button>
             )}
+
+            {/* Quick target server indicator & switch */}
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+              <span>Target:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextUrl = isLocalServer ? PRODUCTION_APP_URL : "http://localhost:3000";
+                  const updated = { ...config, serverUrl: nextUrl };
+                  setConfig(updated);
+                  setCustomServerInput(nextUrl);
+                  parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+                }}
+                className="text-primary font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                title="Click to switch between Cloud and Localhost dev server"
+              >
+                <span>{isLocalServer ? "Localhost (3000)" : "Cloud Production"}</span>
+                <span className="text-[10px] text-muted-foreground hover:text-foreground">⇄ switch</span>
+              </button>
+            </div>
           </div>
 
           {/* Developer / Custom Link Drawer */}
-          <div className="w-full pt-2">
+          <div className="w-full pt-1">
             <button
               onClick={() => setShowCustomLink(!showCustomLink)}
               className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
             >
-              {showCustomLink ? "Hide custom server" : "Developer: Connect to custom link →"}
+              {showCustomLink ? "Hide custom endpoint" : "Custom endpoint URL →"}
             </button>
 
             {showCustomLink && (
@@ -952,9 +1027,9 @@ export const App: React.FC = () => {
                   <Button
                     size="sm"
                     onClick={() => handleConnectToStudio(customServerInput)}
-                    className="h-8 text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground border border-border px-3 rounded-lg"
+                    className="h-8 text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground border border-border px-3 rounded-lg cursor-pointer"
                   >
-                    Connect
+                    Save
                   </Button>
                 </div>
               </div>
