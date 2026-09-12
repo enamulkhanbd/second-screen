@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { FlattenedToken, TokenType } from "@/types/tokens";
 import {
@@ -64,6 +64,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
     figmaVariables,
     figmaResolvedVariables,
     figmaUpdatedAt,
+    setFigmaVariables,
     desyncFigmaVariablesAction,
     deleteFigmaVariableAction,
     deleteFigmaCollectionAction,
@@ -77,6 +78,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [viewLayout, setViewLayout] = useState<"grid" | "table">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // De-sync confirmation modal
   const [isDesyncModalOpen, setIsDesyncModalOpen] = useState(false);
@@ -89,6 +91,30 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   // Delete collection modal
   const [collectionToDelete, setCollectionToDelete] = useState<string | null>(null);
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
+
+  // Auto-fetch fresh Figma variables on mount or project switch
+  const fetchVariables = async () => {
+    if (!currentOrg?.id || !currentProject?.id) return;
+    setIsRefreshing(true);
+    try {
+      const res = await fetch(
+        `/api/v1/tokens?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`,
+        { headers: { "x-internal-client": "tokens-platform" } }
+      );
+      const data = await res.json();
+      if (data.success && data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
+        setFigmaVariables(data.figmaVariables, data.metadata);
+      }
+    } catch (e) {
+      console.warn("Could not fetch fresh figma variables:", e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVariables();
+  }, [currentOrg?.id, currentProject?.id]);
 
   // Extract all Figma collection set names
   const collections = useMemo(() => {
@@ -272,6 +298,17 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               </Button>
             </>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchVariables}
+            disabled={isRefreshing}
+            className="h-8 text-xs gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </Button>
 
           <Button
             size="sm"

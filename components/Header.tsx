@@ -636,8 +636,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                 }}
                 disabled={isPulling}
                 className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${hasRemoteChanges
-                    ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
-                    : ""
+                  ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
+                  : ""
                   }`}
                 title={
                   hasRemoteChanges
@@ -672,17 +672,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             onClick={() => setShowPushModal(true)}
             disabled={!isDirty || isPushing || !canUserEdit()}
             className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty || !canUserEdit()
-                ? "opacity-50 cursor-not-allowed"
-                : "cursor-pointer"
+              ? "opacity-50 cursor-not-allowed"
+              : "cursor-pointer"
               }`}
             title={
               !canUserEdit()
                 ? "Viewer role cannot commit changes"
                 : isDirty
-                ? isGitConfigured
-                  ? `Review diff and push changes directly to ${credentials.branch || activeBranch}`
-                  : `Review diff and commit changes to branch "${activeBranch}"`
-                : "No local changes to commit"
+                  ? isGitConfigured
+                    ? `Review diff and push changes directly to ${credentials.branch || activeBranch}`
+                    : `Review diff and commit changes to branch "${activeBranch}"`
+                  : "No local changes to commit"
             }
           >
             {isGitConfigured ? (
@@ -769,11 +769,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                                   handlePullForBranch(b);
                                   setShowBranchMenu(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${
-                                  isCurrent
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
                                     ? "bg-primary/10 text-primary font-semibold"
                                     : "text-foreground hover:bg-muted"
-                                }`}
+                                  }`}
                               >
                                 <span className="truncate">{b}</span>
                                 {isCurrent && (
@@ -841,17 +840,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                                   await switchBranchAction(b.name);
                                   setShowBranchMenu(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${
-                                  isCurrent
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
                                     ? "bg-primary/10 text-primary font-semibold"
                                     : "text-foreground hover:bg-muted"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <GitBranch
-                                    className={`w-3 h-3 flex-shrink-0 ${
-                                      isCurrent ? "text-primary" : "text-muted-foreground"
-                                    }`}
+                                    className={`w-3 h-3 flex-shrink-0 ${isCurrent ? "text-primary" : "text-muted-foreground"
+                                      }`}
                                   />
                                   <span className="truncate">{b.name}</span>
                                   {b.isDefault && (
@@ -1127,8 +1124,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                       ? "Pushing..."
                       : "Committing..."
                     : isGitConfigured
-                    ? "Confirm & Push"
-                    : "Confirm & Commit"}
+                      ? "Confirm & Push"
+                      : "Confirm & Commit"}
                 </span>
               </Button>
             </div>

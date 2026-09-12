@@ -883,7 +883,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const docToUse =
         proj.documentation || createEmptyDocumentation();
 
+      const rawFigmaVars = proj.figmaVariables || null;
+      const resolvedFigmaVars =
+        rawFigmaVars && Object.keys(rawFigmaVars).length > 0
+          ? flattenAndResolveTokens(rawFigmaVars, "ALL")
+          : [];
+
       set({
+        figmaVariables: rawFigmaVars,
+        figmaResolvedVariables: resolvedFigmaVars,
+        figmaUpdatedAt: proj.figmaUpdatedAt || null,
+        figmaMeta: proj.figmaMeta || null,
         assets: proj.assets || [],
         assetGitConfig: proj.assetGitConfig || null,
         assetFigmaConfig: normalizedFigmaConfig,

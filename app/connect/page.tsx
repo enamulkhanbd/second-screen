@@ -138,17 +138,17 @@ function ConnectPageContent() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100 flex flex-col justify-between select-none">
-      {/* Top Simple Header */}
-      <header className="h-14 px-6 border-b border-border flex items-center justify-between">
+    <div className="min-h-screen w-full bg-[#0a0a0e] text-zinc-100 flex flex-col justify-between select-none">
+      {/* Top Header */}
+      <header className="h-14 px-6 border-b border-zinc-800/80 flex items-center justify-between">
         <div
           onClick={() => router.push("/")}
-          className="flex items-center gap-2 cursor-pointer group"
+          className="flex items-center gap-2.5 cursor-pointer group"
         >
-          <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-sm group-hover:opacity-90 transition-opacity">
+          <div className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center shadow-xs group-hover:bg-indigo-500 transition-colors">
             <Layers className="w-3.5 h-3.5" />
           </div>
-          <span className="font-bold text-sm tracking-tight group-hover:text-primary transition-colors">
+          <span className="font-semibold text-sm tracking-tight text-zinc-200 group-hover:text-white transition-colors">
             Tokens Platform
           </span>
         </div>
@@ -156,8 +156,8 @@ function ConnectPageContent() {
         <div>
           {currentUser ? (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Signed in as</span>
-              <span className="font-semibold text-foreground">
+              <span className="text-zinc-400">Signed in as</span>
+              <span className="font-medium text-zinc-200">
                 {currentUser.displayName || currentUser.email}
               </span>
             </div>
@@ -166,7 +166,7 @@ function ConnectPageContent() {
               variant="outline"
               size="sm"
               onClick={() => setIsAuthOpen(true)}
-              className="text-xs gap-1.5"
+              className="text-xs gap-1.5 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Sign In</span>
@@ -177,252 +177,131 @@ function ConnectPageContent() {
 
       {/* Main Center Card */}
       <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-6">
+        <div className="w-full max-w-[420px]">
           {status === "success" ? (
-            <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-xl text-center p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7" />
+            <Card className="border-zinc-800 bg-[#121217] shadow-2xl p-8 space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mx-auto flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
 
-              <div className="space-y-1">
-                <CardTitle className="text-xl font-bold text-foreground">
-                  Figma Plugin Connected!
+              <div className="space-y-1.5">
+                <CardTitle className="text-xl font-bold text-white tracking-tight">
+                  Device Connected!
                 </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Your companion plugin is now linked to{" "}
-                  <strong className="text-foreground">
-                    {activeOrg?.name || "Workspace"}{activeProj?.name ? ` / ${activeProj.name}` : ""}
-                  </strong>
-                  .
+                <CardDescription className="text-sm text-zinc-400">
+                  You can close this window and return to your plugin.
                 </CardDescription>
               </div>
 
-              <div className="p-3 rounded-lg bg-background/80 border border-border text-xs text-left space-y-1">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Pairing Code:</span>
-                  <span className="font-mono font-bold text-foreground">{code}</span>
+              <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-left space-y-2">
+                <div className="flex justify-between text-zinc-400">
+                  <span>Device Code:</span>
+                  <span className="font-mono font-bold text-zinc-100">{code}</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Authorized By:</span>
-                  <span className="font-semibold text-foreground">
-                    {currentUser?.displayName || currentUser?.email || "Authenticated User"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Target Workspace:</span>
-                  <span className="font-semibold text-foreground">
-                    {activeOrg?.name || "Workspace"}{activeProj?.name ? ` / ${activeProj.name}` : ""}
+                <div className="flex justify-between text-zinc-400">
+                  <span>Authorized Account:</span>
+                  <span className="font-medium text-zinc-200">
+                    {currentUser?.displayName || currentUser?.email || "Signed In User"}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                You can now switch back to Figma — the plugin has unlocked automatically.
-              </p>
-
-              <div className="pt-2 flex gap-2">
-                <Button
-                  onClick={() => router.push("/")}
-                  className="w-full text-xs font-semibold gap-1.5"
-                >
-                  <span>Go to Platform Dashboard</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/")}
+                className="w-full text-xs font-semibold h-10 border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+              >
+                Go to Dashboard
+              </Button>
             </Card>
           ) : !currentUser ? (
-            /* AUTHENTICATION GUARD CARD (WHEN NOT SIGNED IN) */
-            <Card className="border-border shadow-xl">
-              <CardHeader className="space-y-2 text-center pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center shadow-xs">
-                  <Lock className="w-6 h-6" />
-                </div>
-                <div>
-                  <Badge variant="outline" className="gap-1 px-2.5 py-0.5 text-[10px] mb-1.5 border-amber-500/30 text-amber-600 dark:text-amber-400">
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>Sign In Required</span>
-                  </Badge>
-                  <CardTitle className="text-xl font-bold text-foreground">
-                    Sign in to Connect Plugin
-                  </CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground mt-1">
-                    You must be signed in to Tokens Platform to authorize companion plugins and sync tokens with your cloud workspace.
-                  </CardDescription>
-                </div>
-              </CardHeader>
+            <Card className="border-zinc-800 bg-[#121217] shadow-2xl p-6 space-y-5">
+              <div className="text-left space-y-1">
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  Connect your plugin
+                </h1>
+                <p className="text-xs text-zinc-400">
+                  Enter the code from your Figma plugin or CLI tool to authorize access.
+                </p>
+              </div>
 
-              <CardContent className="space-y-3">
+              <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 text-center">
+                <span className="text-[11px] font-medium text-zinc-400 block">
+                  Sign in required to link this device
+                </span>
                 {code && (
-                  <div className="p-3 rounded-xl bg-muted/60 border border-border text-center space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                      Pairing Request Code
-                    </span>
-                    <div className="font-mono text-xl font-black tracking-widest text-primary">
-                      {code}
-                    </div>
+                  <div className="font-mono text-lg font-bold tracking-widest text-indigo-400">
+                    {code}
                   </div>
                 )}
+              </div>
 
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground space-y-1">
-                  <div className="flex items-center gap-1.5 font-semibold text-foreground">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    <span>Why do I need to sign in?</span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed">
-                    Signing in ensures your design tokens, variables, and repositories are securely saved and accessible only by you and your team.
-                  </p>
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex flex-col gap-2 pt-2 border-t border-border">
-                <Button
-                  onClick={() => setIsAuthOpen(true)}
-                  className="w-full text-xs font-bold h-10 shadow-md gap-2"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Sign In / Sign Up to Continue</span>
-                </Button>
-              </CardFooter>
+              <Button
+                onClick={() => setIsAuthOpen(true)}
+                className="w-full text-xs font-semibold h-10 bg-indigo-600 hover:bg-indigo-500 text-white shadow-md gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign In to Continue</span>
+              </Button>
             </Card>
           ) : (
-            /* AUTHORIZE CARD (WHEN SIGNED IN) */
-            <Card className="border-border shadow-xl">
-              <CardHeader className="space-y-2 text-center pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center shadow-xs">
-                  <Globe className="w-6 h-6" />
-                </div>
-                <div>
-                  <Badge variant="violet" className="gap-1 px-2.5 py-0.5 text-[10px] mb-1.5">
-                    <Sparkles className="w-3 h-3" />
-                    <span>Figma Plugin Quick Connect</span>
-                  </Badge>
-                  <CardTitle className="text-xl font-bold text-foreground">
-                    Authorize Figma Companion
-                  </CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground mt-1">
-                    Authorize the Figma desktop plugin to sync tokens and variables with your workspace.
-                  </CardDescription>
-                </div>
-              </CardHeader>
+            <Card className="border-zinc-800 bg-[#121217] shadow-2xl p-7 space-y-6">
+              <div className="text-left space-y-1.5">
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  Connect your plugin
+                </h1>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Enter the code from your Figma plugin or CLI tool to authorize access.
+                </p>
+              </div>
 
-              <CardContent className="space-y-4">
-                {/* User Account Info Bar */}
-                <div className="p-2.5 rounded-lg bg-muted/60 border border-border text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                      {(currentUser.displayName || currentUser.email || "U").charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-foreground text-xs leading-tight">
-                        {currentUser.displayName || currentUser.email}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">Connected Account</div>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-                    <UserCheck className="w-2.5 h-2.5 mr-1" />
-                    <span>Authenticated</span>
-                  </Badge>
-                </div>
-
-                {/* Pairing Code Field */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="pair-code" className="text-xs font-semibold">
-                    6-Digit Pairing Code
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="device-code" className="text-xs font-semibold text-zinc-300">
+                    Device Code <span className="text-rose-500">*</span>
                   </Label>
                   <Input
-                    id="pair-code"
+                    id="device-code"
                     type="text"
-                    placeholder="e.g. TK-8492"
+                    placeholder="XXXX-XXXX"
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    className="font-mono text-center tracking-widest text-lg font-extrabold h-11 uppercase"
-                    maxLength={10}
+                    className="font-mono text-sm tracking-wider h-11 bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-indigo-500"
+                    maxLength={14}
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Enter the pairing code displayed in your Tokens Platform Figma plugin.
-                  </p>
                 </div>
 
-                {/* Target Organization and Project */}
-                {userOrgs.length > 0 && (
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Organization</Label>
-                      <Select
-                        value={selectedOrgId}
-                        onValueChange={(val) => setSelectedOrgId(val)}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select org" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {userOrgs.map((o) => (
-                            <SelectItem key={o.id} value={o.id}>
-                              {o.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Project</Label>
-                      <Select
-                        value={selectedProjId}
-                        onValueChange={(val) => setSelectedProjId(val)}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select project" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {orgProjects.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-
-                {/* Status / Error Message */}
+                {/* Status / Error Alert */}
                 {status === "error" && errorMessage && (
-                  <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs flex items-center gap-2">
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
-              </CardContent>
 
-              <CardFooter className="flex flex-col gap-2 pt-2 border-t border-border">
                 <Button
                   onClick={handleAuthorize}
                   disabled={loading || !code.trim()}
-                  className="w-full text-xs font-bold h-10 shadow-md gap-2"
+                  className="w-full text-xs font-semibold h-11 bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-colors"
                 >
                   {loading ? (
-                    <>
+                    <div className="flex items-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Authorizing Companion Plugin...</span>
-                    </>
+                      <span>Connecting...</span>
+                    </div>
                   ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Authorize &amp; Connect Plugin</span>
-                    </>
+                    "Connect Device"
                   )}
                 </Button>
-              </CardFooter>
+              </div>
             </Card>
           )}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-muted-foreground border-t border-border">
-        Tokens Platform Cloud &copy; 2026. Secure DTCG Token Orchestration.
+      <footer className="py-4 text-center text-xs text-zinc-500 border-t border-zinc-900">
+        Tokens Platform &copy; 2026. Design Token System.
       </footer>
 
       {/* Auth Modal */}
@@ -430,7 +309,7 @@ function ConnectPageContent() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         title="Sign In to Connect Plugin"
-        subtitle="Sign in with your Google account to pair your Figma plugin to your workspace."
+        subtitle="Sign in with your Google account to authorize your Figma companion plugin."
       />
     </div>
   );

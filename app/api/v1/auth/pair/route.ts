@@ -46,11 +46,13 @@ function getRequestOrigin(req: NextRequest): string {
 
 function generatePairingCode(): string {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let code = "TK-";
+  let p1 = "";
+  let p2 = "";
   for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    p1 += chars.charAt(Math.floor(Math.random() * chars.length));
+    p2 += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return code;
+  return `${p1}-${p2}`;
 }
 
 export async function OPTIONS() {
@@ -132,7 +134,7 @@ export async function GET(req: NextRequest) {
     if (isFirebaseConfigured && db) {
       try {
         await deleteDoc(doc(db, "pairing_sessions", code));
-      } catch {}
+      } catch { }
     }
     return jsonWithCors({
       status: "expired",
@@ -181,7 +183,7 @@ export async function PUT(req: NextRequest) {
         if (snap.exists()) {
           session = snap.data() as PairingSession;
         }
-      } catch {}
+      } catch { }
     }
 
     if (!session) {
@@ -202,7 +204,7 @@ export async function PUT(req: NextRequest) {
       try {
         const org = await getOrganization(orgId);
         if (org?.name) resolvedOrgName = org.name;
-      } catch {}
+      } catch { }
     }
 
     if (orgId && projectId && !resolvedProjName) {
@@ -210,7 +212,7 @@ export async function PUT(req: NextRequest) {
         const projs = await getOrgProjects(orgId);
         const proj = projs.find((p) => p.id === projectId);
         if (proj?.name) resolvedProjName = proj.name;
-      } catch {}
+      } catch { }
     }
 
     // Generate valid PAT record and persist it into cloud API keys store

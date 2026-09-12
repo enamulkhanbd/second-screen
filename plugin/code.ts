@@ -139,7 +139,7 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
 
   // 3. PULL TOKENS TO FIGMA
   if (msg.type === "PULL_TOKENS_TO_FIGMA") {
-    const { rawTokens, resolvedTokens, themeGroups, options } = msg.payload;
+    const { rawTokens, resolvedTokens, themeGroups, options, selectedModes } = msg.payload;
 
     try {
       figma.ui.postMessage({ type: "LOG", payload: `Processing ${resolvedTokens.length} design tokens...` });
@@ -226,6 +226,10 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
 
             // Populate variables for each theme option into its corresponding mode
             for (const opt of grp.options) {
+              const modeKey = `${grp.name}::${opt.name}`;
+              if (selectedModes && selectedModes[modeKey] === false) {
+                continue;
+              }
               const targetModeId = modeMap[opt.name] || collection.defaultModeId;
               const selectedSets = opt.selectedTokenSets || {};
 

@@ -5,6 +5,7 @@ import { extractThemeGroups, getThemesArray, getMetadataObject } from "@/utils/t
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import {
   getOrgProjects,
+  getUserOrganizations,
   saveProjectTokens,
   saveProjectFigmaVariables,
   saveProjectBranches,
@@ -79,7 +80,96 @@ export async function GET(req: NextRequest) {
         const projects = await getOrgProjects(orgId);
         const proj = projects.find((p) => p.id === projectId);
         if (proj) {
-          if (proj.branches && proj.branches.length > 0) {
+          // 1. If Git is configured on this project, resolve branches from Git repository
+          if (proj.gitConfig && proj.gitConfig.pat && proj.gitConfig.owner && proj.gitConfig.repo) {
+            const gitBranch = proj.gitConfig.branch || "main";
+            currentBranchName = requestedBranch || gitBranch;
+
+            try {
+              const { provider, owner, repo, pat, project: azProject } = proj.gitConfig;
+
+              if (provider === "github") {
+                const res = await fetch(
+                  `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${pat}`,
+                      Accept: "application/vnd.github.v3+json",
+                      "User-Agent": "TokensPlatform-Cloud/1.0",
+                    },
+                    signal: AbortSignal.timeout(6000),
+                  }
+                );
+                if (res.ok) {
+                  const data: Array<{ name: string }> = await res.json();
+                  if (Array.isArray(data) && data.length > 0) {
+                    availableBranches = data.map((b) => ({
+                      name: b.name,
+                      title: b.name,
+                      isDefault: b.name === gitBranch,
+                    }));
+                  }
+                }
+              } else if (provider === "azure") {
+                const azOrg = encodeURIComponent(owner);
+                const azProj = encodeURIComponent(azProject || owner);
+                const azRepo = encodeURIComponent(repo);
+                const basicAuth = Buffer.from(`:${pat}`).toString("base64");
+                const res = await fetch(
+                  `https://dev.azure.com/${azOrg}/${azProj}/_apis/git/repositories/${azRepo}/refs?filter=heads/&api-version=7.0`,
+                  {
+                    headers: {
+                      Authorization: `Basic ${basicAuth}`,
+                      Accept: "application/json",
+                    },
+                    signal: AbortSignal.timeout(6000),
+                  }
+                );
+                if (res.ok) {
+                  const data = await res.json();
+                  const allRefs: Array<{ name: string }> = Array.isArray(data.value) ? data.value : [];
+                  if (allRefs.length > 0) {
+                    availableBranches = allRefs.map((r) => {
+                      const name = r.name.replace(/^refs\/heads\//i, "");
+                      return {
+                        name,
+                        title: name,
+                        isDefault: name === gitBranch,
+                      };
+                    });
+                  }
+                }
+              } else if (provider === "gitlab") {
+                const projectIdEncoded = encodeURIComponent(`${owner}/${repo}`);
+                const res = await fetch(
+                  `https://gitlab.com/api/v4/projects/${projectIdEncoded}/repository/branches?per_page=100`,
+                  {
+                    headers: { "PRIVATE-TOKEN": pat },
+                    signal: AbortSignal.timeout(6000),
+                  }
+                );
+                if (res.ok) {
+                  const data: Array<{ name: string }> = await res.json();
+                  if (Array.isArray(data) && data.length > 0) {
+                    availableBranches = data.map((b) => ({
+                      name: b.name,
+                      title: b.name,
+                      isDefault: b.name === gitBranch,
+                    }));
+                  }
+                }
+              }
+            } catch (gitErr) {
+              console.warn("Could not fetch remote Git branches:", gitErr);
+            }
+
+            if (availableBranches.length === 0) {
+              availableBranches = [{ name: gitBranch, title: gitBranch, isDefault: true }];
+            }
+          }
+
+          // 2. Otherwise, fall back to System's internal project branches
+          if (availableBranches.length === 0 && proj.branches && proj.branches.length > 0) {
             availableBranches = proj.branches.map((b) => ({
               name: b.name,
               title: b.title,
@@ -177,8 +267,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const orgId = requestedOrgId || tokenOrgId;
-    const projectId = requestedProjId || tokenProjId;
+    let orgId = requestedOrgId || tokenOrgId;
+    let projectId = requestedProjId || tokenProjId;
+
+    // Fallback: If orgId or projectId is missing, resolve from user's accessible organizations
+    if ((!orgId || !projectId) && auth.record.uid) {
+      try {
+        const userOrgs = await getUserOrganizations(auth.record.uid, auth.record.userEmail);
+        if (userOrgs.length > 0) {
+          const firstOrg = userOrgs.find((o: any) => o.id === orgId) || userOrgs[0];
+          orgId = firstOrg.id;
+          const projs = await getOrgProjects(firstOrg.id);
+          if (projs.length > 0) {
+            const firstProj = projs.find((p: any) => p.id === projectId) || projs[0];
+            projectId = firstProj.id;
+          }
+        }
+      } catch (resolveErr) {
+        console.warn("Could not auto-resolve org/project in POST /api/v1/tokens:", resolveErr);
+      }
+    }
+
+    if (!orgId || !projectId) {
+      return jsonWithCors(
+        {
+          success: false,
+          error: "Missing required 'orgId' and 'projectId' parameters. Please specify which workspace to push to.",
+        },
+        { status: 400 }
+      );
+    }
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -248,7 +366,12 @@ export async function POST(req: NextRequest) {
 
     if (orgId && projectId) {
       try {
-        // Save only if changes exist or during initial import
+        // ALWAYS persist Figma variables when push originates from Figma Plugin!
+        if (isFromFigma && rawDoc && Object.keys(rawDoc).length > 0) {
+          await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
+        }
+
+        // Save tokens only if changes exist or during initial import
         if (diff.hasChanges || !hasExistingTokens) {
           if (projectBranches.length > 0) {
             let branch = projectBranches.find((b) => b.name === targetBranchName);
@@ -309,10 +432,6 @@ export async function POST(req: NextRequest) {
           // Always maintain project rawTokens for default/main compatibility
           if (targetBranchName === "main" || !projectBranches.length) {
             await saveProjectTokens(orgId, projectId, mergedDoc);
-          }
-
-          if (isFromFigma) {
-            await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
           }
         }
       } catch (err) {
