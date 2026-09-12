@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Download,
   Upload,
@@ -14,8 +14,6 @@ import {
   Check,
   Search,
   ExternalLink,
-  ShieldCheck,
-  Radio,
   Server,
   AlertTriangle,
   AlertCircle,
@@ -26,6 +24,8 @@ import {
   LogOut,
   Palette,
   CheckCircle2,
+  Link2,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,7 @@ export const PRODUCTION_APP_URL = "https://tokensplatform.enamulkhan.com";
 interface Project {
   id: string;
   name: string;
+  color?: string;
   description?: string;
   rawTokens?: Record<string, any>;
   themeGroups?: any[];
@@ -61,6 +62,7 @@ interface Project {
 interface Org {
   id: string;
   name: string;
+  color?: string;
   projects: Project[];
 }
 
@@ -72,6 +74,8 @@ interface PluginConfig {
   createVariables: boolean;
   createStyles: boolean;
   createPaintStyles: boolean;
+  themeMode?: "light" | "dark";
+  brandColor?: string;
 }
 
 interface TokenItem {
@@ -84,7 +88,63 @@ interface TokenItem {
 
 type PluginView = "CONNECT" | "SELECT_ORG" | "SELECT_PROJECT" | "MAIN";
 
+// Preset brand colors for dynamic theme accent
+const BRAND_PRESETS = [
+  { name: "Indigo", hex: "#6366f1" },
+  { name: "Violet", hex: "#8b5cf6" },
+  { name: "Blue", hex: "#3b82f6" },
+  { name: "Cyan", hex: "#06b6d4" },
+  { name: "Emerald", hex: "#10b981" },
+  { name: "Amber", hex: "#f59e0b" },
+  { name: "Rose", hex: "#f43f5e" },
+  { name: "Fuchsia", hex: "#d946ef" },
+];
+
+/**
+ * Convert Hex color string to HSL values for Tailwind CSS variable injection
+ */
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  let c = hex.replace(/^#/, "");
+  if (c.length === 3) c = c.split("").map((x) => x + x).join("");
+  if (c.length !== 6) return { h: 263.4, s: 70, l: 50.4 };
+  const num = parseInt(c, 16);
+  const r = (num >> 16) / 255;
+  const g = ((num >> 8) & 255) / 255;
+  const b = (num & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        break;
+      case g:
+        h = ((b - r) / d + 2) / 6;
+        break;
+      case b:
+        h = ((r - g) / d + 4) / 6;
+        break;
+    }
+  }
+  return {
+    h: Math.round(h * 360 * 10) / 10,
+    s: Math.round(s * 100 * 10) / 10,
+    l: Math.round(l * 100 * 10) / 10,
+  };
+}
+
 export const App: React.FC = () => {
+  // Theme & Brand Color State
+  const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
+  const [brandColor, setBrandColor] = useState<string>("#6366f1");
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState<boolean>(false);
+  const [customHexInput, setCustomHexInput] = useState<string>("#6366f1");
+
   // Navigation & View State
   const [view, setView] = useState<PluginView>("CONNECT");
   const [config, setConfig] = useState<PluginConfig>({
@@ -113,10 +173,14 @@ export const App: React.FC = () => {
   // Tokens & Main Studio View State
   const [tokens, setTokens] = useState<TokenItem[]>([]);
   const [themeGroups, setThemeGroups] = useState<any[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<string>("All Collections");
+  const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedBranch, setSelectedBranch] = useState<string>("main");
   const [availableBranches, setAvailableBranches] = useState<string[]>(["main"]);
   const [isFetchingTokens, setIsFetchingTokens] = useState(false);
+
+  // Copy toast feedback
+  const [copiedTokenName, setCopiedTokenName] = useState<string | null>(null);
 
   // Modals & Banners State
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -130,6 +194,27 @@ export const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
 
+  // Sync themeMode class to <html> / <body>
+  useEffect(() => {
+    const root = document.documentElement;
+    if (themeMode === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }, [themeMode]);
+
+  // Dynamic CSS variables computation for Brand Color
+  const dynamicCssVars = useMemo(() => {
+    const hsl = hexToHsl(brandColor);
+    const isLightText = hsl.l <= 65;
+    return {
+      "--primary": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
+      "--ring": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
+      "--primary-foreground": isLightText ? "210 20% 98%" : "224 71.4% 4.1%",
+    } as React.CSSProperties;
+  }, [brandColor]);
+
   const getServerUrl = (cfgUrl?: string) => {
     let url = (cfgUrl || config.serverUrl || PRODUCTION_APP_URL).trim();
     if (!url) url = PRODUCTION_APP_URL;
@@ -139,7 +224,7 @@ export const App: React.FC = () => {
   /**
    * Safe clipboard copy for Figma sandboxed environment
    */
-  const copyToClipboard = (text: string, label: string = "Code") => {
+  const copyToClipboard = (text: string, label: string = "Value") => {
     try {
       const el = document.createElement("textarea");
       el.value = text;
@@ -150,11 +235,11 @@ export const App: React.FC = () => {
       el.select();
       document.execCommand("copy");
       document.body.removeChild(el);
-    } catch { }
+    } catch {}
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => { });
+      navigator.clipboard.writeText(text).catch(() => {});
     }
-    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `✓ Copied ${label} (${text})` } }, "*");
+    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `✓ Copied ${label}` } }, "*");
   };
 
   // 1. Initial configuration load from Figma clientStorage
@@ -170,6 +255,14 @@ export const App: React.FC = () => {
           const loadedServer = msg.payload.serverUrl || PRODUCTION_APP_URL;
           const updated = { ...config, ...msg.payload, serverUrl: loadedServer };
           setConfig(updated);
+
+          if (msg.payload.themeMode) {
+            setThemeMode(msg.payload.themeMode);
+          }
+          if (msg.payload.brandColor) {
+            setBrandColor(msg.payload.brandColor);
+            setCustomHexInput(msg.payload.brandColor);
+          }
 
           if (msg.payload.pat) {
             // Already paired -> fetch orgs and determine view
@@ -249,12 +342,13 @@ export const App: React.FC = () => {
             ...config,
             pat,
             serverUrl,
+            themeMode,
+            brandColor,
           };
           setConfig(updatedConfig);
           parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
 
           setIsConnecting(false);
-          // Transition to Tenancy selection
           await fetchOrgs(serverUrl, pat);
           clearInterval(interval);
         } else if (data.status === "expired") {
@@ -266,7 +360,7 @@ export const App: React.FC = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [pairCode, config.pat, view, config.serverUrl]);
+  }, [pairCode, config.pat, view, config.serverUrl, themeMode, brandColor]);
 
   // Handle "CONNECT TO STUDIO" button click
   const handleConnectToStudio = async (customUrl?: string) => {
@@ -274,8 +368,7 @@ export const App: React.FC = () => {
     setErrorBanner(null);
     const targetUrl = customUrl ? customUrl.trim() : PRODUCTION_APP_URL;
 
-    // Update config server
-    const updated = { ...config, serverUrl: targetUrl };
+    const updated = { ...config, serverUrl: targetUrl, themeMode, brandColor };
     setConfig(updated);
     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
 
@@ -319,9 +412,15 @@ export const App: React.FC = () => {
       const matchedOrg = orgList.find((o) => o.id === (targetOrgId || config.orgId));
       if (matchedOrg) {
         setSelectedOrg(matchedOrg);
+        if (matchedOrg.color && !config.brandColor) {
+          setBrandColor(matchedOrg.color);
+        }
         const matchedProj = matchedOrg.projects?.find((p) => p.id === (targetProjId || config.projectId));
         if (matchedProj) {
           setSelectedProject(matchedProj);
+          if (matchedProj.color) {
+            setBrandColor(matchedProj.color);
+          }
           fetchTokens(sUrl, pat, matchedOrg.id, matchedProj.id);
           setView("MAIN");
           return;
@@ -439,7 +538,6 @@ export const App: React.FC = () => {
           },
           "*"
         );
-        // Refresh tokens in view
         fetchTokens();
       } else {
         throw new Error(data.error || "Failed to push tokens to Studio");
@@ -496,77 +594,301 @@ export const App: React.FC = () => {
     parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: "Logged out from Tokens Platform" } }, "*");
   };
 
-  // Distinct collections for dropdown filter
-  const collectionList = useMemo(() => {
-    const set = new Set<string>();
+  // Distinct collections with token counts
+  const collectionStats = useMemo(() => {
+    const map = new Map<string, number>();
     tokens.forEach((t) => {
-      if (t.setName) set.add(t.setName);
+      const sName = t.setName || "default";
+      map.set(sName, (map.get(sName) || 0) + 1);
     });
-    return ["All Collections", ...Array.from(set)];
+    return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
   }, [tokens]);
 
+  // Filtered tokens based on collection & search query
   const filteredTokens = useMemo(() => {
-    if (selectedCollection === "All Collections") return tokens;
-    return tokens.filter((t) => t.setName === selectedCollection);
-  }, [tokens, selectedCollection]);
+    let list = tokens;
+    if (selectedCollection !== "ALL") {
+      list = list.filter((t) => t.setName === selectedCollection);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          String(t.rawValue ?? "").toLowerCase().includes(q) ||
+          String(t.resolvedValue ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [tokens, selectedCollection, searchQuery]);
+
+  // Helper to persist theme & brand color changes
+  const saveThemePreferences = (newTheme: "light" | "dark", newBrand: string) => {
+    setThemeMode(newTheme);
+    setBrandColor(newBrand);
+    const updated = { ...config, themeMode: newTheme, brandColor: newBrand };
+    setConfig(updated);
+    parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+  };
 
   // --------------------------------------------------------------------------
-  // RENDER: SCREEN 1 - CONNECT (Studio or Custom Link)
+  // SHARED HEADER CONTROLS (Theme Mode Sun/Moon & Settings)
+  // --------------------------------------------------------------------------
+  const renderHeaderActions = (showProjectActions: boolean = true) => (
+    <div className="flex items-center gap-1">
+      {/* Theme Toggle (Light / Dark) */}
+      <button
+        onClick={() => {
+          const next = themeMode === "dark" ? "light" : "dark";
+          saveThemePreferences(next, brandColor);
+        }}
+        title={`Switch to ${themeMode === "dark" ? "Light" : "Dark"} mode`}
+        className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+      >
+        {themeMode === "dark" ? (
+          <Sun className="w-3.5 h-3.5 text-amber-400" />
+        ) : (
+          <Moon className="w-3.5 h-3.5 text-indigo-500" />
+        )}
+      </button>
+
+      {/* Settings Dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            title="Plugin Settings & Theme"
+            className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52 bg-card border-border text-foreground shadow-xl p-1 font-sans">
+          <DropdownMenuItem
+            onClick={() => setIsBrandModalOpen(true)}
+            className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
+          >
+            <div
+              className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/20 shadow-xs"
+              style={{ backgroundColor: brandColor }}
+            />
+            <span className="flex-1 font-medium">Brand Color Accent</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator className="bg-border my-1" />
+
+          {showProjectActions && (
+            <>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.open(getServerUrl(), "_blank");
+                  }
+                }}
+                className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Open in Studio Web</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setView("SELECT_PROJECT")}
+                className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
+              >
+                <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Switch Project</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setView("SELECT_ORG")}
+                className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
+              >
+                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Switch Workspace</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border my-1" />
+            </>
+          )}
+
+          {config.pat && (
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-xs text-rose-500 hover:text-rose-400 cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-rose-500/10"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="font-medium">Disconnect / Log out</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  // --------------------------------------------------------------------------
+  // TOKEN ROW COMPONENT (Clean, spacious, matching ColorSwatch.tsx)
+  // --------------------------------------------------------------------------
+  const renderTokenRow = (token: TokenItem, idx: number) => {
+    const rawValStr = typeof token.rawValue === "object" && token.rawValue !== null
+      ? JSON.stringify(token.rawValue)
+      : String(token.rawValue ?? "");
+    const resolvedValStr = typeof token.resolvedValue === "object" && token.resolvedValue !== null
+      ? JSON.stringify(token.resolvedValue)
+      : String(token.resolvedValue ?? "");
+
+    const isAlias = rawValStr.startsWith("{") && rawValStr.endsWith("}");
+    const cleanAlias = isAlias ? rawValStr.replace(/[{}]/g, "") : "";
+
+    const isColor =
+      token.type === "color" ||
+      /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(resolvedValStr.trim()) ||
+      /^rgba?\(.+\)$/i.test(resolvedValStr.trim()) ||
+      /^hsla?\(.+\)$/i.test(resolvedValStr.trim());
+
+    const isDimension =
+      token.type === "spacing" ||
+      token.type === "sizing" ||
+      token.type === "dimension" ||
+      token.type === "borderRadius";
+
+    const isCopied = copiedTokenName === token.name;
+
+    return (
+      <div
+        key={`${token.setName}-${token.name}-${idx}`}
+        onClick={() => {
+          copyToClipboard(resolvedValStr || rawValStr, token.name);
+          setCopiedTokenName(token.name);
+          setTimeout(() => setCopiedTokenName(null), 1800);
+        }}
+        title={`Click to copy: ${token.name} (${resolvedValStr || rawValStr})`}
+        className="group px-4 py-2.5 flex items-center justify-between text-xs hover:bg-muted/40 border-b border-border/40 transition-colors cursor-pointer select-none"
+      >
+        {/* Left: Swatch + Token Name */}
+        <div className="flex items-center gap-3 truncate max-w-[60%]">
+          {isColor ? (
+            <div
+              className="w-6 h-6 rounded-md border border-black/15 dark:border-white/15 shadow-xs flex-shrink-0 relative overflow-hidden transition-transform group-hover:scale-105"
+              style={{ backgroundColor: resolvedValStr || rawValStr }}
+            />
+          ) : isDimension ? (
+            <div className="w-6 h-6 rounded-md bg-muted border border-border flex items-center justify-center flex-shrink-0">
+              <div
+                className="bg-primary rounded-xs max-w-[14px] max-h-[14px] min-w-[3px] min-h-[3px]"
+                style={{
+                  width: resolvedValStr.includes("px") ? Math.min(parseInt(resolvedValStr) || 6, 14) : "8px",
+                  height: resolvedValStr.includes("px") ? Math.min(parseInt(resolvedValStr) || 6, 14) : "8px",
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-6 h-6 rounded-md bg-muted border border-border flex items-center justify-center text-[9px] font-mono text-muted-foreground flex-shrink-0">
+              Aa
+            </div>
+          )}
+
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground tracking-tight truncate group-hover:text-primary transition-colors">
+              {token.name}
+            </span>
+            {token.setName && (
+              <span className="text-[10px] text-muted-foreground truncate font-medium">
+                {token.setName}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Value / Alias pill & Copy button */}
+        <div className="flex items-center gap-2 max-w-[38%] justify-end">
+          {isAlias ? (
+            <div
+              title={`Alias to ${cleanAlias}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary font-mono text-[10px] font-medium truncate"
+            >
+              <Link2 className="w-2.5 h-2.5 flex-shrink-0" />
+              <span className="truncate">{cleanAlias}</span>
+            </div>
+          ) : (
+            <span className="font-mono text-xs text-foreground/80 font-medium group-hover:text-foreground transition-colors truncate">
+              {resolvedValStr || rawValStr}
+            </span>
+          )}
+
+          <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 text-muted-foreground">
+            {isCopied ? (
+              <Check className="w-3.5 h-3.5 text-emerald-500 animate-in zoom-in-75 duration-150" />
+            ) : (
+              <Copy className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --------------------------------------------------------------------------
+  // RENDER: SCREEN 1 - CONNECT (Minimalist, Focused, Frictionless)
   // --------------------------------------------------------------------------
   if (view === "CONNECT") {
     return (
-      <div className="flex flex-col h-screen w-full bg-[#0d0d12] text-zinc-100 font-sans select-none overflow-y-auto">
+      <div
+        style={dynamicCssVars}
+        className="flex flex-col h-screen w-full bg-background text-foreground font-sans select-none overflow-y-auto"
+      >
+        {/* Top Header Bar */}
+        <div className="h-11 px-4 border-b border-border/80 flex items-center justify-between bg-card/60 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-5 h-5 rounded-md shadow-xs flex items-center justify-center text-white"
+              style={{ backgroundColor: brandColor }}
+            >
+              <Layers className="w-3 h-3" />
+            </div>
+            <span className="text-xs font-semibold text-foreground tracking-tight">Tokens Platform</span>
+          </div>
+          {renderHeaderActions(false)}
+        </div>
+
         {/* Error Banner */}
         {errorBanner && (
-          <div className="bg-rose-950/80 border-b border-rose-800/80 px-3.5 py-2.5 text-xs text-rose-200 flex items-start justify-between gap-2 animate-in fade-in duration-150">
+          <div className="bg-rose-500/10 border-b border-rose-500/30 px-4 py-2 text-xs text-rose-500 flex items-start justify-between gap-2 animate-in fade-in duration-150">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{errorBanner}</span>
             </div>
-            <button onClick={() => setErrorBanner(null)} className="text-rose-400 hover:text-rose-200">
+            <button onClick={() => setErrorBanner(null)} className="text-rose-400 hover:text-rose-300">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
+        {/* Center Content */}
         <div className="flex-1 flex flex-col justify-center items-center px-6 py-8 space-y-6 max-w-sm mx-auto w-full">
-          {/* Brand Logo & Heading */}
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/10">
-              <Layers className="w-6 h-6" />
+          {/* Brand Icon & Heading */}
+          <div className="text-center space-y-2.5">
+            <div
+              className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white shadow-xl shadow-primary/20 transition-transform hover:scale-105"
+              style={{
+                background: `linear-gradient(135deg, ${brandColor}, #4338ca)`,
+              }}
+            >
+              <Layers className="w-7 h-7" />
             </div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Tokens Platform</h1>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Connect Figma to your design token workspace to pull variables and push updates seamlessly.
-            </p>
+            <div>
+              <h1 className="text-lg font-bold text-foreground tracking-tight">Tokens Platform</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Design token bridge for Figma
+              </p>
+            </div>
           </div>
 
-          {/* Option 1: CONNECT TO STUDIO */}
+          {/* Primary Action / Pairing Box */}
           <div className="w-full space-y-3">
-            <Button
-              onClick={() => handleConnectToStudio()}
-              disabled={isConnecting && !pairCode}
-              className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs tracking-wider rounded-lg shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase"
-            >
-              {isConnecting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>CONNECTING...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>CONNECT TO STUDIO</span>
-                </>
-              )}
-            </Button>
-
-            {/* Generated Code Display Box */}
-            {pairCode && (
-              <div className="p-3.5 rounded-lg bg-[#15151e] border border-zinc-800 space-y-2 text-center animate-in fade-in duration-200">
-                <div className="text-[11px] font-medium text-zinc-400">Device Pairing Code</div>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-mono text-xl font-bold tracking-widest text-indigo-400 selection:bg-indigo-500/30">
+            {pairCode ? (
+              /* ACTIVE PAIRING CODE CARD */
+              <div className="p-4 rounded-xl bg-card border border-border space-y-3 text-center shadow-xs animate-in fade-in duration-200">
+                <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                  Device Pairing Code
+                </div>
+                <div className="flex items-center justify-center gap-2.5">
+                  <span className="font-mono text-2xl font-bold tracking-widest text-primary selection:bg-primary/20">
                     {pairCode}
                   </span>
                   <button
@@ -575,389 +897,422 @@ export const App: React.FC = () => {
                       setCopiedCode(true);
                       setTimeout(() => setCopiedCode(false), 2500);
                     }}
-                    className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-                    title="Copy Code"
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Copy Pairing Code"
                   >
-                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedCode ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-400">
-                  Waiting for authorization in your browser...
-                </p>
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Waiting for browser approval...</span>
+                </div>
               </div>
+            ) : (
+              /* CONNECT BUTTON */
+              <Button
+                onClick={() => handleConnectToStudio()}
+                disabled={isConnecting}
+                className="w-full h-11 bg-primary hover:opacity-95 text-primary-foreground font-semibold text-xs rounded-xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isConnecting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Connecting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Connect to Tokens Platform</span>
+                  </>
+                )}
+              </Button>
             )}
           </div>
 
-          {/* Divider */}
-          <div className="w-full flex items-center gap-3">
-            <div className="flex-1 h-[1px] bg-zinc-800" />
-            <span className="text-[10px] uppercase text-zinc-400 tracking-wider font-semibold">or</span>
-            <div className="flex-1 h-[1px] bg-zinc-800" />
-          </div>
-
-          {/* Option 2: CONNECT TO CUSTOM LINK */}
-          <div className="w-full space-y-2">
+          {/* Developer / Custom Link Drawer */}
+          <div className="w-full pt-2">
             <button
               onClick={() => setShowCustomLink(!showCustomLink)}
-              className="w-full flex items-center justify-between text-xs font-semibold text-zinc-400 hover:text-zinc-200 p-2 rounded-lg hover:bg-zinc-900/60 transition-colors"
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
             >
-              <div className="flex items-center gap-2">
-                <Server className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Connect to custom link</span>
-              </div>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showCustomLink ? "rotate-180" : ""}`} />
+              {showCustomLink ? "Hide custom server" : "Developer: Connect to custom link →"}
             </button>
 
             {showCustomLink && (
-              <div className="p-3 rounded-lg bg-[#14141c] border border-zinc-800/80 space-y-2.5 animate-in fade-in duration-150">
-                <Label className="text-[11px] text-zinc-400">Server Endpoint URL</Label>
-                <Input
-                  value={customServerInput}
-                  onChange={(e) => setCustomServerInput(e.target.value)}
-                  placeholder="e.g. localhost:3000"
-                  className="h-9 text-xs bg-[#0f0f14] border-zinc-700 text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-indigo-500 font-mono"
-                />
-                <Button
-                  onClick={() => handleConnectToStudio(customServerInput)}
-                  className="w-full h-8 text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
-                >
-                  Connect Custom Server
-                </Button>
+              <div className="mt-2.5 p-3 rounded-xl bg-card border border-border space-y-2 animate-in fade-in duration-150">
+                <Label className="text-[11px] text-muted-foreground font-medium">Server Endpoint URL</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={customServerInput}
+                    onChange={(e) => setCustomServerInput(e.target.value)}
+                    placeholder="http://localhost:3000"
+                    className="h-8 text-xs bg-background border-border text-foreground font-mono focus-visible:ring-primary rounded-lg"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleConnectToStudio(customServerInput)}
+                    className="h-8 text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground border border-border px-3 rounded-lg"
+                  >
+                    Connect
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer info */}
-        <div className="py-3 text-center text-[10px] text-zinc-400 border-t border-zinc-900">
-          Tokens Platform &copy; 2026. Design Token Bridge.
+        {/* Footer */}
+        <div className="py-3 text-center text-[11px] text-muted-foreground border-t border-border/80">
+          Tokens Platform &copy; 2026
         </div>
+
+        {renderBrandDialog()}
       </div>
     );
   }
 
   // --------------------------------------------------------------------------
-  // RENDER: SCREEN 2 - SELECT ORGANIZATION (Video 00:05–00:08)
+  // RENDER: SCREEN 2 - SELECT ORGANIZATION (Spacious, Clean)
   // --------------------------------------------------------------------------
   if (view === "SELECT_ORG") {
     return (
-      <div className="flex flex-col h-screen w-full bg-[#0d0d12] text-zinc-100 font-sans select-none overflow-hidden">
+      <div
+        style={dynamicCssVars}
+        className="flex flex-col h-screen w-full bg-background text-foreground font-sans select-none overflow-hidden"
+      >
         {/* Header */}
-        <header className="h-13 px-4 border-b border-zinc-800/80 flex items-center justify-between bg-[#121217] flex-shrink-0">
-          <h1 className="text-sm font-bold text-white tracking-tight">Select Organization</h1>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-8 h-8 rounded-lg hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors">
-                <Settings className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-[#181822] border-zinc-700 text-zinc-200">
-              <DropdownMenuItem onClick={handleLogout} className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer">
-                <LogOut className="w-3.5 h-3.5 mr-2" />
-                <span>Disconnect / Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <header className="h-12 px-4 border-b border-border/80 flex items-center justify-between bg-card flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-xs"
+              style={{ backgroundColor: brandColor }}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+            </div>
+            <h1 className="text-xs font-bold text-foreground tracking-tight">Select Workspace</h1>
+          </div>
+          {renderHeaderActions(false)}
         </header>
 
         {/* Org List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+          <p className="text-xs text-muted-foreground mb-1">
+            Choose a workspace to view its projects:
+          </p>
+
           {orgs.length === 0 ? (
-            <div className="py-12 text-center text-xs text-zinc-500">
-              No organizations found for your account.
+            <div className="py-16 text-center text-xs text-muted-foreground space-y-2">
+              <Building2 className="w-8 h-8 mx-auto opacity-30 text-muted-foreground" />
+              <p className="font-medium">No workspaces found</p>
             </div>
           ) : (
             orgs.map((org) => {
               const projCount = org.projects?.length || 0;
+              const orgColor = org.color || brandColor;
               return (
                 <button
                   key={org.id}
                   onClick={() => {
                     setSelectedOrg(org);
+                    if (org.color) {
+                      setBrandColor(org.color);
+                    }
                     setView("SELECT_PROJECT");
                   }}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-[#15151e] border border-zinc-800/90 hover:border-zinc-700 hover:bg-[#1a1a26] transition-all group text-left"
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs font-bold uppercase">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold uppercase shadow-xs transition-transform group-hover:scale-105"
+                      style={{ backgroundColor: orgColor }}
+                    >
                       {org.name.charAt(0) || "O"}
                     </div>
                     <div>
-                      <div className="text-xs font-semibold text-zinc-100 group-hover:text-white transition-colors">
+                      <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                         {org.name}
                       </div>
-                      <div className="text-[10px] text-zinc-400">Organization</div>
+                      <div className="text-[10px] text-muted-foreground">Workspace</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 text-xs text-zinc-400 group-hover:text-zinc-200">
-                    <span>{projCount} {projCount === 1 ? "project" : "projects"}</span>
-                    <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground group-hover:text-foreground">
+                    <Badge variant="secondary" className="text-[10px] font-normal px-2 py-0.5 rounded-md">
+                      {projCount} {projCount === 1 ? "project" : "projects"}
+                    </Badge>
+                    <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-primary" />
                   </div>
                 </button>
               );
             })
           )}
         </div>
+
+        {renderBrandDialog()}
       </div>
     );
   }
 
   // --------------------------------------------------------------------------
-  // RENDER: SCREEN 3 - SELECT PROJECT (Video 00:08–00:11)
+  // RENDER: SCREEN 3 - SELECT PROJECT (Spacious, Clean)
   // --------------------------------------------------------------------------
   if (view === "SELECT_PROJECT") {
     const projects = selectedOrg?.projects || [];
 
     return (
-      <div className="flex flex-col h-screen w-full bg-[#0d0d12] text-zinc-100 font-sans select-none overflow-hidden">
+      <div
+        style={dynamicCssVars}
+        className="flex flex-col h-screen w-full bg-background text-foreground font-sans select-none overflow-hidden"
+      >
         {/* Header with Back Arrow */}
-        <header className="h-13 px-3 border-b border-zinc-800/80 flex items-center justify-between bg-[#121217] flex-shrink-0">
+        <header className="h-12 px-3 border-b border-border/80 flex items-center justify-between bg-card flex-shrink-0">
           <button
             onClick={() => setView("SELECT_ORG")}
-            className="flex items-center gap-2 text-xs font-bold text-zinc-300 hover:text-white transition-colors py-1 px-2 rounded-lg hover:bg-zinc-800/60"
+            className="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors py-1 px-2 rounded-lg hover:bg-muted cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>{selectedOrg?.name || "Organizations"}</span>
+            <span className="truncate max-w-[200px]">{selectedOrg?.name || "Workspaces"}</span>
           </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-8 h-8 rounded-lg hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors">
-                <Settings className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-[#181822] border-zinc-700 text-zinc-200">
-              <DropdownMenuItem onClick={handleLogout} className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer">
-                <LogOut className="w-3.5 h-3.5 mr-2" />
-                <span>Disconnect / Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {renderHeaderActions(false)}
         </header>
 
         {/* Project List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+          <p className="text-xs text-muted-foreground mb-1">Select a design tokens project:</p>
+
           {projects.length === 0 ? (
-            <div className="py-12 text-center text-xs text-zinc-500">
-              No projects found in this organization.
+            <div className="py-16 text-center text-xs text-muted-foreground space-y-2">
+              <FolderGit2 className="w-8 h-8 mx-auto opacity-30 text-muted-foreground" />
+              <p className="font-medium">No projects found</p>
             </div>
           ) : (
-            projects.map((proj) => (
-              <button
-                key={proj.id}
-                onClick={() => {
-                  setSelectedProject(proj);
-                  const updated = {
-                    ...config,
-                    orgId: selectedOrg?.id || "",
-                    projectId: proj.id,
-                  };
-                  setConfig(updated);
-                  parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
-                  fetchTokens(config.serverUrl, config.pat, selectedOrg?.id, proj.id);
-                  setView("MAIN");
-                }}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#15151e] border border-zinc-800/90 hover:border-zinc-700 hover:bg-[#1a1a26] transition-all group text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center text-xs font-bold uppercase">
-                    {proj.name.charAt(0) || "P"}
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-zinc-100 group-hover:text-white transition-colors">
-                      {proj.name}
+            projects.map((proj) => {
+              const projColor = proj.color || selectedOrg?.color || brandColor;
+              return (
+                <button
+                  key={proj.id}
+                  onClick={() => {
+                    setSelectedProject(proj);
+                    if (proj.color) {
+                      setBrandColor(proj.color);
+                    }
+                    const updated = {
+                      ...config,
+                      orgId: selectedOrg?.id || "",
+                      projectId: proj.id,
+                      themeMode,
+                      brandColor: proj.color || brandColor,
+                    };
+                    setConfig(updated);
+                    parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
+                    fetchTokens(config.serverUrl, config.pat, selectedOrg?.id, proj.id);
+                    setView("MAIN");
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold uppercase shadow-xs transition-transform group-hover:scale-105"
+                      style={{ backgroundColor: projColor }}
+                    >
+                      {proj.name.charAt(0) || "P"}
                     </div>
-                    <div className="text-[10px] text-zinc-400">Design Tokens Set</div>
+                    <div>
+                      <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                        {proj.name}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Tokens Project</div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1 text-xs text-zinc-400 group-hover:text-zinc-200">
-                  <span>Open project</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                </div>
-              </button>
-            ))
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground group-hover:text-foreground">
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-md">
+                      Open
+                    </Badge>
+                    <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-primary" />
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
+
+        {renderBrandDialog()}
       </div>
     );
   }
 
   // --------------------------------------------------------------------------
-  // RENDER: SCREEN 4 - COMPANION STUDIO MAIN VIEW (Video 00:12–00:33)
+  // RENDER: SCREEN 4 - COMPANION STUDIO MAIN VIEW (Linear / Figma Best UX)
   // --------------------------------------------------------------------------
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0d0d12] text-zinc-100 font-sans select-none overflow-hidden">
+    <div
+      style={dynamicCssVars}
+      className="flex flex-col h-screen w-full bg-background text-foreground font-sans select-none overflow-hidden"
+    >
       {/* Top Error Alert Banner */}
       {errorBanner && (
-        <div className="bg-rose-950/80 border-b border-rose-800/80 px-3 py-2 text-xs text-rose-200 flex items-center justify-between gap-2 z-20 flex-shrink-0 animate-in fade-in duration-150">
+        <div className="bg-rose-500/10 border-b border-rose-500/30 px-3.5 py-2 text-xs text-rose-500 flex items-center justify-between gap-2 z-20 flex-shrink-0 animate-in fade-in duration-150">
           <div className="flex items-center gap-2 truncate">
-            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">{errorBanner}</span>
           </div>
-          <button onClick={() => setErrorBanner(null)} className="text-rose-400 hover:text-rose-200 flex-shrink-0">
+          <button onClick={() => setErrorBanner(null)} className="text-rose-400 hover:text-rose-300 flex-shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* 1. Header Bar: [W] web ⌵ Dropdown + Settings Icon */}
-      <header className="h-12 px-3.5 border-b border-zinc-800/80 flex items-center justify-between bg-[#121218] flex-shrink-0">
+      {/* 1. Header Bar: Project selector + Live Status + Header Actions */}
+      <header className="h-12 px-3.5 border-b border-border/80 flex items-center justify-between bg-card flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 text-xs font-bold text-zinc-200 hover:text-white px-2 py-1.5 rounded-lg hover:bg-zinc-800/70 transition-colors">
-              <div className="w-5 h-5 rounded bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-bold uppercase">
+            <button className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary px-2 py-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold uppercase shadow-xs flex-shrink-0"
+                style={{ backgroundColor: selectedProject?.color || brandColor }}
+              >
                 {selectedProject?.name?.charAt(0) || "W"}
               </div>
-              <span>{selectedProject?.name || "web"}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-400" />
+              <span className="truncate max-w-[130px]">{selectedProject?.name || "web"}</span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48 bg-[#181822] border-zinc-700 text-zinc-200 shadow-xl">
+          <DropdownMenuContent align="start" className="w-52 bg-card border-border text-foreground shadow-xl p-1">
             <DropdownMenuItem
               onClick={() => {
                 if (typeof window !== "undefined") {
                   window.open(getServerUrl(), "_blank");
                 }
               }}
-              className="text-xs cursor-pointer hover:bg-zinc-700"
+              className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
             >
-              <ExternalLink className="w-3.5 h-3.5 mr-2 text-zinc-400" />
-              <span>Open in Studio</span>
+              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Open in Studio Web</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setView("SELECT_PROJECT")}
-              className="text-xs cursor-pointer hover:bg-zinc-700"
+              className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
             >
-              <FolderGit2 className="w-3.5 h-3.5 mr-2 text-zinc-400" />
-              <span>Switch project</span>
+              <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Switch Project</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-zinc-700" />
             <DropdownMenuItem
-              onClick={handleLogout}
-              className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer hover:bg-zinc-700"
+              onClick={() => setView("SELECT_ORG")}
+              className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
             >
-              <LogOut className="w-3.5 h-3.5 mr-2" />
-              <span>Log out</span>
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Switch Workspace</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-          <span className="text-[10px] text-zinc-400 font-medium">Connected</span>
+        <div className="flex items-center gap-2">
+          {/* Live Status indicator badge */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Connected</span>
+          </div>
+
+          {renderHeaderActions(true)}
         </div>
       </header>
 
-      {/* 2. Collection Filter Bar: Collection Alias ⌵ */}
-      <div className="h-10 px-3.5 border-b border-zinc-800/60 bg-[#14141c] flex items-center justify-between flex-shrink-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-white px-2 py-1 rounded hover:bg-zinc-800 transition-colors">
-              <span>{selectedCollection}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48 bg-[#181822] border-zinc-700 text-zinc-200">
-            {collectionList.map((col) => (
-              <DropdownMenuItem
-                key={col}
-                onClick={() => setSelectedCollection(col)}
-                className={`text-xs cursor-pointer ${selectedCollection === col ? "bg-indigo-600/20 text-indigo-300 font-bold" : ""}`}
-              >
-                {col}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* 2. Collection Horizontal Pill Tabs (Linear / GitHub style) */}
+      <div className="px-3.5 py-2 border-b border-border/60 bg-card/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+        <button
+          onClick={() => setSelectedCollection("ALL")}
+          className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
+            selectedCollection === "ALL"
+              ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          All ({tokens.length})
+        </button>
 
-        <span className="text-[10px] text-zinc-400 font-mono">
-          {filteredTokens.length} {filteredTokens.length === 1 ? "token" : "tokens"}
+        {collectionStats.map((col) => (
+          <button
+            key={col.name}
+            onClick={() => setSelectedCollection(col.name)}
+            className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
+              selectedCollection === col.name
+                ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            {col.name} ({col.count})
+          </button>
+        ))}
+      </div>
+
+      {/* 3. Full-width Search Input */}
+      <div className="px-3.5 py-2 border-b border-border/60 bg-background flex items-center gap-2 flex-shrink-0">
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tokens by name or value..."
+            className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary rounded-lg"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <span className="text-[11px] font-mono text-muted-foreground font-medium px-1 flex-shrink-0">
+          {filteredTokens.length}
         </span>
       </div>
 
-      {/* 3. Token Table (TOKEN NAME | COLOR) */}
-      <div className="flex-1 overflow-y-auto flex flex-col">
-        {/* Table Header */}
-        <div className="h-7 px-4 bg-[#111117] border-b border-zinc-800/80 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex-shrink-0 sticky top-0 z-10">
-          <span>TOKEN NAME</span>
-          <span>COLOR / VALUE</span>
+      {/* 4. Token Table Header & List */}
+      <div className="flex-1 overflow-y-auto flex flex-col bg-background">
+        {/* Table Column Header */}
+        <div className="h-7 px-4 bg-muted/30 border-b border-border/60 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex-shrink-0 sticky top-0 z-10 backdrop-blur-xs">
+          <span>TOKEN</span>
+          <span>VALUE / ALIAS</span>
         </div>
 
         {/* Table Body */}
         {isFetchingTokens ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-2 text-zinc-500">
-            <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
-            <span className="text-xs">Fetching tokens from Studio...</span>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-2.5 text-muted-foreground">
+            <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+            <span className="text-xs font-medium">Fetching tokens from Studio...</span>
           </div>
         ) : filteredTokens.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500 space-y-1">
-            <p className="text-xs">No tokens found in this collection.</p>
-            <p className="text-[11px] text-zinc-600">Click &quot;Push to Studio&quot; to export your local Figma variables.</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-1.5">
+            <p className="text-xs font-semibold text-foreground">No tokens found</p>
+            <p className="text-[11px]">
+              {searchQuery ? "Try searching for a different keyword" : "Click 'Push to Studio' to export Figma variables."}
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-zinc-800/40">
-            {filteredTokens.map((token, idx) => {
-              const isColor = token.type === "color";
-              const displayVal =
-                typeof token.rawValue === "string"
-                  ? token.rawValue
-                  : typeof token.resolvedValue === "string"
-                    ? token.resolvedValue
-                    : JSON.stringify(token.rawValue ?? "");
-
-              return (
-                <div
-                  key={`${token.setName}-${token.name}-${idx}`}
-                  className="px-4 py-2.5 flex items-center justify-between text-xs hover:bg-[#161622] transition-colors"
-                >
-                  {/* Left: Swatch + Token Name */}
-                  <div className="flex items-center gap-2.5 truncate max-w-[62%]">
-                    {isColor ? (
-                      <div
-                        className="w-3.5 h-3.5 rounded-full border border-zinc-700 flex-shrink-0 shadow-xs"
-                        style={{
-                          backgroundColor:
-                            typeof token.resolvedValue === "string"
-                              ? token.resolvedValue
-                              : typeof token.rawValue === "string" && !token.rawValue.includes("{")
-                                ? token.rawValue
-                                : "#818cf8",
-                        }}
-                      />
-                    ) : (
-                      <div className="w-3.5 h-3.5 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[8px] text-zinc-400 font-mono flex-shrink-0">
-                        px
-                      </div>
-                    )}
-                    <span className="font-medium text-zinc-200 truncate">{token.name}</span>
-                  </div>
-
-                  {/* Right: Alias or Hex string */}
-                  <span className="font-mono text-[11px] text-zinc-400 truncate max-w-[36%] text-right">
-                    {displayVal}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="divide-y divide-border/30">
+            {filteredTokens.map((token, idx) => renderTokenRow(token, idx))}
           </div>
         )}
       </div>
 
-      {/* 4. Footer Bar: ⑂ main ⌵, ↻ Fetch, ↑ Push to Studio, ↓ Sync to Figma */}
-      <footer className="h-14 px-3.5 border-t border-zinc-800 bg-[#121218] flex items-center justify-between flex-shrink-0">
+      {/* 5. Footer Action Bar: ⑂ Branch, ↻ Refresh, Push, Sync to Figma */}
+      <footer className="h-14 px-4 border-t border-border/80 bg-card/90 flex items-center justify-between flex-shrink-0 backdrop-blur-xs">
         {/* Left: Branch selector + Refresh button */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded bg-zinc-900 border border-zinc-800">
-                <GitBranch className="w-3 h-3 text-indigo-400" />
-                <span>{selectedBranch}</span>
+              <button className="flex items-center gap-1.5 text-xs text-foreground font-medium px-2.5 py-1.5 rounded-lg bg-muted/60 hover:bg-muted border border-border transition-colors cursor-pointer">
+                <GitBranch className="w-3 h-3 text-primary" />
+                <span className="truncate max-w-[80px]">{selectedBranch}</span>
                 <ChevronDown className="w-2.5 h-2.5 opacity-60" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-32 bg-[#181822] border-zinc-700 text-zinc-200">
+            <DropdownMenuContent align="start" className="w-40 bg-card border-border text-foreground p-1">
               {availableBranches.map((b) => (
                 <DropdownMenuItem
                   key={b}
@@ -965,7 +1320,9 @@ export const App: React.FC = () => {
                     setSelectedBranch(b);
                     fetchTokens(config.serverUrl, config.pat, selectedOrg?.id, selectedProject?.id, b);
                   }}
-                  className={`text-xs cursor-pointer ${selectedBranch === b ? "bg-indigo-600/20 text-indigo-300 font-bold" : ""}`}
+                  className={`text-xs cursor-pointer px-2 py-1.5 rounded-md ${
+                    selectedBranch === b ? "bg-primary/15 text-primary font-bold" : "hover:bg-accent"
+                  }`}
                 >
                   {b}
                 </DropdownMenuItem>
@@ -976,10 +1333,10 @@ export const App: React.FC = () => {
           <button
             onClick={() => fetchTokens()}
             disabled={isFetchingTokens}
-            title="Fetch tokens from Studio"
-            className="w-7 h-7 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            title="Fetch latest tokens from Studio"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetchingTokens ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetchingTokens ? "animate-spin text-primary" : ""}`} />
           </button>
         </div>
 
@@ -990,10 +1347,10 @@ export const App: React.FC = () => {
             size="sm"
             onClick={() => setIsPushWarningOpen(true)}
             disabled={isPushing || isSyncing}
-            className="h-8 text-xs font-semibold border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white gap-1 px-2.5"
+            className="h-8 text-xs font-medium border-border hover:bg-muted text-foreground gap-1.5 px-3 rounded-lg cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5" />
-            <span>Push to Studio</span>
+            <span>Push</span>
           </Button>
 
           <Button
@@ -1006,7 +1363,7 @@ export const App: React.FC = () => {
               }
             }}
             disabled={isSyncing || isPushing}
-            className="h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white gap-1 px-3 shadow-md shadow-indigo-600/20"
+            className="h-8 text-xs font-semibold bg-primary hover:opacity-95 text-primary-foreground gap-1.5 px-3.5 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
           >
             {isSyncing ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1019,24 +1376,29 @@ export const App: React.FC = () => {
       </footer>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* MODAL A: Select Themes and Modes to create (Screenshot 1 / Video 00:20) */}
+      {/* BRAND COLOR CUSTOMIZER DIALOG (Dynamic Theme Accent)                   */}
+      {/* ---------------------------------------------------------------------- */}
+      {renderBrandDialog()}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MODAL A: Select Themes and Modes to create                             */}
       {/* ---------------------------------------------------------------------- */}
       <Dialog open={isThemeModalOpen} onOpenChange={setIsThemeModalOpen}>
-        <DialogContent className="max-w-xs bg-[#15151e] border-zinc-800 text-zinc-100 p-5 font-sans rounded-xl shadow-2xl">
-          <DialogHeader className="p-0 space-y-1.5">
-            <DialogTitle className="text-sm font-bold text-white">
-              Select Themes and Modes to create
+        <DialogContent className="max-w-xs bg-card border-border text-foreground p-5 font-sans rounded-xl shadow-2xl">
+          <DialogHeader className="p-0 space-y-1">
+            <DialogTitle className="text-sm font-bold text-foreground">
+              Select Themes & Modes
             </DialogTitle>
-            <DialogDescription className="text-xs text-zinc-400">
-              Choose which theme collections and modes will be synchronized to Figma.
+            <DialogDescription className="text-xs text-muted-foreground">
+              Choose which theme groups and modes to synchronize into Figma Variables.
             </DialogDescription>
           </DialogHeader>
 
           {/* Checkbox Tree */}
           <div className="max-h-56 overflow-y-auto space-y-3 py-2">
             {themeGroups.map((grp: any) => (
-              <div key={grp.name} className="space-y-1.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-200">
+              <div key={grp.name} className="space-y-1.5 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                   <input
                     type="checkbox"
                     id={`grp-${grp.name}`}
@@ -1051,19 +1413,19 @@ export const App: React.FC = () => {
                       });
                       setSelectedThemeModes(next);
                     }}
-                    className="rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-border bg-background text-primary focus:ring-primary"
                   />
                   <label htmlFor={`grp-${grp.name}`} className="cursor-pointer">
                     {grp.name}
                   </label>
                 </div>
 
-                <div className="pl-5 space-y-1 border-l border-zinc-800 ml-2">
+                <div className="pl-5 space-y-1 border-l border-border ml-1.5">
                   {grp.options?.map((opt: any) => {
                     const key = `${grp.name}::${opt.name}`;
                     const isChecked = selectedThemeModes[key] !== false;
                     return (
-                      <div key={opt.name} className="flex items-center gap-2 text-xs text-zinc-400">
+                      <div key={opt.name} className="flex items-center gap-2 text-xs text-muted-foreground">
                         <input
                           type="checkbox"
                           id={key}
@@ -1071,9 +1433,9 @@ export const App: React.FC = () => {
                           onChange={(e) => {
                             setSelectedThemeModes({ ...selectedThemeModes, [key]: e.target.checked });
                           }}
-                          className="rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500"
+                          className="rounded border-border bg-background text-primary focus:ring-primary"
                         />
-                        <label htmlFor={key} className="cursor-pointer hover:text-zinc-200">
+                        <label htmlFor={key} className="cursor-pointer hover:text-foreground">
                           {opt.name}
                         </label>
                       </div>
@@ -1084,51 +1446,51 @@ export const App: React.FC = () => {
             ))}
           </div>
 
-          <DialogFooter className="flex gap-2 pt-2 border-t border-zinc-800">
+          <DialogFooter className="flex gap-2 pt-2 border-t border-border">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsThemeModalOpen(false)}
-              className="w-1/2 h-8 text-xs border-zinc-700 bg-zinc-900 text-zinc-300"
+              className="w-1/2 h-8 text-xs border-border rounded-lg"
             >
               Cancel
             </Button>
             <Button
               size="sm"
               onClick={handleExecuteSync}
-              className="w-1/2 h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+              className="w-1/2 h-8 text-xs font-semibold bg-primary hover:opacity-95 text-primary-foreground rounded-lg"
             >
-              Create selected themes
+              Sync Themes
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* MODAL B: Push to Studio Warning (Screenshot 4)                         */}
+      {/* MODAL B: Push to Studio Warning                                        */}
       {/* ---------------------------------------------------------------------- */}
       <Dialog open={isPushWarningOpen} onOpenChange={setIsPushWarningOpen}>
-        <DialogContent className="max-w-xs bg-[#15151e] border-zinc-800 text-zinc-100 p-5 font-sans rounded-xl shadow-2xl">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center flex-shrink-0">
+        <DialogContent className="max-w-xs bg-card border-border text-foreground p-5 font-sans rounded-xl shadow-2xl">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center flex-shrink-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <DialogTitle className="text-sm font-bold text-white">
-                Warning: Overwriting Studio Tokens
+              <DialogTitle className="text-sm font-bold text-foreground">
+                Push Variables to Studio
               </DialogTitle>
-              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                Pushing local Figma variables will update cloud tokens. Dynamic variables with alias references will be preserved where possible.
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                This will export native Figma variables and update the cloud tokens for <strong>{selectedProject?.name}</strong>. Existing token aliases will be preserved.
               </p>
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2 pt-3 border-t border-zinc-800">
+          <DialogFooter className="flex gap-2 pt-3 border-t border-border">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsPushWarningOpen(false)}
-              className="w-1/2 h-8 text-xs border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/30"
+              className="w-1/2 h-8 text-xs border-border rounded-lg"
             >
               Cancel
             </Button>
@@ -1138,7 +1500,7 @@ export const App: React.FC = () => {
                 parent.postMessage({ pluginMessage: { type: "EXPORT_FIGMA_TO_TOKENS" } }, "*");
               }}
               disabled={isPushing}
-              className="w-1/2 h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white gap-1"
+              className="w-1/2 h-8 text-xs font-semibold bg-primary hover:opacity-95 text-primary-foreground gap-1 rounded-lg"
             >
               {isPushing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
               <span>Proceed</span>
@@ -1148,33 +1510,36 @@ export const App: React.FC = () => {
       </Dialog>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* MODAL C: Create Complete! Success Dialog (Screenshot 5)                */}
+      {/* MODAL C: Create Complete! Success Dialog                               */}
       {/* ---------------------------------------------------------------------- */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
-        <DialogContent className="max-w-xs bg-[#15151e] border border-amber-500/50 shadow-[0_0_25px_rgba(245,158,11,0.2)] text-zinc-100 p-6 font-sans rounded-xl space-y-4 text-center">
+        <DialogContent className="max-w-xs bg-card border-border text-foreground p-6 font-sans rounded-xl space-y-4 text-center shadow-2xl">
+          <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 mx-auto flex items-center justify-center">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+
           <div className="space-y-1">
-            <DialogTitle className="text-base font-bold text-white tracking-tight">
-              Create Complete!
+            <DialogTitle className="text-base font-bold text-foreground tracking-tight">
+              Figma Sync Complete!
             </DialogTitle>
-            <p className="text-xs text-zinc-400">
-              {successCount.vars} / {successCount.vars} variables
+            <p className="text-xs text-muted-foreground">
+              {successCount.vars} variables synchronized successfully.
             </p>
           </div>
 
-          {/* Progress Bar (Full gradient) */}
-          <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
-            <div className="h-full w-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full" />
-          </div>
-
-          {/* Success Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Variables created successfully</span>
+          {/* Full gradient progress bar */}
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full w-full rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${brandColor}, #10b981)`,
+              }}
+            />
           </div>
 
           <Button
             onClick={() => setIsSuccessModalOpen(false)}
-            className="w-full h-8 text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700"
+            className="w-full h-8 text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-lg cursor-pointer"
           >
             Done
           </Button>
@@ -1182,4 +1547,92 @@ export const App: React.FC = () => {
       </Dialog>
     </div>
   );
+
+  // --------------------------------------------------------------------------
+  // BRAND COLOR CUSTOMIZATION MODAL HELPER
+  // --------------------------------------------------------------------------
+  function renderBrandDialog() {
+    return (
+      <Dialog open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen}>
+        <DialogContent className="max-w-xs bg-card border-border text-foreground p-5 font-sans rounded-xl shadow-2xl">
+          <DialogHeader className="p-0 space-y-1">
+            <DialogTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Palette className="w-4 h-4 text-primary" />
+              <span>Customize Brand Color</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Adapt plugin accents, buttons, and badges to your brand color.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Color Presets */}
+          <div className="space-y-3 py-2">
+            <Label className="text-[11px] text-muted-foreground font-medium">Brand Presets</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {BRAND_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => {
+                    setBrandColor(preset.hex);
+                    setCustomHexInput(preset.hex);
+                    saveThemePreferences(themeMode, preset.hex);
+                  }}
+                  className={`h-8 rounded-lg border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    brandColor.toLowerCase() === preset.hex.toLowerCase()
+                      ? "border-primary ring-2 ring-primary/30 scale-105"
+                      : "border-border hover:scale-102"
+                  }`}
+                  style={{ backgroundColor: preset.hex }}
+                  title={preset.name}
+                >
+                  {brandColor.toLowerCase() === preset.hex.toLowerCase() && (
+                    <Check className="w-3.5 h-3.5 text-white drop-shadow" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Hex Input */}
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-[11px] text-muted-foreground font-medium">Custom Color (Hex)</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={brandColor}
+                  onChange={(e) => {
+                    setBrandColor(e.target.value);
+                    setCustomHexInput(e.target.value);
+                    saveThemePreferences(themeMode, e.target.value);
+                  }}
+                  className="w-8 h-8 rounded-lg border border-border cursor-pointer p-0 bg-transparent"
+                />
+                <Input
+                  value={customHexInput}
+                  onChange={(e) => {
+                    setCustomHexInput(e.target.value);
+                    if (/^#[0-9a-f]{6}$/i.test(e.target.value.trim())) {
+                      setBrandColor(e.target.value.trim());
+                      saveThemePreferences(themeMode, e.target.value.trim());
+                    }
+                  }}
+                  placeholder="#6366f1"
+                  className="h-8 text-xs bg-background border-border text-foreground font-mono focus-visible:ring-primary rounded-lg"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 border-t border-border">
+            <Button
+              size="sm"
+              onClick={() => setIsBrandModalOpen(false)}
+              className="w-full h-8 text-xs font-semibold bg-primary hover:opacity-95 text-primary-foreground rounded-lg cursor-pointer"
+            >
+              Apply & Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 };
