@@ -244,9 +244,23 @@ export const DashboardView: React.FC = () => {
     <div className="flex-1 h-full overflow-y-auto bg-background text-foreground font-sans select-none">
       <div className="max-w-7xl w-full mx-auto flex flex-col xl:flex-row min-h-full">
         {/* Main Left Content Area */}
-        <div className="flex-1 p-6 md:p-8 xl:p-10 space-y-8 min-w-0">
+        <div className="flex-1 p-6 md:p-8 xl:p-10 space-y-6 min-w-0">
+          {/* Breadcrumbs matching Screenshot 2 */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground select-none">
+            <button
+              onClick={() => setSidebarTab("workspaces")}
+              className="hover:text-foreground hover:underline transition-colors font-medium cursor-pointer"
+            >
+              Workspaces
+            </button>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="text-foreground font-medium">{orgName}</span>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="text-muted-foreground">Overview</span>
+          </div>
+
           {/* Top Workspace Header Matching Video */}
-          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+          <div className="flex items-center justify-between pb-4 border-b border-border/60">
             <div className="flex items-center gap-3.5">
               <div
                 className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-lg text-white shadow-xs shrink-0"
@@ -278,11 +292,7 @@ export const DashboardView: React.FC = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                  <span className="font-medium">Organisation</span>
-                  <span>•</span>
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-medium border-primary/30 text-primary bg-primary/5">
-                    Trial
-                  </Badge>
+                  <span className="font-medium">Workspace</span>
                 </div>
               </div>
             </div>

@@ -16,6 +16,7 @@ import {
   Rocket,
   Settings,
   Users,
+  Building2,
   FolderGit2,
   Link2,
   Code2,
@@ -34,6 +35,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  ArrowLeftRight,
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { LATEST_VERSION } from "@/data/systemChangelog";
@@ -177,76 +179,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-72 rounded-xl p-2 font-sans shadow-xl" align="start" side="right" sideOffset={8}>
-                {/* 1. Organizations / Workspaces Section */}
-                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  <span>ORGANIZATIONS</span>
-                  {canUserEdit() && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowCreateOrg((prev) => !prev);
-                      }}
-                      className="text-[#15803d] dark:text-[#22c55e] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer text-[11px] capitalize"
-                      title="Create Organization"
-                    >
-                      <Plus className="size-3" />
-                      <span>New Org</span>
-                    </button>
-                  )}
-                </div>
-
-                {showCreateOrg && (
-                  <form onSubmit={handleCreateOrg} className="px-2 py-1.5 flex gap-1.5 animate-in fade-in duration-150">
-                    <Input
-                      type="text"
-                      required
-                      placeholder="Org name..."
-                      value={newOrgName}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOrgName(e.target.value)}
-                      className="h-7 text-xs flex-1 bg-background"
-                      autoFocus
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs bg-[#15803d] hover:bg-[#166534] text-white cursor-pointer shadow-2xs"
-                    >
-                      Add
-                    </Button>
-                  </form>
-                )}
-
-                <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                  {userOrgs.map((org) => {
-                    const isSelected = org.id === currentOrg?.id && !currentProject;
-                    return (
-                      <DropdownMenuItem
-                        key={org.id}
-                        onClick={() => {
-                          setCurrentOrg(org);
-                          setCurrentProject(null);
-                          setSidebarTab("dashboard");
-                        }}
-                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                          isSelected
-                            ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
-                            : "text-foreground hover:bg-muted/70 font-medium"
-                        }`}
-                      >
-                        <span className="truncate flex-1">{org.name}</span>
-                        {isSelected && <Check className="size-4 text-[#15803d] dark:text-[#4ade80] shrink-0" />}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </div>
-
-                <DropdownMenuSeparator className="my-2" />
-
-                {/* 2. Projects Section */}
-                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  <span>PROJECTS ({orgProjects.length})</span>
+              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl" align="start" side="right" sideOffset={8}>
+                {/* 1. RECENT PROJECTS SECTION */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+                  <span>RECENT PROJECTS</span>
                   {canUserEdit() && (
                     <button
                       type="button"
@@ -254,16 +190,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         e.stopPropagation();
                         setShowCreateProj(true);
                       }}
-                      className="text-[#15803d] dark:text-[#22c55e] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer text-[11px] capitalize"
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       title="Create Project"
                     >
-                      <Plus className="size-3" />
-                      <span>New Project</span>
+                      <Plus className="size-3.5" />
                     </button>
                   )}
                 </div>
 
-                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                <div className="space-y-0.5">
                   {orgProjects.map((proj) => {
                     const isSelected = proj.id === currentProject?.id;
                     return (
@@ -280,23 +215,84 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             setSidebarTab("tokens");
                           }
                         }}
-                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                          isSelected
-                            ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
-                            : "text-foreground hover:bg-muted/70 font-medium"
-                        }`}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Layers className="size-3.5 text-muted-foreground/70 shrink-0" />
-                          <span className="truncate flex-1">{proj.name}</span>
+                        <div
+                          className="size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+                          style={proj.color ? { backgroundColor: `${proj.color}20`, color: proj.color } : undefined}
+                        >
+                          {proj.logoUrl ? (
+                            <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-md" />
+                          ) : (
+                            <span className="text-[11px] font-semibold">{proj.name?.[0]?.toLowerCase() || "w"}</span>
+                          )}
                         </div>
-                        {isSelected && <Check className="size-4 text-[#15803d] dark:text-[#4ade80] shrink-0" />}
+                        <span className="truncate flex-1 font-medium">{proj.name}</span>
+                        {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
                       </DropdownMenuItem>
                     );
                   })}
                   {orgProjects.length === 0 && (
                     <div className="px-2.5 py-2 text-[11px] text-muted-foreground text-center">
-                      No projects in this organization yet
+                      No projects yet
+                    </div>
+                  )}
+                </div>
+
+                <DropdownMenuSeparator className="my-1.5" />
+
+                {/* 2. CURRENT WORKSPACE SECTION */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+                  <span>CURRENT WORKSPACE</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentProject(null);
+                      setSidebarTab("workspaces");
+                    }}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Go to Workspaces List"
+                  >
+                    <ArrowLeftRight className="size-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-0.5 max-h-[180px] overflow-y-auto">
+                  {userOrgs.map((org) => {
+                    const isSelected = currentOrg?.id === org.id;
+                    return (
+                      <DropdownMenuItem
+                        key={org.id}
+                        onClick={() => {
+                          setCurrentOrg(org);
+                          setCurrentProject(null);
+                          setSidebarTab("dashboard");
+                        }}
+                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-primary/10 text-foreground font-semibold"
+                            : "text-foreground hover:bg-muted/70 font-medium"
+                        }`}
+                      >
+                        <div
+                          className="size-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-2xs"
+                          style={{ backgroundColor: org.color || "#6366f1" }}
+                        >
+                          {org.logoUrl ? (
+                            <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-full" />
+                          ) : (
+                            <span>{org.name?.charAt(0)?.toUpperCase() || "W"}</span>
+                          )}
+                        </div>
+                        <span className="truncate flex-1 font-semibold">{org.name}</span>
+                        {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {userOrgs.length === 0 && (
+                    <div className="px-2.5 py-1.5 text-[11px] text-muted-foreground text-center">
+                      No workspace selected
                     </div>
                   )}
                 </div>
@@ -346,76 +342,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 </button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-72 rounded-xl p-2 font-sans shadow-xl" align="start">
-                {/* 1. Organizations / Workspaces Section */}
-                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  <span>ORGANIZATIONS</span>
-                  {canUserEdit() && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowCreateOrg((prev) => !prev);
-                      }}
-                      className="text-[#15803d] dark:text-[#22c55e] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer text-[11px] capitalize"
-                      title="Create Organization"
-                    >
-                      <Plus className="size-3" />
-                      <span>New Org</span>
-                    </button>
-                  )}
-                </div>
-
-                {showCreateOrg && (
-                  <form onSubmit={handleCreateOrg} className="px-2 py-1.5 flex gap-1.5 animate-in fade-in duration-150">
-                    <Input
-                      type="text"
-                      required
-                      placeholder="Org name..."
-                      value={newOrgName}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOrgName(e.target.value)}
-                      className="h-7 text-xs flex-1 bg-background"
-                      autoFocus
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs bg-[#15803d] hover:bg-[#166534] text-white cursor-pointer shadow-2xs"
-                    >
-                      Add
-                    </Button>
-                  </form>
-                )}
-
-                <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                  {userOrgs.map((org) => {
-                    const isSelected = org.id === currentOrg?.id && !currentProject;
-                    return (
-                      <DropdownMenuItem
-                        key={org.id}
-                        onClick={() => {
-                          setCurrentOrg(org);
-                          setCurrentProject(null);
-                          setSidebarTab("dashboard");
-                        }}
-                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                          isSelected
-                            ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
-                            : "text-foreground hover:bg-muted/70 font-medium"
-                        }`}
-                      >
-                        <span className="truncate flex-1">{org.name}</span>
-                        {isSelected && <Check className="size-4 text-[#15803d] dark:text-[#4ade80] shrink-0" />}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </div>
-
-                <DropdownMenuSeparator className="my-2" />
-
-                {/* 2. Projects Section */}
-                <div className="flex items-center justify-between px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  <span>PROJECTS ({orgProjects.length})</span>
+              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl" align="start">
+                {/* 1. RECENT PROJECTS SECTION */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+                  <span>RECENT PROJECTS</span>
                   {canUserEdit() && (
                     <button
                       type="button"
@@ -423,16 +353,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         e.stopPropagation();
                         setShowCreateProj(true);
                       }}
-                      className="text-[#15803d] dark:text-[#22c55e] hover:underline font-semibold flex items-center gap-0.5 cursor-pointer text-[11px] capitalize"
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       title="Create Project"
                     >
-                      <Plus className="size-3" />
-                      <span>New Project</span>
+                      <Plus className="size-3.5" />
                     </button>
                   )}
                 </div>
 
-                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                <div className="space-y-0.5">
                   {orgProjects.map((proj) => {
                     const isSelected = proj.id === currentProject?.id;
                     return (
@@ -449,23 +378,84 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             setSidebarTab("tokens");
                           }
                         }}
-                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                          isSelected
-                            ? "bg-[#ecfdf5] dark:bg-[#064e3b]/40 text-[#15803d] dark:text-[#4ade80] font-semibold"
-                            : "text-foreground hover:bg-muted/70 font-medium"
-                        }`}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Layers className="size-3.5 text-muted-foreground/70 shrink-0" />
-                          <span className="truncate flex-1">{proj.name}</span>
+                        <div
+                          className="size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+                          style={proj.color ? { backgroundColor: `${proj.color}20`, color: proj.color } : undefined}
+                        >
+                          {proj.logoUrl ? (
+                            <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-md" />
+                          ) : (
+                            <span className="text-[11px] font-semibold">{proj.name?.[0]?.toLowerCase() || "w"}</span>
+                          )}
                         </div>
-                        {isSelected && <Check className="size-4 text-[#15803d] dark:text-[#4ade80] shrink-0" />}
+                        <span className="truncate flex-1 font-medium">{proj.name}</span>
+                        {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
                       </DropdownMenuItem>
                     );
                   })}
                   {orgProjects.length === 0 && (
                     <div className="px-2.5 py-2 text-[11px] text-muted-foreground text-center">
-                      No projects in this organization yet
+                      No projects yet
+                    </div>
+                  )}
+                </div>
+
+                <DropdownMenuSeparator className="my-1.5" />
+
+                {/* 2. CURRENT WORKSPACE SECTION */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+                  <span>CURRENT WORKSPACE</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentProject(null);
+                      setSidebarTab("workspaces");
+                    }}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Go to Workspaces List"
+                  >
+                    <ArrowLeftRight className="size-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-0.5 max-h-[180px] overflow-y-auto">
+                  {userOrgs.map((org) => {
+                    const isSelected = currentOrg?.id === org.id;
+                    return (
+                      <DropdownMenuItem
+                        key={org.id}
+                        onClick={() => {
+                          setCurrentOrg(org);
+                          setCurrentProject(null);
+                          setSidebarTab("dashboard");
+                        }}
+                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-primary/10 text-foreground font-semibold"
+                            : "text-foreground hover:bg-muted/70 font-medium"
+                        }`}
+                      >
+                        <div
+                          className="size-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-2xs"
+                          style={{ backgroundColor: org.color || "#6366f1" }}
+                        >
+                          {org.logoUrl ? (
+                            <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-full" />
+                          ) : (
+                            <span>{org.name?.charAt(0)?.toUpperCase() || "W"}</span>
+                          )}
+                        </div>
+                        <span className="truncate flex-1 font-semibold">{org.name}</span>
+                        {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {userOrgs.length === 0 && (
+                    <div className="px-2.5 py-1.5 text-[11px] text-muted-foreground text-center">
+                      No workspace selected
                     </div>
                   )}
                 </div>

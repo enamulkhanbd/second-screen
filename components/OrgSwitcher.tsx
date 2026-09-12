@@ -170,6 +170,20 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
                 );
               })}
             </div>
+
+            <div className="pt-1 mt-1 border-t border-border/50">
+              <button
+                onClick={() => {
+                  setCurrentProject(null);
+                  setSidebarTab("workspaces");
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted font-medium"
+              >
+                <Building2 className="w-3.5 h-3.5 text-violet-500" />
+                <span>All Workspaces ({userOrgs.length})</span>
+              </button>
+            </div>
           </div>
 
           {/* Projects Section */}

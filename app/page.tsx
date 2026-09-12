@@ -8,6 +8,7 @@ import { ThemeConfigurationView } from "@/components/ThemeConfigurationView";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
+import { WorkspacesListView } from "@/components/WorkspacesListView";
 import { DashboardView } from "@/components/DashboardView";
 import { SyncProvidersView } from "@/components/SyncProvidersView";
 import { VariablesView } from "@/components/VariablesView";
@@ -93,34 +94,42 @@ export default function Home() {
     );
   }
 
+  const isWorkspacesView = sidebarTab === "workspaces";
+
   return (
     <main className="flex h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
       {/* 1. Primary Navigation Sidebar - Full height to top */}
-      <div className="hidden lg:flex h-full flex-shrink-0">
-        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
-      </div>
+      {!isWorkspacesView && (
+        <>
+          <div className="hidden lg:flex h-full flex-shrink-0">
+            <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+          </div>
 
-      <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
-        <SheetContent
-          side="left"
-          className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
-        >
-          <SheetTitle className="sr-only">Primary navigation</SheetTitle>
-          <Sidebar
-            mode="drawer"
-            className="border-r-0 pt-10"
-            onOpenSettings={() => setIsSettingsOpen(true)}
-          />
-        </SheetContent>
-      </Sheet>
+          <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
+            <SheetContent
+              side="left"
+              className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
+            >
+              <SheetTitle className="sr-only">Primary navigation</SheetTitle>
+              <Sidebar
+                mode="drawer"
+                className="border-r-0 pt-10"
+                onOpenSettings={() => setIsSettingsOpen(true)}
+              />
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
 
       {/* 2. Main Content & Header Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         {/* Top Header: Clean Status, Theme Switcher & Auth */}
-        <Header
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenNavigation={() => setIsPrimaryNavOpen(true)}
-        />
+        {!isWorkspacesView && (
+          <Header
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenNavigation={() => setIsPrimaryNavOpen(true)}
+          />
+        )}
 
         {/* Main Workspace */}
         <div className="flex-1 flex overflow-hidden">
@@ -149,9 +158,11 @@ export default function Home() {
         )}
 
         {/* 3. Main Workspace Page Views */}
-        {sidebarTab === "dashboard" ? (
+        {sidebarTab === "workspaces" ? (
+          <WorkspacesListView />
+        ) : sidebarTab === "dashboard" ? (
           <DashboardView />
-        ) : sidebarTab === "projects" || (sidebarTab as string) === "workspaces" ? (
+        ) : sidebarTab === "projects" ? (
           <WorkspacesProjectsView />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />

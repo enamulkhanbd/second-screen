@@ -425,8 +425,22 @@ export const WorkspacesProjectsView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-y-auto select-none">
       {/* Top Banner Header */}
-      <header className="border-b border-border bg-card/60 backdrop-blur-md px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="border-b border-border bg-card/60 backdrop-blur-md px-8 py-4 flex flex-col gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground select-none">
+          <button
+            onClick={() => setSidebarTab("workspaces")}
+            className="hover:text-foreground hover:underline transition-colors font-medium cursor-pointer"
+          >
+            Workspaces
+          </button>
+          <span className="text-muted-foreground/40">/</span>
+          <span className="text-foreground font-medium">{currentOrg?.name || "Workspace"}</span>
+          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground">Projects</span>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
           {/* Active Org Avatar with Custom Color / Icon */}
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-md flex-shrink-0"
@@ -486,6 +500,17 @@ export const WorkspacesProjectsView: React.FC = () => {
                       </DropdownMenuItem>
                     );
                   })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setCurrentProject(null);
+                      setSidebarTab("workspaces");
+                    }}
+                    className="flex items-center gap-2 text-xs py-2 cursor-pointer font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                    <span>All Workspaces ({userOrgs.length})</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -537,7 +562,8 @@ export const WorkspacesProjectsView: React.FC = () => {
             </Button>
           )}
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* Main Container */}
       <div className="flex-1 p-8 space-y-6 max-w-7xl w-full mx-auto">
