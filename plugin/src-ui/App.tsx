@@ -71,6 +71,8 @@ interface PluginConfig {
   pat: string;
   orgId: string;
   projectId: string;
+  projectName?: string;
+  orgName?: string;
   createVariables: boolean;
   createStyles: boolean;
   createPaintStyles: boolean;
@@ -148,6 +150,7 @@ export const App: React.FC = () => {
   // Navigation & View State
   const [view, setView] = useState<PluginView>("CONNECT");
   const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
   const [config, setConfig] = useState<PluginConfig>({
     serverUrl: PRODUCTION_APP_URL,
     pat: "",
@@ -402,12 +405,17 @@ export const App: React.FC = () => {
       });
 
       if (!res.ok) {
-        throw new Error("Unable to fetch organizations. Session may have expired.");
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("AUTH_EXPIRED");
+        }
+        throw new Error(`SERVER_ERROR_${res.status}`);
       }
 
       const data = await res.json();
       const orgList: Org[] = data.orgs || data.organizations || [];
       setOrgs(orgList);
+      setIsOffline(false);
+      setErrorBanner(null);
 
       if (orgList.length === 0) {
         setView("SELECT_ORG");
@@ -436,12 +444,27 @@ export const App: React.FC = () => {
       // Default to Select Organization screen
       setView("SELECT_ORG");
     } catch (err: any) {
-      console.warn("Could not restore organization list:", err);
-      // Invalidate stale token so user is cleanly disconnected
-      const cleared = { ...config, pat: "", orgId: "", projectId: "" };
-      setConfig(cleared);
-      parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: cleared } }, "*");
-      setView("CONNECT");
+      console.warn("fetchOrgs error:", err);
+      if (err.message === "AUTH_EXPIRED") {
+        // Genuine auth expiration -> clear token and go to connect
+        const cleared = { ...config, pat: "", orgId: "", projectId: "", projectName: "", orgName: "" };
+        setConfig(cleared);
+        parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: cleared } }, "*");
+        setErrorBanner("Your session has expired. Please connect again.");
+        setView("CONNECT");
+      } else {
+        // Transient network failure or server restarting:
+        // DO NOT log out! Keep the user connected and preserve their workspace!
+        setIsOffline(true);
+        setErrorBanner(`Cannot connect to server at ${sUrl}. Working offline.`);
+        if (config.projectId || config.projectName) {
+          setView("MAIN");
+        } else if (config.orgId) {
+          setView("SELECT_PROJECT");
+        } else {
+          setView("SELECT_ORG");
+        }
+      }
     } finally {
       setIsRestoringSession(false);
     }
@@ -476,12 +499,17 @@ export const App: React.FC = () => {
       });
 
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("AUTH_EXPIRED");
+        }
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP ${res.status}: Failed to fetch tokens`);
       }
 
       const data = await res.json();
       if (data.success) {
+        setIsOffline(false);
+        setErrorBanner(null);
         const resolved: TokenItem[] = data.resolvedTokens || [];
         setTokens(resolved);
         setThemeGroups(data.themeGroups || []);
@@ -505,7 +533,16 @@ export const App: React.FC = () => {
         throw new Error(data.error || "Could not retrieve tokens");
       }
     } catch (err: any) {
-      setErrorBanner(err.message || "Failed to fetch tokens from Studio");
+      if (err.message === "AUTH_EXPIRED") {
+        const cleared = { ...config, pat: "", orgId: "", projectId: "", projectName: "", orgName: "" };
+        setConfig(cleared);
+        parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: cleared } }, "*");
+        setErrorBanner("Your session has expired. Please connect again.");
+        setView("CONNECT");
+      } else {
+        setIsOffline(true);
+        setErrorBanner(`Failed to fetch tokens from ${activeServer}: ${err.message}`);
+      }
     } finally {
       setIsFetchingTokens(false);
     }
@@ -594,6 +631,8 @@ export const App: React.FC = () => {
       pat: "",
       orgId: "",
       projectId: "",
+      projectName: "",
+      orgName: "",
     };
     setConfig(unlinkedConfig);
     setSelectedOrg(null);
@@ -601,6 +640,8 @@ export const App: React.FC = () => {
     setTokens([]);
     setPairCode("");
     setIsConnecting(false);
+    setIsOffline(false);
+    setErrorBanner(null);
     setView("CONNECT");
     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: unlinkedConfig } }, "*");
     parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: "Logged out from Tokens Platform" } }, "*");
@@ -1176,6 +1217,8 @@ export const App: React.FC = () => {
                       ...config,
                       orgId: selectedOrg?.id || "",
                       projectId: proj.id,
+                      projectName: proj.name,
+                      orgName: selectedOrg?.name,
                       themeMode,
                       brandColor: proj.color || brandColor,
                     };
@@ -1226,16 +1269,28 @@ export const App: React.FC = () => {
       style={dynamicCssVars}
       className="flex flex-col h-screen w-full bg-background text-foreground font-sans select-none overflow-hidden"
     >
-      {/* Top Error Alert Banner */}
+      {/* Top Error Alert Banner with Retry */}
       {errorBanner && (
-        <div className="bg-rose-500/10 border-b border-rose-500/30 px-3.5 py-2 text-xs text-rose-500 flex items-center justify-between gap-2 z-20 flex-shrink-0 animate-in fade-in duration-150">
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-3.5 py-2 text-xs text-amber-700 dark:text-amber-300 flex items-center justify-between gap-2 z-20 flex-shrink-0 animate-in fade-in duration-150">
           <div className="flex items-center gap-2 truncate">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">{errorBanner}</span>
           </div>
-          <button onClick={() => setErrorBanner(null)} className="text-rose-400 hover:text-rose-300 flex-shrink-0">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => {
+                setErrorBanner(null);
+                setIsOffline(false);
+                fetchTokens();
+              }}
+              className="font-semibold underline hover:text-foreground cursor-pointer text-xs"
+            >
+              Retry
+            </button>
+            <button onClick={() => setErrorBanner(null)} className="text-amber-600 dark:text-amber-300 hover:text-foreground">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1248,9 +1303,11 @@ export const App: React.FC = () => {
                 className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold uppercase shadow-xs flex-shrink-0"
                 style={{ backgroundColor: selectedProject?.color || brandColor }}
               >
-                {selectedProject?.name?.charAt(0) || "W"}
+                {(selectedProject?.name || config.projectName || "W").charAt(0)}
               </div>
-              <span className="truncate max-w-[130px]">{selectedProject?.name || "web"}</span>
+              <span className="truncate max-w-[130px]">
+                {selectedProject?.name || config.projectName || "web"}
+              </span>
               <ChevronDown className="w-3 h-3 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
@@ -1285,10 +1342,17 @@ export const App: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {/* Live Status indicator badge */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Connected</span>
-          </div>
+          {isOffline ? (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span>Offline</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Connected</span>
+            </div>
+          )}
 
           {renderHeaderActions(true)}
         </div>
