@@ -114,17 +114,7 @@ export const AuthGatewayView: React.FC = () => {
           message: `Welcome ${cred.user.displayName || cred.user.email}!`,
         });
       } else {
-        // Demo fallback
-        setCurrentUser({
-          uid: "usr_google_demo",
-          email: "designer@company.com",
-          displayName: "Design Lead",
-        });
-        addToast({
-          type: "success",
-          title: "Signed In with Google (Demo)",
-          message: "Logged in as Design Lead.",
-        });
+        setError("Firebase Authentication is not configured or Google Sign-In is unavailable.");
       }
     } catch (err: any) {
       if (err.code === "auth/unauthorized-domain" || err.message?.includes("unauthorized-domain")) {
@@ -135,25 +125,6 @@ export const AuthGatewayView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoSignIn = () => {
-    const demoUser = {
-      uid: "usr_google_demo",
-      email: "designer@company.com",
-      displayName: "Design Lead",
-    };
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("ts_tokens_platform_user", JSON.stringify(demoUser));
-      } catch {}
-    }
-    setCurrentUser(demoUser);
-    addToast({
-      type: "success",
-      title: "Signed In (Demo Mode)",
-      message: "Logged in as Design Lead.",
-    });
   };
 
   return (
@@ -173,7 +144,7 @@ export const AuthGatewayView: React.FC = () => {
             Tokens Platform
           </span>
           <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 ml-1 border-primary/30 text-primary">
-            v0.1.0-beta
+            v1.3.0
           </Badge>
         </div>
 
@@ -279,15 +250,6 @@ export const AuthGatewayView: React.FC = () => {
                     <p className="text-[11px] text-muted-foreground font-normal leading-relaxed">
                       If running locally, visit <span className="font-mono font-semibold text-foreground">http://localhost:3000</span> instead of <span className="font-mono">127.0.0.1</span>. Or add this domain to Firebase Console &gt; Auth &gt; Settings &gt; Authorized domains.
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={handleDemoSignIn}
-                      className="h-7 text-xs self-start cursor-pointer font-semibold"
-                    >
-                      Bypass &amp; Continue in Demo Mode
-                    </Button>
                   </div>
                 )}
               </div>
@@ -320,18 +282,6 @@ export const AuthGatewayView: React.FC = () => {
                 />
               </svg>
               <span>Continue with Google</span>
-            </Button>
-
-            {/* Quick Demo Mode Sign In */}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleDemoSignIn}
-              disabled={loading}
-              className="w-full h-9 gap-2 text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border shadow-xs cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span>Explore Demo Workspace</span>
             </Button>
 
             {/* Separator */}

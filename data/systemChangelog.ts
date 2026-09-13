@@ -17,6 +17,7 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
       "Project Settings view with Danger Zone controls: non-destructive archive and permanent deletion.",
       "Strict duplicate name validation: globally unique organization names and org-scoped unique project names.",
       "Zero-preset initialization: newly created projects start 100% clean with zero seeded tokens or mock IDs.",
+      "Removed demo workspace and demo login fallbacks from authentication gateway for secure, real user onboarding.",
       "Project branch management with timeline commit history and branch switching.",
     ],
     items: [

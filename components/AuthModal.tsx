@@ -124,19 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleGoogleSignIn = async () => {
     if (!isFirebaseConfigured || !auth || !googleProvider) {
-      // Local fallback for Google sign-in
-      setCurrentUser({
-        uid: "usr_google_demo",
-        email: "designer@company.com",
-        displayName: "Design Lead",
-      });
-      addToast({
-        type: "success",
-        title: "Signed In with Google (Demo)",
-        message: "Logged in as Design Lead.",
-      });
-      onClose();
-      if (onSuccess) onSuccess();
+      setError("Firebase Authentication is not configured or Google Sign-In is unavailable.");
       return;
     }
 
@@ -166,21 +154,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoSignIn = () => {
-    setCurrentUser({
-      uid: "usr_google_demo",
-      email: "designer@company.com",
-      displayName: "Design Lead",
-    });
-    addToast({
-      type: "success",
-      title: "Signed In (Demo Mode)",
-      message: "Logged in as Design Lead.",
-    });
-    onClose();
-    if (onSuccess) onSuccess();
   };
 
   const handleSignOut = async () => {
@@ -285,15 +258,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <p className="text-[11px] text-muted-foreground font-normal leading-relaxed">
                       Use <span className="font-mono font-semibold text-foreground">http://localhost:3000</span> instead of <span className="font-mono">127.0.0.1</span>, or add your current domain to Firebase Authorized Domains.
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={handleDemoSignIn}
-                      className="h-7 text-xs self-start cursor-pointer font-semibold"
-                    >
-                      Bypass &amp; Continue in Demo Mode
-                    </Button>
                   </div>
                 )}
               </div>

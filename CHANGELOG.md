@@ -17,6 +17,7 @@ All notable changes to the Tokens & Asset Management Platform will be documented
   - **Organization-Scoped Unique Projects**: Project names are strictly unique within each organization, while permitting different organizations to create projects sharing the same name.
   - **Real-Time UI Protection**: Integrated real-time duplicate name detection across all modals (`CreateProjectModal`, `WorkspacesProjectsView`, `ProjectSettingsView`) with immediate inline alerts and disabled submit buttons.
 - **Zero-Preset Clean Initialization**: Completely removed all legacy starter tokens (`colors.brand.*`, `spacing.*`) and mock Figma collection IDs (`VariableCollectionId:6:598`). New projects start 100% clean with zero injected tokens and zero dummy configurations.
+- **Removed Demo Mode from Authentication Gateway**: Removed the "Explore Demo Workspace" button, demo user auto-login fallback, and unauthorized domain demo bypass from the login gateway and modal to ensure authentication adheres strictly to actual user credentials and Google OAuth.
 - **Project Branches & Version Control**: Added full project branch management (`components/BranchesView.tsx`) with native branch switching (`main`, `staging`), commit timeline tracking, and branch merging.
 
 ---
