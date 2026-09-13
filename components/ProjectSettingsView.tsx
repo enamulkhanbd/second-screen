@@ -5,6 +5,9 @@ import { useTokenStore } from "@/store/useTokenStore";
 import {
   Lock,
   Archive,
+  ArchiveRestore,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export const ProjectSettingsView: React.FC = () => {
   const {
@@ -71,13 +82,60 @@ export const ProjectSettingsView: React.FC = () => {
     }
   };
 
-  const handleArchive = () => {
-    if (confirm("Are you sure you want to archive this project? Archiving makes it read-only.")) {
-      addToast({
-        type: "info",
-        title: "Project Archived",
-        message: "Project archived successfully. You can unarchive it anytime.",
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [confirmNameInput, setConfirmNameInput] = useState("");
+
+  const handleArchive = async () => {
+    if (!currentOrg || !currentProject) return;
+    const willArchive = !currentProject.isArchived;
+    const confirmMsg = willArchive
+      ? `Are you sure you want to archive "${currentProject.name}"? It will become read-only and move to the Archived projects tab.`
+      : `Are you sure you want to restore "${currentProject.name}" to active status?`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      await updateProjectAction(currentOrg.id, currentProject.id, {
+        isArchived: willArchive,
       });
+      addToast({
+        type: "success",
+        title: willArchive ? "Project Archived" : "Project Restored",
+        message: willArchive
+          ? `"${currentProject.name}" has been moved to archived.`
+          : `"${currentProject.name}" has been restored to active status.`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Action Failed",
+        message: err.message || "Failed to update project archive status.",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentOrg || !currentProject) return;
+    setIsDeleting(true);
+    try {
+      const projName = currentProject.name;
+      await deleteProjectAction(currentOrg.id, currentProject.id);
+      addToast({
+        type: "success",
+        title: "Project Deleted",
+        message: `Project "${projName}" has been permanently deleted.`,
+      });
+      setSidebarTab("tokens");
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Failed to delete project.",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirmOpen(false);
+      setConfirmNameInput("");
     }
   };
 
@@ -228,11 +286,19 @@ export const ProjectSettingsView: React.FC = () => {
         {/* Danger Zone: Archive Project Card */}
         <div className="rounded-xl border border-border bg-card p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            <Archive className="w-4 h-4 text-rose-500 mt-0.5 shrink-0" />
+            {currentProject?.isArchived ? (
+              <ArchiveRestore className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            ) : (
+              <Archive className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+            )}
             <div>
-              <div className="text-xs font-semibold text-foreground">Archive project</div>
+              <div className="text-xs font-semibold text-foreground">
+                {currentProject?.isArchived ? "Restore project" : "Archive project"}
+              </div>
               <p className="text-[11px] text-muted-foreground">
-                Archiving makes this project read-only. You can unarchive it later to restore full access.
+                {currentProject?.isArchived
+                  ? "Restore this project to active status. Members will be able to edit tokens and publish changes again."
+                  : "Archiving hides the project from active workspace views and makes it read-only. You can unarchive it anytime."}
               </p>
             </div>
           </div>
@@ -242,11 +308,91 @@ export const ProjectSettingsView: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleArchive}
-            className="h-8 text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-rose-200 dark:border-rose-900/60 cursor-pointer shrink-0"
+            disabled={!canEditSettings}
+            className="h-8 text-xs font-medium cursor-pointer shrink-0"
           >
-            Archive project
+            {currentProject?.isArchived ? "Restore project" : "Archive project"}
           </Button>
         </div>
+
+        {/* Danger Zone: Delete Project Card */}
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Trash2 className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+            <div>
+              <div className="text-xs font-semibold text-destructive">Delete project</div>
+              <p className="text-[11px] text-muted-foreground">
+                Permanently delete this project and all its tokens, branches, themes, and configuration. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={!canEditSettings}
+            className="h-8 text-xs font-medium cursor-pointer shrink-0"
+          >
+            Delete project
+          </Button>
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent className="sm:max-w-md font-sans">
+            <DialogHeader>
+              <div className="flex items-center gap-2 text-destructive mb-1">
+                <AlertTriangle className="w-5 h-5" />
+                <DialogTitle className="text-base font-bold">Delete Project</DialogTitle>
+              </div>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Are you sure you want to permanently delete <strong className="text-foreground">{currentProject?.name}</strong>?
+                This action is irreversible and all tokens, theme configurations, releases, and branches will be lost.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2 py-3">
+              <p className="text-xs text-muted-foreground">
+                Please type <span className="font-mono font-semibold text-foreground">{currentProject?.name}</span> to confirm:
+              </p>
+              <Input
+                type="text"
+                placeholder={currentProject?.name}
+                value={confirmNameInput}
+                onChange={(e) => setConfirmNameInput(e.target.value)}
+                className="h-9 text-xs"
+                autoFocus
+              />
+            </div>
+
+            <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setConfirmNameInput("");
+                }}
+                className="h-8 text-xs cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={confirmNameInput !== currentProject?.name || isDeleting}
+                onClick={handleDelete}
+                className="h-8 text-xs cursor-pointer"
+              >
+                {isDeleting ? "Deleting..." : "Permanently Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
