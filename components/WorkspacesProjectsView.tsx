@@ -148,6 +148,27 @@ export const WorkspacesProjectsView: React.FC = () => {
   const [deletingOrgId, setDeletingOrgId] = useState<string | null>(null);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
+  // Duplicate name validation
+  const isOrgNameDuplicate = useMemo(() => {
+    const trimmed = orgFormName.trim().toLowerCase();
+    if (!trimmed) return false;
+    return userOrgs.some(
+      (org) =>
+        org.id !== editingOrgId &&
+        org.name.trim().toLowerCase() === trimmed
+    );
+  }, [orgFormName, userOrgs, editingOrgId]);
+
+  const isProjectNameDuplicate = useMemo(() => {
+    const trimmed = projectFormName.trim().toLowerCase();
+    if (!trimmed) return false;
+    return orgProjects.some(
+      (proj) =>
+        proj.id !== editingProjectId &&
+        proj.name.trim().toLowerCase() === trimmed
+    );
+  }, [projectFormName, orgProjects, editingProjectId]);
+
   const userRole = getCurrentUserRole();
   const canManage = userRole === "owner" || userRole === "admin";
 
@@ -212,7 +233,7 @@ export const WorkspacesProjectsView: React.FC = () => {
 
   const handleSaveWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgFormName.trim()) return;
+    if (!orgFormName.trim() || isOrgNameDuplicate) return;
 
     setIsSavingOrg(true);
     try {
@@ -301,7 +322,7 @@ export const WorkspacesProjectsView: React.FC = () => {
 
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrg || !projectFormName.trim()) return;
+    if (!currentOrg || !projectFormName.trim() || isProjectNameDuplicate) return;
 
     setIsSavingProject(true);
     try {
@@ -664,6 +685,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                           autoFocus
                           className="h-9 text-xs"
                         />
+                        {isProjectNameDuplicate && (
+                          <p className="text-[11px] text-destructive font-medium">
+                            A project with this name already exists in {currentOrg?.name}.
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-1.5">
@@ -742,7 +768,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                     <Button
                       type="submit"
                       size="sm"
-                      disabled={isSavingProject || !projectFormName.trim()}
+                      disabled={isSavingProject || !projectFormName.trim() || isProjectNameDuplicate}
                       className="gap-1.5 font-semibold shadow-xs"
                     >
                       <Save className="w-3.5 h-3.5" />
@@ -1377,6 +1403,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                         autoFocus
                         className="h-9 text-xs"
                       />
+                      {isOrgNameDuplicate && (
+                        <p className="text-[11px] text-destructive font-medium">
+                          An organization with this name already exists.
+                        </p>
+                      )}
                     </div>
 
                     {/* Icon Selection */}
@@ -1444,7 +1475,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                     <Button
                       type="submit"
                       size="sm"
-                      disabled={isSavingOrg || !orgFormName.trim()}
+                      disabled={isSavingOrg || !orgFormName.trim() || isOrgNameDuplicate}
                       className="gap-1.5 font-semibold bg-violet-600 hover:bg-violet-700 text-white shadow-xs"
                     >
                       <Save className="w-3.5 h-3.5" />

@@ -57,6 +57,8 @@ import {
 import {
   getUserOrganizations,
   getOrgProjects,
+  checkOrganizationNameAvailable,
+  checkProjectNameAvailable,
   createOrganization,
   createProject,
   saveProjectTokens,
@@ -1163,11 +1165,31 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   createOrgAction: async (name, icon, color, logoUrl) => {
-    const { currentUser } = get();
+    const { currentUser, addToast } = get();
     if (!currentUser) return null;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      addToast({
+        type: "error",
+        title: "Validation Error",
+        message: "Organization name cannot be empty.",
+      });
+      return null;
+    }
+
+    const check = await checkOrganizationNameAvailable(trimmed);
+    if (!check.available) {
+      addToast({
+        type: "error",
+        title: "Organization Name Taken",
+        message: check.error || `An organization with the name "${trimmed}" already exists.`,
+      });
+      return null;
+    }
+
     try {
       const newOrg = await createOrganization(
-        name,
+        trimmed,
         {
           uid: currentUser.uid,
           email: currentUser.email,
@@ -1186,16 +1208,34 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
       get().setCurrentOrg(newOrg);
       return newOrg;
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Failed creating org:", e);
+      addToast({
+        type: "error",
+        title: "Creation Failed",
+        message: e.message || "Failed to create organization.",
+      });
       return null;
     }
   },
 
   updateOrgAction: async (orgId, updates) => {
+    const { addToast } = get();
+    if (updates.name) {
+      const trimmed = updates.name.trim();
+      const check = await checkOrganizationNameAvailable(trimmed, orgId);
+      if (!check.available) {
+        addToast({
+          type: "error",
+          title: "Organization Name Taken",
+          message: check.error || `An organization with the name "${trimmed}" already exists.`,
+        });
+        throw new Error(check.error || `An organization with the name "${trimmed}" already exists.`);
+      }
+    }
     try {
       const existingOrg = get().userOrgs.find((org) => org.id === orgId);
-      const name = updates.name ?? existingOrg?.name;
+      const name = updates.name ? updates.name.trim() : existingOrg?.name;
       const orgUpdates = {
         ...(name ? { name } : {}),
         ...(updates.name ? { slug: String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") } : {}),
@@ -1244,12 +1284,32 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   createProjectAction: async (name, description, icon, color, logoUrl) => {
-    const { currentOrg, currentUser } = get();
+    const { currentOrg, currentUser, addToast } = get();
     if (!currentOrg) return null;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      addToast({
+        type: "error",
+        title: "Validation Error",
+        message: "Project name cannot be empty.",
+      });
+      return null;
+    }
+
+    const check = await checkProjectNameAvailable(currentOrg.id, trimmed);
+    if (!check.available) {
+      addToast({
+        type: "error",
+        title: "Project Name Taken",
+        message: check.error || `A project named "${trimmed}" already exists in ${currentOrg.name}.`,
+      });
+      return null;
+    }
+
     try {
       const newProj = await createProject(
         currentOrg.id,
-        name,
+        trimmed,
         description,
         {},
         currentUser?.displayName,
@@ -1267,17 +1327,35 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       get().setCurrentProject(newProj);
       set({ sidebarTab: "tokens" });
       return newProj;
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Failed creating project:", e);
+      addToast({
+        type: "error",
+        title: "Creation Failed",
+        message: e.message || "Failed to create project.",
+      });
       return null;
     }
   },
 
   updateProjectAction: async (orgId, projectId, updates) => {
+    const { addToast } = get();
+    if (updates.name) {
+      const trimmed = updates.name.trim();
+      const check = await checkProjectNameAvailable(orgId, trimmed, projectId);
+      if (!check.available) {
+        addToast({
+          type: "error",
+          title: "Project Name Taken",
+          message: check.error || `A project named "${trimmed}" already exists in this organization.`,
+        });
+        throw new Error(check.error || `A project named "${trimmed}" already exists in this organization.`);
+      }
+    }
     try {
       const slug = updates.name ? String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") : undefined;
       const projectUpdates: any = {
-        ...(updates.name ? { name: updates.name, slug } : {}),
+        ...(updates.name ? { name: updates.name.trim(), slug } : {}),
         ...(updates.description !== undefined ? { description: updates.description } : {}),
         ...(updates.icon ? { icon: updates.icon } : {}),
         ...(updates.color ? { color: updates.color } : {}),

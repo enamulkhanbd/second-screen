@@ -93,6 +93,69 @@ export async function getOrganization(orgId: string): Promise<Organization | nul
 }
 
 /**
+ * Checks whether an organization name or slug is available globally.
+ * Case-insensitive & trimmed comparison.
+ */
+export async function checkOrganizationNameAvailable(
+  name: string,
+  excludeOrgId?: string
+): Promise<{ available: boolean; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { available: false, error: "Organization name cannot be empty." };
+  }
+  const normalized = trimmed.toLowerCase();
+  const slug = normalized.replace(/[^a-z0-9]/g, "-");
+
+  // 1. Check in Firestore
+  if (isFirebaseConfigured && db) {
+    try {
+      const orgsRef = collection(db, "organizations");
+      const snap = await getDocs(orgsRef);
+      for (const d of snap.docs) {
+        if (excludeOrgId && d.id === excludeOrgId) continue;
+        const orgData = d.data() as Organization;
+        const existingName = (orgData.name || "").trim().toLowerCase();
+        const existingSlug = (orgData.slug || "").trim().toLowerCase();
+        if (existingName === normalized || existingSlug === slug) {
+          return {
+            available: false,
+            error: `An organization with the name "${trimmed}" already exists.`,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Firestore error checking org name availability:", e);
+    }
+  }
+
+  // 2. Check in localStorage cache
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("ts_cached_user_orgs");
+      if (cached) {
+        const orgs: Organization[] = JSON.parse(cached);
+        if (Array.isArray(orgs)) {
+          for (const org of orgs) {
+            if (excludeOrgId && org.id === excludeOrgId) continue;
+            const existingName = (org.name || "").trim().toLowerCase();
+            const existingSlug = (org.slug || "").trim().toLowerCase();
+            if (existingName === normalized || existingSlug === slug) {
+              return {
+                available: false,
+                error: `An organization with the name "${trimmed}" already exists.`,
+              };
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return { available: true };
+}
+
+/**
  * Creates a new Organization directly in Firestore
  */
 export async function createOrganization(
@@ -102,12 +165,17 @@ export async function createOrganization(
   color?: string,
   logoUrl?: string
 ): Promise<Organization> {
+  const check = await checkOrganizationNameAvailable(name);
+  if (!check.available) {
+    throw new Error(check.error || `An organization with the name "${name}" already exists.`);
+  }
+
   const orgId = `org_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
 
   const newOrg: Organization = {
     id: orgId,
-    name,
+    name: name.trim(),
     slug,
     icon: icon || "🏢",
     color: color || "#6366f1",
@@ -144,7 +212,16 @@ export async function updateOrganization(
   orgId: string,
   updates: Partial<{ name: string; slug: string; icon: string; color: string; logoUrl: string; avatarUrl: string }>
 ): Promise<void> {
-  if (!orgId || !isFirebaseConfigured || !db) return;
+  if (!orgId) return;
+
+  if (updates.name) {
+    const check = await checkOrganizationNameAvailable(updates.name, orgId);
+    if (!check.available) {
+      throw new Error(check.error || `An organization with the name "${updates.name}" already exists.`);
+    }
+  }
+
+  if (!isFirebaseConfigured || !db) return;
   try {
     const orgRef = doc(db, "organizations", orgId);
     await updateDoc(orgRef, {
@@ -488,6 +565,71 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
 }
 
 /**
+ * Checks whether a project name is available inside a specific organization.
+ * Case-insensitive & trimmed comparison.
+ * Scoped strictly to orgId (two different orgs CAN have the same project name).
+ */
+export async function checkProjectNameAvailable(
+  orgId: string,
+  name: string,
+  excludeProjectId?: string
+): Promise<{ available: boolean; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { available: false, error: "Project name cannot be empty." };
+  }
+  if (!orgId) {
+    return { available: false, error: "Organization ID is required." };
+  }
+  const normalized = trimmed.toLowerCase();
+
+  // 1. Check in Firestore under organizations/{orgId}/projects
+  if (isFirebaseConfigured && db) {
+    try {
+      const projsRef = collection(db, "organizations", orgId, "projects");
+      const snap = await getDocs(projsRef);
+      for (const d of snap.docs) {
+        if (excludeProjectId && d.id === excludeProjectId) continue;
+        const projData = d.data() as Project;
+        const existingName = (projData.name || "").trim().toLowerCase();
+        if (existingName === normalized) {
+          return {
+            available: false,
+            error: `A project with the name "${trimmed}" already exists in this organization.`,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Firestore error checking project name availability:", e);
+    }
+  }
+
+  // 2. Check in localStorage cache for this specific org
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
+      if (cached) {
+        const projs: Project[] = JSON.parse(cached);
+        if (Array.isArray(projs)) {
+          for (const p of projs) {
+            if (excludeProjectId && p.id === excludeProjectId) continue;
+            const existingName = (p.name || "").trim().toLowerCase();
+            if (existingName === normalized) {
+              return {
+                available: false,
+                error: `A project with the name "${trimmed}" already exists in this organization.`,
+              };
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return { available: true };
+}
+
+/**
  * Creates a new Project inside an Organization directly in Firestore
  */
 export async function createProject(
@@ -500,6 +642,11 @@ export async function createProject(
   color?: string,
   logoUrl?: string
 ): Promise<Project> {
+  const check = await checkProjectNameAvailable(orgId, name);
+  if (!check.available) {
+    throw new Error(check.error || `A project with the name "${name}" already exists in this organization.`);
+  }
+
   const projId = `proj_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
   const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : {};
@@ -681,8 +828,15 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
 export async function updateProject(
   orgId: string,
   projectId: string,
-  updates: Partial<{ name: string; description: string; slug: string; icon: string; color: string; logoUrl: string }>
+  updates: Partial<{ name: string; description: string; slug: string; icon: string; color: string; logoUrl: string; isArchived?: boolean }>
 ): Promise<void> {
+  if (updates.name) {
+    const check = await checkProjectNameAvailable(orgId, updates.name, projectId);
+    if (!check.available) {
+      throw new Error(check.error || `A project with the name "${updates.name}" already exists in this organization.`);
+    }
+  }
+
   if (isFirebaseConfigured && db && orgId && projectId) {
     try {
       const projRef = doc(db, "organizations", orgId, "projects", projectId);

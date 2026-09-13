@@ -24,14 +24,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { currentOrg, createProjectAction, addToast } = useTokenStore();
+  const { currentOrg, orgProjects, createProjectAction, addToast } = useTokenStore();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isDuplicate = Boolean(
+    name.trim() &&
+    orgProjects.some((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase())
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !currentOrg) return;
+    if (!name.trim() || !currentOrg || isDuplicate) return;
 
     setLoading(true);
     try {
@@ -87,6 +92,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               onChange={(e) => setName(e.target.value)}
               className="text-xs"
             />
+            {isDuplicate && (
+              <p className="text-[11px] text-destructive font-medium">
+                A project with this name already exists in {currentOrg?.name}.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -113,7 +123,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             <Button
               type="submit"
               size="sm"
-              disabled={loading || !name.trim()}
+              disabled={loading || !name.trim() || isDuplicate}
               className="gap-1.5"
             >
               <span>{loading ? "Creating..." : "Create Project"}</span>

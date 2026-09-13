@@ -32,6 +32,7 @@ export const ProjectSettingsView: React.FC = () => {
   const {
     currentOrg,
     currentProject,
+    orgProjects,
     updateProjectAction,
     deleteProjectAction,
     addToast,
@@ -48,6 +49,16 @@ export const ProjectSettingsView: React.FC = () => {
   const [basePermission, setBasePermission] = useState("write");
   const [isSaving, setIsSaving] = useState(false);
 
+  const isDuplicateName = Boolean(
+    projectName.trim() &&
+    currentProject &&
+    orgProjects.some(
+      (p) =>
+        p.id !== currentProject.id &&
+        p.name.trim().toLowerCase() === projectName.trim().toLowerCase()
+    )
+  );
+
   useEffect(() => {
     if (currentProject) {
       setProjectName(currentProject.name);
@@ -58,7 +69,7 @@ export const ProjectSettingsView: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrg || !currentProject || !projectName.trim()) return;
+    if (!currentOrg || !currentProject || !projectName.trim() || isDuplicateName) return;
 
     setIsSaving(true);
     try {
@@ -170,6 +181,11 @@ export const ProjectSettingsView: React.FC = () => {
                 className="h-9 text-xs flex-1 bg-background"
               />
             </div>
+            {isDuplicateName && (
+              <p className="text-[11px] text-destructive font-medium mt-1">
+                A project with this name already exists in {currentOrg?.name}.
+              </p>
+            )}
           </div>
 
           {/* Slug * */}
@@ -275,7 +291,7 @@ export const ProjectSettingsView: React.FC = () => {
             <Button
               type="submit"
               size="sm"
-              disabled={isSaving || !canEditSettings}
+              disabled={isSaving || !canEditSettings || isDuplicateName || !projectName.trim()}
               className="h-8 text-xs font-medium bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-pointer shadow-2xs"
             >
               {isSaving ? "Saving..." : "Save Changes"}
