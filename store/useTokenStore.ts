@@ -733,48 +733,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ? proj.rawTokens
           : {};
 
-      if (!initialTokens || Object.keys(initialTokens).length === 0) {
-        if (typeof window !== "undefined") {
-          try {
-            const cached = localStorage.getItem("ts_tokens_platform_raw_tokens");
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              if (parsed && Object.keys(parsed).length > 0) {
-                initialTokens = parsed;
-              }
-            }
-          } catch {}
-        }
-      }
-
-      if (!initialTokens || Object.keys(initialTokens).length === 0) {
-        initialTokens = {
-          global: {
-            colors: {
-              brand: {
-                primary: { value: "#6366f1", type: "color", description: "Primary brand color" },
-                secondary: { value: "#ec4899", type: "color", description: "Vibrant accent" },
-              },
-              neutral: {
-                white: { value: "#ffffff", type: "color" },
-                black: { value: "#000000", type: "color" },
-                gray: {
-                  100: { value: "#f3f4f6", type: "color" },
-                  900: { value: "#111827", type: "color" },
-                },
-              },
-            },
-            spacing: {
-              xs: { value: "4px", type: "spacing" },
-              sm: { value: "8px", type: "spacing" },
-              md: { value: "16px", type: "spacing" },
-              lg: { value: "24px", type: "spacing" },
-            },
-          },
-        };
-      }
-
-      if (activeBranchObj && (!activeBranchObj.rawTokens || Object.keys(activeBranchObj.rawTokens).length === 0) && Object.keys(initialTokens).length > 0) {
+      if (activeBranchObj && !activeBranchObj.rawTokens) {
         activeBranchObj.rawTokens = initialTokens;
       }
 
@@ -783,7 +742,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ? activeBranchObj.themeGroups
           : proj.themeGroups !== undefined && proj.themeGroups.length > 0
           ? proj.themeGroups
-          : extractThemeGroups(initialTokens);
+          : Object.keys(initialTokens).length > 0
+          ? extractThemeGroups(initialTokens)
+          : [];
 
       set({
         branches: projectBranches,
@@ -1001,31 +962,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               "#6366f1"
             );
             if (defaultProj) {
-              const defaultTokens: RawTokensDocument = {
-                global: {
-                  colors: {
-                    brand: {
-                      primary: { value: "#6366f1", type: "color", description: "Primary brand color" },
-                      secondary: { value: "#ec4899", type: "color", description: "Vibrant accent" },
-                    },
-                    neutral: {
-                      white: { value: "#ffffff", type: "color" },
-                      black: { value: "#000000", type: "color" },
-                      gray: {
-                        100: { value: "#f3f4f6", type: "color" },
-                        900: { value: "#111827", type: "color" },
-                      },
-                    },
-                  },
-                  spacing: {
-                    xs: { value: "4px", type: "spacing" },
-                    sm: { value: "8px", type: "spacing" },
-                    md: { value: "16px", type: "spacing" },
-                    lg: { value: "24px", type: "spacing" },
-                  },
-                },
-              };
-              get().setRawTokens(defaultTokens);
+              get().setRawTokens({});
             }
           }
         } catch (initErr) {

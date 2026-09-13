@@ -198,24 +198,6 @@ export const ThemeConfigurationView: React.FC = () => {
       }
     });
 
-    // Fallback baseline variables matching screenshot if empty
-    if (list.length === 0) {
-      const sampleNames = [
-        "bg.default", "bg.subtle", "bg.muted", "bg.elevated", "bg.accent", "bg.inverse",
-        "bg.interaction.selected", "bg.interaction.hover", "bg.interaction.active",
-        "bg.brand.subtle", "bg.brand.default", "bg.brand.strong",
-        "bg.state.success", "bg.state.info", "bg.state.warning", "bg.state.error",
-        "text.default.heading", "text.default.title", "text.default.subtitle",
-        "text.default.body", "text.default.caption"
-      ];
-      sampleNames.forEach((varName) => {
-        list.push({
-          variable: varName,
-          key: getDeterministicFigmaKey(activeOption.id, varName),
-        });
-      });
-    }
-
     return list;
   }, [activeOption, resolvedTokens]);
 
@@ -264,8 +246,8 @@ export const ThemeConfigurationView: React.FC = () => {
 
       updateThemeOption(activeGroup.id, activeOption.id, {
         figmaVariableReferences: newReferences,
-        figmaCollectionId: firstCollection?.id || "VariableCollectionId:6:598",
-        figmaModeId: firstMode?.modeId || "6:12",
+        figmaCollectionId: firstCollection?.id || "",
+        figmaModeId: firstMode?.modeId || "",
       });
 
       addToast({
@@ -307,8 +289,8 @@ export const ThemeConfigurationView: React.FC = () => {
     );
   }
 
-  const collectionId = activeOption.figmaCollectionId || "VariableCollectionId:6:598";
-  const modeId = activeOption.figmaModeId || "6:12";
+  const collectionId = activeOption.figmaCollectionId || "—";
+  const modeId = activeOption.figmaModeId || "—";
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background overflow-y-auto select-none font-sans">
@@ -606,38 +588,46 @@ export const ThemeConfigurationView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40 font-mono text-xs">
-                      {figmaReferencesList.map((item) => {
-                        const isCopied = copiedKey === item.key;
-                        return (
-                          <tr
-                            key={item.variable}
-                            className="hover:bg-muted/30 transition-colors group"
-                          >
-                            <td className="py-2 px-3 text-foreground font-sans font-medium text-xs">
-                              {item.variable}
-                            </td>
-                            <td className="py-2 px-3 text-muted-foreground text-xs font-mono">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="truncate max-w-md select-all">
-                                  {item.key}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyKey(item.key)}
-                                  className="p-1 rounded hover:text-foreground hover:bg-muted text-muted-foreground/70 transition-colors cursor-pointer opacity-80 group-hover:opacity-100"
-                                  title="Copy Figma key"
-                                >
-                                  {isCopied ? (
-                                    <Check className="size-3.5 text-emerald-500" />
-                                  ) : (
-                                    <Copy className="size-3.5" />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {figmaReferencesList.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className="py-8 px-4 text-center text-muted-foreground font-sans">
+                            No Figma variables linked to this theme option yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        figmaReferencesList.map((item) => {
+                          const isCopied = copiedKey === item.key;
+                          return (
+                            <tr
+                              key={item.variable}
+                              className="hover:bg-muted/30 transition-colors group"
+                            >
+                              <td className="py-2 px-3 text-foreground font-sans font-medium text-xs">
+                                {item.variable}
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground text-xs font-mono">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="truncate max-w-md select-all">
+                                    {item.key}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyKey(item.key)}
+                                    className="p-1 rounded hover:text-foreground hover:bg-muted text-muted-foreground/70 transition-colors cursor-pointer opacity-80 group-hover:opacity-100"
+                                    title="Copy Figma key"
+                                  >
+                                    {isCopied ? (
+                                      <Check className="size-3.5 text-emerald-500" />
+                                    ) : (
+                                      <Copy className="size-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
