@@ -2,12 +2,82 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.3.0",
+    releaseDate: "September 13, 2026",
+    title: "Figma Second Screen Plugin, Data Grid Engine & Multi-Tenant Architecture",
+    badge: "Feature Release",
+    badgeVariant: "violet",
+    isLatest: true,
+    summary:
+      "Launched the Figma Second Screen companion plugin, interactive tokens data grid with column resizing, multi-tenant workspace/project lifecycle management with danger zone controls, strict duplicate name validation, zero-preset project initialization, and native branching.",
+    highlights: [
+      "Figma Second Screen companion plugin with dedicated React UI and 1-click token pairing.",
+      "Interactive tokens data grid with resizable columns, category grouping, and dual-mode JSON editor.",
+      "Multi-tenant workspace and project management with Active vs Archived tabs and fast switching.",
+      "Project Settings view with Danger Zone controls: non-destructive archive and permanent deletion.",
+      "Strict duplicate name validation: globally unique organization names and org-scoped unique project names.",
+      "Zero-preset initialization: newly created projects start 100% clean with zero seeded tokens or mock IDs.",
+      "Project branch management with timeline commit history and branch switching.",
+    ],
+    items: [
+      {
+        title: "Figma Second Screen Companion Plugin",
+        description:
+          "Standalone Figma plugin with a high-performance React + Tailwind interface that connects live canvas variables, color collections, and text styles directly to the token studio via secure pairing APIs.",
+        category: "integration",
+        tags: ["Figma", "Plugin", "Variables", "Pairing"],
+      },
+      {
+        title: "Interactive Tokens Data Grid with Resizable Columns",
+        description:
+          "Engineered an interactive table workspace with draggable column dividers, dot-path grouping, search filtering, and seamless toggling between formatted table view and JSON code editor.",
+        category: "feature",
+        tags: ["Data Grid", "Tokens", "Resizable Columns", "JSON"],
+      },
+      {
+        title: "Multi-Tenant Workspace & Project Management",
+        description:
+          "Complete multi-tenant workspace system allowing creation of organizations with custom icons/colors, project directories, and rapid workspace switching.",
+        category: "feature",
+        tags: ["Workspaces", "Organizations", "Multi-Tenant"],
+      },
+      {
+        title: "Project Lifecycle & Danger Zone",
+        description:
+          "Project profile settings with name, slug, description, and base permissions, alongside non-destructive project archiving (read-only freeze) and permanent deletion with two-step confirmation.",
+        category: "feature",
+        tags: ["Settings", "Archiving", "Deletion", "Danger Zone"],
+      },
+      {
+        title: "Strict Duplicate Name Validation & Collision Guards",
+        description:
+          "Enforced global uniqueness for organization names and slugs, and organization-scoped uniqueness for project names (allowing cross-org sharing). Supported by real-time inline alerts in all modals.",
+        category: "security",
+        tags: ["Validation", "Uniqueness", "Collision Prevention"],
+      },
+      {
+        title: "Zero-Preset Clean Project Initialization",
+        description:
+          "Purged all hardcoded starter token fallbacks and mock Figma collection IDs. Newly created projects under any organization start entirely blank with zero seeded tokens.",
+        category: "enhancement",
+        tags: ["Clean Slate", "Initialization", "Zero Presets"],
+      },
+      {
+        title: "Project Branches & Version Control",
+        description:
+          "Native branch management system supporting multiple development branches (main, staging, dev), commit history inspection, and branch merging workflows.",
+        category: "feature",
+        tags: ["Branches", "Git", "Versioning"],
+      },
+    ],
+  },
+  {
     version: "v1.2.3",
     releaseDate: "September 6, 2026",
     title: "Living Documentation Studio, Live Design Tokens & Multi-Page Publishing",
     badge: "Feature Release",
     badgeVariant: "success",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Introduced an interactive 3-panel Living Documentation Studio with folder and page hierarchies, live design token & variable table/swatch blocks, Do's & Don'ts cards, slash command menu, contextual inspector, first-load onboarding, and granular public publishing.",
     highlights: [

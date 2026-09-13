@@ -2,6 +2,23 @@
 
 All notable changes to the Tokens & Asset Management Platform will be documented in this file.
 
+# 1.3.0 `2026-09-13`
+
+● **Minor Release — Figma Second Screen Plugin, Data Grid Engine & Multi-Tenant Architecture**
+
+### 🚀 Highlights & Features
+
+- **Figma Second Screen Companion Plugin**: Built a standalone companion Figma plugin (`plugin/`) with a dedicated React + Vite + Tailwind interface (`plugin/src-ui/App.tsx`). Features 1-click token pairing via `/api/v1/auth/pair`, live canvas variable introspection, bidirectional style sync, and instant export into studio tokens.
+- **Interactive Tokens Data Grid with Resizable Columns**: Engineered an ultra-responsive data grid (`components/TokensWorkspace.tsx`) with dynamic column resizing for `Name`, `Type`, `Value`, `Resolved`, `Description`, and `Set`. Includes dot-notation grouping, hierarchical nesting, category tabs, fast fuzzy search, and dual-mode toggling between visual table view and raw JSON editor.
+- **Multi-Tenant Workspace & Project Directory**: Full workspace architecture (`components/WorkspacesProjectsView.tsx`) allowing team members to switch organizations, view active vs archived projects, configure custom brand icons and colors, and manage team members.
+- **Project Lifecycle Management & Danger Zone**: Implemented comprehensive project configuration (`components/ProjectSettingsView.tsx`) with profile details (name, slug, description, base permissions). Added non-destructive project archiving (freezes project to read-only status) and permanent project deletion with a two-step confirmation dialog.
+- **Strict Duplicate Name Validation & Collision Guards**:
+  - **Globally Unique Organizations**: Enforced case-insensitive, whitespace-trimmed uniqueness across all organizations in Firestore and local caches. Duplicate organization names or URL slugs are strictly blocked.
+  - **Organization-Scoped Unique Projects**: Project names are strictly unique within each organization, while permitting different organizations to create projects sharing the same name.
+  - **Real-Time UI Protection**: Integrated real-time duplicate name detection across all modals (`CreateProjectModal`, `WorkspacesProjectsView`, `ProjectSettingsView`) with immediate inline alerts and disabled submit buttons.
+- **Zero-Preset Clean Initialization**: Completely removed all legacy starter tokens (`colors.brand.*`, `spacing.*`) and mock Figma collection IDs (`VariableCollectionId:6:598`). New projects start 100% clean with zero injected tokens and zero dummy configurations.
+- **Project Branches & Version Control**: Added full project branch management (`components/BranchesView.tsx`) with native branch switching (`main`, `staging`), commit timeline tracking, and branch merging.
+
 ---
 
 # 1.2.3 `2026-09-06`
