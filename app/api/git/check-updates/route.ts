@@ -41,6 +41,17 @@ export async function POST(req: NextRequest) {
       });
 
       if (!res.ok) {
+        if (res.status === 403) {
+          const resetHeader = res.headers.get("x-ratelimit-reset");
+          return NextResponse.json(
+            {
+              error: "GitHub API rate limit exceeded.",
+              rateLimited: true,
+              resetEpoch: resetHeader ? parseInt(resetHeader, 10) : undefined,
+            },
+            { status: 403 }
+          );
+        }
         const errText = await res.text();
         return NextResponse.json(
           { error: `GitHub error (${res.status}): ${errText}` },

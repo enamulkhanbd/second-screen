@@ -104,6 +104,90 @@ function getNestedValue(obj: any, path: string[]): any {
   return current;
 }
 
+export type TokenLookupIndex = Map<string, { leaf: RawTokenLeaf; setName: string }>;
+
+/**
+ * Builds a fast flat index of all tokens across all sets for O(1) alias resolution.
+ */
+export function buildTokenLookupIndex(allTokens: RawTokensDocument): TokenLookupIndex {
+  const index: TokenLookupIndex = new Map();
+  if (!allTokens || typeof allTokens !== "object") return index;
+
+  for (const [setName, setTree] of Object.entries(allTokens)) {
+    if (setName.startsWith("$") || !setTree || typeof setTree !== "object") continue;
+
+    const normSet = setName.replace(/[/\\]/g, ".");
+    const walk = (node: any, currentPath: string[]) => {
+      if (!node || typeof node !== "object") return;
+      if (isTokenLeaf(node)) {
+        const dotPath = currentPath.join(".");
+        const entry = { leaf: node, setName };
+
+        // 1. Direct path within set: e.g. "color.blue.500"
+        index.set(dotPath, entry);
+        index.set(dotPath.toLowerCase(), entry);
+
+        // 2. Qualified with set name: e.g. "core.color.blue.500"
+        index.set(`${setName}.${dotPath}`, entry);
+        index.set(`${setName}.${dotPath}`.toLowerCase(), entry);
+        if (normSet !== setName) {
+          index.set(`${normSet}.${dotPath}`, entry);
+          index.set(`${normSet}.${dotPath}`.toLowerCase(), entry);
+        }
+
+        // 3. Category omitted: e.g. if dotPath is "color.blue.500", also index "blue.500"
+        if (currentPath.length > 1) {
+          const stripped = currentPath.slice(1).join(".");
+          if (!index.has(stripped)) {
+            index.set(stripped, entry);
+            index.set(stripped.toLowerCase(), entry);
+          }
+        }
+        return;
+      }
+
+      for (const [key, child] of Object.entries(node)) {
+        if (!key.startsWith("$")) {
+          walk(child, [...currentPath, key]);
+        }
+      }
+    };
+
+    walk(setTree, []);
+  }
+
+  return index;
+}
+
+const hexColorCache = new Map<string, string>();
+
+/**
+ * Fast cached color converter to prevent redundant colorjs.io instantiations
+ */
+export function toHexFast(colorStr: string): string | undefined {
+  if (!colorStr || typeof colorStr !== "string") return undefined;
+  const s = colorStr.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) {
+    return s;
+  }
+  const cached = hexColorCache.get(s);
+  if (cached !== undefined) return cached || undefined;
+
+  try {
+    const col = new Color(s);
+    const hex = col.to("srgb").toString({ format: "hex" });
+    if (hexColorCache.size < 5000) {
+      hexColorCache.set(s, hex);
+    }
+    return hex;
+  } catch {
+    if (hexColorCache.size < 5000) {
+      hexColorCache.set(s, "");
+    }
+    return undefined;
+  }
+}
+
 /**
  * Resolves a token alias string like "{colors.blue.500}", "{foundation.color.blue.100}", or composite objects
  */
@@ -111,7 +195,8 @@ export function resolveTokenAlias(
   aliasValue: any,
   allTokens: RawTokensDocument,
   currentSet?: string,
-  visited: Set<string> = new Set()
+  visited: Set<string> = new Set(),
+  lookupIndex?: TokenLookupIndex
 ): string {
   if (aliasValue === null || aliasValue === undefined) return "";
 
@@ -119,11 +204,11 @@ export function resolveTokenAlias(
   if (typeof aliasValue === "object" && aliasValue !== null) {
     if ("value" in aliasValue || "$value" in aliasValue) {
       const inner = aliasValue.value !== undefined ? aliasValue.value : aliasValue.$value;
-      return resolveTokenAlias(inner, allTokens, currentSet, visited);
+      return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex);
     }
     const resolvedObj: Record<string, any> = {};
     for (const [k, v] of Object.entries(aliasValue)) {
-      resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited);
+      resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex);
     }
     return JSON.stringify(resolvedObj);
   }
@@ -135,11 +220,11 @@ export function resolveTokenAlias(
       if (typeof parsed === "object" && parsed !== null) {
         if ("value" in parsed || "$value" in parsed) {
           const inner = parsed.value !== undefined ? parsed.value : parsed.$value;
-          return resolveTokenAlias(inner, allTokens, currentSet, visited);
+          return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex);
         }
         const resolvedObj: Record<string, any> = {};
         for (const [k, v] of Object.entries(parsed)) {
-          resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited);
+          resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex);
         }
         return JSON.stringify(resolvedObj);
       }
@@ -163,6 +248,22 @@ export function resolveTokenAlias(
     }
     const newVisited = new Set(visited);
     newVisited.add(cleanPath);
+
+    // 0. Instant O(1) index lookup if index provided
+    if (lookupIndex) {
+      const direct = lookupIndex.get(cleanPath) || lookupIndex.get(cleanPath.toLowerCase());
+      if (direct?.leaf && isTokenLeaf(direct.leaf)) {
+        const rawVal = getLeafValue(direct.leaf);
+        return resolveTokenAlias(rawVal, allTokens, direct.setName || currentSet, newVisited, lookupIndex);
+      }
+      if (currentSet) {
+        const withSet = lookupIndex.get(`${currentSet}.${cleanPath}`) || lookupIndex.get(`${currentSet}.${cleanPath}`.toLowerCase());
+        if (withSet?.leaf && isTokenLeaf(withSet.leaf)) {
+          const rawVal = getLeafValue(withSet.leaf);
+          return resolveTokenAlias(rawVal, allTokens, withSet.setName || currentSet, newVisited, lookupIndex);
+        }
+      }
+    }
 
     const pathSegments = cleanPath.split(/[./\\]/).filter(Boolean);
     if (pathSegments.length === 0) return match;
@@ -219,7 +320,6 @@ export function resolveTokenAlias(
         }
 
         // B. If path has a category prefix that might or might not exist in setTree root
-        // e.g. path is ["color", "blue", "100"] vs setTree { "blue": { "100": ... } }
         if (pathSegments.length > 1) {
           const strippedFirst = pathSegments.slice(1);
           const candidate2 = getNestedValue(setTree, strippedFirst);
@@ -229,7 +329,7 @@ export function resolveTokenAlias(
           }
         }
 
-        // C. Prepend category / parent if omitted in path (e.g. path is ["blue", "100"], setTree { "color": { "blue": { "100": ... } } })
+        // C. Prepend category / parent if omitted in path
         for (const rootKey of ["color", "colors", "spacing", "sizing", "borderRadius", "typography", "shadow", "boxShadow"]) {
           const candidate3 = getNestedValue(setTree, [rootKey, ...pathSegments]);
           if (isTokenLeaf(candidate3)) {
@@ -243,16 +343,16 @@ export function resolveTokenAlias(
 
     if (foundLeaf) {
       const rawVal = getLeafValue(foundLeaf);
-      const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, newVisited);
+      const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, newVisited, lookupIndex);
       const modifier = extractColorModifier(foundLeaf);
       if (modifier) {
         let resolvedMixColor: string | undefined = undefined;
         if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
-          resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, newVisited);
+          resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, newVisited, lookupIndex);
         }
         let resolvedModValue = modifier.value;
         if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
-          resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, newVisited);
+          resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, newVisited, lookupIndex);
         }
         const modToApply: ColorModifier = {
           ...modifier,
@@ -545,6 +645,9 @@ export function flattenAndResolveTokens(
   const result: FlattenedToken[] = [];
   if (!rawDoc || typeof rawDoc !== "object") return result;
 
+  // Build O(1) lookup index across all token sets once
+  const lookupIndex = buildTokenLookupIndex(rawDoc);
+
   const setsToProcess = selectedSet && selectedSet !== "ALL" && rawDoc[selectedSet]
     ? [selectedSet]
     : Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
@@ -564,7 +667,7 @@ export function flattenAndResolveTokens(
         const name = currentPath.join(".");
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
         const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
-        let resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName);
+        let resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName, new Set(), lookupIndex);
 
         const modifier = extractColorModifier(node);
         let resolvedHex: string | undefined = undefined;
@@ -572,11 +675,11 @@ export function flattenAndResolveTokens(
         if (modifier) {
           let resolvedMixColor: string | undefined = undefined;
           if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
-            resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, setName);
+            resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, setName, new Set(), lookupIndex);
           }
           let resolvedModValue = modifier.value;
           if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
-            resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, setName);
+            resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, setName, new Set(), lookupIndex);
           }
           const modToApply: ColorModifier = {
             ...modifier,
@@ -590,17 +693,7 @@ export function flattenAndResolveTokens(
           resolvedValue = modResult.resolvedValue;
           resolvedHex = modResult.hex;
         } else if (typeof resolvedValue === "string") {
-          const s = resolvedValue.trim();
-          if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) {
-            resolvedHex = s;
-          } else {
-            try {
-              const col = new Color(s);
-              resolvedHex = col.to("srgb").toString({ format: "hex" });
-            } catch {
-              // Not a color
-            }
-          }
+          resolvedHex = toHexFast(resolvedValue);
         }
 
         const rawDesc = node.description ?? node.$description;

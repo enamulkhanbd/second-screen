@@ -523,6 +523,21 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
 // -------------------------------------------------------------
 
 /**
+ * Strips heavy design token payloads before persisting projects to localStorage,
+ * preventing 5MB quota exhaustion while maintaining fast project metadata indexing.
+ */
+export function sanitizeProjectsForCache(projs: Project[]): Project[] {
+  return projs.map((p) => ({
+    ...p,
+    rawTokens: {},
+    branches: p.branches?.map((b) => ({
+      ...b,
+      rawTokens: {},
+    })),
+  }));
+}
+
+/**
  * Dynamically fetches all projects under an Organization from Firestore
  */
 export async function getOrgProjects(orgId: string): Promise<Project[]> {
@@ -538,7 +553,7 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
       if (projs.length > 0) {
         if (typeof window !== "undefined") {
           try {
-            localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(projs));
+            localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(sanitizeProjectsForCache(projs)));
           } catch {}
         }
         return projs;
@@ -717,7 +732,7 @@ export async function createProject(
       const existing = localStorage.getItem(key);
       const list: Project[] = existing ? JSON.parse(existing) : [];
       const updated = [...list.filter((p) => p.id !== projId), newProject];
-      localStorage.setItem(key, JSON.stringify(updated));
+      localStorage.setItem(key, JSON.stringify(sanitizeProjectsForCache(updated)));
     } catch {}
   }
 
@@ -816,7 +831,7 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
       if (existing) {
         const list: Project[] = JSON.parse(existing);
         const updated = list.filter((p) => p.id !== projectId);
-        localStorage.setItem(key, JSON.stringify(updated));
+        localStorage.setItem(key, JSON.stringify(sanitizeProjectsForCache(updated)));
       }
     } catch {}
   }
@@ -858,7 +873,7 @@ export async function updateProject(
         const updated = list.map((p) =>
           p.id === projectId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
         );
-        localStorage.setItem(key, JSON.stringify(updated));
+        localStorage.setItem(key, JSON.stringify(sanitizeProjectsForCache(updated)));
       }
     } catch {}
   }
@@ -883,6 +898,12 @@ export async function saveProjectTokens(
   };
 
   try {
+    // Check rough serialized size to guard against Firestore 1MB document limit
+    const jsonSize = JSON.stringify(data).length;
+    if (jsonSize > 950000) {
+      console.warn(`[saveProjectTokens] Document size (${(jsonSize / 1024).toFixed(1)} KB) approaches Firestore 1MB limit. Syncing in memory.`);
+      return;
+    }
     await updateDoc(projRef, data);
   } catch {
     try {

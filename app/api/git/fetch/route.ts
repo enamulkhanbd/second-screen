@@ -284,105 +284,211 @@ export async function POST(req: NextRequest) {
         signal: AbortSignal.timeout(20000),
       });
 
-      if (treeRes.ok) {
-        const treeData = await treeRes.json();
-        // ONLY pull .json files, ignoring non-json and non-token configs
-        const allJsonBlobs: Array<{ path: string; url: string }> = (treeData.tree || []).filter(
-          (node: any) =>
-            node.type === "blob" &&
-            typeof node.path === "string" &&
-            node.path.toLowerCase().endsWith(".json") &&
-            !isIgnored(node.path)
-        );
+      if (!treeRes.ok) {
+        const errorText = await treeRes.text();
+        let parsedMessage = treeRes.statusText;
+        try {
+          const errObj = JSON.parse(errorText);
+          parsedMessage = errObj.message || parsedMessage;
+        } catch {}
 
-        if (allJsonBlobs.length > 0) {
-          // If cleanPath is specified (e.g. "assets/tokens/platforms/web" or "tokens.json"),
-          // strictly scope to files under that path
-          const filteredBlobs = cleanPath
-            ? allJsonBlobs.filter((b) => {
-                const normP = b.path.replace(/^\/+/, "").toLowerCase();
-                const normC = cleanPath.toLowerCase();
-                return (
-                  normP === normC ||
-                  normP.startsWith(`${normC}/`) ||
-                  normP.startsWith(normC)
-                );
-              })
-            : allJsonBlobs;
-
-          const targetBlobs = filteredBlobs.length > 0 ? filteredBlobs : allJsonBlobs;
-          const aggregated: Record<string, any> = {};
-          const filesMeta: Record<string, string> = {};
-
-          // Concurrency-limited batching (12 at a time) to prevent GitHub 429 rate-limiting
-          await batchProcess(targetBlobs, 12, async (blob) => {
-            const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
-            if (blobRes.ok) {
-              const bData = await blobRes.json();
-              if (bData.content) {
-                const decoded = Buffer.from(bData.content, "base64").toString("utf-8");
-                try {
-                  const parsed = JSON.parse(decoded);
-                  const cleanBlobPath = blob.path.replace(/^\/+/, "");
-                  const normC = cleanPath.toLowerCase();
-
-                  // Strip base configured path from set key so it doesn't show full repository prefix
-                  let relativeSetName = cleanBlobPath.replace(/\.json$/i, "");
-                  if (normC && cleanBlobPath.toLowerCase().startsWith(`${normC}/`)) {
-                    relativeSetName = cleanBlobPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
-                  } else if (normC && cleanBlobPath.toLowerCase() === normC) {
-                    relativeSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
-                  }
-
-                  const specialKind = specialTokenFileKind(cleanBlobPath);
-
-                  if (specialKind) {
-                    aggregated[specialKind] = parsed;
-                    filesMeta[specialKind] = cleanBlobPath;
-                  } else {
-                    hoistNestedStudioKeys(parsed, aggregated, filesMeta, cleanBlobPath);
-                    aggregated[relativeSetName] = parsed;
-                    filesMeta[relativeSetName] = blob.path;
-                  }
-                } catch {
-                  // ignore non-json
-                }
-              }
-            }
-          });
-
-          // Fetch user profile avatar if available
-          let userProfile = undefined;
+        if (treeRes.status === 404) {
+          // Check whether the repo itself exists to provide a specific, actionable error
           try {
-            const uRes = await fetch("https://api.github.com/user", { headers });
-            if (uRes.ok) {
-              const uData = await uRes.json();
-              userProfile = {
-                avatarUrl: uData.avatar_url,
-                displayName: uData.name || uData.login,
-                username: uData.login,
-              };
+            const repoRes = await fetch(
+              `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+              { headers, cache: "no-store", signal: AbortSignal.timeout(10000) }
+            );
+            if (repoRes.ok) {
+              const repoData = await repoRes.json();
+              const defaultBranch = repoData.default_branch || "main";
+              if (defaultBranch !== branch) {
+                return NextResponse.json(
+                  {
+                    error: `Branch '${branch}' was not found in repository '${owner}/${repo}'. The default branch is '${defaultBranch}'. Please switch to '${defaultBranch}' in Git Settings or the branch selector.`,
+                  },
+                  { status: 404 }
+                );
+              }
+              return NextResponse.json(
+                {
+                  error: `Branch '${branch}' was not found in repository '${owner}/${repo}'. Please verify the branch name.`,
+                },
+                { status: 404 }
+              );
             }
-          } catch {
-            // ignore
-          }
+          } catch {}
 
-          const scoped = scopeAggregatedTokens(aggregated, filesMeta, cleanPath);
-          if (Object.keys(scoped.tokens).length > 0) {
-            return NextResponse.json({
-              tokens: scoped.tokens,
-              userProfile,
-              commitSha: treeData.sha || "",
-              syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
-            });
-          }
+          return NextResponse.json(
+            {
+              error: `GitHub repository '${owner}/${repo}' or branch '${branch}' was not found (404). Please verify the repository name, branch name (e.g. 'main' vs 'master'), and ensure your Personal Access Token has 'repo' scope permissions.`,
+            },
+            { status: 404 }
+          );
         }
+
+        if (treeRes.status === 401) {
+          return NextResponse.json(
+            {
+              error: `GitHub authentication failed (401 Bad credentials). Please verify your Personal Access Token in Git Settings.`,
+            },
+            { status: 401 }
+          );
+        }
+
+        if (treeRes.status === 403) {
+          const resetHeader = treeRes.headers.get("x-ratelimit-reset");
+          let resetMsg = "";
+          if (resetHeader) {
+            const resetTime = new Date(parseInt(resetHeader, 10) * 1000);
+            const mins = Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 60000));
+            resetMsg = ` Rate limit resets in ~${mins} min (${resetTime.toLocaleTimeString()}).`;
+          }
+          return NextResponse.json(
+            {
+              error: `GitHub API rate limit exceeded (403).${resetMsg} Please wait for the quota to reset, or supply a Personal Access Token with higher limits in Git Settings.`,
+            },
+            { status: 403 }
+          );
+        }
+
+        if (treeRes.status === 409) {
+          return NextResponse.json(
+            {
+              error: `Git repository '${owner}/${repo}' is empty (no commits yet on branch '${branch}').`,
+            },
+            { status: 409 }
+          );
+        }
+
+        return NextResponse.json(
+          { error: `GitHub API error (${treeRes.status}): ${parsedMessage}` },
+          { status: treeRes.status }
+        );
       }
 
-      return NextResponse.json(
-        { error: `No design token JSON files found in repository on branch '${branch}'.` },
-        { status: 404 }
+      const treeData = await treeRes.json();
+      const allItems: any[] = Array.isArray(treeData.tree) ? treeData.tree : [];
+
+      // Filter STRICTLY for valid .json files across the repository, ignoring non-json and non-token configs
+      const allJsonBlobs: Array<{ path: string; url: string }> = allItems.filter(
+        (node: any) =>
+          node.type === "blob" &&
+          typeof node.path === "string" &&
+          node.path.toLowerCase().endsWith(".json") &&
+          !isIgnored(node.path)
       );
+
+      if (allJsonBlobs.length === 0) {
+        if (allItems.length === 0) {
+          return NextResponse.json(
+            { error: `Repository '${owner}/${repo}' on branch '${branch}' is empty.` },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          {
+            error: `No design token JSON files found in repository '${owner}/${repo}' on branch '${branch}' (${allItems.length} other files inspected). Ensure your token files have a .json extension and are not ignored.`,
+          },
+          { status: 404 }
+        );
+      }
+
+      // If cleanPath is specified (e.g. "assets/tokens/platforms/web" or "tokens.json"),
+      // strictly scope to files under that path
+      let targetBlobs = allJsonBlobs;
+      if (cleanPath) {
+        const normC = cleanPath.toLowerCase();
+        const filtered = allJsonBlobs.filter((b) => {
+          const normP = b.path.replace(/^\/+/, "").toLowerCase();
+          return normP === normC || normP.startsWith(`${normC}/`) || normP.startsWith(normC);
+        });
+
+        if (filtered.length === 0) {
+          const sample = allJsonBlobs.slice(0, 3).map((b) => b.path).join(", ");
+          return NextResponse.json(
+            {
+              error: `No JSON files found matching configured path '${cleanPath}' on branch '${branch}'. Found ${allJsonBlobs.length} JSON file(s) elsewhere in repository (e.g. ${sample}). Please update the token folder path in Git Settings.`,
+            },
+            { status: 404 }
+          );
+        }
+
+        targetBlobs = filtered;
+      }
+
+      const aggregated: Record<string, any> = {};
+      const filesMeta: Record<string, string> = {};
+
+      // Concurrency-limited batching (12 at a time) to prevent GitHub 429 rate-limiting
+      await batchProcess(targetBlobs, 12, async (blob) => {
+        const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
+        if (blobRes.ok) {
+          const bData = await blobRes.json();
+          if (bData.content) {
+            const decoded = Buffer.from(bData.content, "base64").toString("utf-8");
+            try {
+              const parsed = JSON.parse(decoded);
+              const cleanBlobPath = blob.path.replace(/^\/+/, "");
+              const normC = cleanPath.toLowerCase();
+
+              // Strip base configured path from set key so it doesn't show full repository prefix
+              let relativeSetName = cleanBlobPath.replace(/\.json$/i, "");
+              if (normC && cleanBlobPath.toLowerCase().startsWith(`${normC}/`)) {
+                relativeSetName = cleanBlobPath.slice(cleanPath.length + 1).replace(/\.json$/i, "");
+              } else if (normC && cleanBlobPath.toLowerCase() === normC) {
+                relativeSetName = cleanBlobPath.split("/").pop()!.replace(/\.json$/i, "");
+              }
+
+              const specialKind = specialTokenFileKind(cleanBlobPath);
+
+              if (specialKind) {
+                aggregated[specialKind] = parsed;
+                filesMeta[specialKind] = cleanBlobPath;
+              } else {
+                hoistNestedStudioKeys(parsed, aggregated, filesMeta, cleanBlobPath);
+                aggregated[relativeSetName] = parsed;
+                filesMeta[relativeSetName] = blob.path;
+              }
+            } catch {
+              // ignore non-json
+            }
+          }
+        }
+      });
+
+      // Fetch user profile avatar if available
+      let userProfile = undefined;
+      try {
+        const uRes = await fetch("https://api.github.com/user", { headers });
+        if (uRes.ok) {
+          const uData = await uRes.json();
+          userProfile = {
+            avatarUrl: uData.avatar_url,
+            displayName: uData.name || uData.login,
+            username: uData.login,
+          };
+        }
+      } catch {
+        // ignore
+      }
+
+      const scoped = scopeAggregatedTokens(aggregated, filesMeta, cleanPath);
+      if (Object.keys(scoped.tokens).length === 0) {
+        return NextResponse.json(
+          {
+            error: `Found ${targetBlobs.length} JSON file(s) in '${owner}/${repo}', but could not parse valid design token sets from them.`,
+          },
+          { status: 422 }
+        );
+      }
+
+      return NextResponse.json({
+        tokens: scoped.tokens,
+        userProfile,
+        commitSha: treeData.sha || "",
+        syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
+      });
     }
 
     // -------------------------------------------------------------
@@ -444,45 +550,45 @@ export async function POST(req: NextRequest) {
       const data = await response.json();
       const allItems: any[] = Array.isArray(data.value) ? data.value : data ? [data] : [];
 
-      // Filter STRICTLY for valid .json files across the repository, scoped to cleanPath if set
+      // Filter STRICTLY for valid .json files across the repository
       const allJsonItems = allItems.filter((item) => {
-        if (
-          item.isFolder ||
-          !item.path ||
-          typeof item.path !== "string" ||
-          !item.path.toLowerCase().endsWith(".json") ||
-          isIgnored(item.path)
-        ) {
-          return false;
-        }
-        if (cleanPath) {
-          const normP = item.path.replace(/^\/+/, "").toLowerCase();
-          const normC = cleanPath.toLowerCase();
-          return normP === normC || normP.startsWith(`${normC}/`) || normP.startsWith(normC);
-        }
-        return true;
+        return (
+          !item.isFolder &&
+          item.path &&
+          typeof item.path === "string" &&
+          item.path.toLowerCase().endsWith(".json") &&
+          !isIgnored(item.path)
+        );
       });
 
-      // If strict filter yielded 0 items, fallback to all valid json items
-      const targetJsonItems =
-        allJsonItems.length > 0
-          ? allJsonItems
-          : allItems.filter(
-              (item) =>
-                !item.isFolder &&
-                item.path &&
-                typeof item.path === "string" &&
-                item.path.toLowerCase().endsWith(".json") &&
-                !isIgnored(item.path)
-            );
-
-      if (targetJsonItems.length === 0) {
+      if (allJsonItems.length === 0) {
         return NextResponse.json(
           {
-            error: `Connected to repository '${repo}@${branch}', but no .json token files were found.`,
+            error: `Connected to repository '${repo}@${branch}', but no .json token files were found (${allItems.length} other items inspected).`,
           },
           { status: 404 }
         );
+      }
+
+      let targetJsonItems = allJsonItems;
+      if (cleanPath) {
+        const normC = cleanPath.toLowerCase();
+        const filtered = allJsonItems.filter((item) => {
+          const normP = item.path.replace(/^\/+/, "").toLowerCase();
+          return normP === normC || normP.startsWith(`${normC}/`) || normP.startsWith(normC);
+        });
+
+        if (filtered.length === 0) {
+          const sample = allJsonItems.slice(0, 3).map((item) => item.path.replace(/^\/+/, "")).join(", ");
+          return NextResponse.json(
+            {
+              error: `No JSON files found matching configured path '${cleanPath}' on branch '${branch}'. Found ${allJsonItems.length} JSON file(s) elsewhere in repository (e.g. ${sample}). Please update the token folder path in Git Settings.`,
+            },
+            { status: 404 }
+          );
+        }
+
+        targetJsonItems = filtered;
       }
 
       // Fetch ALL JSON token files in concurrency-limited batches (12 at a time)

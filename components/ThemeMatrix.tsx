@@ -253,10 +253,21 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
     return list;
   }, [matrixRows, selectedCategory, searchQuery]);
 
-  // Multi-level recursive group tree from filtered rows with chosen grouping depth
+  const totalFilteredCount = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / (pageSize || 1)));
+
+  // Slice rows for the current page
+  const displayRows = useMemo(() => {
+    if (pageSize === 0) return filteredRows; // 0 = show all
+    const start = (currentPage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, currentPage, pageSize]);
+
+  // Multi-level recursive group tree from active page rows (or all rows if pageSize === 0)
   const groupTree = useMemo(() => {
-    return buildTokenGroupTree(filteredRows, (row) => row.tokenKey.split("."), groupDepth);
-  }, [filteredRows, groupDepth]);
+    const rowsToGroup = pageSize === 0 ? filteredRows : displayRows;
+    return buildTokenGroupTree(rowsToGroup, (row) => row.tokenKey.split("."), groupDepth);
+  }, [filteredRows, displayRows, pageSize, groupDepth]);
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => ({
@@ -278,16 +289,6 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({ onOpenSettings, onOpen
     groupTree.forEach(traverse);
     setCollapsedGroups(allCollapsed);
   };
-
-  const totalFilteredCount = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
-
-  // Slice rows for the current page in flat mode
-  const displayRows = useMemo(() => {
-    if (pageSize === 0) return filteredRows; // 0 = show all
-    const start = (currentPage - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, currentPage, pageSize]);
 
   const isConfigured = Boolean(credentials.repo && credentials.owner);
   const hasTokens = Object.keys(rawTokens).length > 0;

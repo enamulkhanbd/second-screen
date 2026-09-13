@@ -217,6 +217,30 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
 
+  const isEditable = canUserEdit();
+  const handleCopy = (text: string, label: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      addToast({
+        type: "success",
+        title: "Copied to Clipboard",
+        message: `${label}: ${text}`,
+      });
+    }
+  };
+
+  // Progressive Infinite Scrolling state for high performance with 10,000+ tokens
+  const INITIAL_BATCH_SIZE = 100;
+  const BATCH_INCREMENT = 100;
+  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_BATCH_SIZE);
+
+  // Reset infinite scroll count whenever filters, active set, or sort changes
+  useEffect(() => {
+    setVisibleCount(INITIAL_BATCH_SIZE);
+  }, [searchQuery, activeSet, groupDepth, sortDirection]);
+
+  const totalCount = displayedTokens.length;
+
   // Multi-level recursive group tree from displayed tokens with chosen grouping depth
   const groupTree = useMemo(() => {
     return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."), groupDepth, sortDirection);
@@ -230,6 +254,55 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     });
     return list;
   }, [displayedTokens, sortDirection]);
+
+  // Sliced tokens for flat view
+  const visibleFlatTokens = useMemo(() => {
+    return sortedTokens.slice(0, visibleCount);
+  }, [sortedTokens, visibleCount]);
+
+  // Sliced group tree for grouped view to avoid mounting thousands of DOM rows
+  const visibleGroupTree = useMemo(() => {
+    if (visibleCount >= totalCount) return groupTree;
+    let count = 0;
+    function filterNode(node: TokenGroupNode<FlattenedToken>): TokenGroupNode<FlattenedToken> | null {
+      if (count >= visibleCount) return null;
+      const allowedItems = node.items.slice(0, Math.max(0, visibleCount - count));
+      count += allowedItems.length;
+
+      const allowedSubgroups: TokenGroupNode<FlattenedToken>[] = [];
+      for (const sg of node.subgroups) {
+        if (count >= visibleCount) break;
+        const filteredSg = filterNode(sg);
+        if (filteredSg) allowedSubgroups.push(filteredSg);
+      }
+
+      return {
+        ...node,
+        items: allowedItems,
+        subgroups: allowedSubgroups,
+      };
+    }
+
+    const result: TokenGroupNode<FlattenedToken>[] = [];
+    for (const rootNode of groupTree) {
+      if (count >= visibleCount) break;
+      const fn = filterNode(rootNode);
+      if (fn) result.push(fn);
+    }
+    return result;
+  }, [groupTree, visibleCount, totalCount]);
+
+  const handleTableScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 500) {
+      setVisibleCount((prev) => {
+        if (prev < totalCount) {
+          return Math.min(prev + BATCH_INCREMENT, totalCount);
+        }
+        return prev;
+      });
+    }
+  };
 
   const toggleSelectToken = (id: string) => {
     setSelectedTokenIds((prev) => {
@@ -908,7 +981,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
       {/* 2. Main Workspace Table Body or JSON View */}
       {tokensViewMode === "preview" ? (
-        <div className="flex-1 min-h-0 overflow-auto bg-background">
+        <div onScroll={handleTableScroll} className="flex-1 min-h-0 overflow-auto bg-background">
           {displayedTokens.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center select-none text-muted-foreground">
               <SearchX className="w-10 h-10 mb-3 opacity-40" />
@@ -1089,7 +1162,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 </thead>
               <tbody className="divide-y divide-border/30 font-mono text-xs">
                 {groupDepth !== 1
-                  ? groupTree.map((node) => (
+                  ? visibleGroupTree.map((node) => (
                       <WorkspaceGroupNode
                         key={node.id}
                         node={node}
@@ -1107,9 +1180,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                           deleteToken(setName, nameSegments)
                         }
                         startResizing={startResizing}
+                        isEditable={isEditable}
+                        onCopy={handleCopy}
                       />
                     ))
-                  : sortedTokens.map((token) => (
+                  : visibleFlatTokens.map((token) => (
                       <TokenTableRow
                         key={token.id}
                         token={token}
@@ -1124,8 +1199,42 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                           deleteToken(token.setName, token.name.split("."))
                         }
                         startResizing={startResizing}
+                        isEditable={isEditable}
+                        onCopy={handleCopy}
                       />
                     ))}
+
+                {/* Progressive Infinite Scroll Sentinel / Load More Row */}
+                {visibleCount < totalCount && (
+                  <tr className="border-t border-border/40 bg-muted/10">
+                    <td colSpan={8} className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2.5 text-xs text-muted-foreground font-mono">
+                        <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <span>
+                          Loaded {Math.min(visibleCount, totalCount).toLocaleString()} of {totalCount.toLocaleString()} tokens (scroll down to auto-load)
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setVisibleCount((prev) => Math.min(prev + BATCH_INCREMENT * 2, totalCount))}
+                          className="h-6 text-[11px] px-2 ml-1 cursor-pointer font-sans"
+                        >
+                          Load more
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setVisibleCount(totalCount)}
+                          className="h-6 text-[11px] px-2 text-primary hover:underline cursor-pointer font-sans"
+                        >
+                          Load all ({totalCount.toLocaleString()})
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             </>
@@ -1259,9 +1368,11 @@ interface TokenTableRowProps {
   onDuplicate: (newName: string) => void;
   onDelete: () => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
+  isEditable?: boolean;
+  onCopy?: (text: string, label: string) => void;
 }
 
-const TokenTableRow: React.FC<TokenTableRowProps> = ({
+const TokenTableRow = React.memo<TokenTableRowProps>(({
   token,
   isSelected,
   onToggleSelect,
@@ -1269,18 +1380,16 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
   onDuplicate,
   onDelete,
   startResizing,
+  isEditable = true,
+  onCopy,
 }) => {
-  const { canUserEdit, addToast } = useTokenStore();
-  const isEditable = canUserEdit();
-
   const handleCopy = (text: string, label: string) => {
+    if (onCopy) {
+      onCopy(text, label);
+      return;
+    }
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      addToast({
-        type: "success",
-        title: "Copied to Clipboard",
-        message: `${label}: ${text}`,
-      });
     }
   };
 
@@ -1579,7 +1688,7 @@ const TokenTableRow: React.FC<TokenTableRowProps> = ({
       </td>
     </tr>
   );
-};
+});
 
 // -------------------------------------------------------------
 // WORKSPACE GROUP NODE COMPONENT (For nested groupings)
@@ -1596,9 +1705,11 @@ interface WorkspaceGroupNodeProps {
   onDuplicate: (setName: string, nameSegments: string[], newName: string) => void;
   onDelete: (setName: string, nameSegments: string[]) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
+  isEditable?: boolean;
+  onCopy?: (text: string, label: string) => void;
 }
 
-const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
+const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
   node,
   collapsedGroups,
   onToggleGroup,
@@ -1610,6 +1721,8 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
   onDuplicate,
   onDelete,
   startResizing,
+  isEditable = true,
+  onCopy,
 }) => {
   if (node.isRoot) {
     return (
@@ -1627,6 +1740,8 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
             }
             onDelete={() => onDelete(token.setName, token.name.split("."))}
             startResizing={startResizing}
+            isEditable={isEditable}
+            onCopy={onCopy}
           />
         ))}
       </React.Fragment>
@@ -1649,21 +1764,15 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-muted-foreground p-0.5 rounded transition-transform">
                 {isCollapsed ? (
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
               </span>
-              <span className="font-mono text-xs font-semibold text-foreground tracking-tight truncate">
+              <FolderTree className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="font-semibold text-xs text-foreground tracking-tight truncate">
                 {node.name}
               </span>
-              {node.level > 1 && (
-                <span className="text-[11px] text-muted-foreground font-mono truncate hidden md:inline opacity-60">
-                  ({node.fullPath})
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
               <span className="text-[10px] font-mono text-muted-foreground">
                 {node.totalTokenCount} {node.totalTokenCount === 1 ? "token" : "tokens"}
               </span>
@@ -1688,6 +1797,8 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
               onDuplicate={onDuplicate}
               onDelete={onDelete}
               startResizing={startResizing}
+              isEditable={isEditable}
+              onCopy={onCopy}
             />
           ))}
           {node.items.map((token) => (
@@ -1703,10 +1814,12 @@ const WorkspaceGroupNode: React.FC<WorkspaceGroupNodeProps> = ({
               }
               onDelete={() => onDelete(token.setName, token.name.split("."))}
               startResizing={startResizing}
+              isEditable={isEditable}
+              onCopy={onCopy}
             />
           ))}
         </>
       )}
     </React.Fragment>
   );
-};
+});

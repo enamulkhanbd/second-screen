@@ -85,6 +85,7 @@ import {
   getOrganizationActivities,
   saveProjectBranches,
   ensureProjectDefaultBranch,
+  sanitizeProjectsForCache,
 } from "@/services/organizationService";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -650,7 +651,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem(`ts_cached_org_projects_${org.id}`, JSON.stringify(finalProjects));
+          localStorage.setItem(`ts_cached_org_projects_${org.id}`, JSON.stringify(sanitizeProjectsForCache(finalProjects)));
         } catch {}
       }
 
@@ -978,7 +979,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         const projects = await getOrgProjects(activeOrg.id);
         if (typeof window !== "undefined") {
           try {
-            localStorage.setItem(`ts_cached_org_projects_${activeOrg.id}`, JSON.stringify(projects));
+            localStorage.setItem(`ts_cached_org_projects_${activeOrg.id}`, JSON.stringify(sanitizeProjectsForCache(projects)));
           } catch {}
         }
         set({ orgProjects: projects });
@@ -1321,7 +1322,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ orgProjects: projs });
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem(`ts_cached_org_projects_${currentOrg.id}`, JSON.stringify(projs));
+          localStorage.setItem(`ts_cached_org_projects_${currentOrg.id}`, JSON.stringify(sanitizeProjectsForCache(projs)));
         } catch {}
       }
       get().setCurrentProject(newProj);
@@ -1369,7 +1370,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ orgProjects: updatedProjects });
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(updatedProjects));
+          localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(sanitizeProjectsForCache(updatedProjects)));
         } catch {}
       }
       if (get().currentProject?.id === projectId) {
@@ -1389,7 +1390,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ orgProjects: remaining });
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(remaining));
+          localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(sanitizeProjectsForCache(remaining)));
         } catch {}
       }
       if (get().currentProject?.id === projectId) {
@@ -2602,7 +2603,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         body: JSON.stringify(creds),
       });
 
-      if (!res.ok) return false;
+      if (!res.ok) {
+        if (res.status === 403) {
+          // Rate-limited: back off for 10 minutes before polling again
+          lastRemoteCheckTimestamp = now + 600000;
+        }
+        return false;
+      }
       const data = await res.json();
       if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
       if (data.success && data.latestSha) {
