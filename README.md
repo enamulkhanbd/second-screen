@@ -41,3 +41,14 @@ npm run build
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the application.
+
+---
+
+## Documentation
+
+- **[System Architecture](docs/ARCHITECTURE.md)**: High-level overview, data flows, and directory responsibilities.
+- **[Design System Guidelines](docs/DESIGN.md)**: Dark theme tokens, color palettes, typography hierarchy, and dialog standards.
+- **[Developer & Skills Cheat Sheet](docs/SKILLS.md)**: Token scaling, schema catalog operations, and Figma plugin build commands.
+- **[Schema Registry Deployment Plan](docs/SCHEMA_REGISTRY_DEPLOYMENT_PLAN.md)**: Step-by-step guide for hosting dedicated schemas on GitHub, Vercel, and custom domains.
+- **[AI Agent Guide](AGENTS.md)**: Architectural invariants, guardrails, and testing standards for coding assistants.
+- **[Changelog](CHANGELOG.md)**: Complete version history and release notes.

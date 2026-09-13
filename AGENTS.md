@@ -73,3 +73,7 @@ Before reporting completion on any task:
 | **Global Store** | [`store/useTokenStore.ts`](file:///d:/GitHub/second-screen/store/useTokenStore.ts) |
 | **Multi-Tenant Service** | [`services/organizationService.ts`](file:///d:/GitHub/second-screen/services/organizationService.ts) |
 | **Figma Companion Plugin** | [`plugin/src/code.ts`](file:///d:/GitHub/second-screen/plugin/src/code.ts) & [`plugin/src-ui/App.tsx`](file:///d:/GitHub/second-screen/plugin/src-ui/App.tsx) |
+| **System Architecture** | [`docs/ARCHITECTURE.md`](file:///d:/GitHub/second-screen/docs/ARCHITECTURE.md) |
+| **Design System Standards** | [`docs/DESIGN.md`](file:///d:/GitHub/second-screen/docs/DESIGN.md) |
+| **Skills & Operations** | [`docs/SKILLS.md`](file:///d:/GitHub/second-screen/docs/SKILLS.md) |
+| **Schema Deployment Plan** | [`docs/SCHEMA_REGISTRY_DEPLOYMENT_PLAN.md`](file:///d:/GitHub/second-screen/docs/SCHEMA_REGISTRY_DEPLOYMENT_PLAN.md) |
