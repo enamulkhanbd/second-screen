@@ -22,6 +22,7 @@ import { McpCliView } from "@/components/McpCliView";
 import { ProjectSettingsView } from "@/components/ProjectSettingsView";
 import { MembersView } from "@/components/MembersView";
 import { OrgSettingsView } from "@/components/OrgSettingsView";
+import { ExtensionsView } from "@/components/ExtensionsView";
 import { SystemChangelogView } from "@/components/SystemChangelogView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
@@ -172,6 +173,8 @@ export default function Home() {
           <AssetsView />
         ) : sidebarTab === "exports" ? (
           <ExportsView />
+        ) : sidebarTab === "extensions" ? (
+          <ExtensionsView />
         ) : sidebarTab === "releases" ? (
           <ReleasesWorkspace />
         ) : sidebarTab === "branches" ? (

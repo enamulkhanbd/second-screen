@@ -124,6 +124,7 @@ export interface Project {
   documentation?: import("./documentation").ProjectDocumentation | null;
   branches?: ProjectBranch[];
   activeBranch?: string;
+  enabledSchemas?: string[];
   isArchived?: boolean;
   createdAt: string;
   updatedAt: string;

@@ -1337,3 +1337,24 @@ export async function getOrganizationActivities(
     return [];
   }
 }
+
+/**
+ * Persists enabled schemas configuration for a Project in Firestore
+ */
+export async function saveProjectSchemas(
+  orgId: string,
+  projectId: string,
+  enabledSchemas: string[]
+): Promise<void> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    await updateDoc(projRef, {
+      enabledSchemas,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Firestore error saving project schemas:", e);
+  }
+}
+

@@ -2,6 +2,30 @@
 
 All notable changes to the Tokens & Asset Management Platform will be documented in this file.
 
+# 1.4.0 `2026-09-14`
+
+● **Minor Release — Unified Schema Marketplace, Self-Hosted JSON Schemas & Large-Scale Token Performance Engine**
+
+### 🚀 Highlights & Features
+
+- **Unified Single-Page Schema Marketplace**: Unified the extension management system into a single centered page (`components/ExtensionsView.tsx`). Users can discover, search, and toggle extensions active or inactive directly on cards with one-click `+ Enable` and `Disable` controls. Added an `Enabled` filter pill alongside `All`, `Color Spaces`, `Functions`, and `Core & Utilities`.
+- **182 Self-Hosted Design Token Schemas**: Cataloged 182 design token schemas matching modern design token specifications:
+  - **Color Spaces (41)**: OKLCH, OKLab, Display P3, Linear P3, HCT (Material Design 3), Hex, HSL, HSV, HWB, LCH, Lab, Rec2020, SRGB, XYZD65, and more.
+  - **Functions (81)**: APCA Contrast, WCAG 2.1 Contrast Ratio, `harmonize()`, `to_gamut()`, `adjust_to_contrast()`, `scale_chroma()`, `scale_lightness()`, Gaussian decay, and tint/shade generators.
+  - **Core & Utilities (60)**: Base dimensions, typography, borders, shadows, opacity, and cross-platform exporters (`android-xml-*`, `ios-swiftui-*`, `jetpack-compose-*`, `react-native-*`, `flutter-*`, `figma-*`, `css-*`, `dtcg`).
+- **Self-Hosted JSON Schema Registry API**: Implemented local API routes (`/api/v1/schemas` and `/api/v1/schemas/[...path]`) returning valid draft 2020-12 JSON Schema documents with dynamic origin resolution. Completely eliminates all external copyright risks and third-party domain dependencies.
+- **Reference-Accurate Extension Inspector Modal**: Replicated the dark-themed detail inspection dialog (`components/ExtensionDetailModal.tsx`) with dark-green category and status pills, angled link icon, copyable self-hosted schema URL, external open arrow, and zero scrollbar clutter.
+- **Multi-Tenant Project Schema Persistence**: Project-level schema activation (`enabledSchemas`) persists per project in Cloud Firestore and hydrates into Zustand state on project switch.
+- **Large-Scale Token Performance Optimization (13,000+ Tokens)**:
+  - **Progressive Infinite Scrolling**: Implemented progressive batch loading (`100 tokens` per batch) with scroll sentinel in `components/TokensWorkspace.tsx`, preventing browser freezes when browsing large enterprise repositories.
+  - **Eliminated Zustand Subscription Bloat**: Hoisted editing states and memoized table row nodes (`React.memo`), avoiding 13,000+ listener executions per keystroke.
+  - **$O(1)$ In-Memory Alias Index**: Built a flat lookup index (`buildTokenLookupIndex`) eliminating deep recursive set scans during token alias resolution.
+  - **Fast Color Conversion Cache**: Introduced LRU-cached hex conversions (`toHexFast`), bypassing repeated `colorjs.io` object allocations.
+  - **Bounded Matrix Tree**: Bound grouped matrix calculations in `components/ThemeMatrix.tsx` to the active page, ensuring instantaneous rendering.
+  - **Storage Sanitization & Document Safeguards**: Stripped heavy raw tokens from cached project lists in `localStorage` and added payload size limits to guard Cloud Firestore's 1 MiB boundary.
+
+---
+
 # 1.3.0 `2026-09-13`
 
 ● **Minor Release — Figma Second Screen Plugin, Data Grid Engine & Multi-Tenant Architecture**

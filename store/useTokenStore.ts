@@ -86,7 +86,9 @@ import {
   saveProjectBranches,
   ensureProjectDefaultBranch,
   sanitizeProjectsForCache,
+  saveProjectSchemas,
 } from "@/services/organizationService";
+import { DEFAULT_ENABLED_SCHEMA_IDS } from "@/data/schemaCatalog";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -221,7 +223,8 @@ interface TokenStoreState {
     | "project-settings"
     | "members"
     | "org-settings"
-    | "changelog";
+    | "changelog"
+    | "extensions";
   setSidebarTab: (
     tab:
       | "dashboard"
@@ -242,6 +245,7 @@ interface TokenStoreState {
       | "members"
       | "org-settings"
       | "changelog"
+      | "extensions"
   ) => void;
   membersSubTab: "members" | "invites" | "activity";
   setMembersSubTab: (tab: "members" | "invites" | "activity") => void;
@@ -361,6 +365,13 @@ interface TokenStoreState {
   ) => void;
   deleteThemeOption: (groupId: string, optionId: string) => void;
   initializeBlankWorkspace: () => void;
+
+  // Schema Marketplace & Extension State
+  enabledSchemas: string[];
+  toggleSchemaAction: (schemaId: string) => Promise<void>;
+  enableSchemaAction: (schemaId: string) => Promise<void>;
+  disableSchemaAction: (schemaId: string) => Promise<void>;
+  isSchemaEnabled: (schemaId: string) => boolean;
 }
 
 const DEFAULT_CREDENTIALS: GitCredentials = {
@@ -819,6 +830,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           isDirty: false,
         });
       }
+
+      // Hydrate Enabled Schemas
+      const activeSchemas = Array.isArray(proj.enabledSchemas) && proj.enabledSchemas.length > 0
+        ? proj.enabledSchemas
+        : DEFAULT_ENABLED_SCHEMA_IDS;
+      set({ enabledSchemas: activeSchemas });
 
       // 3. Independent Assets & SVG Icons
       let normalizedFigmaConfig: AssetFigmaConfig | null = proj.assetFigmaConfig || null;
@@ -1403,6 +1420,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
+  enabledSchemas: DEFAULT_ENABLED_SCHEMA_IDS,
   credentials: DEFAULT_CREDENTIALS,
   userProfile: null,
   setUserProfile: (profile) => {
@@ -5037,6 +5055,49 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches).catch(console.error);
     }
+  },
+
+  toggleSchemaAction: async (schemaId: string) => {
+    const { enabledSchemas, currentOrg, currentProject, orgProjects, addToast } = get();
+    const isCurrentlyEnabled = enabledSchemas.includes(schemaId);
+    const updated = isCurrentlyEnabled
+      ? enabledSchemas.filter((id) => id !== schemaId)
+      : [...enabledSchemas, schemaId];
+
+    set({ enabledSchemas: updated });
+
+    if (currentOrg && currentProject) {
+      const updatedProj: Project = { ...currentProject, enabledSchemas: updated };
+      set({
+        currentProject: updatedProj,
+        orgProjects: orgProjects.map((p) => (p.id === currentProject.id ? updatedProj : p)),
+      });
+      await saveProjectSchemas(currentOrg.id, currentProject.id, updated);
+    }
+
+    addToast({
+      type: "success",
+      title: isCurrentlyEnabled ? "Extension Disabled" : "Extension Enabled",
+      message: `${isCurrentlyEnabled ? "Disabled" : "Enabled"} schema "${schemaId}".`,
+    });
+  },
+
+  enableSchemaAction: async (schemaId: string) => {
+    const { enabledSchemas, toggleSchemaAction } = get();
+    if (!enabledSchemas.includes(schemaId)) {
+      await toggleSchemaAction(schemaId);
+    }
+  },
+
+  disableSchemaAction: async (schemaId: string) => {
+    const { enabledSchemas, toggleSchemaAction } = get();
+    if (enabledSchemas.includes(schemaId)) {
+      await toggleSchemaAction(schemaId);
+    }
+  },
+
+  isSchemaEnabled: (schemaId: string) => {
+    return get().enabledSchemas.includes(schemaId);
   },
 };
 });

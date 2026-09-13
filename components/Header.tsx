@@ -203,6 +203,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       items.push({
         label: setName,
       });
+    } else if (sidebarTab === "extensions") {
+      items.push({
+        label: "Extensions",
+      });
     } else if (sidebarTab === "branches") {
       items.push({
         label: "Branches",
@@ -225,6 +229,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         releases: "Releases",
         branches: "Branches",
         activity: "Activity",
+        extensions: "Extensions",
         members: "Members",
         "project-settings": "Project Settings",
         "org-settings": "Organization Settings",

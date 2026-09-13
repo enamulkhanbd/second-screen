@@ -2,12 +2,75 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.4.0",
+    releaseDate: "September 14, 2026",
+    title: "Unified Schema Marketplace, Self-Hosted JSON Schemas & Large-Scale Token Performance Engine",
+    badge: "Feature Release",
+    badgeVariant: "success",
+    isLatest: true,
+    summary:
+      "Launched the Schema Marketplace with 182 self-hosted design token schemas across Core & Utilities, Color Spaces, and Functions. Added dynamic schema endpoints, per-project extension toggling, a reference-designed inspector modal with zero external dependencies, and progressive infinite scrolling for large repositories (13,000+ tokens).",
+    highlights: [
+      "Unified single-page Schema Marketplace with centered layout, live search, category pills, and instant Enable/Disable controls.",
+      "Comprehensive catalog of 182 schemas matching modern token specifications across 41 Color Spaces (OKLCH, OKLab, Display P3, HCT), 81 Functions (APCA, WCAG 2.1, harmonize), and 60 Core Utilities.",
+      "100% self-hosted schema endpoints (/api/v1/schemas/*) serving valid JSON Schema draft 2020-12 documents with zero third-party domain dependencies.",
+      "Reference-accurate dark theme inspection dialog matching Tokens Studio aesthetics with copyable schema URLs and no scrollbar clutter.",
+      "Per-project extension persistence in Cloud Firestore integrated with Zustand state.",
+      "Progressive infinite scrolling and memory-efficient batching in TokensWorkspace for smooth navigation of 13,000+ tokens without browser freezing.",
+      "O(1) in-memory alias indexing and cached color conversions eliminating recursive alias resolution lag.",
+    ],
+    items: [
+      {
+        title: "Unified Single-Page Schema Marketplace",
+        description:
+          "Integrated full extension management into a centered single page. Toggle any schema active or inactive directly from item cards, with live search and category pill filtering (All, Enabled, Color Spaces, Functions, Core & Utilities).",
+        category: "feature",
+        tags: ["Schemas", "Marketplace", "Extensions", "UI"],
+      },
+      {
+        title: "182 Self-Hosted Design Token Schemas",
+        description:
+          "Full catalog covering 41 color spaces (OKLCH, OKLab, P3, HCT, etc.), 81 color and math functions (APCA, contrast ratios, decay curves, gamut mapping), and 60 core types and platform-target serializers.",
+        category: "feature",
+        tags: ["Color Spaces", "Functions", "OKLCH", "APCA", "DTCG"],
+      },
+      {
+        title: "Self-Hosted JSON Schema Registry API",
+        description:
+          "Built private, local /api/v1/schemas endpoints serving valid draft 2020-12 JSON Schema definitions with dynamic origin resolution, eliminating all external copyright risks and third-party domain dependencies.",
+        category: "feature",
+        tags: ["JSON Schema", "REST API", "Self-Hosted", "Enterprise"],
+      },
+      {
+        title: "Reference-Designed Inspector Modal",
+        description:
+          "Implemented a dark-themed extension inspector matching Tokens Studio visual design with category/status pills, rotated link icon, monospace URL box, one-click copy, and zero scrollbar clipping.",
+        category: "feature",
+        tags: ["Inspector", "Modal", "UI Design"],
+      },
+      {
+        title: "Multi-Tenant Project Schema Persistence",
+        description:
+          "Project-scoped schema activation stored directly in Cloud Firestore (enabledSchemas), providing governance over allowed token types per project.",
+        category: "feature",
+        tags: ["Multi-Tenant", "Firestore", "Governance"],
+      },
+      {
+        title: "Large-Scale Token Performance Optimization",
+        description:
+          "Added progressive infinite scrolling with batch loading (100 tokens per batch) in TokensWorkspace, O(1) in-memory alias lookup index, fast color cache, and lightweight localStorage caching for 13,000+ token repositories.",
+        category: "enhancement",
+        tags: ["Infinite Scroll", "Optimization", "Caching", "Performance"],
+      },
+    ],
+  },
+  {
     version: "v1.3.0",
     releaseDate: "September 13, 2026",
     title: "Figma Second Screen Plugin, Data Grid Engine & Multi-Tenant Architecture",
     badge: "Feature Release",
     badgeVariant: "violet",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Launched the Figma Second Screen companion plugin, interactive tokens data grid with column resizing, multi-tenant workspace/project lifecycle management with danger zone controls, strict duplicate name validation, zero-preset project initialization, and native branching.",
     highlights: [

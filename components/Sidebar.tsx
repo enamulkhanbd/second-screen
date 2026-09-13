@@ -683,6 +683,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             {!isCollapsed && <span>Variables</span>}
           </button>
 
+          {/* Schema Marketplace */}
+          <button
+            onClick={() => setSidebarTab("extensions")}
+            title="Schema Marketplace"
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+              sidebarTab === "extensions"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+            }`}
+          >
+            <Lightbulb className="size-4 flex-shrink-0" />
+            {!isCollapsed && <span>Schema Marketplace</span>}
+          </button>
+
           {/* Exports */}
           <button
             onClick={() => setSidebarTab("exports")}
