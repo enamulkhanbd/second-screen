@@ -220,8 +220,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const [groupDepth, setGroupDepth] = useState<number>(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
-  // Sorting & Multi-select states
-  const [sortField, setSortField] = useState<"name" | "resolved">("name");
+  // Sorting & Multi-select states (defaults to natural progression by resolved value)
+  const [sortField, setSortField] = useState<"name" | "resolved">("resolved");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
 

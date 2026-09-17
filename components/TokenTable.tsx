@@ -58,7 +58,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
 
   const [isFetching, setIsFetching] = useState(false);
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
-  const [sortField, setSortField] = useState<"name" | "resolved">("name");
+  const [sortField, setSortField] = useState<"name" | "resolved">("resolved");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
 

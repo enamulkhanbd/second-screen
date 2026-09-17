@@ -133,19 +133,48 @@ export interface ParsedSortableValue {
  * Parses any resolved/raw token value into a sortable structure.
  * Correctly extracts dimension values (e.g. 4px, 1.5rem, 50%) to allow numerical magnitude sorting.
  */
+export interface ParsedSortableValue {
+  isNumeric: boolean;
+  num: number;
+  unit: string;
+  text: string;
+  isColor: boolean;
+}
+
+function isColorString(val: string): boolean {
+  if (!val || typeof val !== "string") return false;
+  const s = val.trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s) || /^(rgba?|hsla?|oklch|lch|color)\(/i.test(s);
+}
+
+function getColorLuminance(val: string): number | null {
+  try {
+    const c = new Color(val.trim());
+    return c.to("oklch").l;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parses any resolved/raw token value into a sortable structure.
+ * Correctly extracts dimension values (e.g. 4px, 1.5rem, 50%) to allow numerical magnitude sorting,
+ * and detects color values for perceptual lightness comparison.
+ */
 export function parseSortableValue(val: any): ParsedSortableValue {
   if (val === null || val === undefined) {
-    return { isNumeric: false, num: 0, unit: "", text: "" };
+    return { isNumeric: false, num: 0, unit: "", text: "", isColor: false };
   }
   if (typeof val === "number") {
-    return { isNumeric: true, num: val, unit: "", text: String(val) };
+    return { isNumeric: true, num: val, unit: "", text: String(val), isColor: false };
   }
   const str = String(typeof val === "object" ? JSON.stringify(val) : val).trim();
   const match = str.match(/^([+-]?(?:\d*\.)?\d+)([a-zA-Z%]*)$/);
   if (match) {
-    return { isNumeric: true, num: parseFloat(match[1]), unit: match[2] || "", text: str };
+    return { isNumeric: true, num: parseFloat(match[1]), unit: match[2] || "", text: str, isColor: false };
   }
-  return { isNumeric: false, num: 0, unit: "", text: str };
+  const isCol = isColorString(str);
+  return { isNumeric: false, num: 0, unit: "", text: str, isColor: isCol };
 }
 
 /**
@@ -156,25 +185,34 @@ export function parseSortableValue(val: any): ParsedSortableValue {
 export function compareResolvedValues(valA: any, valB: any, dir: "asc" | "desc" = "asc"): number {
   const pA = parseSortableValue(valA);
   const pB = parseSortableValue(valB);
-  let cmp = 0;
 
   if (pA.isNumeric && pB.isNumeric) {
     if (pA.num !== pB.num) {
-      cmp = pA.num - pB.num;
-    } else {
-      cmp = (pA.unit || "").localeCompare(pB.unit || "");
+      return dir === "desc" ? pB.num - pA.num : pA.num - pB.num;
     }
+    const unitCmp = (pA.unit || "").localeCompare(pB.unit || "");
+    if (unitCmp !== 0) return dir === "desc" ? -unitCmp : unitCmp;
   } else if (pA.isNumeric && !pB.isNumeric) {
-    // Numbers sort after textual values in A-Z, 0-9 collation
-    cmp = 1;
+    // Numbers sort after textual/color values in A-Z, 0-9 collation
+    return dir === "desc" ? -1 : 1;
   } else if (!pA.isNumeric && pB.isNumeric) {
-    cmp = -1;
+    return dir === "desc" ? 1 : -1;
+  } else if (pA.isColor && pB.isColor) {
+    // Compare colors by perceptual lightness (lightest to darkest in asc)
+    const lumA = getColorLuminance(pA.text);
+    const lumB = getColorLuminance(pB.text);
+    if (lumA !== null && lumB !== null && Math.abs(lumA - lumB) > 0.001) {
+      return dir === "asc" ? lumB - lumA : lumA - lumB;
+    }
+    const cmp = compareSegmentAZ09(pA.text, pB.text);
+    if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
   } else {
     // Both non-numeric
-    cmp = compareSegmentAZ09(pA.text, pB.text);
+    const cmp = compareSegmentAZ09(pA.text, pB.text);
+    if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
   }
 
-  return dir === "desc" ? -cmp : cmp;
+  return 0;
 }
 
 /**
@@ -183,10 +221,19 @@ export function compareResolvedValues(valA: any, valB: any, dir: "asc" | "desc" 
 export function compareTokens<T extends { name: string; resolvedValue?: any; rawValue?: any }>(
   a: T,
   b: T,
-  field: "name" | "resolved" = "name",
+  field: "name" | "resolved" = "resolved",
   dir: "asc" | "desc" = "asc"
 ): number {
   if (field === "resolved") {
+    // Check if both tokens belong to the same parent family and end with numeric scale/shade (e.g. primary.50 vs primary.500)
+    const matchA = a.name.match(/^(.*)\.(\d+)$/);
+    const matchB = b.name.match(/^(.*)\.(\d+)$/);
+    if (matchA && matchB && matchA[1] === matchB[1]) {
+      const numA = parseInt(matchA[2], 10);
+      const numB = parseInt(matchB[2], 10);
+      return dir === "asc" ? numA - numB : numB - numA;
+    }
+
     const valA = a.resolvedValue !== undefined && a.resolvedValue !== null ? a.resolvedValue : a.rawValue;
     const valB = b.resolvedValue !== undefined && b.resolvedValue !== null ? b.resolvedValue : b.rawValue;
     const cmp = compareResolvedValues(valA, valB, dir);
@@ -842,7 +889,7 @@ export function flattenAndResolveTokens(
     walk(setTree, []);
   }
 
-  result.sort((a, b) => naturalCompareTokenKeys(a.name, b.name));
+  result.sort((a, b) => compareTokens(a, b, "resolved", "asc"));
 
   return result;
 }

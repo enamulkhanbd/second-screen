@@ -33,7 +33,7 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
   const { resolvedTokens, addToast } = useTokenStore();
   const [search, setSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<"name" | "value">("name");
+  const [sortField, setSortField] = useState<"name" | "value">("value");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const settings = block.settings || {};

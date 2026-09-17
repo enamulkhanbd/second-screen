@@ -12,6 +12,7 @@ import {
   naturalCompareTokenKeys,
   compareTokenNames,
   compareResolvedValues,
+  compareTokens,
 } from "@/utils/transformTokens";
 
 // Palette colors for theme groups
@@ -858,7 +859,7 @@ export function buildTokenGroupTree<T>(
   getPathSegments: (item: T) => string[],
   maxGroupDepth?: number,
   sortDirection: "asc" | "desc" = "asc",
-  sortField: "name" | "resolved" = "name"
+  sortField: "name" | "resolved" = "resolved"
 ): TokenGroupNode<T>[] {
   // If maxGroupDepth is 1 (Level 1 / Flat), return empty tree so tokens render flat
   if (maxGroupDepth === 1) {
@@ -918,15 +919,7 @@ export function buildTokenGroupTree<T>(
 
   function sortItemList(itemList: T[]): T[] {
     return [...itemList].sort((a: any, b: any) => {
-      if (sortField === "resolved") {
-        const valA = a.resolvedValue !== undefined && a.resolvedValue !== null ? a.resolvedValue : a.rawValue;
-        const valB = b.resolvedValue !== undefined && b.resolvedValue !== null ? b.resolvedValue : b.rawValue;
-        const cmp = compareResolvedValues(valA, valB, sortDirection);
-        if (cmp !== 0) return cmp;
-      }
-      const pathA = getPathSegments(a).join(".");
-      const pathB = getPathSegments(b).join(".");
-      return compareTokenNames(pathA, pathB, sortDirection);
+      return compareTokens(a, b, sortField, sortDirection);
     });
   }
 

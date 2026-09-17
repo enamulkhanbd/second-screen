@@ -83,7 +83,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [viewLayout, setViewLayout] = useState<"grid" | "table">("grid");
-  const [sortField, setSortField] = useState<"name" | "resolved" | "collection">("name");
+  const [sortField, setSortField] = useState<"name" | "resolved" | "collection">("resolved");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
