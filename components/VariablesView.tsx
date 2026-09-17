@@ -32,7 +32,13 @@ import {
   LayoutGrid,
   List,
   Flame,
+  ArrowUpDown,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowUp01,
+  ArrowDown01,
 } from "lucide-react";
+import { compareTokens, compareTokenNames } from "@/utils/transformTokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +83,18 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [viewLayout, setViewLayout] = useState<"grid" | "table">("grid");
+  const [sortField, setSortField] = useState<"name" | "resolved" | "collection">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleSortToggle = (field: "name" | "resolved" | "collection") => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // De-sync confirmation modal
@@ -154,6 +171,20 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
       return true;
     });
   }, [allVariables, selectedCollection, selectedType, searchQuery]);
+
+  // Sorted variables
+  const sortedVariables = useMemo(() => {
+    const list = [...filteredVariables];
+    list.sort((a, b) => {
+      if (sortField === "collection") {
+        const cmp = compareTokenNames(a.setName, b.setName, sortDirection);
+        if (cmp !== 0) return cmp;
+        return compareTokenNames(a.name, b.name, sortDirection);
+      }
+      return compareTokens(a, b, sortField, sortDirection);
+    });
+    return list;
+  }, [filteredVariables, sortField, sortDirection]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -539,7 +570,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
             ) : viewLayout === "grid" ? (
               /* GRID VIEW */
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                {filteredVariables.map((item) => {
+                {sortedVariables.map((item) => {
                   const isColor = item.type === "color";
                   const isCopied = copiedId === item.id;
 
@@ -649,17 +680,74 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                 <table className="w-full text-left text-xs font-sans">
                   <thead className="bg-muted/40 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                     <tr>
-                      <th className="py-2.5 px-4 border-r border-border/30">Collection</th>
-                      <th className="py-2.5 px-4 border-r border-border/30">Variable Name</th>
+                      <th
+                        onClick={() => handleSortToggle("collection")}
+                        className="py-2.5 px-4 border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                        title={`Sort by Collection (${sortField === "collection" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={sortField === "collection" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                            Collection
+                          </span>
+                          {sortField === "collection" ? (
+                            sortDirection === "asc" ? (
+                              <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                            ) : (
+                              <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSortToggle("name")}
+                        className="py-2.5 px-4 border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                        title={`Sort by Variable Name (${sortField === "name" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                            Variable Name
+                          </span>
+                          {sortField === "name" ? (
+                            sortDirection === "asc" ? (
+                              <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                            ) : (
+                              <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                          )}
+                        </div>
+                      </th>
                       <th className="py-2.5 px-4 border-r border-border/30">Preview</th>
-                      <th className="py-2.5 px-4 border-r border-border/30">Resolved Value</th>
+                      <th
+                        onClick={() => handleSortToggle("resolved")}
+                        className="py-2.5 px-4 border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                        title={`Sort by Resolved Value (${sortField === "resolved" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={sortField === "resolved" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                            Resolved Value
+                          </span>
+                          {sortField === "resolved" ? (
+                            sortDirection === "asc" ? (
+                              <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                            ) : (
+                              <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                          )}
+                        </div>
+                      </th>
                       <th className="py-2.5 px-4 border-r border-border/30">Type</th>
                       <th className="py-2.5 px-4 border-r border-border/30">Alias Binding</th>
                       <th className="py-2.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
-                    {filteredVariables.map((item) => {
+                    {sortedVariables.map((item) => {
                       const isColor = item.type === "color";
 
                       return (

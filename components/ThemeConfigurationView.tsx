@@ -7,6 +7,7 @@ import {
   getValidTokenSetNames,
   SetTreeNode,
 } from "@/utils/themeHelpers";
+import { compareTokenNames } from "@/utils/transformTokens";
 import {
   ChevronDown,
   ChevronRight,
@@ -168,10 +169,12 @@ export const ThemeConfigurationView: React.FC = () => {
       activeOption.figmaVariableReferences &&
       Object.keys(activeOption.figmaVariableReferences).length > 0
     ) {
-      return Object.entries(activeOption.figmaVariableReferences).map(([name, key]) => ({
-        variable: name,
-        key: key as string,
-      }));
+      return Object.entries(activeOption.figmaVariableReferences)
+        .map(([name, key]) => ({
+          variable: name,
+          key: key as string,
+        }))
+        .sort((a, b) => compareTokenNames(a.variable, b.variable, "asc"));
     }
 
     // 2. Derive list of tokens from enabled/source sets of this theme
@@ -198,7 +201,7 @@ export const ThemeConfigurationView: React.FC = () => {
       }
     });
 
-    return list;
+    return list.sort((a, b) => compareTokenNames(a.variable, b.variable, "asc"));
   }, [activeOption, resolvedTokens]);
 
   const handleCopyKey = (key: string) => {

@@ -3,7 +3,18 @@
 import React, { useState, useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
-import { Search, Copy, Check, Layers } from "lucide-react";
+import {
+  Layers,
+  Search,
+  Copy,
+  Check,
+  ArrowUpDown,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowUp01,
+  ArrowDown01,
+} from "lucide-react";
+import { compareTokens } from "@/utils/transformTokens";
 import { Badge } from "@/components/ui/badge";
 
 interface TokensTableBlockProps {
@@ -22,12 +33,23 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
   const { resolvedTokens, addToast } = useTokenStore();
   const [search, setSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<"name" | "value">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const settings = block.settings || {};
   const { tokenSetName, filterType = "all", showSearchBox = true } = settings;
 
+  const handleSortToggle = (field: "name" | "value") => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
   const filtered = useMemo(() => {
-    return resolvedTokens.filter((t) => {
+    const list = resolvedTokens.filter((t) => {
       if (tokenSetName && tokenSetName !== "all") {
         const normTarget = tokenSetName.trim().toLowerCase().replace(/[\\/.]/g, "/");
         const normSet = (t.setName || "").trim().toLowerCase().replace(/[\\/.]/g, "/");
@@ -47,7 +69,11 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
       }
       return true;
     });
-  }, [resolvedTokens, tokenSetName, filterType, search]);
+
+    return list.sort((a, b) =>
+      compareTokens(a, b, sortField === "value" ? "resolved" : "name", sortOrder)
+    );
+  }, [resolvedTokens, tokenSetName, filterType, search, sortField, sortOrder]);
 
   const handleCopy = (val: string, key: string) => {
     navigator.clipboard.writeText(val);
@@ -93,9 +119,47 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border/60 bg-muted/40 font-medium text-muted-foreground">
             <tr>
-              <th className="px-4 py-2.5">Token Name</th>
+              <th
+                onClick={() => handleSortToggle("name")}
+                className="px-4 py-2.5 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                title={`Sort by Token Name (${sortField === "name" && sortOrder === "asc" ? "Descending" : "Ascending"})`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                    Token Name
+                  </span>
+                  {sortField === "name" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                  )}
+                </div>
+              </th>
               <th className="px-4 py-2.5">Type</th>
-              <th className="px-4 py-2.5">Value</th>
+              <th
+                onClick={() => handleSortToggle("value")}
+                className="px-4 py-2.5 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                title={`Sort by Value (${sortField === "value" && sortOrder === "asc" ? "Descending" : "Ascending"})`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={sortField === "value" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                    Value
+                  </span>
+                  {sortField === "value" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                  )}
+                </div>
+              </th>
               <th className="px-4 py-2.5 text-right">Actions</th>
             </tr>
           </thead>

@@ -10,6 +10,8 @@ import {
   getLeafType,
   resolveTokenAlias,
   naturalCompareTokenKeys,
+  compareTokenNames,
+  compareResolvedValues,
 } from "@/utils/transformTokens";
 
 // Palette colors for theme groups
@@ -825,8 +827,8 @@ export function buildThemeMatrix(
     });
   });
 
-  // Sort rows naturally using numeric collation
-  rows.sort((a, b) => naturalCompareTokenKeys(a.tokenKey, b.tokenKey));
+  // Sort rows naturally using A-Z, 0-9 collation
+  rows.sort((a, b) => compareTokenNames(a.tokenKey, b.tokenKey, "asc"));
 
   return rows;
 }
@@ -855,7 +857,8 @@ export function buildTokenGroupTree<T>(
   items: T[],
   getPathSegments: (item: T) => string[],
   maxGroupDepth?: number,
-  sortDirection: "asc" | "desc" = "asc"
+  sortDirection: "asc" | "desc" = "asc",
+  sortField: "name" | "resolved" = "name"
 ): TokenGroupNode<T>[] {
   // If maxGroupDepth is 1 (Level 1 / Flat), return empty tree so tokens render flat
   if (maxGroupDepth === 1) {
@@ -913,18 +916,26 @@ export function buildTokenGroupTree<T>(
     }
   }
 
-  function convertNode(rawNode: any): TokenGroupNode<T> {
-    const dir = sortDirection === "desc" ? -1 : 1;
-
-    const subgroups: TokenGroupNode<T>[] = Array.from(rawNode.subgroupsMap.values())
-      .map(convertNode)
-      .sort((a, b) => naturalCompareTokenKeys(a.name, b.name) * dir);
-
-    const sortedItems: T[] = (rawNode.items as T[]).sort((a: any, b: any) => {
+  function sortItemList(itemList: T[]): T[] {
+    return [...itemList].sort((a: any, b: any) => {
+      if (sortField === "resolved") {
+        const valA = a.resolvedValue !== undefined && a.resolvedValue !== null ? a.resolvedValue : a.rawValue;
+        const valB = b.resolvedValue !== undefined && b.resolvedValue !== null ? b.resolvedValue : b.rawValue;
+        const cmp = compareResolvedValues(valA, valB, sortDirection);
+        if (cmp !== 0) return cmp;
+      }
       const pathA = getPathSegments(a).join(".");
       const pathB = getPathSegments(b).join(".");
-      return naturalCompareTokenKeys(pathA, pathB) * dir;
+      return compareTokenNames(pathA, pathB, sortDirection);
     });
+  }
+
+  function convertNode(rawNode: any): TokenGroupNode<T> {
+    const subgroups: TokenGroupNode<T>[] = Array.from(rawNode.subgroupsMap.values())
+      .map(convertNode)
+      .sort((a, b) => compareTokenNames(a.name, b.name, sortDirection));
+
+    const sortedItems: T[] = sortItemList(rawNode.items as T[]);
 
     const totalTokenCount = sortedItems.length + subgroups.reduce((acc, g) => acc + g.totalTokenCount, 0);
 
@@ -939,15 +950,10 @@ export function buildTokenGroupTree<T>(
     };
   }
 
-  const dir = sortDirection === "desc" ? -1 : 1;
   const result: TokenGroupNode<T>[] = [];
 
   if (rootItems.length > 0) {
-    const sortedRootItems = [...rootItems].sort((a: any, b: any) => {
-      const pathA = getPathSegments(a).join(".");
-      const pathB = getPathSegments(b).join(".");
-      return naturalCompareTokenKeys(pathA, pathB) * dir;
-    });
+    const sortedRootItems = sortItemList(rootItems);
 
     result.push({
       id: "__root__",
@@ -963,7 +969,7 @@ export function buildTokenGroupTree<T>(
 
   const groupedNodes = Array.from(rootMap.values())
     .map(convertNode)
-    .sort((a, b) => naturalCompareTokenKeys(a.name, b.name) * dir);
+    .sort((a, b) => compareTokenNames(a.name, b.name, sortDirection));
 
   result.push(...groupedNodes);
 

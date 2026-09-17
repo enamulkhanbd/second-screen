@@ -3,7 +3,19 @@
 import React, { useState, useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
-import { Search, Copy, Check, SlidersHorizontal, Variable } from "lucide-react";
+import {
+  Search,
+  Copy,
+  Check,
+  SlidersHorizontal,
+  Variable,
+  ArrowUpDown,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowUp01,
+  ArrowDown01,
+} from "lucide-react";
+import { compareTokens } from "@/utils/transformTokens";
 import { Badge } from "@/components/ui/badge";
 
 interface VariablesTableBlockProps {
@@ -151,13 +163,10 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
       return true;
     });
 
-    // Sort
-    result.sort((a, b) => {
-      let valA = sortField === "name" ? a.name : String(a.resolvedValue || a.rawValue || "");
-      let valB = sortField === "name" ? b.name : String(b.resolvedValue || b.rawValue || "");
-      const cmp = String(valA).localeCompare(String(valB));
-      return sortOrder === "desc" ? -cmp : cmp;
-    });
+    // Sort using robust A-Z, 0-9 comparator
+    result.sort((a, b) =>
+      compareTokens(a, b, sortField === "value" ? "resolved" : "name", sortOrder as "asc" | "desc")
+    );
 
     return result;
   }, [sourceItems, collection, filterType, filterQuery, filterCondition, localSearch, sortField, sortOrder]);
@@ -223,10 +232,54 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border/60 bg-muted/40 font-medium text-muted-foreground">
             <tr>
-              <th className="px-4 py-2.5">Variable Name</th>
+              <th
+                onClick={() => {
+                  const next = sortField === "name" && sortOrder === "asc" ? "desc" : "asc";
+                  onUpdate({ settings: { ...settings, sortField: "name", sortOrder: next } });
+                }}
+                className="px-4 py-2.5 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                title={`Sort by Variable Name (${sortField === "name" && sortOrder === "asc" ? "Descending" : "Ascending"})`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                    Variable Name
+                  </span>
+                  {sortField === "name" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                  )}
+                </div>
+              </th>
               <th className="px-4 py-2.5">Collection</th>
               <th className="px-4 py-2.5">Type</th>
-              <th className="px-4 py-2.5">Value</th>
+              <th
+                onClick={() => {
+                  const next = sortField === "value" && sortOrder === "asc" ? "desc" : "asc";
+                  onUpdate({ settings: { ...settings, sortField: "value", sortOrder: next } });
+                }}
+                className="px-4 py-2.5 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                title={`Sort by Value (${sortField === "value" && sortOrder === "asc" ? "Descending" : "Ascending"})`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={sortField === "value" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                    Value
+                  </span>
+                  {sortField === "value" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                  )}
+                </div>
+              </th>
               <th className="px-4 py-2.5 text-right">Actions</th>
             </tr>
           </thead>

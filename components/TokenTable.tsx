@@ -5,7 +5,7 @@ import { useTokenStore } from "@/store/useTokenStore";
 import { ColorSwatch } from "@/components/ColorSwatch";
 import { FlattenedToken } from "@/types/tokens";
 import { EditTokenDrawer } from "@/components/EditTokenDrawer";
-import { naturalCompareTokenKeys } from "@/utils/transformTokens";
+import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
 import {
   Link2,
   SearchX,
@@ -19,6 +19,11 @@ import {
   Copy,
   Trash2,
   CopyPlus,
+  ArrowUpDown,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowUp01,
+  ArrowDown01,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,8 +58,18 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
 
   const [isFetching, setIsFetching] = useState(false);
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
+  const [sortField, setSortField] = useState<"name" | "resolved">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
+
+  const handleSortToggle = (field: "name" | "resolved") => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
 
   const hasCredentials = Boolean(credentials.owner && credentials.repo && credentials.pat);
   const isTotallyEmpty = Object.keys(rawTokens).length === 0;
@@ -156,12 +171,9 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
 
   const sortedTokens = useMemo(() => {
     const list = [...filteredTokens];
-    list.sort((a, b) => {
-      const cmp = naturalCompareTokenKeys(a.name, b.name);
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
+    list.sort((a, b) => compareTokens(a, b, sortField, sortDirection));
     return list;
-  }, [filteredTokens, sortDirection]);
+  }, [filteredTokens, sortField, sortDirection]);
 
   const toggleSelectToken = (id: string) => {
     setSelectedTokenIds((prev) => {
@@ -265,19 +277,47 @@ export const TokenTable: React.FC<TokenTableProps> = ({ onOpenSettings }) => {
                   />
                 </th>
                 <th
-                  onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
-                  className="px-4 py-2.5 text-left border-r border-border/30 cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => handleSortToggle("name")}
+                  className="px-4 py-2.5 text-left border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                  title={`Sort by Name (${sortField === "name" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>NAME</span>
-                    <span className="text-xs font-normal">
-                      {sortDirection === "asc" ? "↑" : "↓"}
+                    <span className={sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                      NAME
                     </span>
+                    {sortField === "name" ? (
+                      sortDirection === "asc" ? (
+                        <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                      ) : (
+                        <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                    )}
                   </div>
                 </th>
                 <th className="w-24 px-4 py-2.5 text-left border-r border-border/30">TYPE</th>
                 <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[140px]">VALUE</th>
-                <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[160px]">RESOLVED</th>
+                <th
+                  onClick={() => handleSortToggle("resolved")}
+                  className="px-4 py-2.5 text-left border-r border-border/30 min-w-[160px] cursor-pointer hover:text-foreground transition-colors group/th select-none"
+                  title={`Sort by Resolved Value (${sortField === "resolved" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortField === "resolved" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                      RESOLVED
+                    </span>
+                    {sortField === "resolved" ? (
+                      sortDirection === "asc" ? (
+                        <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                      ) : (
+                        <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                    )}
+                  </div>
+                </th>
                 <th className="px-4 py-2.5 text-left border-r border-border/30 min-w-[180px]">DESCRIPTION</th>
                 <th className="w-32 px-4 py-2.5 text-left border-r border-border/30">SET</th>
                 <th className="sticky right-0 top-0 z-30 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center bg-muted/90 backdrop-blur-xs border-l border-border/30 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]"></th>

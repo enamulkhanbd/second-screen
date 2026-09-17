@@ -68,13 +68,35 @@ export function getLeafType(leaf: RawTokenLeaf, parentGroupOrPath?: string | str
 }
 
 /**
- * Natural numeric comparator for dot-separated token keys and paths.
- * Ensures numbers sort naturally: e.g. blue.50 -> blue.100 -> blue.200 (not 100 before 50).
+ * Helper to compare path segments prioritizing alphabetical letters (A-Z) before digits (0-9).
+ * Within the same character class, applies natural numeric collation.
  */
-export function naturalCompareTokenKeys(a: string, b: string): number {
+function compareSegmentAZ09(aSeg: string, bSeg: string): number {
+  if (aSeg === bSeg) return 0;
+  const matchA = aSeg.match(/[a-zA-Z0-9]/);
+  const matchB = bSeg.match(/[a-zA-Z0-9]/);
+
+  if (matchA && matchB) {
+    const isLetterA = /[a-zA-Z]/.test(matchA[0]);
+    const isDigitA = /[0-9]/.test(matchA[0]);
+    const isLetterB = /[a-zA-Z]/.test(matchB[0]);
+    const isDigitB = /[0-9]/.test(matchB[0]);
+
+    if (isLetterA && isDigitB) return -1;
+    if (isDigitA && isLetterB) return 1;
+  }
+
+  return aSeg.localeCompare(bSeg, undefined, { numeric: true, sensitivity: "base" });
+}
+
+/**
+ * Natural comparator for dot-separated token keys and paths adhering to A-Z, 0-9 collation.
+ * Letters (A-Z) appear before digits (0-9) per segment, while numeric tokens (e.g. 50 vs 100) sort naturally.
+ */
+export function compareTokenNames(a: string, b: string, dir: "asc" | "desc" = "asc"): number {
   if (a === b) return 0;
-  if (!a) return -1;
-  if (!b) return 1;
+  if (!a) return dir === "asc" ? -1 : 1;
+  if (!b) return dir === "asc" ? 1 : -1;
 
   const aParts = String(a).split(/[./\\]/);
   const bParts = String(b).split(/[./\\]/);
@@ -84,12 +106,96 @@ export function naturalCompareTokenKeys(a: string, b: string): number {
     const aSeg = aParts[i];
     const bSeg = bParts[i];
     if (aSeg !== bSeg) {
-      const cmp = aSeg.localeCompare(bSeg, undefined, { numeric: true, sensitivity: "base" });
-      if (cmp !== 0) return cmp;
+      const cmp = compareSegmentAZ09(aSeg, bSeg);
+      if (cmp !== 0) return dir === "asc" ? cmp : -cmp;
     }
   }
 
-  return aParts.length - bParts.length;
+  const lenDiff = aParts.length - bParts.length;
+  return dir === "asc" ? lenDiff : -lenDiff;
+}
+
+/**
+ * Legacy wrapper maintaining backward compatibility.
+ */
+export function naturalCompareTokenKeys(a: string, b: string): number {
+  return compareTokenNames(a, b, "asc");
+}
+
+export interface ParsedSortableValue {
+  isNumeric: boolean;
+  num: number;
+  unit: string;
+  text: string;
+}
+
+/**
+ * Parses any resolved/raw token value into a sortable structure.
+ * Correctly extracts dimension values (e.g. 4px, 1.5rem, 50%) to allow numerical magnitude sorting.
+ */
+export function parseSortableValue(val: any): ParsedSortableValue {
+  if (val === null || val === undefined) {
+    return { isNumeric: false, num: 0, unit: "", text: "" };
+  }
+  if (typeof val === "number") {
+    return { isNumeric: true, num: val, unit: "", text: String(val) };
+  }
+  const str = String(typeof val === "object" ? JSON.stringify(val) : val).trim();
+  const match = str.match(/^([+-]?(?:\d*\.)?\d+)([a-zA-Z%]*)$/);
+  if (match) {
+    return { isNumeric: true, num: parseFloat(match[1]), unit: match[2] || "", text: str };
+  }
+  return { isNumeric: false, num: 0, unit: "", text: str };
+}
+
+/**
+ * Compares two resolved token values.
+ * - Dimension/numeric values (0px, 1px, 2px, 4px, 16px, 999px) sort by their numeric magnitude.
+ * - Text/color values sort with alphabetical A-Z, 0-9 collation.
+ */
+export function compareResolvedValues(valA: any, valB: any, dir: "asc" | "desc" = "asc"): number {
+  const pA = parseSortableValue(valA);
+  const pB = parseSortableValue(valB);
+  let cmp = 0;
+
+  if (pA.isNumeric && pB.isNumeric) {
+    if (pA.num !== pB.num) {
+      cmp = pA.num - pB.num;
+    } else {
+      cmp = (pA.unit || "").localeCompare(pB.unit || "");
+    }
+  } else if (pA.isNumeric && !pB.isNumeric) {
+    // Numbers sort after textual values in A-Z, 0-9 collation
+    cmp = 1;
+  } else if (!pA.isNumeric && pB.isNumeric) {
+    cmp = -1;
+  } else {
+    // Both non-numeric
+    cmp = compareSegmentAZ09(pA.text, pB.text);
+  }
+
+  return dir === "desc" ? -cmp : cmp;
+}
+
+/**
+ * Universal token comparator supporting 'name' and 'resolved' fields with direction.
+ */
+export function compareTokens<T extends { name: string; resolvedValue?: any; rawValue?: any }>(
+  a: T,
+  b: T,
+  field: "name" | "resolved" = "name",
+  dir: "asc" | "desc" = "asc"
+): number {
+  if (field === "resolved") {
+    const valA = a.resolvedValue !== undefined && a.resolvedValue !== null ? a.resolvedValue : a.rawValue;
+    const valB = b.resolvedValue !== undefined && b.resolvedValue !== null ? b.resolvedValue : b.rawValue;
+    const cmp = compareResolvedValues(valA, valB, dir);
+    if (cmp !== 0) return cmp;
+    // Secondary deterministic sort by name
+    return compareTokenNames(a.name, b.name, dir);
+  }
+
+  return compareTokenNames(a.name, b.name, dir);
 }
 
 // Helper to look up a path in a nested object

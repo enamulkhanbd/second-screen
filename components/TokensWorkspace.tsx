@@ -39,6 +39,11 @@ import {
   History,
   X,
   Code2,
+  ArrowUpDown,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowUp01,
+  ArrowDown01,
 } from "lucide-react";
 import { AddTokenModal } from "@/components/AddTokenModal";
 import { CodeEditor } from "@/components/ui/CodeEditor";
@@ -53,7 +58,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buildTokenGroupTree, TokenGroupNode } from "@/utils/themeHelpers";
-import { naturalCompareTokenKeys } from "@/utils/transformTokens";
+import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
 import { cn } from "@/lib/utils";
 
 interface TokensWorkspaceProps {
@@ -216,8 +221,18 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Sorting & Multi-select states
+  const [sortField, setSortField] = useState<"name" | "resolved">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set());
+
+  const handleSortToggle = (field: "name" | "resolved") => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
 
   const isEditable = canUserEdit();
   const handleCopy = (text: string, label: string) => {
@@ -239,23 +254,26 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   // Reset infinite scroll count whenever filters, active set, or sort changes
   useEffect(() => {
     setVisibleCount(INITIAL_BATCH_SIZE);
-  }, [searchQuery, activeSet, groupDepth, sortDirection]);
+  }, [searchQuery, activeSet, groupDepth, sortField, sortDirection]);
 
   const totalCount = displayedTokens.length;
 
-  // Multi-level recursive group tree from displayed tokens with chosen grouping depth
+  // Multi-level recursive group tree from displayed tokens with chosen grouping depth and sort field
   const groupTree = useMemo(() => {
-    return buildTokenGroupTree(displayedTokens, (token) => token.name.split("."), groupDepth, sortDirection);
-  }, [displayedTokens, groupDepth, sortDirection]);
+    return buildTokenGroupTree(
+      displayedTokens,
+      (token) => token.name.split("."),
+      groupDepth,
+      sortDirection,
+      sortField
+    );
+  }, [displayedTokens, groupDepth, sortDirection, sortField]);
 
   const sortedTokens = useMemo(() => {
     const list = [...displayedTokens];
-    list.sort((a, b) => {
-      const cmp = naturalCompareTokenKeys(a.name, b.name);
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
+    list.sort((a, b) => compareTokens(a, b, sortField, sortDirection));
     return list;
-  }, [displayedTokens, sortDirection]);
+  }, [displayedTokens, sortField, sortDirection]);
 
   // Sliced tokens for flat view
   const visibleFlatTokens = useMemo(() => {
@@ -1054,13 +1072,22 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                       className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
                       <div
-                        onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
-                        className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors truncate min-w-0"
+                        onClick={() => handleSortToggle("name")}
+                        className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors truncate min-w-0 select-none group/btn"
+                        title={`Sort by Name (${sortField === "name" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
                       >
-                        <span>NAME</span>
-                        <span className="text-xs font-normal">
-                          {sortDirection === "asc" ? "↑" : "↓"}
+                        <span className={cn("transition-colors", sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                          NAME
                         </span>
+                        {sortField === "name" ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                          ) : (
+                            <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/btn:text-muted-foreground transition-colors shrink-0" />
+                        )}
                       </div>
                       {/* Resizer Divider */}
                       <div
@@ -1113,7 +1140,24 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                       style={{ width: `${colWidths.resolved}px` }}
                       className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
-                      <span className="truncate">RESOLVED</span>
+                      <div
+                        onClick={() => handleSortToggle("resolved")}
+                        className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors truncate min-w-0 select-none group/btn"
+                        title={`Sort by Resolved Value (${sortField === "resolved" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                      >
+                        <span className={cn("truncate transition-colors", sortField === "resolved" ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                          RESOLVED
+                        </span>
+                        {sortField === "resolved" ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                          ) : (
+                            <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/btn:text-muted-foreground transition-colors shrink-0" />
+                        )}
+                      </div>
                       <div
                         data-resizer="resolved"
                         onMouseDown={(e) => startResizing("resolved", e)}
