@@ -58,13 +58,19 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
                   onClick={() => onSelectFile(file.id)}
                   className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors ${
                     isSelected
-                      ? "bg-[#22242a] text-white shadow-sm"
-                      : "text-zinc-300 hover:bg-muted/40 hover:text-white"
+                      ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs"
+                      : "text-zinc-700 dark:text-zinc-300 hover:bg-muted/70 hover:text-foreground dark:hover:text-white"
                   }`}
                 >
                   <span className="truncate">{file.name}</span>
                   {file.sizeFormatted && (
-                    <span className="text-[10px] text-zinc-500 font-mono font-normal">
+                    <span
+                      className={`text-[10px] font-mono font-normal ${
+                        isSelected
+                          ? "text-white/70 dark:text-zinc-400"
+                          : "text-muted-foreground"
+                      }`}
+                    >
                       {file.sizeFormatted}
                     </span>
                   )}
@@ -78,18 +84,18 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
         {Array.from(folderMap.entries()).map(([folderName, folderFiles]) => (
           <div key={folderName} className="space-y-1">
             {/* Folder Header */}
-            <div className="flex items-center justify-between px-1 py-1 text-xs font-bold text-zinc-300">
+            <div className="flex items-center justify-between px-1 py-1 text-xs font-bold text-zinc-800 dark:text-zinc-200">
               <div className="flex items-center gap-2">
-                <Folder className="w-4 h-4 text-zinc-400 fill-zinc-500/20" />
+                <Folder className="w-4 h-4 text-zinc-500 dark:text-zinc-400 fill-zinc-200/70 dark:fill-zinc-500/20" />
                 <span className="tracking-tight">{folderName}</span>
               </div>
-              <span className="w-4 h-4 rounded-full bg-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center justify-center font-normal">
+              <span className="w-4 h-4 rounded-full bg-zinc-200 dark:bg-zinc-800 text-[10px] font-mono text-zinc-700 dark:text-zinc-300 flex items-center justify-center font-medium">
                 {folderFiles.length}
               </span>
             </div>
 
             {/* Folder Children with Guide Line */}
-            <div className="ml-3 pl-3 border-l border-zinc-800/90 space-y-0.5">
+            <div className="ml-3 pl-3 border-l border-zinc-200 dark:border-zinc-800 space-y-0.5">
               {folderFiles.map((file) => {
                 const isSelected = file.id === activeFileId;
                 return (
@@ -99,13 +105,19 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
                     onClick={() => onSelectFile(file.id)}
                     className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors ${
                       isSelected
-                        ? "bg-[#22242a] text-white shadow-sm"
-                        : "text-zinc-300 hover:bg-muted/40 hover:text-white"
+                        ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs"
+                        : "text-zinc-700 dark:text-zinc-300 hover:bg-muted/70 hover:text-foreground dark:hover:text-white"
                     }`}
                   >
                     <span className="truncate">{file.name}</span>
                     {file.sizeFormatted && (
-                      <span className="text-[10px] text-zinc-500 font-mono font-normal">
+                      <span
+                        className={`text-[10px] font-mono font-normal ${
+                          isSelected
+                            ? "text-white/70 dark:text-zinc-400"
+                            : "text-muted-foreground"
+                        }`}
+                      >
                         {file.sizeFormatted}
                       </span>
                     )}

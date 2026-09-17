@@ -67,11 +67,11 @@ export const FigmaVariablesExportView: React.FC<FigmaVariablesExportViewProps> =
     <div className="flex-1 flex h-full overflow-hidden select-none bg-background">
       {/* COLUMN 1: Variable Name Order matching frame_225.jpg */}
       <aside className="w-80 border-r border-border/70 bg-card flex flex-col flex-shrink-0 h-full overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-[11px] text-zinc-300 select-text">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-[11px] text-zinc-700 dark:text-zinc-300 select-text">
           {creationOrder.map((item) => (
             <div
               key={item.id}
-              className="py-1 px-2 rounded hover:bg-muted/40 cursor-default truncate text-zinc-400 hover:text-white"
+              className="py-1 px-2 rounded hover:bg-muted/60 cursor-default truncate text-zinc-600 dark:text-zinc-400 hover:text-foreground dark:hover:text-white transition-colors"
             >
               {item.name}
             </div>
