@@ -179,17 +179,53 @@ export const DEFAULT_COMPILER_CONFIG: CompilerConfig = {
   outputReferences: true,
 };
 
+export interface ReleaseArtifact {
+  name: string;
+  filename: string;
+  size: string;
+  bytes: number;
+  type: "manifest" | "raw_json" | "zip" | "notes";
+}
+
+export interface ReleaseThemeChange {
+  groupName: string;
+  optionName: string;
+  changeType: "added" | "modified" | "deleted";
+}
+
 export interface ReleasePackage {
   id: string;
   version: string;
   title: string;
   notes: string;
+  summary?: string;
   createdAt: string;
+  author?: {
+    uid?: string;
+    name: string;
+    email?: string;
+    avatarUrl?: string;
+  };
+  branch?: string;
   tokenCount: number;
   themesCount: number;
+  changesCount?: number;
+  isDeprecated?: boolean;
+  deprecationReason?: string;
+  deprecatedAt?: string;
+  deprecatedBy?: {
+    uid?: string;
+    name: string;
+    email?: string;
+  };
   targetSystems: string[];
   publishResults?: TargetPublishResult[];
   compilerConfig?: CompilerConfig;
+  rawTokensSnapshot?: RawTokensDocument;
+  themeGroupsSnapshot?: any[];
+  diffSummary?: any; // DocumentDiffSummary
+  themeChanges?: ReleaseThemeChange[];
+  artifacts?: ReleaseArtifact[];
   cssVariables: {
     root: string;
     themes: Record<string, string>;

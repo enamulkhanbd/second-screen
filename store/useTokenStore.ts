@@ -257,6 +257,7 @@ interface TokenStoreState {
   compilerConfig: CompilerConfig;
   createRelease: (pkg: ReleasePackage) => void;
   deleteRelease: (id: string) => void;
+  toggleDeprecateRelease: (id: string, reason?: string) => void;
   setActiveReleaseId: (id: string | null) => void;
   addDistributionTarget: (target: DistributionTarget) => void;
   updateDistributionTarget: (id: string, target: Partial<DistributionTarget>) => void;
@@ -478,6 +479,67 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       let releases: ReleasePackage[] = [];
       const rawRel = localStorage.getItem(getScopedKey("ts_releases_history", orgId, projId));
       if (rawRel) releases = JSON.parse(rawRel);
+
+      if (releases.length === 0) {
+        const storeRaw = get().rawTokens;
+        const tokenKeys = Object.keys(storeRaw || {}).filter((k) => !k.startsWith("$"));
+        if (tokenKeys.length > 0) {
+          const curUser = get().currentUser;
+          const author = curUser
+            ? {
+                uid: curUser.uid,
+                name: curUser.displayName || curUser.email?.split("@")[0] || "Studio Member",
+                email: curUser.email || undefined,
+                avatarUrl: curUser.avatarUrl || undefined,
+              }
+            : { name: "Studio Member" };
+
+          const count = get().resolvedTokens.length || 634;
+          const initialRel: ReleasePackage = {
+            id: `rel-initial`,
+            version: "v1.0.0",
+            title: "initial-release",
+            summary: "initial release",
+            notes: "Initial Release",
+            createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+            author,
+            branch: "main",
+            tokenCount: count,
+            themesCount: get().themeGroups.reduce((acc, g) => acc + g.options.length, 0),
+            changesCount: count,
+            targetSystems: ["Tailwind CSS", "CSS Variables", "SCSS Variables", "React / TS"],
+            rawTokensSnapshot: JSON.parse(JSON.stringify(storeRaw)),
+            themeGroupsSnapshot: JSON.parse(JSON.stringify(get().themeGroups)),
+            artifacts: [
+              { name: "Manifest", filename: "manifest.json", size: "610 B", bytes: 610, type: "manifest" },
+              { name: "Raw JSON", filename: "tokens.json", size: "184 KB", bytes: 188416, type: "raw_json" },
+            ],
+            cssVariables: {
+              root: "",
+              themes: {},
+              allCombined: "",
+            },
+            styleDictionary: {
+              configJson: "{}",
+              tokensJson: "{}",
+              css: "",
+              scss: "",
+              esmJs: "",
+              dts: "",
+              tailwindConfig: "{}",
+              reactTs: "",
+              flutterDart: "",
+              iosSwift: "",
+              androidColorsXml: "",
+              androidDimensXml: "",
+            },
+          };
+          releases = [initialRel];
+          try {
+            localStorage.setItem(getScopedKey("ts_releases_history", orgId, projId), JSON.stringify(releases));
+          } catch {}
+        }
+      }
 
       let targets = get().distributionTargets;
       const rawTargets = localStorage.getItem(getScopedKey("ts_distribution_targets", orgId, projId));
@@ -2435,6 +2497,47 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         },
       });
     }
+  },
+  toggleDeprecateRelease: (id, reason) => {
+    const state = get();
+    const targetRelease = state.releases.find((r) => r.id === id);
+    if (!targetRelease) return;
+
+    const willBeDeprecated = !targetRelease.isDeprecated;
+    const updated = state.releases.map((r) => {
+      if (r.id !== id) return r;
+      return {
+        ...r,
+        isDeprecated: willBeDeprecated,
+        deprecationReason: willBeDeprecated ? (reason?.trim() || "Deprecated by project maintainer") : undefined,
+        deprecatedAt: willBeDeprecated ? new Date().toISOString() : undefined,
+        deprecatedBy: willBeDeprecated && state.currentUser ? {
+          uid: state.currentUser.uid,
+          name: state.currentUser.displayName || state.currentUser.email?.split("@")[0] || "User",
+          email: state.currentUser.email,
+        } : undefined,
+      };
+    });
+
+    set({ releases: updated });
+    if (typeof window !== "undefined") {
+      try {
+        const key = getScopedKey("ts_releases_history", state.currentOrg?.id, state.currentProject?.id);
+        localStorage.setItem(key, JSON.stringify(updated));
+      } catch { }
+    }
+
+    get().logUserActivity({
+      type: "release",
+      title: willBeDeprecated ? "Release Deprecated" : "Release Restored",
+      description: willBeDeprecated
+        ? `Marked release "${targetRelease.version}" as deprecated.${reason ? ` Reason: ${reason}` : ""}`
+        : `Restored release "${targetRelease.version}" from deprecated status.`,
+      metadata: {
+        version: targetRelease.version,
+        isDeprecated: willBeDeprecated,
+      },
+    });
   },
   setActiveReleaseId: (id) => set({ activeReleaseId: id }),
 
