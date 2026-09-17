@@ -24,6 +24,7 @@ import { MembersView } from "@/components/MembersView";
 import { OrgSettingsView } from "@/components/OrgSettingsView";
 import { ExtensionsView } from "@/components/ExtensionsView";
 import { SystemChangelogView } from "@/components/SystemChangelogView";
+import { SystemDocsView } from "@/components/SystemDocsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
@@ -193,6 +194,8 @@ export default function Home() {
           <OrgSettingsView />
         ) : sidebarTab === "changelog" ? (
           <SystemChangelogView />
+        ) : sidebarTab === "system-docs" ? (
+          <SystemDocsView />
         ) : sidebarTab === "tokens" ? (
           <TokensWorkspace
             onOpenSettings={() => setIsSettingsOpen(true)}

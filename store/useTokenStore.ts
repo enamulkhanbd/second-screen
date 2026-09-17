@@ -224,7 +224,8 @@ interface TokenStoreState {
     | "members"
     | "org-settings"
     | "changelog"
-    | "extensions";
+    | "extensions"
+    | "system-docs";
   setSidebarTab: (
     tab:
       | "dashboard"
@@ -246,6 +247,7 @@ interface TokenStoreState {
       | "org-settings"
       | "changelog"
       | "extensions"
+      | "system-docs"
   ) => void;
   membersSubTab: "members" | "invites" | "activity";
   setMembersSubTab: (tab: "members" | "invites" | "activity") => void;

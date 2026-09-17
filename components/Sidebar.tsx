@@ -828,25 +828,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
       </div>
 
       {/* 3. Support & Utility Links */}
-      {!isCollapsed && (
-        <div className="px-2 py-1 space-y-0.5 text-xs text-muted-foreground border-t border-sidebar-border mt-auto">
-          <button
-            onClick={() => setSidebarTab("documentation")}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
-          >
-            <BookOpen className="size-4 flex-shrink-0" />
-            <span>Docs</span>
-          </button>
+      <div className="px-2 py-1 space-y-0.5 text-xs text-muted-foreground border-t border-sidebar-border mt-auto">
+        <button
+          onClick={() => setSidebarTab("system-docs")}
+          title="System Guidelines & Docs"
+          className={`w-full flex items-center ${isCollapsed ? "justify-center p-2" : "gap-2.5 px-2.5 py-1.5"} rounded-lg transition-colors text-left cursor-pointer ${
+            sidebarTab === "system-docs"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+              : "hover:text-foreground hover:bg-sidebar-accent/50"
+          }`}
+        >
+          <BookOpen className="size-4 flex-shrink-0" />
+          {!isCollapsed && <span>Docs</span>}
+        </button>
 
-          <button
-            onClick={() => setSidebarTab("changelog")}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-foreground hover:bg-sidebar-accent/50 transition-colors text-left cursor-pointer"
-          >
-            <Sparkles className="size-4 flex-shrink-0" />
-            <span>Changelog</span>
-          </button>
-        </div>
-      )}
+        <button
+          onClick={() => setSidebarTab("changelog")}
+          title="Changelog"
+          className={`w-full flex items-center ${isCollapsed ? "justify-center p-2" : "gap-2.5 px-2.5 py-1.5"} rounded-lg transition-colors text-left cursor-pointer ${
+            sidebarTab === "changelog"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+              : "hover:text-foreground hover:bg-sidebar-accent/50"
+          }`}
+        >
+          <Sparkles className="size-4 flex-shrink-0" />
+          {!isCollapsed && <span>Changelog</span>}
+        </button>
+      </div>
 
       {/* 4. Footer: User Account */}
       <div className="p-2 border-t border-sidebar-border">

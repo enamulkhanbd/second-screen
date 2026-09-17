@@ -143,6 +143,8 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
               const folder = folders.find((f) => f.id === page.folderId);
               const isColorPage = page.title.toLowerCase().includes("color");
               const isTypePage = page.title.toLowerCase().includes("type");
+              const isTokensPage = page.title.toLowerCase().includes("token");
+              const isSchemaPage = page.title.toLowerCase().includes("schema");
 
               return (
                 <div
@@ -157,6 +159,10 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
                           <Palette className="h-4 w-4" />
                         ) : isTypePage ? (
                           <Type className="h-4 w-4" />
+                        ) : isTokensPage ? (
+                          <Layers className="h-4 w-4" />
+                        ) : isSchemaPage ? (
+                          <Sparkles className="h-4 w-4" />
                         ) : (
                           <FileText className="h-4 w-4" />
                         )}
