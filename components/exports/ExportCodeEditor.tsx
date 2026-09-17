@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Copy, Check, FileCode, Download, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GeneratedExportFile } from "@/types/exports";
+import { CodeViewer } from "@/components/ui/CodeViewer";
 
 interface ExportCodeEditorProps {
   file: GeneratedExportFile | null;
@@ -92,8 +93,8 @@ export const ExportCodeEditor: React.FC<ExportCodeEditorProps> = ({
       </div>
 
       {/* Code Viewer */}
-      <div className="flex-1 overflow-auto bg-[#0d0d12] text-zinc-100 font-mono text-xs p-4 select-text leading-relaxed">
-        <pre className="whitespace-pre font-mono leading-relaxed">{file.content}</pre>
+      <div className="flex-1 overflow-auto bg-white dark:bg-[#0d0d12] py-3">
+        <CodeViewer content={file.content} language={file.language} />
       </div>
     </div>
   );

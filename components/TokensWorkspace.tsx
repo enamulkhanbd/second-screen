@@ -38,8 +38,10 @@ import {
   PanelLeftOpen,
   History,
   X,
+  Code2,
 } from "lucide-react";
 import { AddTokenModal } from "@/components/AddTokenModal";
+import { CodeEditor } from "@/components/ui/CodeEditor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1252,11 +1254,31 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
           )}
 
           {/* Action Toolbar for JSON Mode */}
-          <div className="h-10 px-4 border-b border-border/80 bg-muted/20 flex items-center justify-between">
-            <span className="text-xs font-mono text-muted-foreground truncate">
+          <div className="h-11 px-4 border-b border-border/80 bg-muted/20 flex items-center justify-between flex-shrink-0">
+            <span className="text-xs font-mono font-semibold text-foreground truncate">
               {currentSetKey}.json
             </span>
+
             <div className="flex items-center gap-2">
+              {/* Copy JSON Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(code);
+                  addToast({
+                    type: "success",
+                    title: "Copied JSON",
+                    message: "JSON copied to clipboard.",
+                  });
+                }}
+                className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
+                title="Copy JSON"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -1293,17 +1315,17 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Monaco / Code Editor Container */}
-          <div className="flex-1 relative flex flex-col">
-            <textarea
+          {/* Real-time Syntax Highlighted Editor */}
+          <div className="flex-1 relative flex flex-col overflow-hidden bg-white dark:bg-[#0d0d12]">
+            <CodeEditor
               value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
+              onChange={(newVal) => {
+                setCode(newVal);
                 setIsSaved(false);
               }}
               disabled={!canUserEdit()}
-              spellCheck={false}
-              className="w-full h-full p-6 font-mono text-xs leading-relaxed bg-background text-foreground resize-none focus:outline-none selection:bg-primary/20 border-none select-text"
+              language="json"
+              showLineNumbers={true}
               placeholder="// Select a token set to view and edit its raw JSON representation..."
             />
           </div>

@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { CodeViewer } from "@/components/ui/CodeViewer";
 
 export const McpCliView: React.FC = () => {
   const { currentProject, currentOrg, addToast } = useTokenStore();
@@ -95,15 +96,20 @@ export const McpCliView: React.FC = () => {
               Add this configuration to your Claude Desktop or Cursor MCP settings file (<code className="font-mono text-foreground">mcp_config.json</code>):
             </p>
 
-            <div className="relative rounded-xl border border-border bg-[#0d0d12] text-zinc-100 font-mono text-xs p-4 overflow-x-auto select-text shadow-inner">
+            <div className="relative rounded-xl border border-border bg-white dark:bg-[#0d0d12] overflow-hidden select-text shadow-sm">
               <button
                 onClick={() => handleCopy(JSON.stringify(mcpConfig, null, 2), "mcp")}
-                className="absolute right-3 top-3 px-2 py-1 rounded bg-muted/30 hover:bg-muted text-zinc-300 text-[11px] flex items-center gap-1 transition-colors"
+                className="absolute right-3 top-3 px-2 py-1 rounded bg-muted/60 hover:bg-muted text-foreground/80 text-[11px] flex items-center gap-1 transition-colors z-10"
               >
-                {copiedKey === "mcp" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copiedKey === "mcp" ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                 <span>{copiedKey === "mcp" ? "Copied" : "Copy"}</span>
               </button>
-              <pre>{JSON.stringify(mcpConfig, null, 2)}</pre>
+              <div className="p-4">
+                <CodeViewer
+                  content={JSON.stringify(mcpConfig, null, 2)}
+                  language="json"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -126,26 +132,38 @@ export const McpCliView: React.FC = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="text-xs font-semibold text-foreground">1. Pull latest tokens</div>
-              <div className="relative rounded-lg border border-border bg-[#0d0d12] text-zinc-100 font-mono text-xs p-3 select-text flex items-center justify-between">
-                <code>npx tokens-platform pull --project {currentProject?.slug || "design-system"}</code>
+              <div className="relative rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-2.5 select-text flex items-center justify-between shadow-2xs">
+                <div className="overflow-x-auto flex-1 mr-2">
+                  <CodeViewer
+                    content={`npx tokens-platform pull --project ${currentProject?.slug || "design-system"}`}
+                    language="bash"
+                    className="bg-transparent dark:bg-transparent"
+                  />
+                </div>
                 <button
                   onClick={() => handleCopy(`npx tokens-platform pull --project ${currentProject?.slug || "design-system"}`, "cli-pull")}
-                  className="px-2 py-1 rounded bg-muted/30 hover:bg-muted text-zinc-300 text-[11px] flex items-center gap-1"
+                  className="px-2 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] flex items-center gap-1 flex-shrink-0"
                 >
-                  {copiedKey === "cli-pull" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copiedKey === "cli-pull" ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="text-xs font-semibold text-foreground">2. Build multi-platform release assets</div>
-              <div className="relative rounded-lg border border-border bg-[#0d0d12] text-zinc-100 font-mono text-xs p-3 select-text flex items-center justify-between">
-                <code>npx tokens-platform build --out ./build</code>
+              <div className="relative rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-2.5 select-text flex items-center justify-between shadow-2xs">
+                <div className="overflow-x-auto flex-1 mr-2">
+                  <CodeViewer
+                    content="npx tokens-platform build --out ./build"
+                    language="bash"
+                    className="bg-transparent dark:bg-transparent"
+                  />
+                </div>
                 <button
                   onClick={() => handleCopy("npx tokens-platform build --out ./build", "cli-build")}
-                  className="px-2 py-1 rounded bg-muted/30 hover:bg-muted text-zinc-300 text-[11px] flex items-center gap-1"
+                  className="px-2 py-1 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] flex items-center gap-1 flex-shrink-0"
                 >
-                  {copiedKey === "cli-build" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copiedKey === "cli-build" ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                 </button>
               </div>
             </div>
