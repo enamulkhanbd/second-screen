@@ -3,6 +3,8 @@ import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import { computeLineDiff } from "@/utils/tokenDiff";
 
+export const dynamic = "force-dynamic";
+
 export interface CommitFileChange {
   filename: string;
   status: "added" | "modified" | "deleted" | "renamed";

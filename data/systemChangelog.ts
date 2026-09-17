@@ -2,12 +2,67 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.4.1",
+    releaseDate: "September 17, 2026",
+    title: "Universal A-Z, 0-9 Collation Engine, Interactive Table Sorting & Brand Scale Precision",
+    badge: "Enhancement",
+    badgeVariant: "success",
+    isLatest: true,
+    summary:
+      "Introduced a unified A-Z, 0-9 natural segment collation engine across all token names and resolved values, dynamic Lucide sorting headers across all token tables and living docs blocks, default ascending resolved value view (0px to 999px), and brand color shade sequence alignment for base unmodified hex tones.",
+    highlights: [
+      "Universal A-Z, 0-9 multi-segment collation engine prioritizing alphabetical characters over digits and comparing contiguous numeric segments by magnitude.",
+      "Interactive column sorting (Ascending / Descending) on Name and Resolved/Value columns across TokensWorkspace, TokenTable, VariablesView, and Documentation Blocks.",
+      "Dynamic Lucide sort icons (ArrowUpAZ, ArrowDownAZ, ArrowUp01, ArrowDown01, ArrowUpDown) providing instant directional visual state.",
+      "Natural numeric progression (0px -> 999px) set as default sort view across the entire platform without requiring manual user clicks.",
+      "Brand color shade sequence fix ensuring base unmodified color tones (e.g. primary.500) maintain strict numeric ordering within shade families.",
+      "Deterministic sorting for theme token mapping references in ThemeConfigurationView.",
+    ],
+    items: [
+      {
+        title: "Universal A-Z, 0-9 Collation Engine",
+        description:
+          "Engineered compareTokenNames and compareResolvedValues in utils/transformTokens.ts to deliver segment-aware collation where letters precede numbers and numeric digits sort naturally by value.",
+        category: "enhancement",
+        tags: ["Sorting", "Collation", "Tokens", "A-Z 0-9"],
+      },
+      {
+        title: "Interactive Column Header Sorting & Lucide Indicators",
+        description:
+          "Added interactive sort headers with Lucide icons (ArrowUpAZ, ArrowDownAZ, ArrowUp01, ArrowDown01, ArrowUpDown) across TokensWorkspace, TokenTable, VariablesView, and Documentation Table Blocks.",
+        category: "feature",
+        tags: ["Data Grid", "Sorting", "UI", "Icons"],
+      },
+      {
+        title: "Natural Numeric Progression as Default View",
+        description:
+          "Configured token workspaces, tree builders, and documentation tables to default to ascending resolved value view, providing immediate intuitive sizing and radius progressions.",
+        category: "enhancement",
+        tags: ["Defaults", "User Experience", "Tokens Workspace"],
+      },
+      {
+        title: "Brand Color Shade Sequence Alignment",
+        description:
+          "Resolved brand color scale displacement where unmodified hex shades (e.g. primary.500) sorted after modifier oklch shades by extracting parent family shade indices.",
+        category: "fix",
+        tags: ["Colors", "Brand Scales", "Color Shades", "Bug Fix"],
+      },
+      {
+        title: "Deterministic Theme Mapping References",
+        description:
+          "Applied natural token name collation to figmaReferencesList in ThemeConfigurationView for consistent token mapping dropdowns.",
+        category: "enhancement",
+        tags: ["Theme Configuration", "Figma", "Mapping"],
+      },
+    ],
+  },
+  {
     version: "v1.4.0",
     releaseDate: "September 14, 2026",
     title: "Unified Schema Marketplace, Self-Hosted JSON Schemas & Large-Scale Token Performance Engine",
     badge: "Feature Release",
     badgeVariant: "success",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Launched the Schema Marketplace with 182 self-hosted design token schemas across Core & Utilities, Color Spaces, and Functions. Added dynamic schema endpoints, per-project extension toggling, a reference-designed inspector modal with zero external dependencies, and progressive infinite scrolling for large repositories (13,000+ tokens).",
     highlights: [

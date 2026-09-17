@@ -2,6 +2,25 @@
 
 All notable changes to the Tokens & Asset Management Platform will be documented in this file.
 
+# 1.4.1 `2026-09-17`
+
+● **Patch Release — Universal A-Z, 0-9 Collation Engine, Interactive Table Sorting & Brand Scale Precision**
+
+### 🚀 Highlights & Features
+
+- **Universal A-Z, 0-9 Collation Engine**: Built a centralized multi-segment sorting and comparison engine (`compareTokenNames`, `compareResolvedValues`, `compareTokens` in `utils/transformTokens.ts`). Adheres strictly to the `A-Z, 0-9` collation rule where alphabetical characters precede numerical digits, while contiguous digit segments are compared numerically (e.g. `0px` -> `1px` -> `2px` -> ... -> `10px` -> `12px` -> `48px` -> `999px`).
+- **Interactive Sort Headers Across All Tables**: Added interactive column sort toggling (`asc` / `desc`) to `Name` and `Resolved` / `Value` columns across all token tables:
+  - **Tokens Workspace**: `components/TokensWorkspace.tsx`
+  - **Categorized Token Tables**: `components/TokenTable.tsx`
+  - **Variables Workspace**: `components/VariablesView.tsx` with Collection, Variable Name, and Resolved Value sort headers
+  - **Living Documentation Blocks**: `components/docs/blocks/TokensTableBlock.tsx` and `components/docs/blocks/VariablesTableBlock.tsx`
+- **Dynamic Lucide Sort Indicators**: Integrated intuitive directional sorting icons (`ArrowUpAZ`, `ArrowDownAZ`, `ArrowUp01`, `ArrowDown01`, and `ArrowUpDown`) providing instant visual indicators for current sort column and direction.
+- **Natural Progression as Default View**: Configured all token data grids, tree builders (`buildTokenGroupTree`), and documentation tables to initialize with `sortField: "resolved"` and `sortDirection: "asc"` by default, delivering an intuitive ascending scale out of the box without requiring manual user interaction.
+- **Brand Color Shade Scale Alignment**: Fixed an issue where unmodified base color shades (such as `primary.500` defined as a `#hex` value) were displaced to the bottom of the shade group after modifier-calculated `oklch(...)` shades (`primary.50`–`primary.950`). Added numeric shade family extraction to preserve strict scale sequence (`50` < `100` < ... < `500` < ... < `950`).
+- **Deterministic Theme Configuration References**: Ensured Figma token reference mappings in `components/ThemeConfigurationView.tsx` utilize `compareTokenNames` for predictable ordering.
+
+---
+
 # 1.4.0 `2026-09-14`
 
 ● **Minor Release — Unified Schema Marketplace, Self-Hosted JSON Schemas & Large-Scale Token Performance Engine**
