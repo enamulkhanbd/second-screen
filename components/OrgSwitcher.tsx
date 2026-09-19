@@ -26,6 +26,7 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
     userOrgs,
     currentOrg,
     orgProjects,
+    isLoadingProjects,
     currentProject,
     setCurrentOrg,
     setCurrentProject,
@@ -203,37 +204,54 @@ export const OrgSwitcher: React.FC<OrgSwitcherProps> = ({ onOpenAuth }) => {
             </div>
 
             <div className="space-y-0.5 max-h-40 overflow-y-auto">
-              {orgProjects.map((proj) => {
-                const isSelected = proj.id === currentProject?.id;
-                return (
-                  <button
-                    key={proj.id}
-                    onClick={() => {
-                      setCurrentProject(proj);
-                      if (
-                        sidebarTab === "dashboard" ||
-                        sidebarTab === "projects" ||
-                        sidebarTab === "members" ||
-                        (sidebarTab as string) === "workspaces"
-                      ) {
-                        setSidebarTab("tokens");
-                      }
-                      setIsOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
-                      isSelected
-                        ? "bg-primary/10 text-primary font-semibold"
-                        : "text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Layers className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                      <span className="truncate">{proj.name}</span>
-                    </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-                  </button>
-                );
-              })}
+              {isLoadingProjects && orgProjects.length === 0 ? (
+                <div className="space-y-1.5 p-1">
+                  <div className="flex items-center gap-2 animate-pulse px-2 py-1.5">
+                    <div className="w-3.5 h-3.5 rounded bg-muted/80 shrink-0" />
+                    <div className="h-3 w-24 bg-muted/70 rounded" />
+                  </div>
+                  <div className="flex items-center gap-2 animate-pulse px-2 py-1.5">
+                    <div className="w-3.5 h-3.5 rounded bg-muted/80 shrink-0" />
+                    <div className="h-3 w-16 bg-muted/70 rounded" />
+                  </div>
+                </div>
+              ) : orgProjects.length === 0 ? (
+                <div className="px-2.5 py-2 text-[11px] text-muted-foreground text-center">
+                  No projects yet
+                </div>
+              ) : (
+                orgProjects.map((proj) => {
+                  const isSelected = proj.id === currentProject?.id;
+                  return (
+                    <button
+                      key={proj.id}
+                      onClick={() => {
+                        setCurrentProject(proj);
+                        if (
+                          sidebarTab === "dashboard" ||
+                          sidebarTab === "projects" ||
+                          sidebarTab === "members" ||
+                          (sidebarTab as string) === "workspaces"
+                        ) {
+                          setSidebarTab("tokens");
+                        }
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Layers className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{proj.name}</span>
+                      </div>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

@@ -89,6 +89,7 @@ export const WorkspacesProjectsView: React.FC = () => {
     userOrgs,
     currentOrg,
     orgProjects,
+    isLoadingProjects,
     currentProject,
     setCurrentOrg,
     setCurrentProject,
@@ -863,8 +864,59 @@ export const WorkspacesProjectsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Projects Container (Empty State vs List vs Grid) */}
-            {filteredProjects.length === 0 ? (
+            {/* Projects Container (Loading Skeletons vs Empty State vs List vs Grid) */}
+            {isLoadingProjects && filteredProjects.length === 0 ? (
+              projectLayoutMode === "list" ? (
+                <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border shadow-2xs">
+                  <div className="grid grid-cols-12 items-center px-5 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
+                    <div className="col-span-5 sm:col-span-4">Project</div>
+                    <div className="col-span-3 sm:col-span-3">Content</div>
+                    <div className="hidden sm:block sm:col-span-3">Sync &amp; Status</div>
+                    <div className="col-span-4 sm:col-span-2 text-right">Actions</div>
+                  </div>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="grid grid-cols-12 items-center px-5 py-4 gap-3 animate-pulse">
+                      <div className="col-span-5 sm:col-span-4 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-muted/80 shrink-0" />
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="h-3.5 w-28 bg-muted/80 rounded" />
+                          <div className="h-2.5 w-44 bg-muted/60 rounded" />
+                        </div>
+                      </div>
+                      <div className="col-span-3 sm:col-span-3 flex items-center gap-2">
+                        <div className="h-4 w-16 bg-muted/60 rounded-full" />
+                        <div className="h-4 w-12 bg-muted/60 rounded-full" />
+                      </div>
+                      <div className="hidden sm:flex sm:col-span-3 items-center gap-2">
+                        <div className="h-3 w-20 bg-muted/60 rounded" />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2 flex justify-end gap-1.5">
+                        <div className="h-7 w-16 bg-muted/70 rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="border border-border rounded-2xl p-5 bg-card space-y-4 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <div className="w-11 h-11 rounded-xl bg-muted/80" />
+                        <div className="h-5 w-16 bg-muted/60 rounded-full" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-32 bg-muted/80 rounded" />
+                        <div className="h-3 w-48 bg-muted/60 rounded" />
+                      </div>
+                      <div className="pt-3 border-t border-border/50 flex justify-between items-center">
+                        <div className="h-3 w-24 bg-muted/50 rounded" />
+                        <div className="h-7 w-16 bg-muted/70 rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : filteredProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border bg-card/40 space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
                   {projectStatusFilter === "archived" ? (

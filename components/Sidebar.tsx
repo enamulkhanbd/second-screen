@@ -72,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     currentOrg,
     setCurrentOrg,
     orgProjects,
+    isLoadingProjects,
     currentProject,
     setCurrentProject,
     themeGroups,
@@ -232,11 +233,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                       </DropdownMenuItem>
                     );
                   })}
-                  {orgProjects.length === 0 && (
+                  {isLoadingProjects && orgProjects.length === 0 ? (
+                    <div className="space-y-1.5 px-2 py-1.5">
+                      <div className="flex items-center gap-2.5 animate-pulse">
+                        <div className="size-5 rounded-md bg-muted/80 shrink-0" />
+                        <div className="h-3 w-24 bg-muted/70 rounded" />
+                      </div>
+                      <div className="flex items-center gap-2.5 animate-pulse">
+                        <div className="size-5 rounded-md bg-muted/80 shrink-0" />
+                        <div className="h-3 w-16 bg-muted/70 rounded" />
+                      </div>
+                    </div>
+                  ) : orgProjects.length === 0 ? (
                     <div className="px-2.5 py-2 text-[11px] text-muted-foreground text-center">
                       No projects yet
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 <DropdownMenuSeparator className="my-1.5" />
@@ -395,11 +407,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                       </DropdownMenuItem>
                     );
                   })}
-                  {orgProjects.length === 0 && (
+                  {isLoadingProjects && orgProjects.length === 0 ? (
+                    <div className="space-y-1.5 px-2 py-1.5">
+                      <div className="flex items-center gap-2.5 animate-pulse">
+                        <div className="size-5 rounded-md bg-muted/80 shrink-0" />
+                        <div className="h-3 w-24 bg-muted/70 rounded" />
+                      </div>
+                      <div className="flex items-center gap-2.5 animate-pulse">
+                        <div className="size-5 rounded-md bg-muted/80 shrink-0" />
+                        <div className="h-3 w-16 bg-muted/70 rounded" />
+                      </div>
+                    </div>
+                  ) : orgProjects.length === 0 ? (
                     <div className="px-2.5 py-2 text-[11px] text-muted-foreground text-center">
                       No projects yet
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 <DropdownMenuSeparator className="my-1.5" />

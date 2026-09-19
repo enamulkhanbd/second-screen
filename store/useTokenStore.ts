@@ -86,6 +86,8 @@ import {
   saveProjectBranches,
   ensureProjectDefaultBranch,
   sanitizeProjectsForCache,
+  safeSetCachedProjects,
+  getProject,
   saveProjectSchemas,
 } from "@/services/organizationService";
 import { DEFAULT_ENABLED_SCHEMA_IDS } from "@/data/schemaCatalog";
@@ -96,6 +98,7 @@ interface TokenStoreState {
   // Multi-Tenant Identity & Scope
   currentUser: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null;
   isLoadingTenant: boolean;
+  isLoadingProjects: boolean;
   userOrgs: Organization[];
   currentOrg: Organization | null;
   orgProjects: Project[];
@@ -569,6 +572,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   return {
   currentUser: null,
   isLoadingTenant: true,
+  isLoadingProjects: false,
   userOrgs: [],
   currentOrg: null,
   orgProjects: [],
@@ -668,9 +672,27 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setCurrentOrg: async (org) => {
     const switchVersion = ++scopeSwitchVersion;
+
+    // 1. Synchronously inspect cache for target org to prevent UI flashing
+    let cachedProjects: Project[] = [];
+    let hasCache = false;
+    if (org && typeof window !== "undefined") {
+      try {
+        const cachedStr = localStorage.getItem(`ts_cached_org_projects_${org.id}`);
+        if (cachedStr) {
+          const parsed = JSON.parse(cachedStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            cachedProjects = parsed;
+            hasCache = true;
+          }
+        }
+      } catch {}
+    }
+
     set({
       currentOrg: org,
-      orgProjects: [],
+      orgProjects: cachedProjects,
+      isLoadingProjects: org ? !hasCache : false,
       currentProject: null,
       rawTokens: {},
       resolvedTokens: [],
@@ -694,6 +716,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       compilerConfig: DEFAULT_COMPILER_CONFIG,
       userActivities: [],
     });
+
     if (org) {
       if (typeof window !== "undefined") {
         try {
@@ -702,33 +725,25 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
 
-      // 1. Immediately hydrate cached projects for this org if available
-      let cachedProjects: Project[] = [];
-      if (typeof window !== "undefined") {
-        try {
-          const cachedStr = localStorage.getItem(`ts_cached_org_projects_${org.id}`);
-          if (cachedStr) {
-            const parsed = JSON.parse(cachedStr);
-            if (Array.isArray(parsed)) {
-              cachedProjects = parsed;
-              set({ orgProjects: cachedProjects });
-            }
-          }
-        } catch {}
-      }
-
-      // 2. Fetch fresh projects from service
+      // 2. Fetch fresh projects from service (in-flight deduplicated)
       const projects = await getOrgProjects(org.id);
       if (switchVersion !== scopeSwitchVersion || get().currentOrg?.id !== org.id) return;
 
       const finalProjects = projects.length > 0 ? projects : cachedProjects;
-      set({ orgProjects: finalProjects, currentProject: null });
-
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(`ts_cached_org_projects_${org.id}`, JSON.stringify(sanitizeProjectsForCache(finalProjects)));
-        } catch {}
+      const currentProj = get().currentProject;
+      let updatedCurrentProject = currentProj;
+      if (currentProj) {
+        const found = finalProjects.find((p) => p.id === currentProj.id);
+        if (found) {
+          updatedCurrentProject = found;
+          if (found.rawTokens && Object.keys(found.rawTokens).length > 0) {
+            get().setRawTokens(found.rawTokens);
+          }
+        }
       }
+      set({ orgProjects: finalProjects, isLoadingProjects: false, currentProject: updatedCurrentProject });
+
+      safeSetCachedProjects(org.id, finalProjects);
 
       get().loadInvitations(org.id);
       get().loadOrganizationActivities(org.id);
@@ -893,6 +908,44 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           syncMeta: null,
           isDirty: false,
         });
+
+        // If tokens are not yet in memory/cache, fetch the full project document directly from Firestore
+        if (proj.orgId && proj.id && isFirebaseConfigured) {
+          getProject(proj.orgId, proj.id).then((freshProj) => {
+            if (freshProj && get().currentProject?.id === proj.id && switchVersion === scopeSwitchVersion) {
+              const freshBranches = ensureProjectDefaultBranch(freshProj);
+              const branchName = proj.activeBranch || freshProj.activeBranch || "main";
+              const freshActiveBranch = freshBranches.find((b) => b.name === branchName) || freshBranches[0];
+              const freshTokens =
+                freshActiveBranch?.rawTokens && Object.keys(freshActiveBranch.rawTokens).length > 0
+                  ? freshActiveBranch.rawTokens
+                  : freshProj.rawTokens && Object.keys(freshProj.rawTokens).length > 0
+                  ? freshProj.rawTokens
+                  : {};
+
+              if (Object.keys(freshTokens).length > 0) {
+                get().setRawTokens(freshTokens);
+                const freshThemes =
+                  freshActiveBranch?.themeGroups && freshActiveBranch.themeGroups.length > 0
+                    ? freshActiveBranch.themeGroups
+                    : freshProj.themeGroups && freshProj.themeGroups.length > 0
+                    ? freshProj.themeGroups
+                    : extractThemeGroups(freshTokens);
+
+                set({
+                  currentProject: { ...proj, ...freshProj, rawTokens: freshTokens, branches: freshBranches },
+                  branches: freshBranches,
+                  rawTokens: freshTokens,
+                  originalTokens: JSON.parse(JSON.stringify(freshTokens)),
+                  themeGroups: freshThemes,
+                  activeThemeGroupId: freshThemes[0]?.id || "",
+                  activeThemeOptionId: freshThemes[0]?.options?.[0]?.id || "",
+                  isDirty: false,
+                });
+              }
+            }
+          }).catch(() => {});
+        }
       }
 
       // Hydrate Enabled Schemas
@@ -993,8 +1046,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             const savedProjId = localStorage.getItem("ts_active_project_id");
             if (cachedProjectsStr) {
               const cachedProjects: Project[] = JSON.parse(cachedProjectsStr);
-              if (Array.isArray(cachedProjects)) {
-                set({ orgProjects: cachedProjects });
+              if (Array.isArray(cachedProjects) && cachedProjects.length > 0) {
+                set({ orgProjects: cachedProjects, isLoadingProjects: false });
                 let activeProj: Project | null = null;
                 if (savedProjId) {
                   const found = cachedProjects.find((p) => p.id === savedProjId);
@@ -1005,7 +1058,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                 } else {
                   set({ currentProject: null, sidebarTab: "dashboard" });
                 }
+              } else {
+                set({ isLoadingProjects: true });
               }
+            } else {
+              set({ isLoadingProjects: true });
             }
             // Immediately unblock loading screen so UI renders instantly
             set({ isLoadingTenant: false });
@@ -1015,13 +1072,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
 
     if (!get().currentOrg) {
-      set({ isLoadingTenant: true });
+      set({ isLoadingTenant: true, isLoadingProjects: true });
     }
 
     // 2. Fetch fresh tenant data in parallel/background
     try {
-      const orgs = await getUserOrganizations(uid, email);
-      if (typeof window !== "undefined") {
+      const savedOrgId = typeof window !== "undefined" ? localStorage.getItem("ts_active_org_id") : null;
+      // Concurrently query organizations and projects for active org ID
+      const orgsPromise = getUserOrganizations(uid, email);
+      const earlyProjectsPromise = savedOrgId ? getOrgProjects(savedOrgId) : null;
+
+      const [orgsResult, earlyProjectsResult] = await Promise.allSettled([
+        orgsPromise,
+        earlyProjectsPromise || Promise.resolve([]),
+      ]);
+
+      const orgs = orgsResult.status === "fulfilled" ? orgsResult.value : [];
+      if (typeof window !== "undefined" && orgs.length > 0) {
         try {
           localStorage.setItem("ts_cached_user_orgs", JSON.stringify(orgs));
         } catch {}
@@ -1029,7 +1096,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ userOrgs: orgs });
 
       let activeOrg = orgs[0] || null;
-      const savedOrgId = typeof window !== "undefined" ? localStorage.getItem("ts_active_org_id") : null;
       if (savedOrgId) {
         const found = orgs.find((o) => o.id === savedOrgId);
         if (found) activeOrg = found;
@@ -1057,13 +1123,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ currentOrg: activeOrg });
 
       if (activeOrg) {
-        const projects = await getOrgProjects(activeOrg.id);
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.setItem(`ts_cached_org_projects_${activeOrg.id}`, JSON.stringify(sanitizeProjectsForCache(projects)));
-          } catch {}
+        // Use early parallel result if activeOrg matches savedOrgId, otherwise fetch for activeOrg
+        let projects: Project[] = [];
+        if (
+          savedOrgId === activeOrg.id &&
+          earlyProjectsResult.status === "fulfilled" &&
+          Array.isArray(earlyProjectsResult.value) &&
+          earlyProjectsResult.value.length > 0
+        ) {
+          projects = earlyProjectsResult.value;
+        } else {
+          projects = await getOrgProjects(activeOrg.id);
         }
-        set({ orgProjects: projects });
+
+        safeSetCachedProjects(activeOrg.id, projects);
+        set({ orgProjects: projects, isLoadingProjects: false });
 
         let activeProj: Project | null = null;
         const savedProjId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
@@ -1088,11 +1162,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           set({ currentProject: null, sidebarTab: "dashboard" });
         }
         get().loadInvitations(activeOrg.id);
+      } else {
+        set({ isLoadingProjects: false });
       }
     } catch (e) {
       console.warn("Error loading tenant data:", e);
+      set({ isLoadingProjects: false });
     } finally {
-      set({ isLoadingTenant: false });
+      set({ isLoadingTenant: false, isLoadingProjects: false });
     }
   },
 

@@ -42,6 +42,8 @@ export interface Organization {
   color?: string;
   logoUrl?: string;
   ownerUid: string;
+  memberUids?: string[];
+  memberEmails?: string[];
   members: OrganizationMember[];
   createdAt: string;
   updatedAt: string;

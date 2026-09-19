@@ -181,6 +181,8 @@ export async function createOrganization(
     color: color || "#6366f1",
     logoUrl: logoUrl || "",
     ownerUid: owner.uid,
+    memberUids: [owner.uid],
+    memberEmails: [owner.email.trim().toLowerCase()],
     members: [
       {
         uid: owner.uid,
@@ -269,8 +271,12 @@ export async function updateOrgMember(
         (m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase()
       );
       filtered.push(member);
+      const memberUids = Array.from(new Set(filtered.map((m) => m.uid).filter(Boolean)));
+      const memberEmails = Array.from(new Set(filtered.map((m) => m.email.toLowerCase()).filter(Boolean)));
       await updateDoc(orgRef, {
         members: filtered,
+        memberUids,
+        memberEmails,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -295,8 +301,12 @@ export async function removeOrgMember(
       const filtered = orgData.members.filter(
         (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
       );
+      const memberUids = Array.from(new Set(filtered.map((m) => m.uid).filter(Boolean)));
+      const memberEmails = Array.from(new Set(filtered.map((m) => m.email.toLowerCase()).filter(Boolean)));
       await updateDoc(orgRef, {
         members: filtered,
+        memberUids,
+        memberEmails,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -523,60 +533,142 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
 // -------------------------------------------------------------
 
 /**
- * Strips heavy design token payloads before persisting projects to localStorage,
- * preventing 5MB quota exhaustion while maintaining fast project metadata indexing.
+ * In-flight promise registry to deduplicate concurrent requests for the same organization
+ */
+const inFlightOrgProjectsPromises = new Map<string, Promise<Project[]>>();
+
+/**
+ * Sanitizes project metadata for localStorage caching by stripping bulky documentation
+ * and asset blobs, while keeping token dictionaries intact so tokens never fail to load.
  */
 export function sanitizeProjectsForCache(projs: Project[]): Project[] {
   return projs.map((p) => ({
     ...p,
-    rawTokens: {},
+    rawTokens: p.rawTokens || {},
+    assets: [],
+    figmaVariables: undefined,
+    figmaResolvedVariables: [],
+    documentation: p.documentation
+      ? {
+          ...p.documentation,
+          pages: [],
+          folders: [],
+        }
+      : undefined,
     branches: p.branches?.map((b) => ({
       ...b,
-      rawTokens: {},
+      rawTokens: b.rawTokens || {},
+      commits: b.commits?.map((c) => ({
+        id: c.id,
+        sha: c.sha,
+        message: c.message,
+        timestamp: c.timestamp,
+        author: c.author,
+        totalAdded: c.totalAdded,
+        totalModified: c.totalModified,
+        totalDeleted: c.totalDeleted,
+        changes: [], // Strip heavy diff change arrays
+      })),
     })),
   }));
 }
 
 /**
- * Dynamically fetches all projects under an Organization from Firestore
+ * Resilient localStorage caching without dropping other workspaces
+ */
+export function safeSetCachedProjects(orgId: string, projs: Project[]): void {
+  if (typeof window === "undefined" || !orgId) return;
+  const key = `ts_cached_org_projects_${orgId}`;
+  try {
+    const serialized = JSON.stringify(sanitizeProjectsForCache(projs));
+    localStorage.setItem(key, serialized);
+  } catch (err) {
+    // If QuotaExceededError, fallback to storing without tokens only for this key as emergency fallback
+    try {
+      const emergency = projs.map((p) => ({
+        id: p.id,
+        orgId: p.orgId,
+        name: p.name,
+        slug: p.slug,
+        icon: p.icon,
+        color: p.color,
+        description: p.description,
+        updatedAt: p.updatedAt,
+        createdAt: p.createdAt,
+      }));
+      localStorage.setItem(key, JSON.stringify(emergency));
+    } catch {
+      console.warn("Storage quota exceeded; unable to persist projects cache for org:", orgId);
+    }
+  }
+}
+
+/**
+ * Fetches a single project from Firestore by orgId and projectId with full tokens and branches
+ */
+export async function getProject(orgId: string, projectId: string): Promise<Project | null> {
+  if (!orgId || !projectId || !isFirebaseConfigured || !db) return null;
+  try {
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
+    const snap = await getDoc(projRef);
+    if (snap.exists()) {
+      return snap.data() as Project;
+    }
+  } catch (e) {
+    console.warn("Firestore error fetching single project:", e);
+  }
+  return null;
+}
+
+/**
+ * Dynamically fetches all projects under an Organization from Firestore with in-flight deduplication
  */
 export async function getOrgProjects(orgId: string): Promise<Project[]> {
   if (!orgId) return [];
 
-  // 1. Try Firestore if configured
-  if (isFirebaseConfigured && db) {
-    try {
-      const projsRef = collection(db, "organizations", orgId, "projects");
-      const snap = await getDocs(projsRef);
-      const projs: Project[] = [];
-      snap.forEach((docSnap) => projs.push(docSnap.data() as Project));
-      if (projs.length > 0) {
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.setItem(`ts_cached_org_projects_${orgId}`, JSON.stringify(sanitizeProjectsForCache(projs)));
-          } catch {}
+  // Deduplicate in-flight queries for the same org
+  const inFlight = inFlightOrgProjectsPromises.get(orgId);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const fetchPromise = (async () => {
+    // 1. Try Firestore if configured
+    if (isFirebaseConfigured && db) {
+      try {
+        const projsRef = collection(db, "organizations", orgId, "projects");
+        const snap = await getDocs(projsRef);
+        const projs: Project[] = [];
+        snap.forEach((docSnap) => projs.push(docSnap.data() as Project));
+        if (projs.length > 0) {
+          safeSetCachedProjects(orgId, projs);
+          return projs;
         }
-        return projs;
+      } catch (e) {
+        console.warn("Firestore error fetching projects:", e);
       }
-    } catch (e) {
-      console.warn("Firestore error fetching projects:", e);
     }
-  }
 
-  // 2. Fallback to localStorage cache for offline/local continuity
-  if (typeof window !== "undefined") {
-    try {
-      const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
-          return parsed;
+    // 2. Fallback to localStorage cache for offline/local continuity
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
         }
-      }
-    } catch {}
-  }
+      } catch {}
+    }
 
-  return [];
+    return [];
+  })().finally(() => {
+    inFlightOrgProjectsPromises.delete(orgId);
+  });
+
+  inFlightOrgProjectsPromises.set(orgId, fetchPromise);
+  return fetchPromise;
 }
 
 /**
@@ -732,7 +824,7 @@ export async function createProject(
       const existing = localStorage.getItem(key);
       const list: Project[] = existing ? JSON.parse(existing) : [];
       const updated = [...list.filter((p) => p.id !== projId), newProject];
-      localStorage.setItem(key, JSON.stringify(sanitizeProjectsForCache(updated)));
+      safeSetCachedProjects(orgId, updated);
     } catch {}
   }
 
@@ -831,7 +923,7 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
       if (existing) {
         const list: Project[] = JSON.parse(existing);
         const updated = list.filter((p) => p.id !== projectId);
-        localStorage.setItem(key, JSON.stringify(sanitizeProjectsForCache(updated)));
+        safeSetCachedProjects(orgId, updated);
       }
     } catch {}
   }
@@ -873,7 +965,7 @@ export async function updateProject(
         const updated = list.map((p) =>
           p.id === projectId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
         );
-        localStorage.setItem(key, JSON.stringify(sanitizeProjectsForCache(updated)));
+        safeSetCachedProjects(orgId, updated);
       }
     } catch {}
   }
