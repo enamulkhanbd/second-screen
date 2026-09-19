@@ -284,7 +284,7 @@ export const BulkActionsCommandPalette: React.FC<BulkActionsCommandPaletteProps>
                     onChangeValue(newValueInput.trim());
                     onClose();
                   }}
-                  className="h-7 text-xs bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+                  className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   Apply Value
                 </Button>
@@ -342,7 +342,7 @@ export const BulkActionsCommandPalette: React.FC<BulkActionsCommandPaletteProps>
                     onFindReplace(findText, replaceText);
                     onClose();
                   }}
-                  className="h-7 text-xs bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+                  className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   Replace All
                 </Button>

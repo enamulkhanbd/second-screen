@@ -42,11 +42,11 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
           className="relative w-6 h-6 rounded-md border border-black/20 dark:border-white/20 shadow-inner flex-shrink-0 transition-transform group-hover:scale-105"
           style={{ backgroundColor: valStr }}
         />
-        <span className="font-mono text-xs text-zinc-300 group-hover:text-white transition-colors truncate max-w-[130px]">
+        <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate max-w-[130px]">
           {valStr}
         </span>
         <button
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-zinc-400 hover:text-white"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-foreground"
           tabIndex={-1}
         >
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -63,7 +63,7 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
           style={{ borderRadius: valStr || "0px" }}
           title={`Radius: ${valStr}`}
         />
-        <span className="font-mono text-xs text-zinc-300 truncate max-w-[120px]">{valStr}</span>
+        <span className="font-mono text-xs text-foreground truncate max-w-[120px]">{valStr}</span>
       </div>
     );
   }
@@ -71,7 +71,7 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
   if (type === "spacing" || type === "sizing" || type === "dimension") {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 flex items-center justify-center bg-zinc-800 rounded border border-zinc-700/60 flex-shrink-0">
+        <div className="w-6 h-6 flex items-center justify-center bg-muted/70 dark:bg-zinc-800 rounded border border-border dark:border-zinc-700/60 flex-shrink-0">
           <div
             className="bg-violet-400 max-w-[18px] max-h-[18px] min-w-[2px] min-h-[2px] rounded-sm"
             style={{
@@ -80,13 +80,13 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
             }}
           />
         </div>
-        <span className="font-mono text-xs text-zinc-300 truncate max-w-[120px]">{valStr}</span>
+        <span className="font-mono text-xs text-foreground truncate max-w-[120px]">{valStr}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1.5 font-mono text-xs text-zinc-300 truncate max-w-[150px]">
+    <div className="flex items-center gap-1.5 font-mono text-xs text-foreground truncate max-w-[150px]">
       <span>{valStr}</span>
     </div>
   );

@@ -774,7 +774,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
           {selectedTokenIds.size > 0 && (
             <button
               onClick={() => setIsCommandPaletteOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#ede9fe] dark:bg-[#312e81]/40 text-[#6366f1] dark:text-[#a5b4fc] border border-[#c4b5fd]/60 hover:bg-[#ddd6fe] transition-colors cursor-pointer shadow-2xs animate-in fade-in"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#ede9fe] dark:bg-[#312e81]/40 text-[#6366f1] dark:text-[#a5b4fc] border border-[#c4b5fd]/60 dark:border-[#4338ca]/60 hover:bg-[#ddd6fe] dark:hover:bg-[#312e81]/70 transition-colors cursor-pointer shadow-2xs animate-in fade-in"
               title="Open Bulk Actions Command Palette (Ctrl+K)"
             >
               <span>Edit {selectedTokenIds.size}</span>
@@ -991,7 +991,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               }
               setIsAddTokenOpen(true);
             }}
-            className="h-8 text-xs font-medium px-3.5 bg-[#6366f1] hover:bg-[#4f46e5] text-white shadow-2xs gap-1.5 cursor-pointer"
+            className="h-8 text-xs font-medium px-3.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs gap-1.5 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New token</span>
@@ -1350,7 +1350,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 size="sm"
                 onClick={handleSave}
                 disabled={!hasUnsavedChanges}
-                className="gap-1.5 h-7 text-xs font-semibold bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+                className="gap-1.5 h-7 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
                 title="Save JSON (Ctrl+S)"
               >
                 <Save className="w-3.5 h-3.5" />
@@ -1481,7 +1481,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
       return (
         <span
           onClick={onEdit}
-          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-[#c4b5fd]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] cursor-pointer hover:border-[#a5b4fc] transition-colors"
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-[#c4b5fd]/60 dark:border-[#4338ca]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] cursor-pointer hover:border-[#a5b4fc] transition-colors"
         >
           {rawValueStr}
         </span>
@@ -1498,7 +1498,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
               return (
                 <span
                   key={i}
-                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-mono border border-[#c4b5fd]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] mx-0.5"
+                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-mono border border-[#c4b5fd]/60 dark:border-[#4338ca]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] mx-0.5"
                 >
                   {part}
                 </span>

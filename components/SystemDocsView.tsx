@@ -205,9 +205,9 @@ export const SystemDocsView: React.FC = () => {
               {/* System Screenshot Frame */}
               {currentSection.screenshotUrl && (
                 <div className="space-y-2">
-                  <div className="relative group rounded-xl border border-border/80 bg-[#09090d] shadow-md overflow-hidden">
+                  <div className="relative group rounded-xl border border-border/80 bg-muted/40 dark:bg-[#09090d] shadow-md overflow-hidden">
                     {/* Minimal Window Header Bar */}
-                    <div className="flex items-center justify-between px-3 py-2 bg-[#121316] border-b border-border/60">
+                    <div className="flex items-center justify-between px-3 py-2 bg-muted/70 dark:bg-[#121316] border-b border-border/60">
                       <div className="flex items-center gap-1.5">
                         <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
                         <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
@@ -228,7 +228,7 @@ export const SystemDocsView: React.FC = () => {
 
                     {/* Image Preview */}
                     <div
-                      className="cursor-zoom-in overflow-hidden flex items-center justify-center p-2 bg-[#09090d]"
+                      className="cursor-zoom-in overflow-hidden flex items-center justify-center p-2 bg-muted/20 dark:bg-[#09090d]"
                       onClick={() => setPreviewImage(currentSection.screenshotUrl!)}
                     >
                       <img

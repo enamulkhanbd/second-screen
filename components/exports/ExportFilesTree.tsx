@@ -58,8 +58,8 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
                   onClick={() => onSelectFile(file.id)}
                   className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors ${
                     isSelected
-                      ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs"
-                      : "text-zinc-700 dark:text-zinc-300 hover:bg-muted/70 hover:text-foreground dark:hover:text-white"
+                      ? "bg-primary/10 text-primary border border-primary/20 shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                   }`}
                 >
                   <span className="truncate">{file.name}</span>
@@ -67,7 +67,7 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
                     <span
                       className={`text-[10px] font-mono font-normal ${
                         isSelected
-                          ? "text-white/70 dark:text-zinc-400"
+                          ? "text-primary/80 dark:text-primary/70"
                           : "text-muted-foreground"
                       }`}
                     >
@@ -105,8 +105,8 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
                     onClick={() => onSelectFile(file.id)}
                     className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors ${
                       isSelected
-                        ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 shadow-xs"
-                        : "text-zinc-700 dark:text-zinc-300 hover:bg-muted/70 hover:text-foreground dark:hover:text-white"
+                        ? "bg-primary/10 text-primary border border-primary/20 shadow-2xs font-semibold"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                     }`}
                   >
                     <span className="truncate">{file.name}</span>
@@ -114,7 +114,7 @@ export const ExportFilesTree: React.FC<ExportFilesTreeProps> = ({
                       <span
                         className={`text-[10px] font-mono font-normal ${
                           isSelected
-                            ? "text-white/70 dark:text-zinc-400"
+                            ? "text-primary/80 dark:text-primary/70"
                             : "text-muted-foreground"
                         }`}
                       >

@@ -52,11 +52,11 @@ export const ExtensionMarketplaceModal: React.FC<ExtensionMarketplaceModalProps>
   const getTagColor = (tag: string) => {
     switch (tag) {
       case "Color Space":
-        return "bg-purple-950/40 text-purple-300 border-purple-800/40";
+        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40";
       case "Function":
-        return "bg-blue-950/40 text-blue-300 border-blue-800/40";
+        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40";
       default:
-        return "bg-zinc-800 text-zinc-300 border-zinc-700";
+        return "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
     }
   };
 
@@ -182,7 +182,7 @@ export const ExtensionMarketplaceModal: React.FC<ExtensionMarketplaceModalProps>
                     {isEnabled && (
                       <Badge
                         variant="outline"
-                        className="text-[11px] px-2 py-0.2 font-medium rounded-full bg-emerald-950/50 text-emerald-400 border-emerald-800/50"
+                        className="text-[11px] px-2 py-0.2 font-medium rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800/50"
                       >
                         Enabled
                       </Badge>

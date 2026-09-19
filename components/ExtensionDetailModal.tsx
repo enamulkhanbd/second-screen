@@ -64,13 +64,13 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         style={{ overflow: "hidden" }}
-        className="max-w-xl w-full flex flex-col overflow-hidden bg-[#121316] border-[#23252a] text-white p-6 sm:p-7 sm:rounded-2xl shadow-2xl gap-0"
+        className="max-w-xl w-full flex flex-col overflow-hidden bg-card border-border text-foreground p-6 sm:p-7 sm:rounded-2xl shadow-2xl gap-0"
       >
         <DialogHeader className="w-full min-w-0 space-y-2 text-left pr-6">
-          <DialogTitle className="text-xl font-bold tracking-tight text-white truncate">
+          <DialogTitle className="text-xl font-bold tracking-tight text-foreground truncate">
             {item.name}
           </DialogTitle>
-          <DialogDescription className="text-sm text-zinc-300 leading-relaxed font-normal pt-1">
+          <DialogDescription className="text-sm text-muted-foreground leading-relaxed font-normal pt-1">
             {item.description || "Design token schema definition."}
           </DialogDescription>
         </DialogHeader>
@@ -79,7 +79,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
         <div className="flex items-center gap-2 mt-4">
           <Badge
             variant="outline"
-            className="text-xs px-3 py-0.5 font-medium rounded-full bg-[#142918] text-[#4ade80] border-[#234d28]"
+            className="text-xs px-3 py-0.5 font-medium rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-[#142918] dark:text-[#4ade80] dark:border-[#234d28]"
           >
             {item.typeTag}
           </Badge>
@@ -87,14 +87,14 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
           {isEnabled ? (
             <Badge
               variant="outline"
-              className="text-xs px-3 py-0.5 font-medium rounded-full bg-[#183920] text-[#4ade80] border-[#2ea347]/60"
+              className="text-xs px-3 py-0.5 font-medium rounded-full bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-[#183920] dark:text-[#4ade80] dark:border-[#2ea347]/60"
             >
               Enabled
             </Badge>
           ) : (
             <Badge
               variant="outline"
-              className="text-xs px-3 py-0.5 font-medium rounded-full bg-[#142918] text-[#4ade80] border-[#234d28]"
+              className="text-xs px-3 py-0.5 font-medium rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-[#142918] dark:text-[#4ade80] dark:border-[#234d28]"
             >
               Available
             </Badge>
@@ -102,14 +102,14 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
         </div>
 
         {/* Schema URL Link Box - Matches Image 2 */}
-        <div className="mt-4 w-full min-w-0 max-w-full overflow-hidden p-3 rounded-lg border border-[#222429] bg-[#0c0d10] flex items-center justify-between gap-3 group">
+        <div className="mt-4 w-full min-w-0 max-w-full overflow-hidden p-3 rounded-lg border border-border bg-muted/40 flex items-center justify-between gap-3 group">
           <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-            <Link2 className="size-4 shrink-0 text-zinc-400 rotate-[-45deg]" />
+            <Link2 className="size-4 shrink-0 text-muted-foreground rotate-[-45deg]" />
             <a
               href={fullSchemaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block truncate font-mono text-xs text-zinc-200 hover:text-white transition-colors min-w-0"
+              className="block truncate font-mono text-xs text-foreground hover:text-primary transition-colors min-w-0"
               title={fullSchemaUrl}
             >
               {fullSchemaUrl}
@@ -121,16 +121,16 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
               type="button"
               onClick={handleCopyLink}
               title="Copy URL"
-              className="p-1 text-zinc-400 hover:text-white rounded transition-colors cursor-pointer"
+              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
             >
-              {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+              {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
             </button>
             <a
               href={fullSchemaUrl}
               target="_blank"
               rel="noopener noreferrer"
               title="Open schema in new tab"
-              className="p-1 text-zinc-400 hover:text-white rounded transition-colors cursor-pointer"
+              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
             >
               <ArrowUpRight className="size-4" />
             </a>
@@ -138,7 +138,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
         </div>
 
         {/* Footer actions with horizontal rule - Matches Image 2 */}
-        <div className="mt-6 pt-4 border-t border-[#23252a] flex items-center justify-end gap-2.5">
+        <div className="mt-6 pt-4 border-t border-border flex items-center justify-end gap-2.5">
           {isEditable && (
             <Button
               type="button"
@@ -148,8 +148,8 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
               onClick={handleToggle}
               className={`text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors ${
                 isEnabled
-                  ? "bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-800/50"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500"
+                  ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400 dark:border-red-800/50"
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-xs"
               }`}
             >
               {isEnabled ? "Disable Extension" : "Enable Extension"}
@@ -157,10 +157,10 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
           )}
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onClose}
-            className="bg-[#18191d] hover:bg-[#25262c] text-white border border-[#2c2e35] rounded-lg px-5 py-2 text-xs font-semibold cursor-pointer transition-colors"
+            className="rounded-lg px-5 py-2 text-xs font-semibold cursor-pointer"
           >
             Close
           </Button>

@@ -491,7 +491,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
           <Button
             size="sm"
             onClick={handleSave}
-            className="h-8 px-4 text-xs font-medium bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-pointer shadow-2xs"
+            className="h-8 px-4 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-2xs"
           >
             Update Token
           </Button>

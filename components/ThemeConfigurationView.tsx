@@ -699,7 +699,7 @@ export const ThemeConfigurationView: React.FC = () => {
               <Button
                 type="submit"
                 size="sm"
-                className="text-xs bg-[#15803d] hover:bg-[#166534] text-white"
+                className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 Save Changes
               </Button>
@@ -768,7 +768,7 @@ export const ThemeConfigurationView: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={isPullingFigma}
-                className="text-xs bg-[#15803d] hover:bg-[#166534] text-white gap-1.5"
+                className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
               >
                 {isPullingFigma ? (
                   <>

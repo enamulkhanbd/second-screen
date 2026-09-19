@@ -452,11 +452,11 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       {/* Empty Graph State */}
       {graphData.nodes.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center pointer-events-none">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-muted/60 dark:bg-zinc-900 border border-border dark:border-zinc-800 flex items-center justify-center text-muted-foreground mb-3">
             <Sparkles className="w-5 h-5" />
           </div>
-          <h4 className="text-sm font-semibold text-zinc-300">No Flow Nodes Found</h4>
-          <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+          <h4 className="text-sm font-semibold text-foreground">No Flow Nodes Found</h4>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
             Try adjusting your search query or selected token type filter to reveal graph connections.
           </p>
         </div>

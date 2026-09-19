@@ -138,17 +138,17 @@ function ConnectPageContent() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0a0a0e] text-zinc-100 flex flex-col justify-between select-none">
+    <div className="min-h-screen w-full bg-background text-foreground flex flex-col justify-between select-none">
       {/* Top Header */}
-      <header className="h-14 px-6 border-b border-zinc-800/80 flex items-center justify-between">
+      <header className="h-14 px-6 border-b border-border bg-card/50 flex items-center justify-between">
         <div
           onClick={() => router.push("/")}
           className="flex items-center gap-2.5 cursor-pointer group"
         >
-          <div className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center shadow-xs group-hover:bg-indigo-500 transition-colors">
+          <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
             <Layers className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold text-sm tracking-tight text-zinc-200 group-hover:text-white transition-colors">
+          <span className="font-semibold text-sm tracking-tight text-foreground group-hover:text-primary transition-colors">
             Tokens Platform
           </span>
         </div>
@@ -156,8 +156,8 @@ function ConnectPageContent() {
         <div>
           {currentUser ? (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-zinc-400">Signed in as</span>
-              <span className="font-medium text-zinc-200">
+              <span className="text-muted-foreground">Signed in as</span>
+              <span className="font-medium text-foreground">
                 {currentUser.displayName || currentUser.email}
               </span>
             </div>
@@ -166,7 +166,7 @@ function ConnectPageContent() {
               variant="outline"
               size="sm"
               onClick={() => setIsAuthOpen(true)}
-              className="text-xs gap-1.5 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200"
+              className="text-xs gap-1.5"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Sign In</span>
@@ -179,28 +179,28 @@ function ConnectPageContent() {
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-[420px]">
           {status === "success" ? (
-            <Card className="border-zinc-800 bg-[#121217] shadow-2xl p-8 space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mx-auto flex items-center justify-center">
+            <Card className="border-border bg-card shadow-xl p-8 space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 mx-auto flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
 
               <div className="space-y-1.5">
-                <CardTitle className="text-xl font-bold text-white tracking-tight">
+                <CardTitle className="text-xl font-bold text-foreground tracking-tight">
                   Device Connected!
                 </CardTitle>
-                <CardDescription className="text-sm text-zinc-400">
+                <CardDescription className="text-sm text-muted-foreground">
                   You can close this window and return to your plugin.
                 </CardDescription>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-left space-y-2">
-                <div className="flex justify-between text-zinc-400">
+              <div className="p-3.5 rounded-lg bg-muted/50 border border-border text-xs text-left space-y-2">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Device Code:</span>
-                  <span className="font-mono font-bold text-zinc-100">{code}</span>
+                  <span className="font-mono font-bold text-foreground">{code}</span>
                 </div>
-                <div className="flex justify-between text-zinc-400">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Authorized Account:</span>
-                  <span className="font-medium text-zinc-200">
+                  <span className="font-medium text-foreground">
                     {currentUser?.displayName || currentUser?.email || "Signed In User"}
                   </span>
                 </div>
@@ -209,28 +209,28 @@ function ConnectPageContent() {
               <Button
                 variant="outline"
                 onClick={() => router.push("/")}
-                className="w-full text-xs font-semibold h-10 border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                className="w-full text-xs font-semibold h-10"
               >
                 Go to Dashboard
               </Button>
             </Card>
           ) : !currentUser ? (
-            <Card className="border-zinc-800 bg-[#121217] shadow-2xl p-6 space-y-5">
+            <Card className="border-border bg-card shadow-xl p-6 space-y-5">
               <div className="text-left space-y-1">
-                <h1 className="text-xl font-bold text-white tracking-tight">
+                <h1 className="text-xl font-bold text-foreground tracking-tight">
                   Connect your plugin
                 </h1>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Enter the code from your Figma plugin or CLI tool to authorize access.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 text-center">
-                <span className="text-[11px] font-medium text-zinc-400 block">
+              <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-2 text-center">
+                <span className="text-[11px] font-medium text-muted-foreground block">
                   Sign in required to link this device
                 </span>
                 {code && (
-                  <div className="font-mono text-lg font-bold tracking-widest text-indigo-400">
+                  <div className="font-mono text-lg font-bold tracking-widest text-primary">
                     {code}
                   </div>
                 )}
@@ -238,26 +238,26 @@ function ConnectPageContent() {
 
               <Button
                 onClick={() => setIsAuthOpen(true)}
-                className="w-full text-xs font-semibold h-10 bg-indigo-600 hover:bg-indigo-500 text-white shadow-md gap-2"
+                className="w-full text-xs font-semibold h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md gap-2"
               >
                 <LogIn className="w-4 h-4" />
                 <span>Sign In to Continue</span>
               </Button>
             </Card>
           ) : (
-            <Card className="border-zinc-800 bg-[#121217] shadow-2xl p-7 space-y-6">
+            <Card className="border-border bg-card shadow-xl p-7 space-y-6">
               <div className="text-left space-y-1.5">
-                <h1 className="text-xl font-bold text-white tracking-tight">
+                <h1 className="text-xl font-bold text-foreground tracking-tight">
                   Connect your plugin
                 </h1>
-                <p className="text-xs text-zinc-400 leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Enter the code from your Figma plugin or CLI tool to authorize access.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="device-code" className="text-xs font-semibold text-zinc-300">
+                  <Label htmlFor="device-code" className="text-xs font-semibold text-foreground">
                     Device Code <span className="text-rose-500">*</span>
                   </Label>
                   <Input
@@ -266,14 +266,14 @@ function ConnectPageContent() {
                     placeholder="XXXX-XXXX"
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    className="font-mono text-sm tracking-wider h-11 bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-indigo-500"
+                    className="font-mono text-sm tracking-wider h-11 bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                     maxLength={14}
                   />
                 </div>
 
                 {/* Status / Error Alert */}
                 {status === "error" && errorMessage && (
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-500 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
@@ -282,7 +282,7 @@ function ConnectPageContent() {
                 <Button
                   onClick={handleAuthorize}
                   disabled={loading || !code.trim()}
-                  className="w-full text-xs font-semibold h-11 bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-colors"
+                  className="w-full text-xs font-semibold h-11 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-colors"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -300,7 +300,7 @@ function ConnectPageContent() {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-zinc-500 border-t border-zinc-900">
+      <footer className="py-4 text-center text-xs text-muted-foreground border-t border-border">
         Tokens Platform &copy; 2026. Design Token System.
       </footer>
 
