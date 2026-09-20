@@ -11,6 +11,7 @@ import { formatTypographySummary } from "@/utils/transformTokens";
 import { ThemeOptionSheet } from "@/components/ThemeOptionSheet";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
 import { EditTokenDrawer } from "@/components/EditTokenDrawer";
+import { ThemeSwitcherDropdown } from "@/components/ThemeSwitcherDropdown";
 import { FlattenedToken, ThemeOption } from "@/types/tokens";
 import {
   AlertTriangle,
@@ -175,6 +176,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
+    activeThemeOptionIds,
     setActiveThemeOption,
     updateSingleToken,
     addThemeOption,
@@ -196,10 +198,13 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
     [themeGroups, activeThemeGroupId]
   );
 
+  const currentActiveOptionId =
+    (activeGroup && activeThemeOptionIds[activeGroup.id]) || activeThemeOptionId;
+
   const matrixRows = useMemo(() => {
     if (!activeGroup) return [];
-    return buildThemeMatrix(rawTokens, activeGroup);
-  }, [rawTokens, activeGroup]);
+    return buildThemeMatrix(rawTokens, activeGroup, activeThemeOptionIds, themeGroups);
+  }, [rawTokens, activeGroup, activeThemeOptionIds, themeGroups]);
 
   useEffect(() => {
     setVisibleCount(INITIAL_BATCH_SIZE);
@@ -319,16 +324,21 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
           </DropdownMenu>
         </div>
 
-        {isEditable && (
-          <Button
-            size="sm"
-            className="h-8 text-xs gap-1.5"
-            onClick={() => setOptionSheet({ mode: "add" })}
-          >
-            <Plus className="size-3.5" />
-            Add option
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Global Theme Context Switcher Dropdown */}
+          <ThemeSwitcherDropdown />
+
+          {isEditable && (
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1.5 bg-foreground text-background hover:bg-foreground/90 font-medium"
+              onClick={() => setOptionSheet({ mode: "add" })}
+            >
+              <Plus className="size-3.5" />
+              Add option
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto">
@@ -348,7 +358,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                     key={option.id}
                     className={cn(
                       "py-2 px-3 border-r border-border/30 min-w-[200px]",
-                      activeThemeOptionId === option.id && "bg-muted/40"
+                      currentActiveOptionId === option.id && "bg-muted/40"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -413,7 +423,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                   key={row.tokenKey}
                   row={row}
                   options={activeGroup.options}
-                  activeOptionId={activeThemeOptionId}
+                  activeOptionId={currentActiveOptionId}
                   onOpenCell={setEditingToken}
                 />
               ))}

@@ -105,6 +105,11 @@ export interface ThemeGroup {
   options: ThemeOption[];
 }
 
+export interface ThemeResolutionConfig {
+  activeSetsOrder?: string[];
+  inactiveSets?: Set<string>;
+}
+
 export interface UserProfile {
   displayName?: string;
   avatarUrl?: string;

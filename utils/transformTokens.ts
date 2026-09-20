@@ -1,4 +1,10 @@
-import { RawTokensDocument, RawTokenLeaf, FlattenedToken, TokenType } from "@/types/tokens";
+import {
+  RawTokensDocument,
+  RawTokenLeaf,
+  FlattenedToken,
+  TokenType,
+  ThemeResolutionConfig,
+} from "@/types/tokens";
 import { extractColorModifier, applyColorModifier, ColorModifier } from "./colorModifier";
 import Color from "colorjs.io";
 
@@ -262,12 +268,43 @@ export type TokenLookupIndex = Map<string, { leaf: RawTokenLeaf; setName: string
 /**
  * Builds a fast flat index of all tokens across all sets for O(1) alias resolution.
  */
-export function buildTokenLookupIndex(allTokens: RawTokensDocument): TokenLookupIndex {
+export function buildTokenLookupIndex(
+  allTokens: RawTokensDocument,
+  themeConfig?: ThemeResolutionConfig
+): TokenLookupIndex {
   const index: TokenLookupIndex = new Map();
   if (!allTokens || typeof allTokens !== "object") return index;
 
-  for (const [setName, setTree] of Object.entries(allTokens)) {
-    if (setName.startsWith("$") || !setTree || typeof setTree !== "object") continue;
+  const allSetNames = Object.keys(allTokens).filter(
+    (k) => !k.startsWith("$") && allTokens[k] && typeof allTokens[k] === "object"
+  );
+
+  let orderedSetNames: string[] = allSetNames;
+
+  if (themeConfig?.activeSetsOrder && themeConfig.activeSetsOrder.length > 0) {
+    const activeOrder = themeConfig.activeSetsOrder;
+    const activeSetLookup = new Set(activeOrder);
+    const inactiveSetLookup = themeConfig.inactiveSets || new Set<string>();
+
+    // 1. Inactive sets first (lowest priority fallback)
+    const inactiveList = allSetNames.filter(
+      (s) => inactiveSetLookup.has(s) && !activeSetLookup.has(s)
+    );
+    // 2. Unspecified sets (neither active nor inactive)
+    const unspecifiedList = allSetNames.filter(
+      (s) => !activeSetLookup.has(s) && !inactiveSetLookup.has(s)
+    );
+    // 3. Active sets in order (from lowest tier to highest tier override)
+    const activeList = activeOrder.filter(
+      (s) => allTokens[s] && typeof allTokens[s] === "object"
+    );
+
+    orderedSetNames = [...inactiveList, ...unspecifiedList, ...activeList];
+  }
+
+  for (const setName of orderedSetNames) {
+    const setTree = allTokens[setName];
+    if (!setTree || typeof setTree !== "object") continue;
 
     const normSet = setName.replace(/[/\\]/g, ".");
     const walk = (node: any, currentPath: string[]) => {
@@ -291,10 +328,8 @@ export function buildTokenLookupIndex(allTokens: RawTokensDocument): TokenLookup
         // 3. Category omitted: e.g. if dotPath is "color.blue.500", also index "blue.500"
         if (currentPath.length > 1) {
           const stripped = currentPath.slice(1).join(".");
-          if (!index.has(stripped)) {
-            index.set(stripped, entry);
-            index.set(stripped.toLowerCase(), entry);
-          }
+          index.set(stripped, entry);
+          index.set(stripped.toLowerCase(), entry);
         }
         return;
       }
@@ -793,13 +828,14 @@ export function formatTypographySummary(
  */
 export function flattenAndResolveTokens(
   rawDoc: RawTokensDocument,
-  selectedSet?: string
+  selectedSet?: string,
+  themeConfig?: ThemeResolutionConfig
 ): FlattenedToken[] {
   const result: FlattenedToken[] = [];
   if (!rawDoc || typeof rawDoc !== "object") return result;
 
-  // Build O(1) lookup index across all token sets once
-  const lookupIndex = buildTokenLookupIndex(rawDoc);
+  // Build O(1) lookup index across all token sets with theme priority order
+  const lookupIndex = buildTokenLookupIndex(rawDoc, themeConfig);
 
   const setsToProcess = selectedSet && selectedSet !== "ALL" && rawDoc[selectedSet]
     ? [selectedSet]

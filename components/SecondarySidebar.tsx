@@ -59,6 +59,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
+    activeThemeOptionIds,
     setActiveThemeGroup,
     setActiveThemeOption,
     renameSet,
@@ -89,27 +90,27 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     return counts;
   }, [resolvedTokens]);
 
-  // Theme indicator dot colors for sets
+  // Theme indicator dot colors for sets based on active theme options
   const setThemeMap = useMemo(() => {
     const map: Record<string, string[]> = {};
     const themeColors = ["#38bdf8", "#f43f5e", "#10b981", "#fbbf24", "#a855f7"];
     themeGroups.forEach((group, gIdx) => {
-      group.options.forEach((opt, oIdx) => {
-        if (opt.selectedTokenSets) {
-          Object.entries(opt.selectedTokenSets).forEach(([setName, status]) => {
-            if (status === "enabled" || status === "source") {
-              if (!map[setName]) map[setName] = [];
-              const col = opt.color || themeColors[(gIdx * 2 + oIdx) % themeColors.length];
-              if (!map[setName].includes(col)) {
-                map[setName].push(col);
-              }
+      const activeOptId = activeThemeOptionIds[group.id] || group.options[0]?.id;
+      const opt = group.options.find((o) => o.id === activeOptId);
+      if (opt && opt.selectedTokenSets) {
+        Object.entries(opt.selectedTokenSets).forEach(([setName, status]) => {
+          if (status === "enabled" || status === "source") {
+            if (!map[setName]) map[setName] = [];
+            const col = opt.color || themeColors[(gIdx * 2) % themeColors.length];
+            if (!map[setName].includes(col)) {
+              map[setName].push(col);
             }
-          });
-        }
-      });
+          }
+        });
+      }
     });
     return map;
-  }, [themeGroups]);
+  }, [themeGroups, activeThemeOptionIds]);
 
   // Calculate recursive folder count
   const getFolderTotalCount = (node: SetTreeNode): number => {
@@ -670,7 +671,9 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                     {/* Indented Theme Options List */}
                     <div className="pl-5 space-y-0.5">
                       {grp.options.map((opt) => {
-                        const isSelected = activeThemeGroupId === grp.id && activeThemeOptionId === opt.id;
+                        const isCurrentGroup = activeThemeGroupId === grp.id;
+                        const isOptionActive = (activeThemeOptionIds[grp.id] || (isCurrentGroup ? activeThemeOptionId : "")) === opt.id;
+                        const isSelected = isCurrentGroup && isOptionActive;
                         return (
                           <div
                             key={opt.id}
@@ -682,6 +685,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                             className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-muted text-foreground font-semibold shadow-2xs"
+                                : isOptionActive
+                                ? "text-foreground font-medium bg-muted/30"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
                             }`}
                           >

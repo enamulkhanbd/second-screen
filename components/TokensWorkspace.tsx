@@ -57,8 +57,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { buildTokenGroupTree, TokenGroupNode } from "@/utils/themeHelpers";
+import { buildTokenGroupTree, TokenGroupNode, getActiveThemeSets } from "@/utils/themeHelpers";
 import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
+import { ThemeSwitcherDropdown } from "@/components/ThemeSwitcherDropdown";
 import { cn } from "@/lib/utils";
 
 interface TokensWorkspaceProps {
@@ -84,6 +85,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     canUserEdit,
     addToast,
     themeGroups,
+    activeThemeOptionIds,
     setSidebarTab,
     branches,
     activeBranch,
@@ -189,15 +191,23 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     window.addEventListener("mouseup", onMouseUp);
   };
 
+  const activeThemeInfo = useMemo(() => {
+    return getActiveThemeSets(themeGroups, activeThemeOptionIds, rawTokens);
+  }, [themeGroups, activeThemeOptionIds, rawTokens]);
+
   // Tokens in active set
   const setTokens = useMemo(() => {
     return resolvedTokens.filter((token) => {
       if (activeSet && activeSet !== "ALL") {
         return token.setName === activeSet || token.setName.endsWith(`.${activeSet}`);
       }
+      // When viewing ALL sets, filter out sets that belong to inactive theme options in the active theme configuration
+      if (activeThemeInfo.activeSets.size > 0 && activeThemeInfo.inactiveSets.has(token.setName)) {
+        return false;
+      }
       return true;
     });
-  }, [resolvedTokens, activeSet]);
+  }, [resolvedTokens, activeSet, activeThemeInfo]);
 
   // Filter tokens strictly for the active set (or all sets if 'ALL')
   const displayedTokens = useMemo(() => {
@@ -364,24 +374,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     setCollapsedGroups(allCollapsed);
   };
 
-  // Check if active set participates in any themes
+  // Check if active set is inactive in the currently selected themes
   const isInactiveInThemes = useMemo(() => {
     if (!activeSet || activeSet === "ALL") return false;
-    let hasParticipation = false;
-    for (const group of themeGroups || []) {
-      for (const opt of group.options || []) {
-        if (
-          opt.selectedTokenSets &&
-          (opt.selectedTokenSets[activeSet] === "enabled" || opt.selectedTokenSets[activeSet] === "source")
-        ) {
-          hasParticipation = true;
-          break;
-        }
-      }
-      if (hasParticipation) break;
-    }
-    return !hasParticipation;
-  }, [activeSet, themeGroups]);
+    return activeThemeInfo.inactiveSets.has(activeSet);
+  }, [activeSet, activeThemeInfo]);
 
 
   // Selected token objects for bulk actions
@@ -780,6 +777,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               <span>Edit {selectedTokenIds.size}</span>
             </button>
           )}
+
+          {/* Theme Switcher Button */}
+          {themeGroups.length > 0 && <ThemeSwitcherDropdown />}
 
           {/* Search Icon / Toggle */}
           {isSearchOpen ? (
