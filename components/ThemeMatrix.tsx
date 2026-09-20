@@ -149,10 +149,7 @@ const MatrixTokenRow = React.memo(function MatrixTokenRow({
       {options.map((option) => (
         <td
           key={option.id}
-          className={cn(
-            "py-2 px-4 border-r border-border/30 min-w-[180px]",
-            activeOptionId === option.id && "bg-muted/30"
-          )}
+          className="py-2 px-4 border-r border-border/30 min-w-[180px]"
         >
           <MatrixValueCell
             row={row}
@@ -356,10 +353,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                 {activeGroup.options.map((option) => (
                   <th
                     key={option.id}
-                    className={cn(
-                      "py-2 px-3 border-r border-border/30 min-w-[200px]",
-                      currentActiveOptionId === option.id && "bg-muted/40"
-                    )}
+                    className="py-2 px-3 border-r border-border/30 min-w-[200px]"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <button

@@ -672,8 +672,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                     <div className="pl-5 space-y-0.5">
                       {grp.options.map((opt) => {
                         const isCurrentGroup = activeThemeGroupId === grp.id;
-                        const isOptionActive = (activeThemeOptionIds[grp.id] || (isCurrentGroup ? activeThemeOptionId : "")) === opt.id;
-                        const isSelected = isCurrentGroup && isOptionActive;
+                        const isSelected = isCurrentGroup && (activeThemeOptionId === opt.id || (!activeThemeOptionId && opt.id === grp.options[0]?.id));
                         return (
                           <div
                             key={opt.id}
@@ -685,8 +684,6 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                             className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-muted text-foreground font-semibold shadow-2xs"
-                                : isOptionActive
-                                ? "text-foreground font-medium bg-muted/30"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
                             }`}
                           >
