@@ -19,7 +19,7 @@ import {
   FolderPlus,
   Settings,
 } from "lucide-react";
-import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
+import { ThemeOptionSheet } from "@/components/ThemeOptionSheet";
 import { AddSetModal } from "@/components/AddSetModal";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
 import { buildSetFolderTree, getValidTokenSetNames, SetTreeNode } from "@/utils/themeHelpers";
@@ -752,10 +752,11 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
             }}
           />
 
-          {/* Add Theme Option Modal */}
-          <AddThemeOptionModal
-            isOpen={Boolean(addModalGroupId)}
-            defaultGroupId={addModalGroupId || undefined}
+          {/* Add Theme Option Sheet */}
+          <ThemeOptionSheet
+            mode="add"
+            open={Boolean(addModalGroupId)}
+            groupId={addModalGroupId || undefined}
             onClose={() => setAddModalGroupId(null)}
           />
 

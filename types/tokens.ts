@@ -20,13 +20,29 @@ export type TokenType =
   | "borderWidth"
   | "opacity"
   | "fontFamilies"
+  | "fontFamily"
   | "fontWeights"
+  | "fontWeight"
   | "fontSizes"
+  | "fontSize"
   | "lineHeights"
+  | "lineHeight"
   | "letterSpacing"
   | "boxShadow"
+  | "shadow"
   | "typography"
   | "composition"
+  | "asset"
+  | "boolean"
+  | "border"
+  | "cubicBezier"
+  | "duration"
+  | "number"
+  | "size"
+  | "space"
+  | "text"
+  | "textCase"
+  | "textDecoration"
   | "other";
 
 export interface RawTokenLeaf {
@@ -61,6 +77,13 @@ export interface FlattenedToken {
   isAlias: boolean;
   aliasTarget?: string;
   description?: string;
+  deprecated?: boolean;
+  deprecatedMessage?: string;
+  deprecatedReplacement?: string;
+  deprecatedSeverity?: string;
+  deprecatedRemoveAfter?: string;
+  figmaVariableKey?: string;
+  category?: string;
 }
 
 export interface ThemeOption {

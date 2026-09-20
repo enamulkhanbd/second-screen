@@ -336,6 +336,7 @@ interface TokenStoreState {
     groupId: string;
     name: string;
     color?: string;
+    description?: string;
     selectedTokenSets: Record<string, "enabled" | "disabled" | "source">;
     cloneFromOptionId?: string;
     newSetName?: string;
@@ -3297,6 +3298,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       group: targetGroup.name,
       selectedTokenSets: selectedSets,
       color: params.color || "#3b82f6",
+      ...(params.description ? { description: params.description } : {}),
     });
 
     updatedRawDoc[themesKey] = existingThemes as any;

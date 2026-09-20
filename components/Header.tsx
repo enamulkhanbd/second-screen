@@ -78,7 +78,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     setCurrentProject,
     themeGroups,
     activeThemeGroupId,
-    activeThemeOptionId,
     setActiveThemeGroup,
     isDirty,
     viewMode,
@@ -133,10 +132,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     return themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
   }, [themeGroups, activeThemeGroupId]);
 
-  const activeOption = useMemo(() => {
-    return activeGroup?.options.find((o) => o.id === activeThemeOptionId) || activeGroup?.options[0];
-  }, [activeGroup, activeThemeOptionId]);
-
   // Specific Showing Logic:
   // 1. Git Sync is configured -> show Git Pull, Push, and Branch dropdown
   const isGitConfigured = Boolean(
@@ -176,17 +171,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         onClick: !isGitConfigured ? () => setSidebarTab("branches") : undefined,
       });
       items.push({
-        label: "Theme Groups",
+        label: "Themes",
         onClick: () => setSidebarTab("themes"),
       });
       if (activeGroup) {
         items.push({
           label: activeGroup.name,
-        });
-      }
-      if (activeOption) {
-        items.push({
-          label: activeOption.name,
         });
       }
     } else if (sidebarTab === "tokens") {
@@ -249,7 +239,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }
 
     return items;
-  }, [currentProject, currentOrg, sidebarTab, activeGroup, activeOption, activeSet, setSidebarTab, setCurrentProject, credentials.branch, activeBranch, isGitConfigured]);
+  }, [currentProject, currentOrg, sidebarTab, activeGroup, activeSet, setSidebarTab, setCurrentProject, credentials.branch, activeBranch, isGitConfigured]);
 
   // Compute live diff summary between baseline and current state
   const diffSummary = useMemo(() => {
