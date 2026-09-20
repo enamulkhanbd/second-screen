@@ -20,7 +20,6 @@ import {
   FolderGit2,
   Link2,
   Code2,
-  Variable,
   ChevronsUpDown,
   Check,
   Crown,
@@ -57,6 +56,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { cn } from "@/lib/utils";
+
+function FigmaVariableIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 3 20 7.5v9L12 21 4 16.5v-9L12 3Z" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 interface SidebarProps {
   onOpenSettings?: () => void;
@@ -696,14 +716,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
           <button
             onClick={() => setSidebarTab("variables")}
             title="Variables"
-            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
+            className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${
               sidebarTab === "variables"
                 ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
             }`}
           >
-            <Variable className="size-4 flex-shrink-0" />
-            {!isCollapsed && <span>Variables</span>}
+            <div className="flex items-center gap-2.5 truncate">
+              <FigmaVariableIcon className="size-4 flex-shrink-0" />
+              {!isCollapsed && <span>Variables</span>}
+            </div>
           </button>
 
           {/* Schema Marketplace */}

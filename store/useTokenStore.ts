@@ -40,7 +40,7 @@ import {
   compileCssVariables,
   compileStyleDictionary,
 } from "@/utils/releaseCompiler";
-import { extractThemeGroups, canonicalizeTokenDocument } from "@/utils/themeHelpers";
+import { extractThemeGroups, canonicalizeTokenDocument, getActiveThemeSets } from "@/utils/themeHelpers";
 import { computeTokensDiff, DocumentDiffSummary } from "@/utils/tokenDiff";
 import {
   Organization,
@@ -189,8 +189,10 @@ interface TokenStoreState {
   themeGroups: ThemeGroup[];
   activeThemeGroupId: string;
   activeThemeOptionId: string;
+  activeThemeOptionIds: Record<string, string>;
   setActiveThemeGroup: (groupId: string) => void;
   setActiveThemeOption: (optionId: string) => void;
+  setActiveThemeOptionForGroup: (groupId: string, optionId: string) => void;
 
   // Native Branch System
   branches: ProjectBranch[];
@@ -336,6 +338,7 @@ interface TokenStoreState {
     groupId: string;
     name: string;
     color?: string;
+    description?: string;
     selectedTokenSets: Record<string, "enabled" | "disabled" | "source">;
     cloneFromOptionId?: string;
     newSetName?: string;
@@ -389,6 +392,31 @@ const DEFAULT_CREDENTIALS: GitCredentials = {
   path: "",
   pat: "",
 };
+
+function buildDefaultActiveOptionIds(
+  groups: ThemeGroup[],
+  existing: Record<string, string> = {}
+): Record<string, string> {
+  const result: Record<string, string> = { ...existing };
+  groups.forEach((g) => {
+    if (!result[g.id] || !g.options.some((o) => o.id === result[g.id])) {
+      if (g.options.length > 0) {
+        result[g.id] = g.options[0].id;
+      }
+    }
+  });
+  return result;
+}
+
+function resolveTokensWithActiveThemes(
+  doc: RawTokensDocument,
+  activeSet: string,
+  themeGroups: ThemeGroup[],
+  activeThemeOptionIds: Record<string, string>
+): FlattenedToken[] {
+  const themeConfig = getActiveThemeSets(themeGroups, activeThemeOptionIds, doc);
+  return flattenAndResolveTokens(doc, activeSet, themeConfig);
+}
 
 export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
@@ -894,6 +922,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           themeGroups: initialThemes,
           activeThemeGroupId: initialThemes[0]?.id || "",
           activeThemeOptionId: initialThemes[0]?.options?.[0]?.id || "",
+          activeThemeOptionIds: buildDefaultActiveOptionIds(initialThemes),
           originalTokens: JSON.parse(JSON.stringify(initialTokens)),
           isDirty: false,
         });
@@ -905,6 +934,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           themeGroups: initialThemes || [],
           activeThemeGroupId: initialThemes?.[0]?.id || "",
           activeThemeOptionId: initialThemes?.[0]?.options?.[0]?.id || "",
+          activeThemeOptionIds: buildDefaultActiveOptionIds(initialThemes || []),
           syncMeta: null,
           isDirty: false,
         });
@@ -940,6 +970,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                   themeGroups: freshThemes,
                   activeThemeGroupId: freshThemes[0]?.id || "",
                   activeThemeOptionId: freshThemes[0]?.options?.[0]?.id || "",
+                  activeThemeOptionIds: buildDefaultActiveOptionIds(freshThemes),
                   isDirty: false,
                 });
               }
@@ -2459,12 +2490,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   themeGroups: [],
   activeThemeGroupId: "",
   activeThemeOptionId: "",
+  activeThemeOptionIds: {},
 
   setActiveThemeGroup: (groupId) => {
-    const { themeGroups } = get();
+    const { themeGroups, activeThemeOptionIds, rawTokens, activeSet } = get();
     const grp = themeGroups.find((g) => g.id === groupId);
-    const firstOption = grp?.options[0]?.id || "";
-    set({ activeThemeGroupId: groupId, activeThemeOptionId: firstOption });
+    const chosenOption = activeThemeOptionIds[groupId] || grp?.options[0]?.id || "";
+    const nextMap = {
+      ...activeThemeOptionIds,
+      ...(chosenOption ? { [groupId]: chosenOption } : {}),
+    };
+    const resolved = resolveTokensWithActiveThemes(rawTokens, activeSet, themeGroups, nextMap);
+    set({
+      activeThemeGroupId: groupId,
+      activeThemeOptionId: chosenOption,
+      activeThemeOptionIds: nextMap,
+      resolvedTokens: resolved,
+    });
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_active_group_id", groupId);
@@ -2473,7 +2515,35 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setActiveThemeOption: (optionId) => {
-    set({ activeThemeOptionId: optionId });
+    const { activeThemeGroupId, activeThemeOptionIds, themeGroups, rawTokens, activeSet } = get();
+    const nextMap = activeThemeGroupId
+      ? { ...activeThemeOptionIds, [activeThemeGroupId]: optionId }
+      : activeThemeOptionIds;
+    const resolved = resolveTokensWithActiveThemes(rawTokens, activeSet, themeGroups, nextMap);
+    set({
+      activeThemeOptionId: optionId,
+      activeThemeOptionIds: nextMap,
+      resolvedTokens: resolved,
+    });
+  },
+
+  setActiveThemeOptionForGroup: (groupId: string, optionId: string) => {
+    const { activeThemeGroupId, activeThemeOptionIds, themeGroups, rawTokens, activeSet } = get();
+    const isCurrentActive = activeThemeOptionIds[groupId] === optionId;
+    const nextMap = { ...activeThemeOptionIds };
+    if (isCurrentActive) {
+      delete nextMap[groupId];
+    } else {
+      nextMap[groupId] = optionId;
+    }
+    const resolved = resolveTokensWithActiveThemes(rawTokens, activeSet, themeGroups, nextMap);
+    set({
+      activeThemeOptionIds: nextMap,
+      resolvedTokens: resolved,
+      ...(groupId === activeThemeGroupId
+        ? { activeThemeOptionId: isCurrentActive ? "" : optionId }
+        : {}),
+    });
   },
 
   viewMode: "sets",
@@ -3060,8 +3130,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setRawTokens: (doc, meta) => {
     const { activeSet, activeThemeGroupId } = get();
     const canonical = canonicalizeTokenDocument(doc);
-    const resolved = flattenAndResolveTokens(canonical, activeSet);
     const groups = extractThemeGroups(canonical);
+    const updatedOptionIds = buildDefaultActiveOptionIds(groups, get().activeThemeOptionIds);
+    const resolved = resolveTokensWithActiveThemes(canonical, activeSet, groups, updatedOptionIds);
     const savedGroupId = typeof window !== "undefined" ? localStorage.getItem("ts_active_group_id") : null;
     const defaultGroup =
       groups.find((g) => g && g.id === activeThemeGroupId) ||
@@ -3097,7 +3168,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       resolvedTokens: resolved,
       themeGroups: groups,
       activeThemeGroupId: defaultGroup?.id || "",
-      activeThemeOptionId: defaultGroup?.options[0]?.id || "",
+      activeThemeOptionId: defaultGroup ? updatedOptionIds[defaultGroup.id] || defaultGroup.options[0]?.id || "" : "",
+      activeThemeOptionIds: updatedOptionIds,
       isDirty: false,
       syncError: null,
       ...(meta !== undefined ? { syncMeta: meta } : {}),
@@ -3117,10 +3189,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       return;
     }
-    const { rawTokens, activeSet } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds } = get();
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
-    const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
     const updatedGroups = extractThemeGroups(updatedRaw);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
 
     set({
       rawTokens: updatedRaw,
@@ -3154,13 +3226,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       return;
     }
-    const { rawTokens, activeSet } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds } = get();
     const updatedRaw = {
       ...rawTokens,
       [setName]: newJsonContent,
     };
-    const updatedResolved = flattenAndResolveTokens(updatedRaw, activeSet);
     const updatedGroups = extractThemeGroups(updatedRaw);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
 
     set({
       rawTokens: updatedRaw,
@@ -3182,8 +3254,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setActiveSet: (setName) => {
-    const { rawTokens } = get();
-    const updatedResolved = flattenAndResolveTokens(rawTokens, setName);
+    const { rawTokens, themeGroups, activeThemeOptionIds } = get();
+    const updatedResolved = resolveTokensWithActiveThemes(rawTokens, setName, themeGroups, activeThemeOptionIds);
     set({ activeSet: setName, resolvedTokens: updatedResolved });
   },
 
@@ -3297,12 +3369,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       group: targetGroup.name,
       selectedTokenSets: selectedSets,
       color: params.color || "#3b82f6",
+      ...(params.description ? { description: params.description } : {}),
     });
 
     updatedRawDoc[themesKey] = existingThemes as any;
 
     const updatedGroups = extractThemeGroups(updatedRawDoc);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     if (typeof window !== "undefined") {
       try {
@@ -3392,7 +3465,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     };
 
     const updatedGroups = extractThemeGroups(updatedRawDoc);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
     const newMatchedGroup = updatedGroups.find((g) => g.name === newName) || updatedGroups[0];
 
     if (typeof window !== "undefined") {
@@ -3470,7 +3543,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     };
 
     const updatedGroups = extractThemeGroups(updatedRawDoc);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
     const newMatchedGroup = updatedGroups.find((g) => g.name === newGroupName) || updatedGroups[0];
 
     if (typeof window !== "undefined") {
@@ -3554,7 +3627,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updatedGroups = themeGroups.filter(
       (g) => g.id !== targetGroup.id && g.name.trim().toLowerCase() !== targetNameLower
     );
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
     const remainingGroup = updatedGroups[0];
 
     if (typeof window !== "undefined") {
@@ -3651,7 +3724,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     };
 
     const updatedGroups = extractThemeGroups(updatedRawDoc);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -3715,7 +3788,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     };
 
     const updatedGroups = extractThemeGroups(updatedRawDoc);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
     const remainingGroup = updatedGroups.find((g) => g.id === groupId) || updatedGroups[0];
     const newActiveOptionId =
       activeThemeOptionId === optionId
@@ -3751,8 +3824,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const { rawTokens, activeSet } = get();
     const fullPath = [setName, ...tokenPath];
     const updatedRawDoc = createTokenAtKeyPath(rawTokens, fullPath, tokenData);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -3793,8 +3866,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const { rawTokens, activeSet } = get();
     const fullPath = [setName, ...tokenPath];
     const updatedRawDoc = deleteTokenAtKeyPath(rawTokens, fullPath);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -3843,8 +3916,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: existing.type,
       description: existing.description ? `${existing.description} (Copy)` : undefined,
     });
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -3893,8 +3966,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
     updatedRawDoc = deleteTokenAtKeyPath(updatedRawDoc, oldFullPath);
 
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -3937,8 +4010,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (!cleanName || rawTokens[cleanName]) return;
 
     const updatedRawDoc = createEmptyTokenSet(rawTokens, cleanName);
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, activeSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -3979,8 +4052,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updatedRawDoc = deleteTokenSet(rawTokens, setName);
     const remainingSets = Object.keys(updatedRawDoc).filter((k) => !k.startsWith("$"));
     const newActiveSet = activeSet === setName ? (remainingSets[0] || "ALL") : activeSet;
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, newActiveSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -4063,8 +4136,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
 
     const newActiveSet = activeSet === cleanOld ? cleanNew : activeSet;
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, newActiveSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -4152,8 +4225,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
 
     const newActiveSet = renameMap[activeSet] || activeSet;
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, newActiveSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -4232,8 +4305,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       ? remainingSets[0] || "ALL"
       : activeSet;
 
-    const updatedResolved = flattenAndResolveTokens(updatedRawDoc, newActiveSet);
     const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, newActiveSet, updatedGroups, get().activeThemeOptionIds);
 
     set({
       rawTokens: updatedRawDoc,
@@ -4816,7 +4889,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       activeThemeOptionId: initialThemes[0]?.options?.[0]?.id || "",
     });
 
-    const resolved = flattenAndResolveTokens(initialRaw, get().activeSet || "ALL");
+    const resolved = resolveTokensWithActiveThemes(initialRaw, get().activeSet || "ALL", initialThemes, get().activeThemeOptionIds);
     set({ resolvedTokens: resolved });
 
     if (currentOrg && currentProject) {
@@ -4902,7 +4975,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ credentials: { ...get().credentials, branch: targetBranchName } });
     }
 
-    const resolved = flattenAndResolveTokens(targetRaw, get().activeSet || "ALL");
+    const resolved = resolveTokensWithActiveThemes(targetRaw, get().activeSet || "ALL", targetThemes, get().activeThemeOptionIds);
     set({ resolvedTokens: resolved });
 
     if (typeof window !== "undefined") {

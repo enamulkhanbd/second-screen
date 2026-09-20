@@ -19,7 +19,7 @@ import {
   FolderPlus,
   Settings,
 } from "lucide-react";
-import { AddThemeOptionModal } from "@/components/AddThemeOptionModal";
+import { ThemeOptionSheet } from "@/components/ThemeOptionSheet";
 import { AddSetModal } from "@/components/AddSetModal";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
 import { buildSetFolderTree, getValidTokenSetNames, SetTreeNode } from "@/utils/themeHelpers";
@@ -59,6 +59,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
+    activeThemeOptionIds,
     setActiveThemeGroup,
     setActiveThemeOption,
     renameSet,
@@ -89,27 +90,27 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     return counts;
   }, [resolvedTokens]);
 
-  // Theme indicator dot colors for sets
+  // Theme indicator dot colors for sets based on active theme options
   const setThemeMap = useMemo(() => {
     const map: Record<string, string[]> = {};
     const themeColors = ["#38bdf8", "#f43f5e", "#10b981", "#fbbf24", "#a855f7"];
     themeGroups.forEach((group, gIdx) => {
-      group.options.forEach((opt, oIdx) => {
-        if (opt.selectedTokenSets) {
-          Object.entries(opt.selectedTokenSets).forEach(([setName, status]) => {
-            if (status === "enabled" || status === "source") {
-              if (!map[setName]) map[setName] = [];
-              const col = opt.color || themeColors[(gIdx * 2 + oIdx) % themeColors.length];
-              if (!map[setName].includes(col)) {
-                map[setName].push(col);
-              }
+      const activeOptId = activeThemeOptionIds[group.id] || group.options[0]?.id;
+      const opt = group.options.find((o) => o.id === activeOptId);
+      if (opt && opt.selectedTokenSets) {
+        Object.entries(opt.selectedTokenSets).forEach(([setName, status]) => {
+          if (status === "enabled" || status === "source") {
+            if (!map[setName]) map[setName] = [];
+            const col = opt.color || themeColors[(gIdx * 2) % themeColors.length];
+            if (!map[setName].includes(col)) {
+              map[setName].push(col);
             }
-          });
-        }
-      });
+          }
+        });
+      }
     });
     return map;
-  }, [themeGroups]);
+  }, [themeGroups, activeThemeOptionIds]);
 
   // Calculate recursive folder count
   const getFolderTotalCount = (node: SetTreeNode): number => {
@@ -670,7 +671,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                     {/* Indented Theme Options List */}
                     <div className="pl-5 space-y-0.5">
                       {grp.options.map((opt) => {
-                        const isSelected = activeThemeGroupId === grp.id && activeThemeOptionId === opt.id;
+                        const isCurrentGroup = activeThemeGroupId === grp.id;
+                        const isSelected = isCurrentGroup && (activeThemeOptionId === opt.id || (!activeThemeOptionId && opt.id === grp.options[0]?.id));
                         return (
                           <div
                             key={opt.id}
@@ -752,10 +754,11 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
             }}
           />
 
-          {/* Add Theme Option Modal */}
-          <AddThemeOptionModal
-            isOpen={Boolean(addModalGroupId)}
-            defaultGroupId={addModalGroupId || undefined}
+          {/* Add Theme Option Sheet */}
+          <ThemeOptionSheet
+            mode="add"
+            open={Boolean(addModalGroupId)}
+            groupId={addModalGroupId || undefined}
             onClose={() => setAddModalGroupId(null)}
           />
 

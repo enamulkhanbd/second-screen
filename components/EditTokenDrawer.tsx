@@ -1,19 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FlattenedToken, TokenType } from "@/types/tokens";
 import { useTokenStore } from "@/store/useTokenStore";
-import {
-  X,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp,
-  Search,
-} from "lucide-react";
-import { safeParseObject } from "@/components/TokenValueFormatter";
+import { HelpCircle, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -21,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 interface EditTokenDrawerProps {
   token: FlattenedToken | null;
@@ -29,172 +26,251 @@ interface EditTokenDrawerProps {
   onSave: (path: string[], newValue: any) => void;
 }
 
+const TOKEN_TYPE_OPTIONS: Array<{ label: string; value: TokenType }> = [
+  { label: "Asset", value: "asset" },
+  { label: "Boolean", value: "boolean" },
+  { label: "Border", value: "border" },
+  { label: "Border Radius", value: "borderRadius" },
+  { label: "Border Width", value: "borderWidth" },
+  { label: "Color", value: "color" },
+  { label: "Cubic Bezier", value: "cubicBezier" },
+  { label: "Dimension", value: "dimension" },
+  { label: "Duration", value: "duration" },
+  { label: "Font Family", value: "fontFamily" },
+  { label: "Font Size", value: "fontSize" },
+  { label: "Font Weight", value: "fontWeight" },
+  { label: "Letter Spacing", value: "letterSpacing" },
+  { label: "Line Height", value: "lineHeight" },
+  { label: "Number", value: "number" },
+  { label: "Opacity", value: "opacity" },
+  { label: "Shadow", value: "shadow" },
+  { label: "Size", value: "size" },
+  { label: "Space", value: "space" },
+  { label: "Text", value: "text" },
+  { label: "Text Case", value: "textCase" },
+  { label: "Text Decoration", value: "textDecoration" },
+  { label: "Typography", value: "typography" },
+];
+
+const TOKEN_FUNCTIONS = [
+  { name: "color.mix", description: "Mix two colors with an optional amount." },
+  { name: "color.darken", description: "Darken a color by a relative amount." },
+  { name: "color.lighten", description: "Lighten a color by a relative amount." },
+  { name: "adjust.hue", description: "Adjust a color's hue in degrees." },
+  { name: "adjust.sat", description: "Adjust a color's saturation. Positive values increase saturation." },
+  { name: "adjust.lightness", description: "Adjust a color's lightness. Positive values make it lighter." },
+];
+
+function parseTypography(raw: string) {
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === "object") {
+      return {
+        fontFamily: String(obj.fontFamily || obj.fontFamilies || ""),
+        fontSize: String(obj.fontSize || obj.fontSizes || ""),
+        fontWeight: String(obj.fontWeight || obj.fontWeights || ""),
+        lineHeight: String(obj.lineHeight || obj.lineHeights || ""),
+        letterSpacing: String(obj.letterSpacing || ""),
+        paragraphSpacing: String(obj.paragraphSpacing || ""),
+        textCase: String(obj.textCase || ""),
+        textDecoration: String(obj.textDecoration || ""),
+      };
+    }
+  } catch {
+    /* raw string */
+  }
+  return {
+    fontFamily: "",
+    fontSize: "",
+    fontWeight: "",
+    lineHeight: "",
+    letterSpacing: "",
+    paragraphSpacing: "",
+    textCase: "",
+    textDecoration: "",
+  };
+}
+
+function normalizeStoredType(type?: string): TokenType {
+  const map: Record<string, TokenType> = {
+    fontFamilies: "fontFamily",
+    fontWeights: "fontWeight",
+    fontSizes: "fontSize",
+    lineHeights: "lineHeight",
+    boxShadow: "shadow",
+    spacing: "space",
+    sizing: "size",
+  };
+  if (type && map[type]) return map[type];
+  if (TOKEN_TYPE_OPTIONS.some((o) => o.value === type)) return type as TokenType;
+  return (type as TokenType) || "color";
+}
+
 export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   token,
   isOpen,
   onClose,
   onSave,
 }) => {
-  const { rawTokens, resolvedTokens, renameToken, addNewToken, deleteToken } = useTokenStore();
+  const {
+    rawTokens,
+    resolvedTokens,
+    renameToken,
+    addNewToken,
+    deleteToken,
+    themeGroups,
+    activeThemeGroupId,
+    activeThemeOptionId,
+    userActivities,
+  } = useTokenStore();
 
-  // Form states
   const [tokenName, setTokenName] = useState("");
   const [tokenType, setTokenType] = useState<TokenType>("color");
   const [value, setValue] = useState("");
+  const [extraValues, setExtraValues] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [tokenSet, setTokenSet] = useState("");
   const [category, setCategory] = useState("");
-
-  // Typography sub-fields
-  const [typographyFields, setTypographyFields] = useState({
-    fontFamily: "",
-    fontWeight: "",
-    fontSize: "",
-    lineHeight: "",
-    letterSpacing: "",
-  });
-
-  // References popover state
-  const [isRefPopoverOpen, setIsRefPopoverOpen] = useState(false);
+  const [typographyMode, setTypographyMode] = useState<"structured" | "reference">("structured");
+  const [typographyFields, setTypographyFields] = useState(parseTypography(""));
+  const [picker, setPicker] = useState<"none" | "references" | "functions">("none");
   const [refSearch, setRefSearch] = useState("");
+  const [deprecated, setDeprecated] = useState(false);
+  const [deprecatedMessage, setDeprecatedMessage] = useState("");
+  const [replacementToken, setReplacementToken] = useState("");
+  const [deprecatedSeverity, setDeprecatedSeverity] = useState("Warning");
+  const [deprecatedRemoveAfter, setDeprecatedRemoveAfter] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const availableSets = useMemo(() => {
-    return Object.keys(rawTokens).filter((k) => !k.startsWith("$"));
-  }, [rawTokens]);
+  const availableSets = useMemo(
+    () => Object.keys(rawTokens).filter((k) => !k.startsWith("$")),
+    [rawTokens]
+  );
 
-  // Sync state on token change
+  const activeGroup = themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
+  const activeOption =
+    activeGroup?.options.find((o) => o.id === activeThemeOptionId) || activeGroup?.options[0];
+
   useEffect(() => {
     if (!token) return;
     setTokenName(token.name);
-    setTokenType(token.type || "color");
-
-    const parsedObj = safeParseObject(token.rawValue);
-    if (parsedObj && (token.type === "typography" || ("fontFamily" in parsedObj || "fontSize" in parsedObj))) {
-      setTypographyFields({
-        fontFamily: String(parsedObj.fontFamily || ""),
-        fontWeight: String(parsedObj.fontWeight || ""),
-        fontSize: String(parsedObj.fontSize || ""),
-        lineHeight: String(parsedObj.lineHeight || ""),
-        letterSpacing: String(parsedObj.letterSpacing || ""),
-      });
-      setValue(JSON.stringify(parsedObj));
-    } else {
-      setValue(
-        typeof token.rawValue === "object"
-          ? JSON.stringify(token.rawValue)
-          : String(token.rawValue || "")
-      );
-      setTypographyFields({
-        fontFamily: "",
-        fontWeight: "",
-        fontSize: "",
-        lineHeight: "",
-        letterSpacing: "",
-      });
-    }
-
+    setTokenType(normalizeStoredType(token.type));
+    setValue(typeof token.rawValue === "string" ? token.rawValue : JSON.stringify(token.rawValue));
+    setExtraValues([]);
     setDescription(token.description || "");
     setTokenSet(token.setName || availableSets[0] || "");
-    setCategory(token.group || "");
-    setIsRefPopoverOpen(false);
+    setCategory(token.category || token.group || "");
+    setTypographyFields(parseTypography(String(token.rawValue || "")));
+    setTypographyMode(
+      String(token.rawValue || "").trim().startsWith("{") && !String(token.rawValue || "").includes("fontFamily")
+        ? "reference"
+        : "structured"
+    );
+    setDeprecated(Boolean(token.deprecated));
+    setDeprecatedMessage(token.deprecatedMessage || "");
+    setReplacementToken(token.deprecatedReplacement || "");
+    setDeprecatedSeverity(token.deprecatedSeverity || "Warning");
+    setDeprecatedRemoveAfter(token.deprecatedRemoveAfter || "");
+    setPicker("none");
   }, [token, availableSets]);
 
-  // Close popover when clicked outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setIsRefPopoverOpen(false);
+        setPicker("none");
       }
     };
-    if (isRefPopoverOpen) {
+    if (picker !== "none") {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isRefPopoverOpen]);
+  }, [picker]);
+
+  const filteredReferences = useMemo(() => {
+    if (!token) return [];
+    const q = refSearch.toLowerCase();
+    return resolvedTokens.filter((t) => {
+      if (t.id === token.id) return false;
+      if (!q) return true;
+      return (
+        t.name.toLowerCase().includes(q) ||
+        String(t.resolvedValue || "").toLowerCase().includes(q) ||
+        String(t.type || "").toLowerCase().includes(q)
+      );
+    });
+  }, [resolvedTokens, refSearch, token]);
+
+  const historyItems = useMemo(() => {
+    if (!token) return [];
+    return userActivities.filter((a) => {
+      const metaToken = String(a.metadata?.token || "");
+      return metaToken === token.name || a.description?.includes(token.name);
+    });
+  }, [userActivities, token]);
 
   if (!isOpen || !token) return null;
 
-  // Filter available reference tokens
-  const filteredReferences = resolvedTokens.filter((t) => {
-    if (t.id === token.id) return false; // don't reference self
-    if (!refSearch.trim()) return true;
-    const q = refSearch.toLowerCase();
-    return (
-      t.name.toLowerCase().includes(q) ||
-      String(t.resolvedValue || "").toLowerCase().includes(q) ||
-      String(t.type || "").toLowerCase().includes(q)
-    );
-  });
-
-  const handleInsertReference = (refName: string) => {
-    setValue(`{${refName}}`);
-    setIsRefPopoverOpen(false);
+  const composeValue = () => {
+    if (tokenType === "typography" && typographyMode === "structured") {
+      return { ...typographyFields };
+    }
+    if ((tokenType === "fontFamily" || tokenType === "color") && extraValues.length > 0) {
+      return [value, ...extraValues.filter(Boolean)];
+    }
+    return value;
   };
 
   const handleSave = () => {
     const cleanName = tokenName.trim();
-    let currentPath = token.path;
+    const pathWithoutSet = token.path[0] === token.setName ? token.path.slice(1) : token.path;
+    let currentPath = token.path[0] === token.setName ? token.path : [token.setName, ...token.path];
+    const parsedValue = composeValue();
+    const payload = {
+      value: parsedValue,
+      type: tokenType,
+      description: description.trim() || undefined,
+      category: category.trim() || undefined,
+      $deprecated: deprecated || undefined,
+      $deprecatedMessage: deprecated ? deprecatedMessage.trim() : undefined,
+      $replacementToken: deprecated ? replacementToken.trim() : undefined,
+      $deprecatedSeverity: deprecated ? deprecatedSeverity : undefined,
+      $deprecatedRemoveAfter: deprecated ? deprecatedRemoveAfter : undefined,
+    };
 
-    // 1. If set changed, move token
     if (tokenSet && tokenSet !== token.setName) {
       addNewToken(tokenSet, cleanName.split("."), {
-        value,
+        value: parsedValue,
         type: tokenType,
         description: description.trim() || undefined,
       });
-      deleteToken(token.setName, token.path);
+      deleteToken(token.setName, pathWithoutSet);
       onClose();
       return;
     }
 
-    // 2. If name changed, rename
     if (cleanName && cleanName !== token.name) {
-      renameToken(token.setName, token.path, cleanName);
-      currentPath = cleanName.split(".");
+      renameToken(token.setName, pathWithoutSet, cleanName);
+      currentPath = [token.setName, ...cleanName.split(".")];
     }
 
-    // 3. Update value & metadata
-    let parsedValue: any = value;
-    if (tokenType === "typography" && typographyFields.fontFamily) {
-      parsedValue = { ...typographyFields };
-    } else if (value.startsWith("{") && value.endsWith("}") && !value.includes(" ")) {
-      parsedValue = value;
-    } else {
-      try {
-        if (value.startsWith("{") || value.startsWith("[")) {
-          parsedValue = JSON.parse(value);
-        }
-      } catch {
-        parsedValue = value;
-      }
-    }
-
-    onSave(currentPath, {
-      value: parsedValue,
-      type: tokenType,
-      description: description.trim() || undefined,
-    });
+    onSave(currentPath, payload);
+    onClose();
   };
 
-  const isCompositeTypography =
-    tokenType === "typography" &&
-    !value.startsWith("{") &&
-    (typographyFields.fontFamily || typographyFields.fontSize || typographyFields.fontWeight);
+  const showStructuredTypography = tokenType === "typography" && typographyMode === "structured";
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-      {/* Backdrop */}
       <div
         onClick={onClose}
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
       />
 
-      {/* Slide-Over Drawer Container (Matching Video Frame 017) */}
       <div className="relative w-full max-w-[480px] bg-background border-l border-border shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-200 text-foreground font-sans select-none">
-        {/* Drawer Header */}
-        <div className="h-14 px-6 border-b border-border flex items-center justify-between bg-background flex-shrink-0">
-          <span className="text-sm font-bold text-foreground">Edit Token</span>
+        <div className="px-6 pt-5 pb-3 border-b border-border flex items-start justify-between bg-background flex-shrink-0">
+          <div>
+            <h2 className="text-sm font-bold text-foreground">Edit Token</h2>
+          </div>
           <button
             onClick={onClose}
             className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
@@ -203,296 +279,360 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
           </button>
         </div>
 
-        {/* Drawer Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs font-sans">
-          {/* Token Name * */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">
-              Token Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              type="text"
-              value={tokenName}
-              onChange={(e) => setTokenName(e.target.value)}
-              className="h-9 text-xs font-mono bg-background border-border"
-              placeholder="e.g. border.lg"
-            />
+        <Tabs defaultValue="token" className="flex-1 min-h-0 flex flex-col">
+          <div className="px-6 pt-3">
+            <TabsList className="h-8">
+              <TabsTrigger value="token">Token</TabsTrigger>
+              <TabsTrigger value="figma">Figma</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
           </div>
 
-          {/* Token Type * */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">
-              Token Type <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={tokenType}
-              onValueChange={(val) => setTokenType(val as TokenType)}
-            >
-              <SelectTrigger className="h-9 text-xs bg-background border-border capitalize">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="text-xs">
-                <SelectItem value="color">Color</SelectItem>
-                <SelectItem value="dimension">Dimension</SelectItem>
-                <SelectItem value="spacing">Spacing</SelectItem>
-                <SelectItem value="borderRadius">Border Radius</SelectItem>
-                <SelectItem value="borderWidth">Border Width</SelectItem>
-                <SelectItem value="typography">Typography</SelectItem>
-                <SelectItem value="boxShadow">Box Shadow</SelectItem>
-                <SelectItem value="opacity">Opacity</SelectItem>
-                <SelectItem value="fontFamilies">Font Families</SelectItem>
-                <SelectItem value="fontWeights">Font Weights</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Value * (with Help ? on left and References Popover Picker on right) */}
-          <div className="space-y-1.5 relative" ref={popoverRef}>
-            <Label className="text-xs font-semibold text-foreground">
-              Value <span className="text-destructive">*</span>
-            </Label>
-
-            <div className="relative flex items-center">
-              {/* Left Help Icon */}
-              <div
-                className="absolute left-2.5 text-muted-foreground hover:text-foreground cursor-help"
-                title="Use {token.name} for alias references"
-              >
-                <HelpCircle className="w-3.5 h-3.5" />
-              </div>
-
-              {/* Value Input */}
+          <TabsContent value="token" className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 mt-0">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Token Name <span className="text-destructive">*</span>
+              </Label>
               <Input
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="h-9 pl-8 pr-8 text-xs font-mono bg-background border-border text-foreground"
-                placeholder="e.g. {unites.x4} or #ffffff"
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                className="h-9 text-xs font-mono"
               />
-
-              {/* Popover Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setIsRefPopoverOpen((prev) => !prev)}
-                className="absolute right-2.5 text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
-                title="Choose Token Reference"
-              >
-                {isRefPopoverOpen ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </button>
             </div>
 
-            {/* References Dropdown Popover */}
-            {isRefPopoverOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-background border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                {/* Search in Popover */}
-                <div className="relative px-3 py-2 border-b border-border">
-                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={refSearch}
-                    onChange={(e) => setRefSearch(e.target.value)}
-                    placeholder="Search references..."
-                    className="w-full pl-7 pr-7 h-8 bg-muted/40 border border-border rounded-md text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
-                  />
-                  {refSearch && (
-                    <button
-                      onClick={() => setRefSearch("")}
-                      className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Token Type <span className="text-destructive">*</span>
+              </Label>
+              <Select value={tokenType} onValueChange={(val) => setTokenType(val as TokenType)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="text-xs max-h-72">
+                  {TOKEN_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                {/* Reference Items List */}
-                <div className="max-h-56 overflow-y-auto p-1 divide-y divide-border/30">
-                  {filteredReferences.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-muted-foreground">
-                      No matching tokens found
-                    </div>
-                  ) : (
-                    filteredReferences.slice(0, 30).map((refToken) => {
-                      const isColor =
-                        refToken.type === "color" ||
-                        /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(
-                          String(refToken.resolvedValue || "")
-                        );
-                      return (
-                        <button
-                          key={refToken.id}
-                          type="button"
-                          onClick={() => handleInsertReference(refToken.name)}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-muted/70 text-left transition-colors cursor-pointer group"
-                        >
-                          <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate">
-                            {refToken.name}
-                          </span>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <span className="text-[10px] text-muted-foreground font-sans">
-                              {refToken.type}
-                            </span>
-                            {isColor && (
-                              <div
-                                className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    refToken.resolvedHex || refToken.resolvedValue,
-                                }}
-                              />
-                            )}
-                            <span className="text-[10px] font-mono text-muted-foreground">
-                              {typeof refToken.resolvedValue === "string"
-                                ? refToken.resolvedValue
-                                : ""}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
+            {tokenType === "typography" && (
+              <div className="flex justify-end">
+                <div className="inline-flex p-0.5 rounded-lg bg-muted border border-border text-[11px]">
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-2.5 py-1 rounded-md cursor-pointer",
+                      typographyMode === "structured" && "bg-background shadow-2xs font-semibold"
+                    )}
+                    onClick={() => setTypographyMode("structured")}
+                  >
+                    Structured
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-2.5 py-1 rounded-md cursor-pointer",
+                      typographyMode === "reference" && "bg-background shadow-2xs font-semibold"
+                    )}
+                    onClick={() => setTypographyMode("reference")}
+                  >
+                    Reference
+                  </button>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Typography composite fields */}
-          {tokenType === "typography" && (
-            <div className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-3">
-              <div className="text-xs font-semibold text-foreground">Typography Properties</div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Font Family</Label>
-                  <Input
-                    type="text"
-                    value={typographyFields.fontFamily}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, fontFamily: e.target.value }))
-                    }
-                    className="h-8 text-xs bg-background"
-                    placeholder="e.g. Inter"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Font Weight</Label>
-                  <Input
-                    type="text"
-                    value={typographyFields.fontWeight}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, fontWeight: e.target.value }))
-                    }
-                    className="h-8 text-xs bg-background"
-                    placeholder="e.g. 500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Font Size</Label>
-                  <Input
-                    type="text"
-                    value={typographyFields.fontSize}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, fontSize: e.target.value }))
-                    }
-                    className="h-8 text-xs bg-background"
-                    placeholder="e.g. 16px"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Line Height</Label>
-                  <Input
-                    type="text"
-                    value={typographyFields.lineHeight}
-                    onChange={(e) =>
-                      setTypographyFields((p) => ({ ...p, lineHeight: e.target.value }))
-                    }
-                    className="h-8 text-xs bg-background"
-                    placeholder="e.g. 24px"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Letter Spacing</Label>
-                <Input
-                  type="text"
-                  value={typographyFields.letterSpacing}
-                  onChange={(e) =>
-                    setTypographyFields((p) => ({ ...p, letterSpacing: e.target.value }))
-                  }
-                  className="h-8 text-xs bg-background"
-                  placeholder="e.g. -0.02em"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">
-              Description
-            </Label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add notes about usage, design intent, or responsive behavior..."
-              className="w-full text-xs p-3 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none font-sans"
-            />
-          </div>
-
-          {/* Token Set * */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">
-              Token Set <span className="text-destructive">*</span>
-            </Label>
-            <Select value={tokenSet} onValueChange={setTokenSet}>
-              <SelectTrigger className="h-9 text-xs font-mono bg-background border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="text-xs font-mono">
-                {availableSets.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
+            {showStructuredTypography ? (
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    ["fontFamily", "Font Family"],
+                    ["fontSize", "Font Size"],
+                    ["fontWeight", "Font Weight"],
+                    ["lineHeight", "Line Height"],
+                    ["letterSpacing", "Letter Spacing"],
+                    ["paragraphSpacing", "Paragraph Spacing"],
+                    ["textCase", "Text Case"],
+                    ["textDecoration", "Text Decoration"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-[11px]">{label}</Label>
+                    <Input
+                      value={typographyFields[key]}
+                      onChange={(e) =>
+                        setTypographyFields((prev) => ({ ...prev, [key]: e.target.value }))
+                      }
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5 relative" ref={popoverRef}>
+                <Label className="text-xs font-semibold">
+                  Value <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative flex items-center">
+                  <HelpCircle className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5" />
+                  <Input
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    className="h-9 pl-8 pr-2 text-xs font-mono"
+                    placeholder="{token.name} or a raw value"
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    type="button"
+                    variant={picker === "references" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 text-[11px]"
+                    onClick={() => setPicker((p) => (p === "references" ? "none" : "references"))}
+                  >
+                    References
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={picker === "functions" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 text-[11px]"
+                    onClick={() => setPicker((p) => (p === "functions" ? "none" : "functions"))}
+                  >
+                    Functions
+                  </Button>
+                </div>
 
-          {/* Category */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">
-              Category
-            </Label>
-            <Input
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-9 text-xs bg-background border-border"
-              placeholder="e.g. colors, spacing, typography"
-            />
-          </div>
-        </div>
+                {picker === "references" && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-background border border-border rounded-xl shadow-2xl overflow-hidden">
+                    <div className="relative px-3 py-2 border-b border-border">
+                      <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-5 top-1/2 -translate-y-1/2" />
+                      <input
+                        value={refSearch}
+                        onChange={(e) => setRefSearch(e.target.value)}
+                        placeholder="Search tokens..."
+                        className="w-full pl-7 h-8 bg-muted/40 border border-border rounded-md text-xs outline-none"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-1">
+                      {filteredReferences.slice(0, 40).map((refToken) => (
+                        <button
+                          key={refToken.id}
+                          type="button"
+                          onClick={() => {
+                            setValue(`{${refToken.name}}`);
+                            setPicker("none");
+                          }}
+                          className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs hover:bg-muted cursor-pointer"
+                        >
+                          <span className="font-mono truncate">{refToken.name}</span>
+                          <span className="text-muted-foreground truncate ml-2 max-w-[40%]">
+                            {refToken.resolvedValue}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-        {/* Fixed Bottom Action Bar (Matching Frame 017) */}
-        <div className="h-16 px-6 border-t border-border flex items-center justify-end gap-3 bg-background flex-shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            className="h-8 px-4 text-xs font-medium cursor-pointer"
-          >
+                {picker === "functions" && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-background border border-border rounded-xl shadow-2xl overflow-hidden">
+                    <div className="px-3 py-2 text-[11px] font-semibold text-muted-foreground border-b">
+                      Search functions...
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-1">
+                      {TOKEN_FUNCTIONS.map((fn) => (
+                        <button
+                          key={fn.name}
+                          type="button"
+                          onClick={() => {
+                            setValue(`${fn.name}(${value || "$value"})`);
+                            setPicker("none");
+                          }}
+                          className="w-full text-left px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer"
+                        >
+                          <div className="text-xs font-mono font-semibold">{fn.name}</div>
+                          <div className="text-[11px] text-muted-foreground">{fn.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(tokenType === "color" || tokenType === "fontFamily") && (
+                  <div className="space-y-2">
+                    {extraValues.map((extra, idx) => (
+                      <Input
+                        key={idx}
+                        value={extra}
+                        onChange={(e) =>
+                          setExtraValues((prev) => prev.map((item, i) => (i === idx ? e.target.value : item)))
+                        }
+                        className="h-8 text-xs font-mono"
+                        placeholder="Additional value"
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary flex items-center gap-1 cursor-pointer"
+                      onClick={() => setExtraValues((prev) => [...prev, ""])}
+                    >
+                      <Plus className="size-3" /> Add value
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Description</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe this token."
+                className="min-h-16 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Token Set <span className="text-destructive">*</span>
+              </Label>
+              <Select value={tokenSet} onValueChange={setTokenSet}>
+                <SelectTrigger className="h-9 text-xs font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="text-xs max-h-72">
+                  {availableSets.map((setName) => (
+                    <SelectItem key={setName} value={setName}>
+                      {setName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Category</Label>
+              <Input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="h-9 text-xs"
+                placeholder="colors"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <Label className="text-xs font-semibold">Mark as deprecated</Label>
+              <Switch checked={deprecated} onCheckedChange={setDeprecated} />
+            </div>
+
+            {deprecated && (
+              <div className="space-y-3 rounded-xl border border-border p-3 bg-muted/20">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Deprecation Message</Label>
+                  <Input
+                    value={deprecatedMessage}
+                    onChange={(e) => setDeprecatedMessage(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Explain why this token is deprecated."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Replacement Token</Label>
+                  <Input
+                    value={replacementToken}
+                    onChange={(e) => setReplacementToken(e.target.value)}
+                    className="h-8 text-xs font-mono"
+                    placeholder="{color.brand.primary}"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px]">Severity</Label>
+                    <Select value={deprecatedSeverity} onValueChange={setDeprecatedSeverity}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs">
+                        <SelectItem value="Warning">Warning</SelectItem>
+                        <SelectItem value="Error">Error</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px]">Remove After</Label>
+                    <Input
+                      type="date"
+                      value={deprecatedRemoveAfter}
+                      onChange={(e) => setDeprecatedRemoveAfter(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="figma" className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 mt-0">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Variable key</Label>
+              <Input
+                readOnly
+                value={token.figmaVariableKey || activeOption?.figmaVariableReferences?.[token.name] || "—"}
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Collection ID</Label>
+              <Input
+                readOnly
+                value={activeOption?.figmaCollectionId || "—"}
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Mode ID</Label>
+              <Input
+                readOnly
+                value={activeOption?.figmaModeId || "—"}
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Figma mapping is pulled from the active theme option. Sync variables to populate these fields.
+            </p>
+          </TabsContent>
+
+          <TabsContent value="history" className="flex-1 min-h-0 overflow-y-auto p-6 mt-0">
+            {historyItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No history yet for this token. Edits you save in this workspace will appear here.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {historyItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-border p-3">
+                    <div className="text-xs font-semibold">{item.title}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{item.description}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1 font-mono">
+                      {item.timestamp}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <div className="p-4 border-t border-border flex items-center justify-end gap-2 bg-muted/20">
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>
-
-          <Button
-            size="sm"
-            onClick={handleSave}
-            className="h-8 px-4 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-2xs"
-          >
+          <Button type="button" size="sm" onClick={handleSave}>
             Update Token
           </Button>
         </div>

@@ -3,6 +3,7 @@ import {
   ThemeGroup,
   ThemeOption,
   TokenType,
+  ThemeResolutionConfig,
 } from "@/types/tokens";
 import {
   isTokenLeaf,
@@ -13,6 +14,8 @@ import {
   compareTokenNames,
   compareResolvedValues,
   compareTokens,
+  buildTokenLookupIndex,
+  TokenLookupIndex,
 } from "@/utils/transformTokens";
 
 // Palette colors for theme groups
@@ -528,6 +531,176 @@ export function extractThemeGroups(rawDoc: RawTokensDocument): ThemeGroup[] {
   return groups;
 }
 
+export interface ActiveThemeSetsInfo {
+  activeSetsOrder: string[]; // Array of set names ordered from lowest tier (foundation) to highest tier (brand)
+  activeSets: Set<string>; // All set names that are active (enabled or source)
+  enabledSets: Set<string>; // Set names enabled in active options
+  sourceSets: Set<string>; // Set names source in active options
+  inactiveSets: Set<string>; // Set names belonging to inactive theme options in theme groups
+}
+
+/**
+ * Determines active and inactive token sets based on the user's active theme options.
+ * Orders active sets by tier:
+ * Tier 1 (Foundation / Core) -> Tier 2 (Alias / Semantic) -> Tier 3 (Mode / Scheme) -> Tier 4 (Brand / Client)
+ * Within each tier: source sets first, then enabled sets.
+ */
+export function getActiveThemeSets(
+  themeGroups: ThemeGroup[],
+  activeThemeOptionIds: Record<string, string>,
+  rawDoc: RawTokensDocument
+): ActiveThemeSetsInfo {
+  const enabledSets = new Set<string>();
+  const sourceSets = new Set<string>();
+  const activeSets = new Set<string>();
+  const inactiveCandidateSets = new Set<string>();
+
+  if (!themeGroups || themeGroups.length === 0 || !rawDoc) {
+    return {
+      activeSetsOrder: [],
+      activeSets,
+      enabledSets,
+      sourceSets,
+      inactiveSets: new Set(),
+    };
+  }
+
+  // Tier assignment for theme groups
+  const getGroupTier = (groupName: string): number => {
+    const g = String(groupName || "").toLowerCase();
+    if (
+      g.includes("foundation") ||
+      g.includes("core") ||
+      g.includes("primitive") ||
+      g.includes("base") ||
+      g.includes("global")
+    ) {
+      return 1;
+    }
+    if (
+      g.includes("alias") ||
+      g.includes("semantic") ||
+      g.includes("component")
+    ) {
+      return 2;
+    }
+    if (
+      g.includes("mode") ||
+      g.includes("theme") ||
+      g.includes("scheme") ||
+      g.includes("light") ||
+      g.includes("dark")
+    ) {
+      return 3;
+    }
+    if (
+      g.includes("brand") ||
+      g.includes("brands") ||
+      g.includes("client") ||
+      g.includes("tenant")
+    ) {
+      return 4;
+    }
+    return 2.5;
+  };
+
+  // Sort groups by tier
+  const sortedGroups = [...themeGroups].sort((a, b) => {
+    return getGroupTier(a.name) - getGroupTier(b.name);
+  });
+
+  // Track tier-ordered sets: tier -> { source: string[], enabled: string[] }
+  const tierMap = new Map<number, { source: string[]; enabled: string[] }>();
+
+  sortedGroups.forEach((group) => {
+    const activeOptId = activeThemeOptionIds[group.id] || group.options[0]?.id;
+    const tier = getGroupTier(group.name);
+
+    if (!tierMap.has(tier)) {
+      tierMap.set(tier, { source: [], enabled: [] });
+    }
+    const bucket = tierMap.get(tier)!;
+
+    group.options.forEach((option) => {
+      const isActive = option.id === activeOptId;
+      const selected = normalizeSelectedTokenSets(option.selectedTokenSets);
+      const entries = Object.entries(selected);
+
+      if (entries.length > 0) {
+        entries.forEach(([setName, status]) => {
+          const matched = findSetsInDoc(setName, rawDoc);
+          const keys =
+            matched.length > 0
+              ? matched.map((m) => m.actualKey)
+              : rawDoc[setName]
+              ? [setName]
+              : [];
+
+          keys.forEach((actualKey) => {
+            if (isActive) {
+              if (status === "enabled") {
+                enabledSets.add(actualKey);
+                activeSets.add(actualKey);
+                if (!bucket.enabled.includes(actualKey)) bucket.enabled.push(actualKey);
+              } else if (status === "source") {
+                sourceSets.add(actualKey);
+                activeSets.add(actualKey);
+                if (!bucket.source.includes(actualKey)) bucket.source.push(actualKey);
+              }
+            } else {
+              if (status === "enabled" || status === "source") {
+                inactiveCandidateSets.add(actualKey);
+              }
+            }
+          });
+        });
+      } else {
+        // Option has no selectedTokenSets declared — check fallback by option or group name
+        const optMatches = findSetsInDoc(option.name, rawDoc);
+        const keys = optMatches.length > 0 ? optMatches.map((m) => m.actualKey) : [];
+        keys.forEach((actualKey) => {
+          if (isActive) {
+            enabledSets.add(actualKey);
+            activeSets.add(actualKey);
+            if (!bucket.enabled.includes(actualKey)) bucket.enabled.push(actualKey);
+          } else {
+            inactiveCandidateSets.add(actualKey);
+          }
+        });
+      }
+    });
+  });
+
+  // Inactive sets: any candidate set from an inactive option that is NOT active in any active option
+  const inactiveSets = new Set<string>();
+  inactiveCandidateSets.forEach((setKey) => {
+    if (!activeSets.has(setKey)) {
+      inactiveSets.add(setKey);
+    }
+  });
+
+  // Build activeSetsOrder from lowest tier to highest tier (source then enabled per tier)
+  const activeSetsOrder: string[] = [];
+  const tiers = Array.from(tierMap.keys()).sort((a, b) => a - b);
+  tiers.forEach((t) => {
+    const { source, enabled } = tierMap.get(t)!;
+    source.forEach((s) => {
+      if (!activeSetsOrder.includes(s)) activeSetsOrder.push(s);
+    });
+    enabled.forEach((s) => {
+      if (!activeSetsOrder.includes(s)) activeSetsOrder.push(s);
+    });
+  });
+
+  return {
+    activeSetsOrder,
+    activeSets,
+    enabledSets,
+    sourceSets,
+    inactiveSets,
+  };
+}
+
 export type TokenCategory =
   | "color"
   | "typography"
@@ -662,7 +835,9 @@ function findNodeByPath(tree: any, pathSegments: string[], setName?: string): an
  */
 export function buildThemeMatrix(
   rawDoc: RawTokensDocument,
-  group: ThemeGroup
+  group: ThemeGroup,
+  activeThemeOptionIds: Record<string, string> = {},
+  allThemeGroups: ThemeGroup[] = []
 ): MatrixRowData[] {
   if (!rawDoc || !group || group.options.length === 0) return [];
 
@@ -784,6 +959,23 @@ export function buildThemeMatrix(
   // 3. For each token, populate cells for each option in this group from its enabled sets (or source sets)
   const rows: MatrixRowData[] = [];
 
+  // Pre-build lookup index for each option column, incorporating active sets from all other theme groups
+  const optionLookupIndices = new Map<string, TokenLookupIndex>();
+  const effectiveGroups = allThemeGroups.length > 0 ? allThemeGroups : [group];
+
+  group.options.forEach((option) => {
+    const optionOptionIds = {
+      ...activeThemeOptionIds,
+      [group.id]: option.id,
+    };
+    const themeInfo = getActiveThemeSets(effectiveGroups, optionOptionIds, rawDoc);
+    const lookupIndex = buildTokenLookupIndex(rawDoc, {
+      activeSetsOrder: themeInfo.activeSetsOrder,
+      inactiveSets: themeInfo.inactiveSets,
+    });
+    optionLookupIndices.set(option.name, lookupIndex);
+  });
+
   groupTokensMap.forEach(({ type, group: tokenGroup, pathSegments }, tokenKey) => {
     const cells: Record<string, MatrixCellData | undefined> = {};
 
@@ -805,8 +997,9 @@ export function buildThemeMatrix(
 
       if (foundLeaf) {
         const rawValue = getLeafValue(foundLeaf);
-        // Alias resolution uses rawDoc (which includes all source sets in the background)
-        const resolvedValue = resolveTokenAlias(rawValue, rawDoc, foundSetName);
+        // Alias resolution uses option-specific lookup index combining this option with active options from other groups
+        const optionIndex = optionLookupIndices.get(option.name);
+        const resolvedValue = resolveTokenAlias(rawValue, rawDoc, foundSetName, new Set(), optionIndex);
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
 
         cells[option.name] = {

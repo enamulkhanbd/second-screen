@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
-import { ThemeConfigurationView } from "@/components/ThemeConfigurationView";
+import { ThemeMatrix } from "@/components/ThemeMatrix";
 import { TokensWorkspace } from "@/components/TokensWorkspace";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
@@ -202,7 +202,10 @@ export default function Home() {
             onOpenContextNavigation={() => setIsContextNavOpen(true)}
           />
         ) : sidebarTab === "themes" ? (
-          <ThemeConfigurationView />
+          <ThemeMatrix
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenContextNavigation={() => setIsContextNavOpen(true)}
+          />
         ) : null}
       </div>
       </div>
