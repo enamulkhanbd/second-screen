@@ -128,23 +128,31 @@ export async function POST(req: NextRequest) {
               pushBranch = newBranchName;
             }
 
-            // Commit each file
-            for (const file of filesToPush) {
-              const getFileUrl = `https://api.github.com/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(
-                target.repo
-              )}/contents/${encodeURIComponent(file.path)}?ref=${encodeURIComponent(pushBranch)}`;
+            // Fetch file SHAs in parallel to optimize overall latency
+            const fileShas = new Map<string, string>();
+            await Promise.all(
+              filesToPush.map(async (file) => {
+                const getFileUrl = `https://api.github.com/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(
+                  target.repo
+                )}/contents/${encodeURIComponent(file.path)}?ref=${encodeURIComponent(pushBranch)}`;
 
-              let sha: string | undefined = undefined;
-              try {
-                const getRes = await fetch(getFileUrl, { headers, cache: "no-store" });
-                if (getRes.ok) {
-                  const fData = await getRes.json();
-                  sha = fData.sha;
+                try {
+                  const getRes = await fetch(getFileUrl, { headers, cache: "no-store" });
+                  if (getRes.ok) {
+                    const fData = await getRes.json();
+                    if (fData.sha) {
+                      fileShas.set(file.path, fData.sha);
+                    }
+                  }
+                } catch {
+                  // ignore
                 }
-              } catch {
-                // ignore
-              }
+              })
+            );
 
+            // Commit each file sequentially
+            for (const file of filesToPush) {
+              const sha = fileShas.get(file.path);
               const putFileUrl = `https://api.github.com/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(
                 target.repo
               )}/contents/${encodeURIComponent(file.path)}`;
