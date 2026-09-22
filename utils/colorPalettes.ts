@@ -439,18 +439,21 @@ export function generateDynamicShades(hex: string): Record<ColorShade["step"], s
 // Color Math Helpers
 // -------------------------------------------------------------
 export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const clean = hex.replace("#", "").trim();
+  const clean = hex.trim().replace(/^#/, "");
+  if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(clean)) {
+    return null;
+  }
   if (clean.length === 3) {
     const r = parseInt(clean[0] + clean[0], 16);
     const g = parseInt(clean[1] + clean[1], 16);
     const b = parseInt(clean[2] + clean[2], 16);
-    return isNaN(r) || isNaN(g) || isNaN(b) ? null : { r, g, b };
+    return { r, g, b };
   }
   if (clean.length === 6) {
     const r = parseInt(clean.substring(0, 2), 16);
     const g = parseInt(clean.substring(2, 4), 16);
     const b = parseInt(clean.substring(4, 6), 16);
-    return isNaN(r) || isNaN(g) || isNaN(b) ? null : { r, g, b };
+    return { r, g, b };
   }
   return null;
 }
