@@ -1,4 +1,4 @@
-import { FlattenedToken, ThemeGroup, TokenType } from "@/types/tokens";
+import { TokenType } from "@/types/tokens";
 
 export type ExportViewType =
   | "hub"
