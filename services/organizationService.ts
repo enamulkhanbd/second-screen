@@ -23,7 +23,7 @@ import {
   AssetGitConfig,
   AssetFigmaConfig,
 } from "@/types/tenant";
-import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem, ProjectBranch, BranchCommit, BranchComment } from "@/types/tokens";
+import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem, ProjectBranch } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
 // -------------------------------------------------------------
