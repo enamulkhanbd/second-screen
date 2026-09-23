@@ -24,12 +24,7 @@ if (isFirebaseConfigured) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-    // Initialize Firestore instance on server side or when required.
-    // Restricting or isolating client-side Firestore initialization ensures
-    // the browser WebChannel transport layer does not spawn channel?VER=8 requests.
-    if (typeof window === "undefined") {
-      db = getFirestore(app);
-    }
+    db = getFirestore(app);
 
     if (typeof window !== "undefined") {
       auth = getAuth(app);
