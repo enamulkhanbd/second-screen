@@ -48,7 +48,7 @@ export function generateApiKey(
   }
 
   const record: ApiKeyRecord = {
-    id: `pat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `pat-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
     name: name.trim() || "Default Figma Plugin Key",
     keyPrefix,
     keyHash,

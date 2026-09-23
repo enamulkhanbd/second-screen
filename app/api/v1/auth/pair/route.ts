@@ -44,16 +44,7 @@ function getRequestOrigin(req: NextRequest): string {
   return req.nextUrl.origin || "http://localhost:3000";
 }
 
-function generatePairingCode(): string {
-  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let p1 = "";
-  let p2 = "";
-  for (let i = 0; i < 4; i++) {
-    p1 += chars.charAt(Math.floor(Math.random() * chars.length));
-    p2 += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `${p1}-${p2}`;
-}
+import { generatePairingCode } from "./generatePairingCode";
 
 export async function OPTIONS() {
   return handleOptionsCors();
