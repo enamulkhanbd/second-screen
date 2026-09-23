@@ -92,6 +92,14 @@ export function buildMetadataKey(orgId: string, projectId: string): string {
 }
 
 /**
+ * Builds the R2 object key for a project's asset configuration.
+ * Format: {orgId}/{projectId}/config.json
+ */
+export function buildConfigKey(orgId: string, projectId: string): string {
+  return `${orgId}/${projectId}/config.json`;
+}
+
+/**
  * Returns the public CDN URL for an R2 object key.
  */
 export function getPublicUrl(key: string): string {
@@ -287,6 +295,87 @@ export async function loadMetadataIndex(
 }
 
 /**
+ * Saves a project's asset configuration (Git sync & Figma sync settings) to R2.
+ * Key: {orgId}/{projectId}/config.json
+ */
+export async function uploadAssetConfig(
+  orgId: string,
+  projectId: string,
+  config: Record<string, any>
+): Promise<void> {
+  const client = getClient();
+  const key = buildConfigKey(orgId, projectId);
+  const payload = JSON.stringify(config, null, 2);
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: Buffer.from(payload, "utf-8"),
+      ContentType: "application/json",
+      CacheControl: "no-cache, no-store, must-revalidate",
+    })
+  );
+}
+
+/**
+ * Loads a project's asset configuration from R2.
+ * Returns null if the configuration file does not exist yet.
+ */
+export async function loadAssetConfig(
+  orgId: string,
+  projectId: string
+): Promise<Record<string, any> | null> {
+  const client = getClient();
+  const key = buildConfigKey(orgId, projectId);
+
+  try {
+    const response = await client.send(
+      new GetObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+      })
+    );
+
+    if (response.Body) {
+      const bodyStr = await response.Body.transformToString("utf-8");
+      return JSON.parse(bodyStr);
+    }
+    return null;
+  } catch (err: any) {
+    if (err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Deletes a project's asset configuration from R2.
+ */
+export async function deleteAssetConfig(
+  orgId: string,
+  projectId: string
+): Promise<void> {
+  const client = getClient();
+  const key = buildConfigKey(orgId, projectId);
+
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+      })
+    );
+  } catch (err: any) {
+    if (err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
  * Deletes a single asset from R2.
  */
 export async function deleteAsset(
@@ -357,7 +446,11 @@ export async function listProjectAssetKeys(
 
     if (response.Contents) {
       for (const obj of response.Contents) {
-        if (obj.Key && !obj.Key.endsWith("metadata.json")) {
+        if (
+          obj.Key &&
+          !obj.Key.endsWith("metadata.json") &&
+          !obj.Key.endsWith("config.json")
+        ) {
           keys.push(obj.Key);
         }
       }
@@ -390,7 +483,7 @@ export async function assetExists(key: string): Promise<boolean> {
 }
 
 /**
- * Deletes all assets and metadata for a project from R2.
+ * Deletes all assets, metadata, and config for a project from R2.
  * Used when a project is deleted.
  */
 export async function deleteAllProjectAssets(
@@ -398,9 +491,10 @@ export async function deleteAllProjectAssets(
   projectId: string
 ): Promise<void> {
   const keys = await listProjectAssetKeys(orgId, projectId);
-  // Also include the metadata index
+  // Also include the metadata index and project asset config
   const metaKey = buildMetadataKey(orgId, projectId);
-  const allKeys = [...keys, metaKey];
+  const configKey = buildConfigKey(orgId, projectId);
+  const allKeys = [...keys, metaKey, configKey];
   await deleteAssets(allKeys);
 }
 

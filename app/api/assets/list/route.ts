@@ -9,28 +9,91 @@ import {
 
 export const dynamic = "force-dynamic";
 
+async function fetchAssetMetadata(orgId: string, projectId: string) {
+  let metadata = await loadMetadataIndex(orgId, projectId);
+
+  // Auto-recovery: If metadata index is empty but objects exist in R2, reconstruct it
+  if (metadata.length === 0) {
+    const keys = await listProjectAssetKeys(orgId, projectId);
+    if (keys.length > 0) {
+      const now = new Date().toISOString();
+      metadata = keys.map((key) => {
+        const filename = key.split("/").pop() || "";
+        const namePart = filename.replace(/\.[^.]+$/, "");
+        const cleanName = namePart.replace(/^git__assets_icons_svg_/, "").replace(/_svg$/, "");
+        const formattedTitle = cleanName
+          .replace(/^Icon/, "")
+          .replace(/([A-Z])/g, " $1")
+          .trim();
+
+        const ext = filename.split(".").pop()?.toLowerCase() || "svg";
+        const contentType = ext === "svg" ? "image/svg+xml" : `image/${ext}`;
+
+        return {
+          id: namePart,
+          name: cleanName,
+          title: formattedTitle || cleanName,
+          type: cleanName.includes("Fill") ? "fill" : cleanName.includes("Outline") ? "outline" : "general",
+          category: "general",
+          url: getPublicUrl(key),
+          contentType,
+          updatedAt: now,
+          source: namePart.startsWith("git_") ? ("git" as const) : ("upload" as const),
+        };
+      });
+
+      // Save reconstructed index to R2 so future reads are instantaneous
+      await uploadMetadataIndex(orgId, projectId, metadata);
+    }
+  }
+
+  return metadata;
+}
+
+/**
+ * GET /api/assets/list?orgId={orgId}&projectId={projectId}
+ * Returns the asset metadata index for a project from Cloudflare R2.
+ */
+export async function GET(req: NextRequest) {
+  if (!isR2Configured) {
+    return NextResponse.json(
+      { success: false, error: "R2 storage is not configured." },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const orgId = searchParams.get("orgId");
+    const projectId = searchParams.get("projectId");
+
+    if (!orgId || !projectId) {
+      return NextResponse.json(
+        { success: false, error: "Missing required query parameters: orgId, projectId." },
+        { status: 400 }
+      );
+    }
+
+    const metadata = await fetchAssetMetadata(orgId, projectId);
+
+    return NextResponse.json({
+      success: true,
+      action: "list",
+      totalAssets: metadata.length,
+      assets: metadata,
+    });
+  } catch (err: any) {
+    console.error("R2 list error (GET):", err);
+    return NextResponse.json(
+      { success: false, error: err.message || "Failed to load asset metadata from R2." },
+      { status: 500 }
+    );
+  }
+}
+
 /**
  * POST /api/assets/list
- *
- * Returns the asset metadata index for a project from R2.
- * Also supports updating asset metadata (without re-uploading files).
- *
- * Request body (JSON):
- * {
- *   orgId: string;
- *   projectId: string;
- *   action?: "list" | "update-metadata";
- *
- *   // For "update-metadata" action only:
- *   updates?: Array<{
- *     id: string;
- *     title?: string;
- *     type?: string;
- *     tag?: string;
- *     category?: string;
- *     name?: string;
- *   }>;
- * }
+ * Returns or updates the asset metadata index for a project from R2.
  */
 export async function POST(req: NextRequest) {
   if (!isR2Configured) {
@@ -51,43 +114,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load metadata index from R2
-    let metadata = await loadMetadataIndex(orgId, projectId);
-
-    // Auto-recovery: If metadata index is empty but objects exist in R2, reconstruct it
-    if (metadata.length === 0) {
-      const keys = await listProjectAssetKeys(orgId, projectId);
-      if (keys.length > 0) {
-        const now = new Date().toISOString();
-        metadata = keys.map((key) => {
-          const filename = key.split("/").pop() || "";
-          const namePart = filename.replace(/\.[^.]+$/, "");
-          const cleanName = namePart.replace(/^git__assets_icons_svg_/, "").replace(/_svg$/, "");
-          const formattedTitle = cleanName
-            .replace(/^Icon/, "")
-            .replace(/([A-Z])/g, " $1")
-            .trim();
-
-          const ext = filename.split(".").pop()?.toLowerCase() || "svg";
-          const contentType = ext === "svg" ? "image/svg+xml" : `image/${ext}`;
-
-          return {
-            id: namePart,
-            name: cleanName,
-            title: formattedTitle || cleanName,
-            type: cleanName.includes("Fill") ? "fill" : cleanName.includes("Outline") ? "outline" : "general",
-            category: "general",
-            url: getPublicUrl(key),
-            contentType,
-            updatedAt: now,
-            source: namePart.startsWith("git_") ? ("git" as const) : ("upload" as const),
-          };
-        });
-
-        // Save reconstructed index to R2 so future reads are instantaneous
-        await uploadMetadataIndex(orgId, projectId, metadata);
-      }
-    }
+    let metadata = await fetchAssetMetadata(orgId, projectId);
 
     if (action === "update-metadata" && Array.isArray(updates) && updates.length > 0) {
       // Apply metadata updates without re-uploading files
@@ -129,7 +156,7 @@ export async function POST(req: NextRequest) {
       assets: metadata,
     });
   } catch (err: any) {
-    console.error("R2 list/metadata error:", err);
+    console.error("R2 list/metadata error (POST):", err);
     return NextResponse.json(
       { success: false, error: err.message || "Failed to load asset metadata from R2." },
       { status: 500 }

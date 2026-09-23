@@ -19,8 +19,6 @@ import {
   OrganizationMember,
   OrganizationInvitation,
   UserRole,
-  AssetGitConfig,
-  AssetFigmaConfig,
 } from "@/types/tenant";
 import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem, ProjectBranch } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
@@ -1038,81 +1036,6 @@ export async function saveProjectFigmaVariables(
   }
 }
 
-/**
- * Lightweight Firestore update: saves only the asset count and storage provider flag.
- * Used by R2 storage path — no SVG data is written to Firestore.
- */
-export async function saveProjectAssetCount(
-  orgId: string,
-  projectId: string,
-  count: number,
-  storageProvider: "r2" | "firestore" = "r2"
-): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
-  try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
-        assetsCount: count,
-        assetsStorageProvider: storageProvider,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  } catch (e) {
-    console.warn("Firestore error saving project asset count:", e);
-  }
-}
-
-
-/**
- * Dynamically saves independent Git asset configuration for a specific Project in Firestore
- */
-export async function saveProjectAssetGitConfig(
-  orgId: string,
-  projectId: string,
-  assetGitConfig: AssetGitConfig | null
-): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
-  try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
-        assetGitConfig: assetGitConfig || null,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  } catch (e) {
-    console.warn("Firestore error saving project asset git config:", e);
-  }
-}
-
-/**
- * Dynamically saves Figma asset configuration for a specific Project in Firestore
- */
-export async function saveProjectAssetFigmaConfig(
-  orgId: string,
-  projectId: string,
-  assetFigmaConfig: AssetFigmaConfig | null
-): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
-  try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
-        assetFigmaConfig: assetFigmaConfig || null,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  } catch (e) {
-    console.warn("Firestore error saving project asset figma config:", e);
-  }
-}
 
 // -------------------------------------------------------------
 // DOCUMENTATION OPERATIONS (100% Dynamic Firestore)

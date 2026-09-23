@@ -64,9 +64,6 @@ import {
   saveProjectTokens,
   saveProjectGitConfig,
   saveProjectFigmaVariables,
-  saveProjectAssetGitConfig,
-  saveProjectAssetFigmaConfig,
-  saveProjectAssetCount,
   createOrganizationInvitation,
   getOrganizationInvitations,
   getPendingInvitationsForEmail,
@@ -485,8 +482,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             }));
             set({ assets: updatedAssets });
           }
-          // Update Firestore with just the count + provider flag
-          await saveProjectAssetCount(orgId, projectId, data.totalAssets || assets.length, "r2");
           return;
         }
         throw new Error(data.error || "R2 asset upload failed");
@@ -566,7 +561,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          await saveProjectAssetCount(orgId, projectId, data.remainingAssets, "r2");
           return true;
         }
       }
@@ -603,6 +597,54 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
       return false;
     } catch {
+      return false;
+    }
+  };
+
+  /**
+   * Loads asset configuration (Git sync & Figma sync settings) from Cloudflare R2.
+   */
+  const loadAssetConfigFromStorage = async (
+    orgId: string,
+    projectId: string
+  ): Promise<{
+    assetGitConfig?: AssetGitConfig | null;
+    assetFigmaConfig?: AssetFigmaConfig | null;
+  } | null> => {
+    try {
+      const res = await fetch(
+        `/api/assets/config?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.success && data.config ? data.config : null;
+    } catch (err) {
+      console.error("[R2 Config Error]: Failed to load asset configuration from R2:", err);
+      return null;
+    }
+  };
+
+  /**
+   * Saves asset configuration updates directly to Cloudflare R2.
+   */
+  const saveAssetConfigToStorage = async (
+    orgId: string,
+    projectId: string,
+    updates: {
+      assetGitConfig?: AssetGitConfig | null;
+      assetFigmaConfig?: AssetFigmaConfig | null;
+      assetsCount?: number;
+    }
+  ): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/assets/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, projectId, ...updates }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error("[R2 Config Error]: Failed to save asset configuration to R2:", err);
       return false;
     }
   };
@@ -1207,14 +1249,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isSyncingFigmaAssets: false,
       });
 
-      // Hydrate assets from R2 (or Firestore fallback) if needed
-      if (proj.hasChunkedAssets || !proj.assets || proj.assets.length === 0) {
-        loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
-          if (loadedAssets && loadedAssets.length > 0 && isScopeActive(proj.orgId, proj.id)) {
-            set({ assets: loadedAssets });
-          }
-        });
-      }
+      // Hydrate assets from R2
+      loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
+        if (loadedAssets && loadedAssets.length > 0 && isScopeActive(proj.orgId, proj.id)) {
+          set({ assets: loadedAssets });
+        }
+      });
+
+      // Hydrate asset configs (Git & Figma) from R2
+      loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
+        if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
+        if (r2Config.assetGitConfig !== undefined) {
+          set({ assetGitConfig: r2Config.assetGitConfig });
+        }
+        if (r2Config.assetFigmaConfig !== undefined) {
+          set({ assetFigmaConfig: r2Config.assetFigmaConfig });
+        }
+      });
 
       // 4. Restore scoped localStorage data (releases, targets, config, activities)
       const scopeOrgId = get().currentOrg?.id;
@@ -2162,7 +2213,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const { currentOrg, currentProject, addToast } = get();
     set({ assetGitConfig: config });
     if (currentOrg && currentProject) {
-      await saveProjectAssetGitConfig(currentOrg.id, currentProject.id, config);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetGitConfig: config });
     }
     addToast({
       type: "success",
@@ -2244,7 +2295,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updated = { ...assetGitConfig, isPaused };
     set({ assetGitConfig: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssetGitConfig(currentOrg.id, currentProject.id, updated);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetGitConfig: updated });
     }
     addToast({
       type: "info",
@@ -2257,7 +2308,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const { currentOrg, currentProject, addToast } = get();
     set({ assetGitConfig: null });
     if (currentOrg && currentProject) {
-      await saveProjectAssetGitConfig(currentOrg.id, currentProject.id, null);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetGitConfig: null });
     }
     addToast({
       type: "info",
@@ -2270,7 +2321,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const { currentOrg, currentProject, addToast } = get();
     set({ assetFigmaConfig: config });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, config);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: config });
     }
   },
 
@@ -2285,7 +2336,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     };
     set({ assetFigmaConfig: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updated);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updated });
     }
     addToast({
       type: "success",
@@ -2322,7 +2373,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     set({ assetFigmaConfig: updatedConfig });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updatedConfig });
     }
 
     if (pat) {
@@ -2347,7 +2398,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updatedConfig = { ...assetFigmaConfig, sources: updatedSources };
     set({ assetFigmaConfig: updatedConfig });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updatedConfig });
     }
   },
 
@@ -2365,7 +2416,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     set({ assetFigmaConfig: updatedConfig, assets: updatedAssets });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updatedConfig });
       if (removeAssets) {
         await persistAssetsToStorage(currentOrg.id, currentProject.id, updatedAssets);
       }
@@ -2393,7 +2444,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updatedConfig = { ...assetFigmaConfig, sources: updatedSources };
     set({ assetFigmaConfig: updatedConfig });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updatedConfig });
     }
     addToast({
       type: "info",
@@ -2409,7 +2460,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updated = { ...assetFigmaConfig, isPaused };
     set({ assetFigmaConfig: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updated);
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updated });
     }
     addToast({
       type: "info",
@@ -2513,7 +2564,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ assets: finalAssets, assetFigmaConfig: updatedConfig });
       if (currentOrg && currentProject) {
         await persistAssetsToStorage(currentOrg.id, currentProject.id, finalAssets, true);
-        await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+        await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updatedConfig });
       }
 
       addToast({
@@ -2624,7 +2675,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ assets: finalAssets, assetFigmaConfig: updatedConfig });
       if (currentOrg && currentProject) {
         await persistAssetsToStorage(currentOrg.id, currentProject.id, finalAssets, true);
-        await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
+        await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updatedConfig });
       }
 
       get().logUserActivity({
