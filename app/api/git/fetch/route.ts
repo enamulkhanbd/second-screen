@@ -248,6 +248,37 @@ async function batchProcess<T>(
   }
 }
 
+interface CachedTokensResult {
+  tokens: Record<string, any>;
+  userProfile?: any;
+  commitSha: string;
+  syncMeta: any;
+  cachedAt: number;
+}
+
+// Bounded in-memory LRU cache keyed by git tree / commit SHA
+const gitTokenCache = new Map<string, CachedTokensResult>();
+const MAX_CACHE_ENTRIES = 200;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function setCachedTokens(key: string, value: Omit<CachedTokensResult, "cachedAt">) {
+  if (gitTokenCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = gitTokenCache.keys().next().value;
+    if (oldestKey) gitTokenCache.delete(oldestKey);
+  }
+  gitTokenCache.set(key, { ...value, cachedAt: Date.now() });
+}
+
+function getCachedTokens(key: string): CachedTokensResult | null {
+  const item = gitTokenCache.get(key);
+  if (!item) return null;
+  if (Date.now() - item.cachedAt > CACHE_TTL_MS) {
+    gitTokenCache.delete(key);
+    return null;
+  }
+  return item;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const rawCreds: GitCredentials = await req.json();
@@ -368,6 +399,22 @@ export async function POST(req: NextRequest) {
       }
 
       const treeData = await treeRes.json();
+      const treeSha = treeData.sha || "";
+      const cacheKey = `github:${owner.toLowerCase()}:${repo.toLowerCase()}:${branch.toLowerCase()}:${cleanPath.toLowerCase()}:${treeSha}`;
+
+      if (treeSha) {
+        const cached = getCachedTokens(cacheKey);
+        if (cached) {
+          return NextResponse.json({
+            tokens: cached.tokens,
+            userProfile: cached.userProfile,
+            commitSha: cached.commitSha,
+            syncMeta: cached.syncMeta,
+            cached: true,
+          });
+        }
+      }
+
       const allItems: any[] = Array.isArray(treeData.tree) ? treeData.tree : [];
 
       // Filter STRICTLY for valid .json files across the repository, ignoring non-json and non-token configs
@@ -483,12 +530,18 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({
+      const responsePayload = {
         tokens: scoped.tokens,
         userProfile,
-        commitSha: treeData.sha || "",
+        commitSha: treeSha,
         syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
-      });
+      };
+
+      if (treeSha) {
+        setCachedTokens(cacheKey, responsePayload);
+      }
+
+      return NextResponse.json(responsePayload);
     }
 
     // -------------------------------------------------------------
@@ -591,6 +644,24 @@ export async function POST(req: NextRequest) {
         targetJsonItems = filtered;
       }
 
+      const azCommitSha = (targetJsonItems[0]?.commitId || allItems[0]?.commitId || "").trim();
+      const azCacheKey = azCommitSha
+        ? `azure:${owner.toLowerCase()}:${(project || owner).toLowerCase()}:${repo.toLowerCase()}:${branch.toLowerCase()}:${cleanPath.toLowerCase()}:${azCommitSha}`
+        : "";
+
+      if (azCacheKey) {
+        const cached = getCachedTokens(azCacheKey);
+        if (cached) {
+          return NextResponse.json({
+            tokens: cached.tokens,
+            userProfile: cached.userProfile,
+            commitSha: cached.commitSha,
+            syncMeta: cached.syncMeta,
+            cached: true,
+          });
+        }
+      }
+
       // Fetch ALL JSON token files in concurrency-limited batches (12 at a time)
       const aggregated: Record<string, any> = {};
       const filesMeta: Record<string, string> = {};
@@ -641,12 +712,18 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({
+      const responsePayload = {
         tokens: scoped.tokens,
         userProfile,
-        commitSha: targetJsonItems[0]?.commitId || "",
+        commitSha: azCommitSha || targetJsonItems[0]?.commitId || "",
         syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
-      });
+      };
+
+      if (azCacheKey) {
+        setCachedTokens(azCacheKey, responsePayload);
+      }
+
+      return NextResponse.json(responsePayload);
     }
 
     return NextResponse.json({ error: `Unsupported provider '${provider}'.` }, { status: 400 });

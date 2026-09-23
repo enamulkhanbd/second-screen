@@ -2913,7 +2913,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const res = await fetch("/api/git/fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(creds),
+        body: JSON.stringify({
+          ...creds,
+          lastCommitSha: get().lastFetchedSha || undefined,
+        }),
       });
 
       const data = await res.json();

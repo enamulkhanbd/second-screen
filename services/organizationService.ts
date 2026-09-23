@@ -39,34 +39,25 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
 
   try {
     const orgsMap = new Map<string, Organization>();
-    const ownerQ = query(collection(db, "organizations"), where("ownerUid", "==", uid));
-    const orgsRef = collection(db, "organizations");
+    const queries = [];
 
-    const [ownerRes, allRes] = await Promise.allSettled([
-      getDocs(ownerQ),
-      getDocs(orgsRef),
-    ]);
-
-    if (ownerRes.status === "fulfilled") {
-      ownerRes.value.forEach((d) => {
-        orgsMap.set(d.id, d.data() as Organization);
-      });
+    if (uid) {
+      queries.push(getDocs(query(collection(db, "organizations"), where("ownerUid", "==", uid))));
+      queries.push(getDocs(query(collection(db, "organizations"), where("memberUids", "array-contains", uid))));
     }
 
-    if (allRes.status === "fulfilled") {
-      allRes.value.forEach((d) => {
-        const data = d.data() as Organization;
-        const isMember =
-          data.ownerUid === uid ||
-          data.members?.some(
-            (m) =>
-              m.uid === uid ||
-              (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())
-          );
-        if (isMember) {
-          orgsMap.set(d.id, data);
-        }
-      });
+    const cleanEmail = userEmail?.trim().toLowerCase();
+    if (cleanEmail) {
+      queries.push(getDocs(query(collection(db, "organizations"), where("memberEmails", "array-contains", cleanEmail))));
+    }
+
+    const results = await Promise.allSettled(queries);
+    for (const res of results) {
+      if (res.status === "fulfilled") {
+        res.value.forEach((d) => {
+          orgsMap.set(d.id, d.data() as Organization);
+        });
+      }
     }
 
     return Array.from(orgsMap.values());
@@ -107,22 +98,17 @@ export async function checkOrganizationNameAvailable(
   const normalized = trimmed.toLowerCase();
   const slug = normalized.replace(/[^a-z0-9]/g, "-");
 
-  // 1. Check in Firestore
+  // 1. Check in Firestore with targeted slug query (O(1) indexed lookup)
   if (isFirebaseConfigured && db) {
     try {
-      const orgsRef = collection(db, "organizations");
-      const snap = await getDocs(orgsRef);
+      const slugQ = query(collection(db, "organizations"), where("slug", "==", slug), limit(1));
+      const snap = await getDocs(slugQ);
       for (const d of snap.docs) {
         if (excludeOrgId && d.id === excludeOrgId) continue;
-        const orgData = d.data() as Organization;
-        const existingName = (orgData.name || "").trim().toLowerCase();
-        const existingSlug = (orgData.slug || "").trim().toLowerCase();
-        if (existingName === normalized || existingSlug === slug) {
-          return {
-            available: false,
-            error: `An organization with the name "${trimmed}" already exists.`,
-          };
-        }
+        return {
+          available: false,
+          error: `An organization with the name "${trimmed}" already exists.`,
+        };
       }
     } catch (e) {
       console.warn("Firestore error checking org name availability:", e);
