@@ -384,19 +384,21 @@ export function resolveTokenAlias(
   allTokens: RawTokensDocument,
   currentSet?: string,
   visited: Set<string> = new Set(),
-  lookupIndex?: TokenLookupIndex
+  lookupIndex?: TokenLookupIndex,
+  depth: number = 0
 ): string {
   if (aliasValue === null || aliasValue === undefined) return "";
+  if (depth > 30) return String(aliasValue);
 
   // Handle composite object values (e.g. typography) or leaf objects
   if (typeof aliasValue === "object" && aliasValue !== null) {
     if ("value" in aliasValue || "$value" in aliasValue) {
       const inner = aliasValue.value !== undefined ? aliasValue.value : aliasValue.$value;
-      return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex);
+      return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex, depth + 1);
     }
     const resolvedObj: Record<string, any> = {};
     for (const [k, v] of Object.entries(aliasValue)) {
-      resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex);
+      resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex, depth + 1);
     }
     return JSON.stringify(resolvedObj);
   }
@@ -408,11 +410,11 @@ export function resolveTokenAlias(
       if (typeof parsed === "object" && parsed !== null) {
         if ("value" in parsed || "$value" in parsed) {
           const inner = parsed.value !== undefined ? parsed.value : parsed.$value;
-          return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex);
+          return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex, depth + 1);
         }
         const resolvedObj: Record<string, any> = {};
         for (const [k, v] of Object.entries(parsed)) {
-          resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex);
+          resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex, depth + 1);
         }
         return JSON.stringify(resolvedObj);
       }
@@ -442,13 +444,13 @@ export function resolveTokenAlias(
       const direct = lookupIndex.get(cleanPath) || lookupIndex.get(cleanPath.toLowerCase());
       if (direct?.leaf && isTokenLeaf(direct.leaf)) {
         const rawVal = getLeafValue(direct.leaf);
-        return resolveTokenAlias(rawVal, allTokens, direct.setName || currentSet, newVisited, lookupIndex);
+        return resolveTokenAlias(rawVal, allTokens, direct.setName || currentSet, newVisited, lookupIndex, depth + 1);
       }
       if (currentSet) {
         const withSet = lookupIndex.get(`${currentSet}.${cleanPath}`) || lookupIndex.get(`${currentSet}.${cleanPath}`.toLowerCase());
         if (withSet?.leaf && isTokenLeaf(withSet.leaf)) {
           const rawVal = getLeafValue(withSet.leaf);
-          return resolveTokenAlias(rawVal, allTokens, withSet.setName || currentSet, newVisited, lookupIndex);
+          return resolveTokenAlias(rawVal, allTokens, withSet.setName || currentSet, newVisited, lookupIndex, depth + 1);
         }
       }
     }
@@ -531,16 +533,16 @@ export function resolveTokenAlias(
 
     if (foundLeaf) {
       const rawVal = getLeafValue(foundLeaf);
-      const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, newVisited, lookupIndex);
+      const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, newVisited, lookupIndex, depth + 1);
       const modifier = extractColorModifier(foundLeaf);
       if (modifier) {
         let resolvedMixColor: string | undefined = undefined;
         if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
-          resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, newVisited, lookupIndex);
+          resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, newVisited, lookupIndex, depth + 1);
         }
         let resolvedModValue = modifier.value;
         if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
-          resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, newVisited, lookupIndex);
+          resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, newVisited, lookupIndex, depth + 1);
         }
         const modToApply: ColorModifier = {
           ...modifier,
@@ -555,7 +557,7 @@ export function resolveTokenAlias(
     return match;
   });
 
-  return evaluateTokenMath(replaced, allTokens, currentSet);
+  return evaluateTokenMath(replaced, allTokens, currentSet, visited, lookupIndex, depth + 1);
 }
 
 /**
@@ -726,9 +728,13 @@ function safeEvalArithmetic(expr: string): number | null {
 export function evaluateTokenMath(
   expr: string,
   allTokens?: RawTokensDocument,
-  currentSet?: string
+  currentSet?: string,
+  visited: Set<string> = new Set(),
+  lookupIndex?: TokenLookupIndex,
+  depth: number = 0
 ): string {
   if (!expr || typeof expr !== "string") return expr;
+  if (depth > 30) return expr;
   let str = expr.trim();
 
   // If expression is already a plain number or color or non-math string, return it
