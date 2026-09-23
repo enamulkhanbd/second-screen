@@ -289,6 +289,9 @@ export const AssetsView: React.FC = () => {
     togglePauseFigmaSync,
     syncAssetsFromFigma,
     isSyncingFigmaAssets,
+    isLoadingAssets,
+    r2StorageError,
+    refreshAssets,
     addToast,
     canUserEdit,
   } = useTokenStore();
@@ -445,6 +448,13 @@ export const AssetsView: React.FC = () => {
   React.useEffect(() => {
     setVisibleCount(ASSET_BATCH_SIZE);
   }, [selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
+
+  // Ensure assets are fetched if currently empty and not loading
+  React.useEffect(() => {
+    if (currentOrg && currentProject && storeAssets.length === 0 && !isLoadingAssets && !r2StorageError) {
+      refreshAssets();
+    }
+  }, [currentOrg?.id, currentProject?.id]);
 
   // Note: Auto-persist for chunked assets is no longer needed.
   // Assets are persisted to R2 (or Firestore fallback) through store actions.
@@ -1643,9 +1653,47 @@ export const AssetsView: React.FC = () => {
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto p-6 pb-24 space-y-6">
-            {displayAssets.length === 0 ? (
+            {isLoadingAssets ? (
+              <div className="flex flex-col items-center justify-center py-28 space-y-4">
+                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="text-sm font-semibold text-foreground">Loading Vector Assets from Cloudflare R2...</div>
+                <div className="text-xs text-muted-foreground">Connecting to edge CDN storage</div>
+              </div>
+            ) : displayAssets.length === 0 ? (
               /* High-Value Onboarding Setup Guide Empty State */
               <div className="max-w-5xl mx-auto py-8 space-y-8 animate-in fade-in duration-300">
+                {r2StorageError && (
+                  <div className="p-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 text-amber-400 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-400" />
+                    <div className="space-y-1 text-left flex-1">
+                      <div className="font-semibold text-sm text-amber-300">
+                        Cloudflare R2 Storage Not Configured on this Deployment
+                      </div>
+                      <p className="text-xs text-amber-200/80 leading-relaxed">
+                        {r2StorageError}. To load and synchronize vector assets on Vercel, add your Cloudflare R2 credentials to <strong>Vercel Dashboard &gt; Project Settings &gt; Environment Variables</strong>, then redeploy.
+                      </p>
+                      <div className="text-[11px] font-mono bg-black/40 p-2.5 rounded-lg border border-amber-500/20 text-amber-300 space-y-0.5 select-all">
+                        <div>R2_ACCOUNT_ID</div>
+                        <div>R2_ACCESS_KEY_ID</div>
+                        <div>R2_SECRET_ACCESS_KEY</div>
+                        <div>R2_BUCKET_NAME</div>
+                        <div>R2_PUBLIC_URL</div>
+                      </div>
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => refreshAssets()}
+                          className="text-xs h-7 border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Retry Connection
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center space-y-2 max-w-xl mx-auto">
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3 shadow-inner">
                     <ImageIcon className="w-6 h-6" />

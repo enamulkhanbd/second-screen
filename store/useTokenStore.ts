@@ -153,12 +153,14 @@ interface TokenStoreState {
   deleteFigmaVariableAction: (setName: string, tokenPath: string[]) => Promise<void>;
   deleteFigmaCollectionAction: (setName: string) => Promise<void>;
 
-  // Assets & SVG Icons State (Independent Sync)
   assets: ProjectAsset[];
   assetGitConfig: AssetGitConfig | null;
   assetFigmaConfig: AssetFigmaConfig | null;
   isSyncingAssets: boolean;
   isSyncingFigmaAssets: boolean;
+  isLoadingAssets: boolean;
+  r2StorageError: string | null;
+  refreshAssets: () => Promise<void>;
   setAssets: (assets: ProjectAsset[]) => void;
   uploadAssets: (newAssets: Array<{ name: string; title?: string; type?: string; tag?: string; category?: string; svg: string }>) => Promise<void>;
   applyMetadataToAssets: (metadataMap: Map<string, { name?: string; title?: string; type?: string; tag?: string; category?: string }>) => Promise<void>;
@@ -513,6 +515,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.assets)) {
+          set({ r2StorageError: null });
           return data.assets.map((a: any) => ({
             id: a.id,
             name: a.name,
@@ -533,11 +536,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             figmaSourceName: a.figmaSourceName,
           }));
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const errMessage = data.error || (res.status === 503
+          ? "Cloudflare R2 storage is not configured on this deployment. Missing R2 environment variables in Vercel."
+          : `Failed to load assets (${res.status})`);
+        console.warn("[R2 Storage Warning]:", errMessage);
+        set({ r2StorageError: errMessage });
       }
 
       return [];
-    } catch (err) {
+    } catch (err: any) {
       console.error("[R2 Storage Error]: Failed to load assets from Cloudflare R2:", err);
+      set({ r2StorageError: err.message || "Failed to connect to Cloudflare R2 storage." });
       return [];
     }
   };
@@ -615,7 +626,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const res = await fetch(
         `/api/assets/config?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`
       );
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 503 && data.error) {
+          set({ r2StorageError: data.error });
+        }
+        return null;
+      }
       const data = await res.json();
       return data.success && data.config ? data.config : null;
     } catch (err) {
@@ -1247,13 +1264,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         activeDocFolderId: null,
         isSyncingAssets: false,
         isSyncingFigmaAssets: false,
+        isLoadingAssets: true,
       });
 
       // Hydrate assets from R2
       loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
-        if (loadedAssets && loadedAssets.length > 0 && isScopeActive(proj.orgId, proj.id)) {
-          set({ assets: loadedAssets });
-        }
+        if (!isScopeActive(proj.orgId, proj.id)) return;
+        set({
+          assets: loadedAssets,
+          isLoadingAssets: false,
+        });
       });
 
       // Hydrate asset configs (Git & Figma) from R2
@@ -2008,12 +2028,32 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
   },
 
-  // Assets & SVG Icons Implementation (Independent Sync)
   assets: [],
   assetGitConfig: null,
   assetFigmaConfig: null,
   isSyncingAssets: false,
   isSyncingFigmaAssets: false,
+  isLoadingAssets: false,
+  r2StorageError: null,
+
+  refreshAssets: async () => {
+    const { currentOrg, currentProject } = get();
+    if (!currentOrg || !currentProject) return;
+    set({ isLoadingAssets: true, r2StorageError: null });
+    try {
+      const loaded = await loadAssetsFromStorage(currentOrg.id, currentProject.id);
+      if (isScopeActive(currentOrg.id, currentProject.id)) {
+        set({ assets: loaded });
+      }
+      const config = await loadAssetConfigFromStorage(currentOrg.id, currentProject.id);
+      if (config && isScopeActive(currentOrg.id, currentProject.id)) {
+        if (config.assetGitConfig !== undefined) set({ assetGitConfig: config.assetGitConfig });
+        if (config.assetFigmaConfig !== undefined) set({ assetFigmaConfig: config.assetFigmaConfig });
+      }
+    } finally {
+      set({ isLoadingAssets: false });
+    }
+  },
 
   setAssets: (assets) => set({ assets }),
 
