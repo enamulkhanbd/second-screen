@@ -1227,7 +1227,11 @@ export const AssetsView: React.FC = () => {
           <img
             src={icon.url}
             alt={displayTitle}
-            className="w-11 h-11 object-contain text-foreground transition-transform duration-150 group-hover:scale-105 mt-1"
+            className={`w-11 h-11 object-contain transition-transform duration-150 group-hover:scale-105 mt-1 ${
+              icon.contentType === "image/svg+xml" || !icon.contentType || icon.url.endsWith(".svg")
+                ? "dark:invert dark:opacity-90"
+                : ""
+            }`}
             loading="lazy"
           />
         ) : (
