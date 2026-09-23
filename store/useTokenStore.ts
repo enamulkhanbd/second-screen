@@ -473,28 +473,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   };
 
   const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
-    const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
-    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    const { currentOrg, currentProject, branches, activeBranch } = get();
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
-      // Native branches only handle and persist changes when NO sync provider is configured
-      if (!hasSyncProvider && branches && branches.length > 0) {
-        const updatedBranches = branches.map((b) =>
-          b.name === activeBranch
-            ? {
-                ...b,
-                rawTokens: doc,
-                themeGroups: groups || b.themeGroups,
-                updatedAt: new Date().toISOString(),
-              }
-            : b
-        );
-        saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
-        set({ branches: updatedBranches });
-        updateProjectInMemoryAndCache(updatedBranches, doc, groups || currentProject.themeGroups);
-      } else {
-        updateProjectInMemoryAndCache(undefined, doc, groups || currentProject.themeGroups);
-      }
+      const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
+      const updatedBranches = projectBranches.map((b) =>
+        b.name === activeBranch
+          ? {
+              ...b,
+              rawTokens: doc,
+              themeGroups: groups || b.themeGroups,
+              updatedAt: new Date().toISOString(),
+            }
+          : b
+      );
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
+      set({ branches: updatedBranches });
+      updateProjectInMemoryAndCache(updatedBranches, doc, groups || currentProject.themeGroups);
     }
   };
 
@@ -848,13 +843,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const activeBranchObj = projectBranches.find((b) => b.name === activeBranchName) || projectBranches[0];
 
       let initialTokens =
-        activeBranchObj && activeBranchObj.rawTokens && Object.keys(activeBranchObj.rawTokens).length > 0
-          ? activeBranchObj.rawTokens
-          : proj.rawTokens && Object.keys(proj.rawTokens).length > 0
+        proj.rawTokens && Object.keys(proj.rawTokens).length > 0
           ? proj.rawTokens
+          : activeBranchObj && activeBranchObj.rawTokens && Object.keys(activeBranchObj.rawTokens).length > 0
+          ? activeBranchObj.rawTokens
           : {};
 
-      if (activeBranchObj && !activeBranchObj.rawTokens) {
+      if (activeBranchObj) {
         activeBranchObj.rawTokens = initialTokens;
       }
 
@@ -3144,27 +3139,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       groups[0];
 
     // Synchronize loaded tokens with active Project in Cloud Firestore and Active Branch
-    const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
-    const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
+    const { currentOrg, currentProject, branches, activeBranch } = get();
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups).catch(() => {});
-      if (!hasSyncProvider && branches && branches.length > 0) {
-        const updatedBranches = branches.map((b) =>
-          b.name === activeBranch
-            ? {
-                ...b,
-                rawTokens: canonical,
-                themeGroups: groups || b.themeGroups,
-                updatedAt: new Date().toISOString(),
-              }
-            : b
-        );
-        saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
-        set({ branches: updatedBranches });
-        updateProjectInMemoryAndCache(updatedBranches, canonical, groups, activeBranch);
-      } else {
-        updateProjectInMemoryAndCache(undefined, canonical, groups, activeBranch);
-      }
+      const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
+      const updatedBranches = projectBranches.map((b) =>
+        b.name === activeBranch
+          ? {
+              ...b,
+              rawTokens: canonical,
+              themeGroups: groups || b.themeGroups,
+              updatedAt: new Date().toISOString(),
+            }
+          : b
+      );
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
+      set({ branches: updatedBranches });
+      updateProjectInMemoryAndCache(updatedBranches, canonical, groups, activeBranch);
     }
 
     set({
