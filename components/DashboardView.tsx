@@ -49,6 +49,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
+import { countTokensInDocument } from "@/utils/transformTokens";
 
 const ICON_PRESETS = ["🏢", "🪐", "🚀", "🎨", "💻", "🎯", "⚡", "💎", "🌟", "🛡️"];
 const COLOR_PRESETS = [
@@ -354,9 +355,7 @@ export const DashboardView: React.FC = () => {
               <div className="space-y-2.5">
                 {displayProjects.map((proj) => {
                   const isCurrent = currentProject?.id === proj.id;
-                  const tokenCount = proj.rawTokens
-                    ? Object.keys(proj.rawTokens).filter((k) => !k.startsWith("$")).length * 12
-                    : 0;
+                  const tokenCount = countTokensInDocument(proj.rawTokens);
                   const setsCount = proj.rawTokens
                     ? getValidTokenSetNames(proj.rawTokens).length
                     : 0;

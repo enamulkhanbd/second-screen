@@ -52,6 +52,13 @@ export async function POST(req: NextRequest) {
             { status: 403 }
           );
         }
+        if (res.status === 404) {
+          return NextResponse.json({
+            success: false,
+            notFound: true,
+            error: `GitHub repository '${owner}/${repo}' or branch '${branch}' was not found (404).`,
+          });
+        }
         const errText = await res.text();
         return NextResponse.json(
           { error: `GitHub error (${res.status}): ${errText}` },
@@ -97,6 +104,13 @@ export async function POST(req: NextRequest) {
       });
 
       if (!res.ok) {
+        if (res.status === 404) {
+          return NextResponse.json({
+            success: false,
+            notFound: true,
+            error: `Azure DevOps repository '${repo}' or branch '${branch}' was not found (404).`,
+          });
+        }
         const errText = await res.text();
         return NextResponse.json(
           { error: `Azure DevOps error (${res.status}): ${errText}` },
@@ -132,6 +146,13 @@ export async function POST(req: NextRequest) {
       });
 
       if (!res.ok) {
+        if (res.status === 404) {
+          return NextResponse.json({
+            success: false,
+            notFound: true,
+            error: `GitLab project '${owner}/${repo}' or branch '${branch}' was not found (404).`,
+          });
+        }
         const errText = await res.text();
         return NextResponse.json(
           { error: `GitLab error (${res.status}): ${errText}` },
@@ -171,6 +192,13 @@ export async function POST(req: NextRequest) {
       });
 
       if (!res.ok) {
+        if (res.status === 404) {
+          return NextResponse.json({
+            success: false,
+            notFound: true,
+            error: `Bitbucket repository '${owner}/${repo}' or branch '${branch}' was not found (404).`,
+          });
+        }
         const errText = await res.text();
         return NextResponse.json(
           { error: `Bitbucket error (${res.status}): ${errText}` },

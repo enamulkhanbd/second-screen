@@ -14,6 +14,33 @@ export function isTokenLeaf(node: any): node is RawTokenLeaf {
   return "value" in node || "$value" in node;
 }
 
+/**
+ * Recursively counts the total number of design token leaves in a RawTokensDocument.
+ */
+export function countTokensInDocument(rawDoc?: RawTokensDocument | null): number {
+  if (!rawDoc || typeof rawDoc !== "object") return 0;
+  let count = 0;
+  const sets = Object.keys(rawDoc).filter((k) => !k.startsWith("$"));
+  for (const setName of sets) {
+    const setTree = rawDoc[setName];
+    if (!setTree || typeof setTree !== "object") continue;
+    const walk = (node: any) => {
+      if (!node || typeof node !== "object") return;
+      if (isTokenLeaf(node)) {
+        count++;
+        return;
+      }
+      for (const key of Object.keys(node)) {
+        if (!key.startsWith("$")) {
+          walk(node[key]);
+        }
+      }
+    };
+    walk(setTree);
+  }
+  return count;
+}
+
 // Extract the raw value string or object from a token leaf
 export function getLeafValue(leaf: RawTokenLeaf): string {
   let val = leaf.value !== undefined ? leaf.value : leaf.$value;
