@@ -12,7 +12,7 @@ import {
   orderBy,
   limit,
   writeBatch,
-} from "firebase/firestore";
+} from "firebase/firestore/lite";
 import {
   Organization,
   Project,

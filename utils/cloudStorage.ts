@@ -5,7 +5,7 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
-} from "firebase/firestore";
+} from "firebase/firestore/lite";
 import crypto from "crypto";
 import { ApiKeyRecord } from "./patAuth";
 

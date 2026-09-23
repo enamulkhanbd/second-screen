@@ -4,7 +4,7 @@ import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
 import { getOrganization, getOrgProjects } from "@/services/organizationService";
 import { db, isFirebaseConfigured } from "@/lib/firebase";
-import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore/lite";
 
 export const dynamic = "force-dynamic";
 
