@@ -64,10 +64,9 @@ import {
   saveProjectTokens,
   saveProjectGitConfig,
   saveProjectFigmaVariables,
-  saveProjectAssets,
-  loadProjectAssets,
   saveProjectAssetGitConfig,
   saveProjectAssetFigmaConfig,
+  saveProjectAssetCount,
   createOrganizationInvitation,
   getOrganizationInvitations,
   getPendingInvitationsForEmail,
@@ -426,6 +425,186 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (!orgId || !projectId) return false;
     const { currentOrg, currentProject } = get();
     return currentOrg?.id === orgId && currentProject?.id === projectId;
+  };
+
+  /**
+   * Persists assets to R2 (if configured) or falls back to Firestore.
+   * This is the single abstraction point for all asset write operations.
+   *
+   * @param orgId       - Organization ID
+   * @param projectId   - Project ID
+   * @param assets      - Full asset array to persist
+   * @param replaceAll  - If true, replace the entire R2 metadata index (used by sync operations)
+   */
+  const persistAssetsToStorage = async (
+    orgId: string,
+    projectId: string,
+    assets: ProjectAsset[],
+    replaceAll = false
+  ): Promise<void> => {
+    try {
+      // Attempt R2 storage first
+      const r2Assets = assets.map((a) => ({
+        id: a.id,
+        name: a.name,
+        title: a.title || a.name,
+        type: a.type,
+        tag: a.tag,
+        category: a.category || "general",
+        content: a.svg || "", // SVG content for upload
+        contentType: a.contentType || "image/svg+xml",
+        source: a.source,
+        path: a.path,
+        figmaNodeId: a.figmaNodeId,
+        figmaUrl: a.figmaUrl,
+        figmaSourceId: a.figmaSourceId,
+        figmaSourceName: a.figmaSourceName,
+      }));
+
+      const res = await fetch("/api/assets/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          projectId,
+          assets: r2Assets,
+          replaceAll,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          // Update in-memory assets with R2 URLs
+          if (data.assets && Array.isArray(data.assets)) {
+            const urlMap = new Map<string, string>(data.assets.map((a: any) => [a.id, a.url]));
+            const updatedAssets = assets.map((a) => ({
+              ...a,
+              url: (urlMap.get(a.id) || a.url) as string | undefined,
+              contentType: a.contentType || "image/svg+xml",
+            }));
+            set({ assets: updatedAssets });
+          }
+          // Update Firestore with just the count + provider flag
+          await saveProjectAssetCount(orgId, projectId, data.totalAssets || assets.length, "r2");
+          return;
+        }
+        throw new Error(data.error || "R2 asset upload failed");
+      }
+
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `R2 asset upload failed (${res.status})`);
+    } catch (err) {
+      console.error("[R2 Storage Error]: Failed to persist assets to Cloudflare R2:", err);
+      throw err;
+    }
+  };
+
+  /**
+   * Loads assets strictly from Cloudflare R2 via /api/assets/list.
+   * This is the single abstraction point for all asset read operations.
+   */
+  const loadAssetsFromStorage = async (
+    orgId: string,
+    projectId: string
+  ): Promise<ProjectAsset[]> => {
+    try {
+      const res = await fetch("/api/assets/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, projectId }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.assets)) {
+          return data.assets.map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            title: a.title,
+            type: a.type,
+            tag: a.tag,
+            category: a.category,
+            url: a.url,
+            contentType: a.contentType || "image/svg+xml",
+            size: a.size,
+            svg: a.svg, // may be undefined for R2-native assets
+            path: a.path,
+            updatedAt: a.updatedAt,
+            source: a.source || "upload",
+            figmaNodeId: a.figmaNodeId,
+            figmaUrl: a.figmaUrl,
+            figmaSourceId: a.figmaSourceId,
+            figmaSourceName: a.figmaSourceName,
+          }));
+        }
+      }
+
+      return [];
+    } catch (err) {
+      console.error("[R2 Storage Error]: Failed to load assets from Cloudflare R2:", err);
+      return [];
+    }
+  };
+
+  /**
+   * Deletes assets from R2 storage by ID.
+   * Falls back silently if R2 is not configured.
+   */
+  const deleteAssetsFromStorage = async (
+    orgId: string,
+    projectId: string,
+    assetIds: string[]
+  ): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/assets/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, projectId, assetIds }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          await saveProjectAssetCount(orgId, projectId, data.remainingAssets, "r2");
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  /**
+   * Updates asset metadata in R2 without re-uploading files.
+   * Falls back to full persist if R2 metadata update fails.
+   */
+  const updateAssetMetadataInStorage = async (
+    orgId: string,
+    projectId: string,
+    updates: Array<{ id: string; title?: string; type?: string; tag?: string; category?: string; name?: string }>
+  ): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/assets/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          projectId,
+          action: "update-metadata",
+          updates,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.success === true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   };
 
   const updateProjectInMemoryAndCache = (
@@ -1028,9 +1207,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isSyncingFigmaAssets: false,
       });
 
-      // Hydrate chunked assets from Firestore subcollection if stored as chunks or main doc assets is empty
+      // Hydrate assets from R2 (or Firestore fallback) if needed
       if (proj.hasChunkedAssets || !proj.assets || proj.assets.length === 0) {
-        loadProjectAssets(proj.orgId, proj.id).then((loadedAssets) => {
+        loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
           if (loadedAssets && loadedAssets.length > 0 && isScopeActive(proj.orgId, proj.id)) {
             set({ assets: loadedAssets });
           }
@@ -1808,7 +1987,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updated = [...created, ...assets];
     set({ assets: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+      await persistAssetsToStorage(currentOrg.id, currentProject.id, updated);
     }
 
     get().logUserActivity({
@@ -1860,7 +2039,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (updatedCount > 0) {
       set({ assets: updated });
       if (currentOrg && currentProject) {
-        await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+        await persistAssetsToStorage(currentOrg.id, currentProject.id, updated);
       }
 
       get().logUserActivity({
@@ -1888,7 +2067,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     );
     set({ assets: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+      await persistAssetsToStorage(currentOrg.id, currentProject.id, updated);
     }
 
     if (targetAsset) {
@@ -1918,7 +2097,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     );
     set({ assets: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+      await persistAssetsToStorage(currentOrg.id, currentProject.id, updated);
     }
 
     get().logUserActivity({
@@ -1943,7 +2122,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updated = assets.filter((a) => a.id !== id);
     set({ assets: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+      await deleteAssetsFromStorage(currentOrg.id, currentProject.id, [id]);
     }
 
     if (targetAsset) {
@@ -1970,7 +2149,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const updated = assets.filter((a) => !idSet.has(a.id));
     set({ assets: updated });
     if (currentOrg && currentProject) {
-      await saveProjectAssets(currentOrg.id, currentProject.id, updated);
+      await deleteAssetsFromStorage(currentOrg.id, currentProject.id, ids);
     }
     addToast({
       type: "info",
@@ -2025,7 +2204,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       set({ assets: merged });
       if (currentOrg && currentProject) {
-        await saveProjectAssets(currentOrg.id, currentProject.id, merged);
+        await persistAssetsToStorage(currentOrg.id, currentProject.id, merged, true);
       }
 
       get().logUserActivity({
@@ -2188,7 +2367,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
       if (removeAssets) {
-        await saveProjectAssets(currentOrg.id, currentProject.id, updatedAssets);
+        await persistAssetsToStorage(currentOrg.id, currentProject.id, updatedAssets);
       }
     }
     addToast({
@@ -2333,7 +2512,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       set({ assets: finalAssets, assetFigmaConfig: updatedConfig });
       if (currentOrg && currentProject) {
-        await saveProjectAssets(currentOrg.id, currentProject.id, finalAssets);
+        await persistAssetsToStorage(currentOrg.id, currentProject.id, finalAssets, true);
         await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
       }
 
@@ -2444,7 +2623,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       set({ assets: finalAssets, assetFigmaConfig: updatedConfig });
       if (currentOrg && currentProject) {
-        await saveProjectAssets(currentOrg.id, currentProject.id, finalAssets);
+        await persistAssetsToStorage(currentOrg.id, currentProject.id, finalAssets, true);
         await saveProjectAssetFigmaConfig(currentOrg.id, currentProject.id, updatedConfig);
       }
 

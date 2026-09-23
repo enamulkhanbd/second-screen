@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ProjectAsset, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
-import { saveProjectAssets } from "@/services/organizationService";
+
 import JSZip from "jszip";
 import {
   Image as ImageIcon,
@@ -446,18 +446,8 @@ export const AssetsView: React.FC = () => {
     setVisibleCount(ASSET_BATCH_SIZE);
   }, [selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
 
-  // Auto-persist: Ensure large icon libraries in memory are saved to chunked sub-documents
-  React.useEffect(() => {
-    if (
-      currentOrg?.id &&
-      currentProject?.id &&
-      storeAssets &&
-      storeAssets.length > 150 &&
-      !currentProject.hasChunkedAssets
-    ) {
-      saveProjectAssets(currentOrg.id, currentProject.id, storeAssets);
-    }
-  }, [currentOrg?.id, currentProject?.id, storeAssets?.length, currentProject?.hasChunkedAssets]);
+  // Note: Auto-persist for chunked assets is no longer needed.
+  // Assets are persisted to R2 (or Firestore fallback) through store actions.
 
   // Infinite scroll intersection observer to smoothly load the next batch
   React.useEffect(() => {
@@ -790,10 +780,24 @@ export const AssetsView: React.FC = () => {
   };
 
   // Copy SVG string enriched with icon name for Figma layer naming
-  const handleCopySvg = (svg: string, id: string, name?: string) => {
+  const handleCopySvg = async (svgOrUrl: string | undefined, id: string, name?: string, url?: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       const iconName = name || "icon";
-      const enriched = enrichSvgWithName(svg, iconName);
+
+      // Resolve SVG content: use inline svg if available, otherwise fetch from R2 URL
+      let svgContent = svgOrUrl || "";
+      if (!svgContent && url) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) svgContent = await res.text();
+        } catch {
+          addToast({ type: "error", title: "Copy Failed", message: "Could not fetch SVG from CDN." });
+          return;
+        }
+      }
+      if (!svgContent) return;
+
+      const enriched = enrichSvgWithName(svgContent, iconName);
 
       if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
         const textBlob = new Blob([enriched], { type: "text/plain" });
@@ -821,9 +825,20 @@ export const AssetsView: React.FC = () => {
   };
 
   // Download single SVG file
-  const handleDownloadSingleSvg = (asset: ProjectAsset) => {
+  const handleDownloadSingleSvg = async (asset: ProjectAsset) => {
     const iconName = asset.name || asset.title || "icon";
-    const enriched = enrichSvgWithName(asset.svg, iconName);
+
+    // Resolve SVG content from inline or R2 URL
+    let svgContent = asset.svg || "";
+    if (!svgContent && asset.url) {
+      try {
+        const res = await fetch(asset.url);
+        if (res.ok) svgContent = await res.text();
+      } catch { return; }
+    }
+    if (!svgContent) return;
+
+    const enriched = enrichSvgWithName(svgContent, iconName);
     const blob = new Blob([enriched], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -846,14 +861,25 @@ export const AssetsView: React.FC = () => {
 
     try {
       const zip = new JSZip();
-      targetAssets.forEach((asset) => {
+      for (const asset of targetAssets) {
         const typeFolder = asset.type || "general";
         const catFolder = asset.category || "general";
         const iconName = asset.name || asset.title || "icon";
         const fileName = `${iconName}.svg`;
-        const enriched = enrichSvgWithName(asset.svg, iconName);
+
+        // Resolve SVG content
+        let svgContent = asset.svg || "";
+        if (!svgContent && asset.url) {
+          try {
+            const res = await fetch(asset.url);
+            if (res.ok) svgContent = await res.text();
+          } catch { continue; }
+        }
+        if (!svgContent) continue;
+
+        const enriched = enrichSvgWithName(svgContent, iconName);
         zip.file(`${typeFolder}/${catFolder}/${fileName}`, enriched);
-      });
+      }
 
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);
@@ -1090,7 +1116,7 @@ export const AssetsView: React.FC = () => {
     return (
       <div
         key={icon.id}
-        onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle)}
+        onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle, icon.url)}
         className={`p-4 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[148px] ${
           isSelected
             ? "border-primary ring-2 ring-primary/20 bg-primary/[0.02]"
@@ -1186,11 +1212,20 @@ export const AssetsView: React.FC = () => {
           </DropdownMenu>
         </div>
 
-        {/* SVG Vector Render Preview */}
-        <div
-          className="w-11 h-11 flex items-center justify-center text-foreground transition-transform duration-150 group-hover:scale-105 mt-1"
-          dangerouslySetInnerHTML={{ __html: icon.svg }}
-        />
+        {/* Asset Render Preview — R2 CDN URL or legacy inline SVG */}
+        {icon.url && !icon.svg ? (
+          <img
+            src={icon.url}
+            alt={displayTitle}
+            className="w-11 h-11 object-contain text-foreground transition-transform duration-150 group-hover:scale-105 mt-1"
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className="w-11 h-11 flex items-center justify-center text-foreground transition-transform duration-150 group-hover:scale-105 mt-1"
+            dangerouslySetInnerHTML={{ __html: icon.svg || "" }}
+          />
+        )}
 
         {/* Icon Metadata: Title as primary, optional type/git/figma pill below */}
         <div className="w-full truncate mt-2 px-1">

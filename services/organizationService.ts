@@ -19,7 +19,6 @@ import {
   OrganizationMember,
   OrganizationInvitation,
   UserRole,
-  ProjectAsset,
   AssetGitConfig,
   AssetFigmaConfig,
 } from "@/types/tenant";
@@ -1039,146 +1038,33 @@ export async function saveProjectFigmaVariables(
   }
 }
 
-const ASSET_CHUNK_SIZE = 150;
-
 /**
- * Dynamically saves SVG assets for a specific Project in Firestore.
- * Automatically splits libraries exceeding 150 items into sub-documents under
- * `organizations/{orgId}/projects/{projectId}/asset_chunks/` to avoid the 1 MB Firestore limit.
+ * Lightweight Firestore update: saves only the asset count and storage provider flag.
+ * Used by R2 storage path — no SVG data is written to Firestore.
  */
-export async function saveProjectAssets(
+export async function saveProjectAssetCount(
   orgId: string,
   projectId: string,
-  assets: ProjectAsset[]
+  count: number,
+  storageProvider: "r2" | "firestore" = "r2"
 ): Promise<void> {
   if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
-  const firestore = db;
   try {
-    const projRef = doc(firestore, "organizations", orgId, "projects", projectId);
-    const chunksRef = collection(firestore, "organizations", orgId, "projects", projectId, "asset_chunks");
-
-    // Small library (<= 150): save directly in project document and clean up chunks
-    if (assets.length <= ASSET_CHUNK_SIZE) {
-      await setDoc(
-        projRef,
-        {
-          assets,
-          hasChunkedAssets: false,
-          assetsCount: assets.length,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-
-      // Clean up previous chunks if any
-      try {
-        const existingChunks = await getDocs(chunksRef);
-        if (!existingChunks.empty) {
-          const batch = writeBatch(firestore);
-          existingChunks.forEach((d) => batch.delete(d.ref));
-          await batch.commit();
-        }
-      } catch {}
-      return;
-    }
-
-    // Large library (> 150): Split into chunked sub-documents
-    const chunks: ProjectAsset[][] = [];
-    for (let i = 0; i < assets.length; i += ASSET_CHUNK_SIZE) {
-      chunks.push(assets.slice(i, i + ASSET_CHUNK_SIZE));
-    }
-
-    const existingSnap = await getDocs(chunksRef);
-    const existingDocIds = new Set(existingSnap.docs.map((d) => d.id));
-
-    const batch = writeBatch(firestore);
-    const usedDocIds = new Set<string>();
-
-    chunks.forEach((chunk, index) => {
-      const chunkId = `chunk_${String(index).padStart(3, "0")}`;
-      usedDocIds.add(chunkId);
-      const chunkDocRef = doc(firestore, "organizations", orgId, "projects", projectId, "asset_chunks", chunkId);
-      batch.set(chunkDocRef, {
-        index,
-        assets: chunk,
-        count: chunk.length,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-
-    // Delete stale chunks
-    existingDocIds.forEach((oldId) => {
-      if (!usedDocIds.has(oldId)) {
-        batch.delete(doc(firestore, "organizations", orgId, "projects", projectId, "asset_chunks", oldId));
-      }
-    });
-
-    await batch.commit();
-
-    // Clear heavy assets array from main document to ensure it stays < 50KB
+    const projRef = doc(db, "organizations", orgId, "projects", projectId);
     await setDoc(
       projRef,
       {
-        hasChunkedAssets: true,
-        assetsCount: assets.length,
-        assets: [],
+        assetsCount: count,
+        assetsStorageProvider: storageProvider,
         updatedAt: new Date().toISOString(),
       },
       { merge: true }
     );
   } catch (e) {
-    console.warn("Firestore error saving project assets:", e);
+    console.warn("Firestore error saving project asset count:", e);
   }
 }
 
-/**
- * Dynamically loads all SVG assets for a specific Project from Firestore.
- * Resolves both chunked sub-documents and legacy single-document assets.
- */
-export async function loadProjectAssets(
-  orgId: string,
-  projectId: string
-): Promise<ProjectAsset[]> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return [];
-  const firestore = db;
-  try {
-    const chunksRef = collection(firestore, "organizations", orgId, "projects", projectId, "asset_chunks");
-    const snap = await getDocs(chunksRef);
-
-    if (!snap.empty) {
-      const chunksData: Array<{ index: number; assets: ProjectAsset[] }> = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (Array.isArray(data.assets)) {
-          chunksData.push({
-            index: typeof data.index === "number" ? data.index : 0,
-            assets: data.assets as ProjectAsset[],
-          });
-        }
-      });
-
-      chunksData.sort((a, b) => a.index - b.index);
-      const combined: ProjectAsset[] = [];
-      for (const chunk of chunksData) {
-        combined.push(...chunk.assets);
-      }
-      return combined;
-    }
-
-    // Fallback: Check project document directly
-    const projRef = doc(firestore, "organizations", orgId, "projects", projectId);
-    const projSnap = await getDoc(projRef);
-    if (projSnap.exists()) {
-      const data = projSnap.data() as Project;
-      return data.assets || [];
-    }
-
-    return [];
-  } catch (e) {
-    console.warn("Firestore error loading project assets:", e);
-    return [];
-  }
-}
 
 /**
  * Dynamically saves independent Git asset configuration for a specific Project in Firestore

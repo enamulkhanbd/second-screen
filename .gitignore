@@ -37,3 +37,8 @@ next-env.d.ts
 # media & large recordings
 video/
 *.mp4
+
+# agent skills & temporary config
+.agents/skills/
+skills-lock.json
+

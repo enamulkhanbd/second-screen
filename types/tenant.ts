@@ -56,7 +56,18 @@ export interface ProjectAsset {
   type?: string;
   tag?: string;
   category?: string;
-  svg: string;
+  /** CDN URL for the asset file (R2 public URL) */
+  url?: string;
+  /** MIME content type (e.g. "image/svg+xml", "image/png") */
+  contentType?: string;
+  /** File size in bytes */
+  size?: number;
+  /**
+   * Inline SVG string content.
+   * @deprecated Kept for backward compatibility during Firestore→R2 migration.
+   * New assets use `url` field pointing to R2 CDN.
+   */
+  svg?: string;
   path?: string;
   updatedAt: string;
   source: "upload" | "git" | "figma";
@@ -116,8 +127,11 @@ export interface Project {
   assetGitConfig?: AssetGitConfig | null;
   assetFigmaConfig?: AssetFigmaConfig | null;
   assets?: ProjectAsset[];
+  /** @deprecated Firestore chunking flag — no longer needed with R2 storage */
   hasChunkedAssets?: boolean;
   assetsCount?: number;
+  /** Storage provider for assets: "r2" for Cloudflare R2, "firestore" for legacy */
+  assetsStorageProvider?: "r2" | "firestore";
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];
   figmaVariables?: RawTokensDocument;

@@ -1,0 +1,10 @@
+{
+  "git.ignoredRepositories": [
+    "/Users/enamulkhanbd",
+    "/Users/enamulkhanbd/Downloads/GitHub",
+    "/Users/enamulkhanbd/Downloads/tokens"
+  ],
+  "git.autoRepositoryDetection": "subFolders",
+  "git.scanRepositories": false,
+  "git.repositoryScanMaxDepth": 0
+}
