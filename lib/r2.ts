@@ -149,6 +149,20 @@ export function extensionFromContentType(contentType: string): string {
   return "bin";
 }
 
+/**
+ * Derives the semantic asset type ("icon" | "image" | "video" | "document" | "other")
+ * from the MIME contentType and filename extension.
+ */
+export function deriveAssetType(contentType: string = "", filename: string = ""): AssetType {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const mime = contentType.toLowerCase();
+  if (mime.includes("svg") || ext === "svg") return "icon";
+  if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "ico", "bmp", "avif"].includes(ext)) return "image";
+  if (mime.startsWith("video/") || ["mp4", "webm", "mov", "mkv", "avi"].includes(ext)) return "video";
+  if (mime.includes("pdf") || mime.includes("document") || ["pdf", "doc", "docx", "ppt", "pptx", "txt"].includes(ext)) return "document";
+  return "other";
+}
+
 // ---------------------------------------------------------------------------
 // Core Operations
 // ---------------------------------------------------------------------------
@@ -201,6 +215,8 @@ export async function uploadAsset(
   };
 }
 
+import { AssetType, ProjectAsset } from "@/types/tenant";
+
 /**
  * Uploads the asset metadata index (lightweight JSON) for a project.
  * This replaces the Firestore asset document storage.
@@ -208,24 +224,7 @@ export async function uploadAsset(
 export async function uploadMetadataIndex(
   orgId: string,
   projectId: string,
-  metadata: Array<{
-    id: string;
-    name: string;
-    title?: string;
-    type?: string;
-    tag?: string;
-    category?: string;
-    url: string;
-    contentType: string;
-    size?: number;
-    path?: string;
-    updatedAt: string;
-    source: "upload" | "git" | "figma";
-    figmaNodeId?: string;
-    figmaUrl?: string;
-    figmaSourceId?: string;
-    figmaSourceName?: string;
-  }>
+  metadata: ProjectAsset[]
 ): Promise<void> {
   const client = getClient();
   const key = buildMetadataKey(orgId, projectId);
@@ -249,26 +248,7 @@ export async function uploadMetadataIndex(
 export async function loadMetadataIndex(
   orgId: string,
   projectId: string
-): Promise<
-  Array<{
-    id: string;
-    name: string;
-    title?: string;
-    type?: string;
-    tag?: string;
-    category?: string;
-    url: string;
-    contentType: string;
-    size?: number;
-    path?: string;
-    updatedAt: string;
-    source: "upload" | "git" | "figma";
-    figmaNodeId?: string;
-    figmaUrl?: string;
-    figmaSourceId?: string;
-    figmaSourceName?: string;
-  }>
-> {
+): Promise<ProjectAsset[]> {
   const client = getClient();
   const key = buildMetadataKey(orgId, projectId);
 

@@ -50,6 +50,8 @@ import {
   UserRole,
   ROLE_DEFINITIONS,
   ProjectAsset,
+  AssetFolder,
+  AssetType,
   AssetGitConfig,
   AssetFigmaConfig,
   FigmaSourceLink,
@@ -154,6 +156,13 @@ interface TokenStoreState {
   deleteFigmaCollectionAction: (setName: string) => Promise<void>;
 
   assets: ProjectAsset[];
+  assetFolders: AssetFolder[];
+  activeFolderId: string | null;
+  setActiveFolderId: (folderId: string | null) => void;
+  createAssetFolder: (name: string, description?: string, icon?: string, color?: string) => Promise<AssetFolder>;
+  updateAssetFolder: (folderId: string, updates: Partial<AssetFolder>) => Promise<void>;
+  deleteAssetFolder: (folderId: string, moveContentsToFolderId?: string | null) => Promise<void>;
+  moveAssetsToFolder: (assetIds: string[], targetFolderId: string | null) => Promise<void>;
   assetGitConfig: AssetGitConfig | null;
   assetFigmaConfig: AssetFigmaConfig | null;
   isSyncingAssets: boolean;
@@ -162,7 +171,20 @@ interface TokenStoreState {
   r2StorageError: string | null;
   refreshAssets: () => Promise<void>;
   setAssets: (assets: ProjectAsset[]) => void;
-  uploadAssets: (newAssets: Array<{ name: string; title?: string; type?: string; tag?: string; category?: string; svg: string }>) => Promise<void>;
+  uploadAssets: (
+    newAssets: Array<{
+      name: string;
+      title?: string;
+      type?: string;
+      tag?: string;
+      category?: string;
+      folderId?: string;
+      assetType?: AssetType;
+      svg?: string;
+      content?: string;
+      contentType?: string;
+    }>
+  ) => Promise<void>;
   applyMetadataToAssets: (metadataMap: Map<string, { name?: string; title?: string; type?: string; tag?: string; category?: string }>) => Promise<void>;
   updateAsset: (id: string, updates: Partial<ProjectAsset>) => Promise<void>;
   updateAssets: (ids: string[], updates: Partial<ProjectAsset>) => Promise<void>;
@@ -450,6 +472,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         type: a.type,
         tag: a.tag,
         category: a.category || "general",
+        folderId: a.folderId,
+        assetType: a.assetType,
         content: a.svg || "", // SVG content for upload
         contentType: a.contentType || "image/svg+xml",
         source: a.source,
@@ -621,6 +645,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   ): Promise<{
     assetGitConfig?: AssetGitConfig | null;
     assetFigmaConfig?: AssetFigmaConfig | null;
+    folders?: AssetFolder[];
   } | null> => {
     try {
       const res = await fetch(
@@ -650,6 +675,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     updates: {
       assetGitConfig?: AssetGitConfig | null;
       assetFigmaConfig?: AssetFigmaConfig | null;
+      folders?: AssetFolder[];
       assetsCount?: number;
     }
   ): Promise<boolean> => {
@@ -1036,6 +1062,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       figmaUpdatedAt: null,
       figmaMeta: null,
       assets: [],
+      assetFolders: [],
+      activeFolderId: null,
       assetGitConfig: null,
       assetFigmaConfig: null,
       credentials: DEFAULT_CREDENTIALS,
@@ -1257,6 +1285,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         figmaUpdatedAt: proj.figmaUpdatedAt || null,
         figmaMeta: proj.figmaMeta || null,
         assets: proj.assets || [],
+        assetFolders: proj.assetFolders || [],
+        activeFolderId: null,
         assetGitConfig: proj.assetGitConfig || null,
         assetFigmaConfig: normalizedFigmaConfig,
         documentation: docToUse,
@@ -1276,7 +1306,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
       });
 
-      // Hydrate asset configs (Git & Figma) from R2
+      // Hydrate asset configs (Git, Figma, Folders) from R2
       loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
         if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
         if (r2Config.assetGitConfig !== undefined) {
@@ -1284,6 +1314,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
         if (r2Config.assetFigmaConfig !== undefined) {
           set({ assetFigmaConfig: r2Config.assetFigmaConfig });
+        }
+        if (r2Config.folders !== undefined) {
+          set({ assetFolders: r2Config.folders });
         }
       });
 
@@ -2029,12 +2062,115 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   assets: [],
+  assetFolders: [],
+  activeFolderId: null,
   assetGitConfig: null,
   assetFigmaConfig: null,
   isSyncingAssets: false,
   isSyncingFigmaAssets: false,
   isLoadingAssets: false,
   r2StorageError: null,
+
+  setActiveFolderId: (activeFolderId) => set({ activeFolderId }),
+
+  createAssetFolder: async (name, description, icon, color) => {
+    const { currentOrg, currentProject, assetFolders, addToast } = get();
+    const now = new Date().toISOString();
+    const newFolder: AssetFolder = {
+      id: `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: name.trim(),
+      description: description?.trim() || undefined,
+      icon: icon || "Folder",
+      color: color || "blue",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const updatedFolders = [...assetFolders, newFolder];
+    set({ assetFolders: updatedFolders });
+    if (currentOrg && currentProject) {
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { folders: updatedFolders });
+    }
+    addToast({
+      type: "success",
+      title: "Folder Created",
+      message: `Created folder "${newFolder.name}".`,
+    });
+    return newFolder;
+  },
+
+  updateAssetFolder: async (folderId, updates) => {
+    const { currentOrg, currentProject, assetFolders, addToast } = get();
+    const now = new Date().toISOString();
+    const updatedFolders = assetFolders.map((f) => (f.id === folderId ? { ...f, ...updates, updatedAt: now } : f));
+    set({ assetFolders: updatedFolders });
+    if (currentOrg && currentProject) {
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { folders: updatedFolders });
+    }
+    addToast({
+      type: "success",
+      title: "Folder Updated",
+      message: "Folder settings saved.",
+    });
+  },
+
+  deleteAssetFolder: async (folderId, moveContentsToFolderId) => {
+    const { currentOrg, currentProject, assetFolders, assets, activeFolderId, addToast } = get();
+    const targetFolder = assetFolders.find((f) => f.id === folderId);
+    const updatedFolders = assetFolders.filter((f) => f.id !== folderId);
+    const now = new Date().toISOString();
+    const updatedAssets = assets.map((a) => {
+      if (a.folderId === folderId) {
+        return { ...a, folderId: moveContentsToFolderId || undefined, updatedAt: now };
+      }
+      return a;
+    });
+    const nextActive = activeFolderId === folderId ? null : activeFolderId;
+    set({ assetFolders: updatedFolders, assets: updatedAssets, activeFolderId: nextActive });
+    if (currentOrg && currentProject) {
+      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { folders: updatedFolders });
+      await persistAssetsToStorage(currentOrg.id, currentProject.id, updatedAssets);
+    }
+    addToast({
+      type: "info",
+      title: "Folder Deleted",
+      message: `Deleted folder "${targetFolder?.name || ""}".`,
+    });
+  },
+
+  moveAssetsToFolder: async (assetIds, targetFolderId) => {
+    const { currentOrg, currentProject, assets, addToast } = get();
+    const idSet = new Set(assetIds);
+    const now = new Date().toISOString();
+    const updated = assets.map((a) => {
+      if (idSet.has(a.id)) {
+        return { ...a, folderId: targetFolderId || undefined, updatedAt: now };
+      }
+      return a;
+    });
+    set({ assets: updated });
+    if (currentOrg && currentProject) {
+      try {
+        await fetch("/api/assets/list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orgId: currentOrg.id,
+            projectId: currentProject.id,
+            action: "move-folder",
+            assetIds,
+            targetFolderId,
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to persist move-folder to R2:", err);
+      }
+    }
+    addToast({
+      type: "success",
+      title: "Assets Moved",
+      message: `Moved ${assetIds.length} asset${assetIds.length > 1 ? "s" : ""} to target folder.`,
+    });
+  },
 
   refreshAssets: async () => {
     const { currentOrg, currentProject } = get();
@@ -2049,6 +2185,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (config && isScopeActive(currentOrg.id, currentProject.id)) {
         if (config.assetGitConfig !== undefined) set({ assetGitConfig: config.assetGitConfig });
         if (config.assetFigmaConfig !== undefined) set({ assetFigmaConfig: config.assetFigmaConfig });
+        if (config.folders !== undefined) set({ assetFolders: config.folders });
       }
     } finally {
       set({ isLoadingAssets: false });
@@ -2062,7 +2199,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       get().addToast({ type: "info", title: "Read-Only Access", message: "Viewer role cannot upload assets." });
       return;
     }
-    const { currentOrg, currentProject, assets, addToast } = get();
+    const { currentOrg, currentProject, assets, activeFolderId, addToast } = get();
     const now = new Date().toISOString();
     const created: ProjectAsset[] = newAssets.map((a) => ({
       id: `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -2071,15 +2208,59 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: a.type || undefined,
       tag: a.tag || undefined,
       category: a.category || "general",
+      folderId: a.folderId !== undefined ? a.folderId : (activeFolderId || undefined),
+      assetType: a.assetType,
       svg: a.svg,
+      contentType: a.contentType || (a.svg ? "image/svg+xml" : undefined),
       updatedAt: now,
       source: "upload",
     }));
     const updated = [...created, ...assets];
     set({ assets: updated });
     if (currentOrg && currentProject) {
-      await persistAssetsToStorage(currentOrg.id, currentProject.id, updated);
+      const r2Payload = newAssets.map((a, idx) => ({
+        ...created[idx],
+        content: a.content || a.svg || "",
+      }));
+      try {
+        const BATCH_SIZE = 10;
+        const allUploadedAssets: any[] = [];
+        for (let i = 0; i < r2Payload.length; i += BATCH_SIZE) {
+          const slice = r2Payload.slice(i, i + BATCH_SIZE);
+          const res = await fetch("/api/assets/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orgId: currentOrg.id,
+              projectId: currentProject.id,
+              assets: slice,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.assets && Array.isArray(data.assets)) {
+              allUploadedAssets.push(...data.assets);
+            }
+          }
+        }
+        if (allUploadedAssets.length > 0) {
+          const urlMap = new Map<string, string>(allUploadedAssets.map((x: any) => [x.id, x.url]));
+          const finalized = updated.map((asset) => ({
+            ...asset,
+            url: (urlMap.get(asset.id) || asset.url) as string | undefined,
+          }));
+          set({ assets: finalized });
+        }
+      } catch (err) {
+        console.error("Failed uploading assets to R2:", err);
+      }
     }
+
+    addToast({
+      type: "success",
+      title: "Assets Uploaded",
+      message: `Successfully uploaded ${created.length} asset${created.length > 1 ? "s" : ""}.`,
+    });
 
     get().logUserActivity({
       type: "asset",

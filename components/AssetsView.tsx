@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { ProjectAsset, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
+import { ProjectAsset, AssetFolder, AssetType, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
+import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
 
 import JSZip from "jszip";
 import {
@@ -22,6 +23,9 @@ import {
   Square,
   AlertCircle,
   Folder,
+  FolderPlus,
+  FolderInput,
+  FolderCheck,
   Layers,
   Sparkles,
   PlusCircle,
@@ -37,6 +41,9 @@ import {
   Shirt,
   Navigation,
   FileText,
+  File,
+  Film,
+  Video,
   Settings,
   Shield,
   Heart,
@@ -56,6 +63,7 @@ import {
   EyeOff,
   SlidersHorizontal,
   Save,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -260,11 +268,103 @@ function parseRawPathMeta(relativePath: string): { derivedType?: string; derived
   return { derivedType, derivedCategory, stem };
 }
 
+/**
+ * Converts a browser File into a pure Base64 string for R2 binary uploads.
+ */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = reader.result as string;
+      const base64 = res.includes(",") ? res.split(",")[1] : res;
+      resolve(base64);
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Determines the semantic AssetType (icon, image, video, document, other)
+ * from asset metadata, MIME contentType, and filename.
+ */
+export function getInferredAssetType(asset: ProjectAsset): AssetType {
+  if (asset.assetType) return asset.assetType;
+  const mime = (asset.contentType || "").toLowerCase();
+  const name = asset.name.toLowerCase();
+  const url = (asset.url || "").toLowerCase();
+  if (mime.includes("svg") || name.endsWith(".svg") || url.endsWith(".svg")) return "icon";
+  if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|ico|bmp|avif)$/i.test(name) || /\.(png|jpe?g|webp|gif|ico)$/i.test(url)) return "image";
+  if (mime.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(name) || /\.(mp4|webm|mov)$/i.test(url)) return "video";
+  if (mime.includes("pdf") || mime.includes("document") || /\.(pdf|docx?|pptx?|txt)$/i.test(name) || url.endsWith(".pdf")) return "document";
+  return "icon";
+}
+
+/**
+ * Formats file size in bytes to human-readable string.
+ */
+export function formatBytes(bytes?: number): string {
+  if (!bytes || bytes === 0) return "";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+/**
+ * Maps folder icon identifier to corresponding Lucide icon component.
+ */
+export function getFolderIconComponent(iconName?: string) {
+  switch (iconName?.toLowerCase()) {
+    case "image":
+    case "images":
+    case "photo":
+    case "photos":
+      return ImageIcon;
+    case "video":
+    case "videos":
+    case "motion":
+    case "film":
+      return Film;
+    case "filetext":
+    case "doc":
+    case "document":
+    case "documents":
+    case "pdf":
+      return FileText;
+    case "sparkles":
+      return Sparkles;
+    case "briefcase":
+      return Briefcase;
+    case "shield":
+      return Shield;
+    case "heart":
+      return Heart;
+    case "globe":
+      return Globe;
+    case "building":
+      return Building;
+    case "layers":
+      return Layers;
+    case "award":
+      return Award;
+    default:
+      return Folder;
+  }
+}
+
 export const AssetsView: React.FC = () => {
   const {
     currentOrg,
     currentProject,
     assets: storeAssets,
+    assetFolders = [],
+    activeFolderId = null,
+    setActiveFolderId,
+    createAssetFolder,
+    updateAssetFolder,
+    deleteAssetFolder,
+    moveAssetsToFolder,
     uploadAssets,
     applyMetadataToAssets,
     updateAsset,
@@ -300,6 +400,7 @@ export const AssetsView: React.FC = () => {
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedAssetType, setSelectedAssetType] = useState<"all" | "icon" | "image" | "video" | "document">("all");
   const [selectedFigmaSource, setSelectedFigmaSource] = useState<string>("all");
   const [showSourceBadges, setShowSourceBadges] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -312,6 +413,25 @@ export const AssetsView: React.FC = () => {
 
   // Drag and Drop Zone State
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragTargetFolderId, setDragTargetFolderId] = useState<string | null>(null);
+
+  // Folder management modals state
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [isEditFolderOpen, setIsEditFolderOpen] = useState(false);
+  const [isDeleteFolderOpen, setIsDeleteFolderOpen] = useState(false);
+  const [isMoveAssetsOpen, setIsMoveAssetsOpen] = useState(false);
+  const [folderToEdit, setFolderToEdit] = useState<AssetFolder | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<AssetFolder | null>(null);
+  const [folderFormName, setFolderFormName] = useState("");
+  const [folderFormDesc, setFolderFormDesc] = useState("");
+  const [folderFormIcon, setFolderFormIcon] = useState("Folder");
+  const [folderFormColor, setFolderFormColor] = useState("blue");
+  const [targetMoveFolderId, setTargetMoveFolderId] = useState<string | null>(null);
+  const [assetToMoveId, setAssetToMoveId] = useState<string | null>(null);
+  const [uploadTargetFolderId, setUploadTargetFolderId] = useState<string | null>(null);
+
+  // Media preview modal / drawer state (for video / full image / doc preview)
+  const [previewMediaAsset, setPreviewMediaAsset] = useState<ProjectAsset | null>(null);
 
   // File Upload Refs
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -328,6 +448,7 @@ export const AssetsView: React.FC = () => {
   const [editFormType, setEditFormType] = useState("");
   const [editFormCategory, setEditFormCategory] = useState("");
   const [editFormTag, setEditFormTag] = useState("");
+  const [editFormFolderId, setEditFormFolderId] = useState<string | undefined>(undefined);
   const [bulkFormTitle, setBulkFormTitle] = useState("");
   const [bulkFormType, setBulkFormType] = useState("");
   const [bulkFormCategory, setBulkFormCategory] = useState("");
@@ -377,35 +498,71 @@ export const AssetsView: React.FC = () => {
     return storeAssets || [];
   }, [storeAssets]);
 
+  // Precomputed folder counts
+  const folderCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    displayAssets.forEach((a) => {
+      if (a.folderId) {
+        counts.set(a.folderId, (counts.get(a.folderId) || 0) + 1);
+      }
+    });
+    return counts;
+  }, [displayAssets]);
+
+  // Asset type counts (scoped to active folder if selected, or overall)
+  const assetTypeCounts = useMemo(() => {
+    const counts = { all: 0, icon: 0, image: 0, video: 0, document: 0, other: 0 };
+    const pool = activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId) : displayAssets;
+    counts.all = pool.length;
+    pool.forEach((a) => {
+      const type = getInferredAssetType(a);
+      if (counts[type as keyof typeof counts] !== undefined) {
+        counts[type as keyof typeof counts]++;
+      } else {
+        counts.other++;
+      }
+    });
+    return counts;
+  }, [displayAssets, activeFolderId]);
+
+  // Active folder details
+  const currentActiveFolder = useMemo(() => {
+    if (!activeFolderId) return null;
+    return assetFolders.find((f) => f.id === activeFolderId) || null;
+  }, [assetFolders, activeFolderId]);
+
   // Unique icon types found in metadata or folder structure
   const iconTypes = useMemo(() => {
     const set = new Set<string>();
-    displayAssets.forEach((a) => {
+    const pool = activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId) : displayAssets;
+    pool.forEach((a) => {
       if (a.type) set.add(a.type.toLowerCase());
     });
     return Array.from(set).sort();
-  }, [displayAssets]);
+  }, [displayAssets, activeFolderId]);
 
   // Precomputed category counts in a single O(N) pass
   const categoryCountMap = useMemo(() => {
     const counts = new Map<string, number>();
-    displayAssets.forEach((a) => {
+    const pool = activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId) : displayAssets;
+    pool.forEach((a) => {
       if (a.category) {
         const cat = a.category.toLowerCase();
         counts.set(cat, (counts.get(cat) || 0) + 1);
       }
     });
     return counts;
-  }, [displayAssets]);
+  }, [displayAssets, activeFolderId]);
 
   // Unique categories
   const categories = useMemo(() => {
     const set = new Set<string>();
-    displayAssets.forEach((a) => {
+    const pool = activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId) : displayAssets;
+    pool.forEach((a) => {
       if (a.category) set.add(a.category.toLowerCase());
     });
     return Array.from(set).sort((a, b) => ASSET_COLLATOR.compare(a, b));
-  }, [displayAssets]);
+  }, [displayAssets, activeFolderId]);
 
   // Filtered categories in left sidebar
   const filteredCategoryList = useMemo(() => {
@@ -414,9 +571,16 @@ export const AssetsView: React.FC = () => {
     return categories.filter((c) => c.toLowerCase().includes(q) || formatCategoryName(c).toLowerCase().includes(q));
   }, [categories, categorySearchQuery]);
 
-  // Filtered assets with Icon Type & Category filtering + Tag-Based Search Metadata
+  // Filtered assets with Folder & Asset Type & Icon Type & Category filtering + Tag-Based Search Metadata
   const filteredAssets = useMemo(() => {
     return displayAssets.filter((icon) => {
+      if (activeFolderId !== null && icon.folderId !== activeFolderId) {
+        return false;
+      }
+      if (selectedAssetType !== "all") {
+        const itemType = getInferredAssetType(icon);
+        if (itemType !== selectedAssetType) return false;
+      }
       if (selectedType !== "all" && icon.type?.toLowerCase() !== selectedType) {
         return false;
       }
@@ -438,7 +602,7 @@ export const AssetsView: React.FC = () => {
       }
       return true;
     }).sort((a, b) => ASSET_COLLATOR.compare(a.title || a.name, b.title || b.name));
-  }, [displayAssets, selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
+  }, [displayAssets, activeFolderId, selectedAssetType, selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
 
   // Progressive loading: only render visibleCount icons at once to prevent DOM freezing
   const [visibleCount, setVisibleCount] = useState(ASSET_BATCH_SIZE);
@@ -447,7 +611,7 @@ export const AssetsView: React.FC = () => {
   // Reset visibleCount whenever filters change
   React.useEffect(() => {
     setVisibleCount(ASSET_BATCH_SIZE);
-  }, [selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
+  }, [activeFolderId, selectedAssetType, selectedType, selectedCategory, selectedFigmaSource, searchQuery]);
 
   // Ensure assets are fetched if currently empty and not loading
   React.useEffect(() => {
@@ -527,29 +691,49 @@ export const AssetsView: React.FC = () => {
   };
 
   /**
-   * Unified Processor for multi-layer SVG files and metadata.json (handles direct files, zip archives, and folders)
+   * Unified Processor for multi-layer SVG files, binary media assets, and metadata.json
    */
-  const processRawFileList = async (rawFiles: Array<{ path: string; content: string }>) => {
+  const processRawFileList = async (
+    rawFiles: Array<{ path: string; content: string; isBinary?: boolean; contentType?: string; size?: number }>,
+    targetFolderId?: string
+  ) => {
     let metadataMap = new Map<string, RawMetadataItem>();
     const svgItems: Array<{ path: string; content: string }> = [];
+    const mediaItems: Array<{ path: string; content: string; isBinary?: boolean; contentType?: string; size?: number }> = [];
 
-    // Step 1: Extract all metadata JSON files
+    const effectiveFolderId = targetFolderId !== undefined ? targetFolderId : (activeFolderId || undefined);
+
+    // Step 1: Extract all metadata JSON files and partition files
     for (const item of rawFiles) {
-      if (item.path.toLowerCase().endsWith(".json")) {
+      const lower = item.path.toLowerCase();
+      if (lower.endsWith(".json")) {
         const parsedMap = parseMetadataJson(item.content);
         parsedMap.forEach((v, k) => metadataMap.set(k, v));
-      } else if (item.path.toLowerCase().endsWith(".svg")) {
-        svgItems.push(item);
+      } else if (lower.endsWith(".svg")) {
+        svgItems.push({ path: item.path, content: item.content });
+      } else {
+        mediaItems.push(item);
       }
     }
 
-    // If metadata.json was uploaded without SVGs, apply it to existing project assets
-    if (metadataMap.size > 0 && svgItems.length === 0) {
+    // If metadata.json was uploaded without any asset files, apply it to existing project assets
+    if (metadataMap.size > 0 && svgItems.length === 0 && mediaItems.length === 0) {
       await applyMetadataToAssets(metadataMap);
       return;
     }
 
-    const newAssets: Array<{ name: string; title?: string; type?: string; tag?: string; category?: string; svg: string }> = [];
+    const newAssets: Array<{
+      name: string;
+      title?: string;
+      type?: string;
+      tag?: string;
+      category?: string;
+      folderId?: string;
+      assetType?: AssetType;
+      svg?: string;
+      content?: string;
+      contentType?: string;
+    }> = [];
 
     // Step 2: Process SVG items with multi-layer path resolution and composite metadata matching
     for (const item of svgItems) {
@@ -576,9 +760,35 @@ export const AssetsView: React.FC = () => {
           type: resolvedType,
           tag: matchedMeta?.tag || undefined,
           category: resolvedCategory,
+          folderId: effectiveFolderId,
+          assetType: "icon",
           svg: cleanedSvg,
+          content: cleanedSvg,
+          contentType: "image/svg+xml",
         });
       }
+    }
+
+    // Step 3: Process non-SVG binary media items (images, videos, documents)
+    for (const item of mediaItems) {
+      const clean = item.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      const parts = clean.split("/").filter(Boolean);
+      const fileName = parts.pop() || "asset";
+      const stem = fileName.replace(/\.[^/.]+$/, "");
+      const mime = item.contentType || detectContentType(fileName);
+      const derivedType = deriveAssetType(mime, fileName);
+      const resolvedCategory = parts.length > 0 ? parts.join("-") : (selectedCategory !== "all" ? selectedCategory : "general");
+
+      newAssets.push({
+        name: stem,
+        title: stem,
+        type: derivedType,
+        category: resolvedCategory,
+        folderId: effectiveFolderId,
+        assetType: derivedType,
+        content: item.content,
+        contentType: mime,
+      });
     }
 
     if (newAssets.length > 0) {
@@ -589,7 +799,7 @@ export const AssetsView: React.FC = () => {
   /**
    * Reads standard FileList, unzipping any .zip archives or extracting folder paths
    */
-  const handleProcessIncomingFiles = async (files: FileList | File[]) => {
+  const handleProcessIncomingFiles = async (files: FileList | File[], targetFolderId?: string) => {
     if (!canUserEdit()) {
       addToast({
         type: "info",
@@ -599,24 +809,47 @@ export const AssetsView: React.FC = () => {
       return;
     }
 
-    const rawFiles: Array<{ path: string; content: string }> = [];
+    if (files.length > 1) {
+      addToast({
+        type: "info",
+        title: "Uploading Multiple Assets",
+        message: `Processing ${files.length} assets for upload...`,
+      });
+    }
+
+    const rawFiles: Array<{ path: string; content: string; isBinary?: boolean; contentType?: string; size?: number }> = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const relativePath = (file as any).webkitRelativePath || file.name;
+      const lower = file.name.toLowerCase();
 
-      if (file.name.toLowerCase().endsWith(".zip")) {
+      if (lower.endsWith(".zip")) {
         try {
           const zip = await JSZip.loadAsync(file);
           const zipEntries: Array<Promise<void>> = [];
 
           zip.forEach((path, entry) => {
-            if (!entry.dir && (path.toLowerCase().endsWith(".svg") || path.toLowerCase().endsWith(".json"))) {
-              zipEntries.push(
-                entry.async("text").then((text) => {
-                  rawFiles.push({ path, content: text });
-                })
-              );
+            if (!entry.dir) {
+              const entryLower = path.toLowerCase();
+              if (entryLower.endsWith(".json") || entryLower.endsWith(".svg")) {
+                zipEntries.push(
+                  entry.async("text").then((text) => {
+                    rawFiles.push({ path, content: text, isBinary: false, contentType: entryLower.endsWith(".svg") ? "image/svg+xml" : "application/json" });
+                  })
+                );
+              } else {
+                zipEntries.push(
+                  entry.async("base64").then((base64) => {
+                    rawFiles.push({
+                      path,
+                      content: base64,
+                      isBinary: true,
+                      contentType: detectContentType(path),
+                    });
+                  })
+                );
+              }
             }
           });
 
@@ -629,10 +862,24 @@ export const AssetsView: React.FC = () => {
             message: `Could not extract ${file.name}.`,
           });
         }
-      } else if (file.name.toLowerCase().endsWith(".svg") || file.name.toLowerCase().endsWith(".json")) {
+      } else if (lower.endsWith(".svg") || lower.endsWith(".json")) {
         try {
           const text = await file.text();
-          rawFiles.push({ path: relativePath, content: text });
+          rawFiles.push({ path: relativePath, content: text, isBinary: false, contentType: lower.endsWith(".svg") ? "image/svg+xml" : "application/json" });
+        } catch (err) {
+          console.warn("Failed reading file:", file.name, err);
+        }
+      } else {
+        // Binary files: images, videos, documents
+        try {
+          const base64 = await fileToBase64(file);
+          rawFiles.push({
+            path: relativePath,
+            content: base64,
+            isBinary: true,
+            contentType: file.type || detectContentType(file.name),
+            size: file.size,
+          });
         } catch (err) {
           console.warn("Failed reading file:", file.name, err);
         }
@@ -640,7 +887,8 @@ export const AssetsView: React.FC = () => {
     }
 
     if (rawFiles.length > 0) {
-      await processRawFileList(rawFiles);
+      await processRawFileList(rawFiles, targetFolderId || uploadTargetFolderId || undefined);
+      setUploadTargetFolderId(null);
     }
   };
 
@@ -659,6 +907,9 @@ export const AssetsView: React.FC = () => {
     e.preventDefault();
     setIsDragOver(false);
 
+    const folderTarget = dragTargetFolderId || undefined;
+    setDragTargetFolderId(null);
+
     // Check if DataTransfer items support webkitGetAsEntry for recursive folder drop
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       const entries: any[] = [];
@@ -669,15 +920,24 @@ export const AssetsView: React.FC = () => {
       }
 
       if (entries.length > 0 && entries.some((entry) => entry.isDirectory)) {
-        const rawFiles: Array<{ path: string; content: string }> = [];
+        const rawFiles: Array<{ path: string; content: string; isBinary?: boolean; contentType?: string }> = [];
 
         const readEntry = async (entry: any, currentPath = ""): Promise<void> => {
           if (entry.isFile) {
             const file: File = await new Promise((resolve, reject) => entry.file(resolve, reject));
             const fullPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
-            if (file.name.toLowerCase().endsWith(".svg") || file.name.toLowerCase().endsWith(".json")) {
+            const lower = file.name.toLowerCase();
+            if (lower.endsWith(".svg") || lower.endsWith(".json")) {
               const text = await file.text();
-              rawFiles.push({ path: fullPath, content: text });
+              rawFiles.push({ path: fullPath, content: text, isBinary: false, contentType: lower.endsWith(".svg") ? "image/svg+xml" : "application/json" });
+            } else {
+              const base64 = await fileToBase64(file);
+              rawFiles.push({
+                path: fullPath,
+                content: base64,
+                isBinary: true,
+                contentType: file.type || detectContentType(file.name),
+              });
             }
           } else if (entry.isDirectory) {
             const dirReader = entry.createReader();
@@ -703,43 +963,144 @@ export const AssetsView: React.FC = () => {
         }
 
         if (rawFiles.length > 0) {
-          await processRawFileList(rawFiles);
+          await processRawFileList(rawFiles, folderTarget);
           return;
         }
       }
     }
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      await handleProcessIncomingFiles(e.dataTransfer.files);
+      await handleProcessIncomingFiles(e.dataTransfer.files, folderTarget);
     }
   };
 
-  // Handle replacing an individual SVG file
+  // Folder submission handlers
+  const handleCreateFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!folderFormName.trim()) return;
+    const created = await createAssetFolder(
+      folderFormName.trim(),
+      folderFormDesc.trim() || undefined,
+      folderFormIcon,
+      folderFormColor
+    );
+    if (created) {
+      setActiveFolderId(created.id);
+    }
+    setFolderFormName("");
+    setFolderFormDesc("");
+    setIsCreateFolderOpen(false);
+  };
+
+  const handleEditFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!folderToEdit || !folderFormName.trim()) return;
+    await updateAssetFolder(folderToEdit.id, {
+      name: folderFormName.trim(),
+      description: folderFormDesc.trim() || undefined,
+      icon: folderFormIcon,
+      color: folderFormColor,
+    });
+    setIsEditFolderOpen(false);
+    setFolderToEdit(null);
+  };
+
+  const handleConfirmDeleteFolder = async () => {
+    if (!folderToDelete) return;
+    await deleteAssetFolder(folderToDelete.id);
+    setIsDeleteFolderOpen(false);
+    setFolderToDelete(null);
+  };
+
+  const handleConfirmMoveAssets = async (destinationFolderId: string | null) => {
+    const ids = assetToMoveId ? [assetToMoveId] : Array.from(selectedAssetIds);
+    if (ids.length === 0) return;
+    await moveAssetsToFolder(ids, destinationFolderId);
+    setAssetToMoveId(null);
+    setIsMoveAssetsOpen(false);
+    if (!assetToMoveId) {
+      setSelectedAssetIds(new Set());
+    }
+  };
+
+  // Handle replacing an individual asset file (SVG or binary)
   const handleReplaceFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !replacingAssetId) return;
 
     try {
-      const text = await file.text();
-      const cleanedSvg = text
-        .replace(/<\?xml[^>]*\?>/gi, "")
-        .replace(/<!DOCTYPE[^>]*>/gi, "")
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-        .trim();
+      const isSvg = file.name.toLowerCase().endsWith(".svg");
+      if (isSvg) {
+        const text = await file.text();
+        const cleanedSvg = text
+          .replace(/<\?xml[^>]*\?>/gi, "")
+          .replace(/<!DOCTYPE[^>]*>/gi, "")
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+          .trim();
 
-      if (cleanedSvg.includes("<svg")) {
-        await updateAsset(replacingAssetId, {
-          svg: cleanedSvg,
-          updatedAt: new Date().toISOString(),
-        });
-        addToast({
-          type: "success",
-          title: "SVG Replaced",
-          message: "Updated vector icon content.",
-        });
+        if (cleanedSvg.includes("<svg")) {
+          await updateAsset(replacingAssetId, {
+            svg: cleanedSvg,
+            contentType: "image/svg+xml",
+            size: file.size,
+            updatedAt: new Date().toISOString(),
+          });
+          addToast({
+            type: "success",
+            title: "SVG Replaced",
+            message: "Updated vector icon content.",
+          });
+        }
+      } else {
+        const base64 = await fileToBase64(file);
+        const mime = file.type || detectContentType(file.name);
+        const itemType = deriveAssetType(mime, file.name);
+
+        const { currentOrg, currentProject } = useTokenStore.getState();
+        if (currentOrg && currentProject) {
+          const res = await fetch("/api/assets/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orgId: currentOrg.id,
+              projectId: currentProject.id,
+              assets: [
+                {
+                  id: replacingAssetId,
+                  name: file.name.replace(/\.[^/.]+$/, ""),
+                  title: file.name.replace(/\.[^/.]+$/, ""),
+                  content: base64,
+                  contentType: mime,
+                  assetType: itemType,
+                },
+              ],
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const uploaded = data.assets?.[0];
+            await updateAsset(replacingAssetId, {
+              url: uploaded?.url,
+              contentType: mime,
+              assetType: itemType,
+              size: file.size,
+              updatedAt: new Date().toISOString(),
+            });
+            addToast({
+              type: "success",
+              title: "Asset Replaced",
+              message: `Updated asset "${file.name}".`,
+            });
+          }
+        }
       }
     } catch (err) {
-      console.warn("Failed replacing SVG:", err);
+      console.warn("Failed replacing asset:", err);
+      addToast({
+        type: "error",
+        title: "Replace Failed",
+        message: "Could not replace asset file.",
+      });
     } finally {
       setReplacingAssetId(null);
       if (replaceInputRef.current) replaceInputRef.current.value = "";
@@ -834,33 +1195,56 @@ export const AssetsView: React.FC = () => {
     }
   };
 
-  // Download single SVG file
-  const handleDownloadSingleSvg = async (asset: ProjectAsset) => {
-    const iconName = asset.name || asset.title || "icon";
+  // Download single asset file (SVG, image, video, document)
+  const handleDownloadSingleAsset = async (asset: ProjectAsset) => {
+    const assetName = asset.name || asset.title || "asset";
+    const itemType = getInferredAssetType(asset);
 
-    // Resolve SVG content from inline or R2 URL
-    let svgContent = asset.svg || "";
-    if (!svgContent && asset.url) {
+    if (itemType === "icon" || asset.svg) {
+      let svgContent = asset.svg || "";
+      if (!svgContent && asset.url) {
+        try {
+          const res = await fetch(asset.url);
+          if (res.ok) svgContent = await res.text();
+        } catch { return; }
+      }
+      if (!svgContent) return;
+
+      const enriched = enrichSvgWithName(svgContent, assetName);
+      const blob = new Blob([enriched], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${assetName}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    if (asset.url) {
       try {
         const res = await fetch(asset.url);
-        if (res.ok) svgContent = await res.text();
-      } catch { return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const ext = extensionFromContentType(asset.contentType || "") || asset.url.split(".").pop()?.split("?")[0] || "dat";
+        a.download = assetName.includes(".") ? assetName : `${assetName}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        window.open(asset.url, "_blank");
+      }
     }
-    if (!svgContent) return;
-
-    const enriched = enrichSvgWithName(svgContent, iconName);
-    const blob = new Blob([enriched], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${iconName}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
-  // Export / Download selected icons as a multi-layer hierarchical .ZIP archive
+  const handleDownloadSingleSvg = handleDownloadSingleAsset;
+
+  // Export / Download selected assets as a multi-layer hierarchical .ZIP archive
   const handleDownloadSelectedZip = async () => {
     const targetAssets =
       selectedAssetIds.size > 0
@@ -874,28 +1258,39 @@ export const AssetsView: React.FC = () => {
       for (const asset of targetAssets) {
         const typeFolder = asset.type || "general";
         const catFolder = asset.category || "general";
-        const iconName = asset.name || asset.title || "icon";
-        const fileName = `${iconName}.svg`;
+        const assetName = asset.name || asset.title || "asset";
+        const itemType = getInferredAssetType(asset);
 
-        // Resolve SVG content
-        let svgContent = asset.svg || "";
-        if (!svgContent && asset.url) {
+        if (itemType === "icon" || asset.svg) {
+          let svgContent = asset.svg || "";
+          if (!svgContent && asset.url) {
+            try {
+              const res = await fetch(asset.url);
+              if (res.ok) svgContent = await res.text();
+            } catch { continue; }
+          }
+          if (!svgContent) continue;
+
+          const enriched = enrichSvgWithName(svgContent, assetName);
+          zip.file(`${typeFolder}/${catFolder}/${assetName}.svg`, enriched);
+        } else if (asset.url) {
           try {
             const res = await fetch(asset.url);
-            if (res.ok) svgContent = await res.text();
+            if (res.ok) {
+              const arrayBuffer = await res.arrayBuffer();
+              const ext = extensionFromContentType(asset.contentType || "") || asset.url.split(".").pop()?.split("?")[0] || "dat";
+              const fileName = assetName.includes(".") ? assetName : `${assetName}.${ext}`;
+              zip.file(`${typeFolder}/${catFolder}/${fileName}`, arrayBuffer);
+            }
           } catch { continue; }
         }
-        if (!svgContent) continue;
-
-        const enriched = enrichSvgWithName(svgContent, iconName);
-        zip.file(`${typeFolder}/${catFolder}/${fileName}`, enriched);
       }
 
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${currentProject?.slug || "design-system"}-icons.zip`;
+      a.download = `${currentProject?.slug || "design-system"}-assets.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -903,8 +1298,8 @@ export const AssetsView: React.FC = () => {
 
       addToast({
         type: "success",
-        title: "Icons Exported",
-        message: `Downloaded ${targetAssets.length} SVG icon${targetAssets.length === 1 ? "" : "s"} with folder hierarchy.`,
+        title: "Assets Exported",
+        message: `Downloaded ${targetAssets.length} asset${targetAssets.length === 1 ? "" : "s"} with folder hierarchy.`,
       });
     } catch (err: any) {
       addToast({
@@ -1071,6 +1466,7 @@ export const AssetsView: React.FC = () => {
     setEditFormType(asset.type || "");
     setEditFormCategory(asset.category || "general");
     setEditFormTag(asset.tag || "");
+    setEditFormFolderId(asset.folderId);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -1083,6 +1479,7 @@ export const AssetsView: React.FC = () => {
       type: editFormType.trim() || undefined,
       category: editFormCategory.trim().toLowerCase() || "general",
       tag: editFormTag.trim() || undefined,
+      folderId: editFormFolderId !== undefined ? (editFormFolderId || undefined) : editingAsset.folderId,
     });
     setEditingAsset(null);
   };
@@ -1117,17 +1514,27 @@ export const AssetsView: React.FC = () => {
   const isAllSelected =
     filteredAssets.length > 0 && selectedAssetIds.size === filteredAssets.length;
 
-  // Helper to render an individual icon card
+  // Helper to render an individual asset card (icon, image, video, document)
   const renderIconCard = (icon: ProjectAsset) => {
     const isCopied = copiedId === icon.id;
     const isSelected = selectedAssetIds.has(icon.id);
     const displayTitle = icon.title || icon.name;
+    const itemType = getInferredAssetType(icon);
+    const folder = icon.folderId ? assetFolders.find((f) => f.id === icon.folderId) : null;
+
+    const handleCardClick = () => {
+      if (itemType === "icon") {
+        handleCopySvg(icon.svg, icon.id, displayTitle, icon.url);
+      } else {
+        setPreviewMediaAsset(icon);
+      }
+    };
 
     return (
       <div
         key={icon.id}
-        onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle, icon.url)}
-        className={`p-4 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[148px] ${
+        onClick={handleCardClick}
+        className={`p-3.5 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[160px] ${
           isSelected
             ? "border-primary ring-2 ring-primary/20 bg-primary/[0.02]"
             : "border-border/80 hover:border-primary/50 hover:bg-muted/20"
@@ -1163,7 +1570,28 @@ export const AssetsView: React.FC = () => {
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 text-xs">
+            <DropdownMenuContent align="end" className="w-48 text-xs">
+              {itemType !== "icon" && (
+                <DropdownMenuItem
+                  onClick={() => setPreviewMediaAsset(icon)}
+                  className="gap-2 cursor-pointer text-xs font-semibold"
+                >
+                  <Eye className="w-3.5 h-3.5 text-primary" />
+                  <span>Preview Asset</span>
+                </DropdownMenuItem>
+              )}
+              {canUserEdit() && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setAssetToMoveId(icon.id);
+                    setIsMoveAssetsOpen(true);
+                  }}
+                  className="gap-2 cursor-pointer text-xs"
+                >
+                  <FolderInput className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Move to Folder...</span>
+                </DropdownMenuItem>
+              )}
               {canUserEdit() && (
                 <>
                   <DropdownMenuItem
@@ -1174,7 +1602,7 @@ export const AssetsView: React.FC = () => {
                     className="gap-2 cursor-pointer text-xs"
                   >
                     <UploadCloud className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>Replace SVG File</span>
+                    <span>Replace File</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleOpenEdit(icon)}
@@ -1186,12 +1614,28 @@ export const AssetsView: React.FC = () => {
                 </>
               )}
               <DropdownMenuItem
-                onClick={() => handleDownloadSingleSvg(icon)}
+                onClick={() => handleDownloadSingleAsset(icon)}
                 className="gap-2 cursor-pointer text-xs"
               >
                 <Download className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Download .svg</span>
+                <span>Download File</span>
               </DropdownMenuItem>
+              {icon.url && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    navigator.clipboard.writeText(icon.url || "");
+                    addToast({
+                      type: "success",
+                      title: "URL Copied",
+                      message: "Copied direct CDN URL to clipboard.",
+                    });
+                  }}
+                  className="gap-2 cursor-pointer text-xs"
+                >
+                  <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Copy CDN URL</span>
+                </DropdownMenuItem>
+              )}
               {icon.figmaUrl && (
                 <DropdownMenuItem
                   onClick={() => window.open(icon.figmaUrl, "_blank")}
@@ -1214,7 +1658,7 @@ export const AssetsView: React.FC = () => {
                     className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Icon</span>
+                    <span>Delete Asset</span>
                   </DropdownMenuItem>
                 </>
               )}
@@ -1222,8 +1666,41 @@ export const AssetsView: React.FC = () => {
           </DropdownMenu>
         </div>
 
-        {/* Asset Render Preview — R2 CDN URL or legacy inline SVG */}
-        {icon.url && !icon.svg ? (
+        {/* Polymorphic Asset Preview */}
+        {itemType === "video" ? (
+          <div className="w-full h-20 rounded-lg bg-black/80 overflow-hidden flex items-center justify-center relative mt-1">
+            <Film className="w-7 h-7 text-sky-400 opacity-80" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
+              <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shadow-xs group-hover:scale-110 transition-transform">
+                <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+              </div>
+            </div>
+          </div>
+        ) : itemType === "document" ? (
+          <div className="w-full h-20 rounded-lg bg-rose-500/10 border border-rose-500/20 flex flex-col items-center justify-center relative mt-1 text-rose-500">
+            <FileText className="w-7 h-7 text-rose-500 mb-0.5" />
+            <span className="text-[9px] font-mono uppercase font-bold text-rose-600 dark:text-rose-400">PDF</span>
+          </div>
+        ) : itemType === "image" ? (
+          <div className="w-full h-20 rounded-lg bg-muted/40 overflow-hidden flex items-center justify-center relative mt-1 group-hover:bg-muted/60 transition-colors">
+            <img
+              src={icon.url}
+              alt={displayTitle}
+              className="max-h-full max-w-full object-contain transition-transform duration-150 group-hover:scale-105"
+              loading="lazy"
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewMediaAsset(icon);
+              }}
+              className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer"
+              title="Preview Image"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
+          </div>
+        ) : icon.url && !icon.svg ? (
           <img
             src={icon.url}
             alt={displayTitle}
@@ -1241,48 +1718,81 @@ export const AssetsView: React.FC = () => {
           />
         )}
 
-        {/* Icon Metadata: Title as primary, optional type/git/figma pill below */}
+        {/* Asset Metadata: Title as primary, badges below */}
         <div className="w-full truncate mt-2 px-1">
           <span className="font-semibold text-xs text-foreground block truncate" title={displayTitle}>
             {displayTitle}
           </span>
-          {(icon.type || icon.source === "git" || icon.source === "figma" || (showSourceBadges && icon.figmaSourceName)) && (
-            <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
-              {icon.type && (
-                <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                  {icon.type}
-                </span>
-              )}
-              {icon.source === "git" && (
-                <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">
-                  git
-                </span>
-              )}
-              {icon.source === "figma" && (
-                <span
-                  className="text-[9px] font-mono text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded flex items-center gap-0.5"
-                  title="Figma source"
-                  aria-label="Figma source"
-                >
-                  <Figma className="w-2.5 h-2.5" />
-                </span>
-              )}
-              {showSourceBadges && icon.figmaSourceName && (
-                <span
-                  className="text-[9px] font-medium text-violet-700 dark:text-violet-300 bg-violet-500/10 px-1 py-0.5 rounded truncate max-w-[90px]"
-                  title={`Figma Source: ${icon.figmaSourceName}`}
-                >
-                  {icon.figmaSourceName}
-                </span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
+            {folder && (
+              <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1 py-0.5 rounded flex items-center gap-0.5 truncate max-w-[80px]" title={`Folder: ${folder.name}`}>
+                <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{folder.name}</span>
+              </span>
+            )}
+            {itemType !== "icon" && (
+              <span className="text-[9px] font-mono uppercase font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {itemType}
+              </span>
+            )}
+            {icon.type && itemType === "icon" && (
+              <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {icon.type}
+              </span>
+            )}
+            {icon.size && (
+              <span className="text-[8px] font-mono text-muted-foreground opacity-75">
+                {formatBytes(icon.size)}
+              </span>
+            )}
+            {icon.source === "git" && (
+              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">
+                git
+              </span>
+            )}
+            {icon.source === "figma" && (
+              <span
+                className="text-[9px] font-mono text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded flex items-center gap-0.5"
+                title="Figma source"
+                aria-label="Figma source"
+              >
+                <Figma className="w-2.5 h-2.5" />
+              </span>
+            )}
+            {showSourceBadges && icon.figmaSourceName && (
+              <span
+                className="text-[9px] font-medium text-violet-700 dark:text-violet-300 bg-violet-500/10 px-1 py-0.5 rounded truncate max-w-[90px]"
+                title={`Figma Source: ${icon.figmaSourceName}`}
+              >
+                {icon.figmaSourceName}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Copy Action Button */}
+        {/* Hover Action Pill */}
         <div className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity font-semibold flex items-center gap-1 mt-2">
-          {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-          <span>{isCopied ? "Copied" : "Copy SVG"}</span>
+          {itemType === "icon" ? (
+            <>
+              {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              <span>{isCopied ? "Copied" : "Copy SVG"}</span>
+            </>
+          ) : itemType === "video" ? (
+            <>
+              <Play className="w-3 h-3 fill-primary" />
+              <span>Play Video</span>
+            </>
+          ) : itemType === "document" ? (
+            <>
+              <Eye className="w-3 h-3" />
+              <span>View PDF</span>
+            </>
+          ) : (
+            <>
+              <Eye className="w-3 h-3" />
+              <span>Preview</span>
+            </>
+          )}
         </div>
       </div>
     );
@@ -1310,11 +1820,28 @@ export const AssetsView: React.FC = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Hidden File Picker (accepts .svg, .json, .zip) */}
+      {/* Full-surface drag-and-drop visual dropzone indicator */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary flex flex-col items-center justify-center pointer-events-none transition-all animate-in fade-in duration-150">
+          <div className="bg-card border border-primary/30 shadow-2xl rounded-2xl p-6 flex flex-col items-center gap-3 text-center max-w-sm pointer-events-none">
+            <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center animate-bounce">
+              <UploadCloud className="w-7 h-7" />
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-foreground">Drop files to upload</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Drop multiple files or folders here to upload {currentActiveFolder ? `into "${currentActiveFolder.name}"` : "into your library"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden File Picker (accepts all supported vector, image, video, and document formats) */}
       <input
         ref={fileInputRef}
         type="file"
-        accept=".svg,.json,.zip"
+        accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.ico,.avif,.mp4,.webm,.mov,.pdf,.json,.zip"
         multiple
         onChange={(e) => {
           if (e.target.files) handleProcessIncomingFiles(e.target.files);
@@ -1340,7 +1867,7 @@ export const AssetsView: React.FC = () => {
       <input
         ref={replaceInputRef}
         type="file"
-        accept=".svg"
+        accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf"
         onChange={handleReplaceFileSelected}
         className="hidden"
       />
@@ -1355,7 +1882,7 @@ export const AssetsView: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold text-foreground">Assets</h1>
               <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 border-primary/30 text-primary">
-                {displayAssets.length} {displayAssets.length === 1 ? "icon" : "icons"}
+                {displayAssets.length} {displayAssets.length === 1 ? "asset" : "assets"}
               </Badge>
             </div>
             {/* <p className="text-[11px] text-muted-foreground">
@@ -1412,27 +1939,67 @@ export const AssetsView: React.FC = () => {
                   <ChevronDown className="w-3 h-3 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 text-xs">
+              <DropdownMenuContent align="end" className="w-64 text-xs">
                 <DropdownMenuItem
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-2 cursor-pointer text-xs"
+                  onClick={() => {
+                    setUploadTargetFolderId(activeFolderId || null);
+                    fileInputRef.current?.click();
+                  }}
+                  className="gap-2.5 cursor-pointer text-xs py-2"
                 >
-                  <UploadCloud className="w-3.5 h-3.5 text-primary" />
-                  <div>
-                    <div className="font-semibold">Upload Files (.svg, .json, .zip)</div>
-                    <div className="text-[10px] text-muted-foreground">Select SVGs, metadata or ZIP</div>
+                  <UploadCloud className="w-4 h-4 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-foreground truncate">
+                        {currentActiveFolder ? `Upload to ${currentActiveFolder.name}` : "Upload Multiple Files"}
+                      </span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-medium shrink-0 ml-1">
+                        Multi
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      Multi-select files or .ZIP archive
+                    </div>
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => folderInputRef.current?.click()}
-                  className="gap-2 cursor-pointer text-xs"
+                  onClick={() => {
+                    setUploadTargetFolderId(activeFolderId || null);
+                    folderInputRef.current?.click();
+                  }}
+                  className="gap-2.5 cursor-pointer text-xs py-2"
                 >
-                  <FolderUp className="w-3.5 h-3.5 text-emerald-500" />
-                  <div>
-                    <div className="font-semibold">Upload Entire Folder</div>
-                    <div className="text-[10px] text-muted-foreground">Preserves nested type folders</div>
+                  <FolderUp className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-foreground truncate">Upload Entire Directory</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium shrink-0 ml-1">
+                        Folder
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      Preserves nested folder hierarchy
+                    </div>
                   </div>
                 </DropdownMenuItem>
+                {canUserEdit() && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setFolderFormName("");
+                        setFolderFormDesc("");
+                        setFolderFormIcon("Folder");
+                        setFolderFormColor("blue");
+                        setIsCreateFolderOpen(true);
+                      }}
+                      className="gap-2 cursor-pointer text-xs text-primary font-semibold"
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                      <span>Create New Folder</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -1534,88 +2101,384 @@ export const AssetsView: React.FC = () => {
 
       {/* Main Body: Left Categories Sidebar + Right Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Categories List */}
-        {displayAssets.length > 0 && (
+        {/* Left Sidebar: Folders + Asset Types + Categories */}
+        {(displayAssets.length > 0 || assetFolders.length > 0 || canUserEdit()) && (
           <aside className="w-64 border-r border-border bg-card/30 flex flex-col flex-shrink-0 select-none overflow-hidden">
-            {/* Categories Heading */}
-            <div className="p-4 pb-2 border-b border-border/40 space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-foreground tracking-tight">Categories</h2>
+            {/* SECTION 1: FOLDERS */}
+            <div className="p-3 border-b border-border/40">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Folder className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Folders</span>
+                  <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5 ml-0.5">
+                    {assetFolders.length}
+                  </Badge>
+                </div>
+                {canUserEdit() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFolderFormName("");
+                      setFolderFormDesc("");
+                      setFolderFormIcon("Folder");
+                      setFolderFormColor("blue");
+                      setIsCreateFolderOpen(true);
+                    }}
+                    className="h-6 px-1.5 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                    title="Create New Folder"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" />
+                    <span>New</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Folder list */}
+              <div className="space-y-1">
+                {/* "All Assets" Item */}
+                <button
+                  onClick={() => setActiveFolderId(null)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragTargetFolderId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleProcessIncomingFiles(e.dataTransfer.files, undefined);
+                  }}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
+                    activeFolderId === null
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Grid
+                      className={`w-3.5 h-3.5 flex-shrink-0 ${
+                        activeFolderId === null
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      }`}
+                    />
+                    <span className="truncate">All Assets</span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono ml-2 ${
+                      activeFolderId === null
+                        ? "text-primary-foreground/90 font-bold"
+                        : "text-muted-foreground/80"
+                    }`}
+                  >
+                    {displayAssets.length}
+                  </span>
+                </button>
+
+                {/* User Folders */}
+                {assetFolders.map((folder) => {
+                  const count = folderCountMap.get(folder.id) || 0;
+                  const isSelected = activeFolderId === folder.id;
+                  const FolderIconComp = getFolderIconComponent(folder.icon);
+                  const isDropTarget = dragTargetFolderId === folder.id;
+
+                  return (
+                    <div
+                      key={folder.id}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDragTargetFolderId(folder.id);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setDragTargetFolderId(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDragTargetFolderId(null);
+                        handleProcessIncomingFiles(e.dataTransfer.files, folder.id);
+                      }}
+                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                          : isDropTarget
+                          ? "bg-primary/20 border border-primary/50 text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                      }`}
+                      onClick={() => setActiveFolderId(folder.id)}
+                    >
+                      <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                        <FolderIconComp
+                          className={`w-3.5 h-3.5 flex-shrink-0 ${
+                            isSelected
+                              ? "text-primary-foreground"
+                              : "text-primary/80 group-hover/folder:text-primary"
+                          }`}
+                        />
+                        <span className="truncate" title={folder.description || folder.name}>
+                          {folder.name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={`text-[10px] font-mono ${
+                            isSelected
+                              ? "text-primary-foreground/90 font-bold"
+                              : "text-muted-foreground/80 group-hover/folder:opacity-0"
+                          }`}
+                        >
+                          {count}
+                        </span>
+
+                        {canUserEdit() && (
+                          <div
+                            className="opacity-0 group-hover/folder:opacity-100 transition-opacity absolute right-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className={`w-5 h-5 rounded flex items-center justify-center cursor-pointer ${
+                                    isSelected
+                                      ? "text-primary-foreground hover:bg-white/20"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  <MoreVertical className="w-3 h-3" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40 text-xs">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setUploadTargetFolderId(folder.id);
+                                    fileInputRef.current?.click();
+                                  }}
+                                  className="gap-2 cursor-pointer text-xs"
+                                >
+                                  <UploadCloud className="w-3.5 h-3.5 text-primary" />
+                                  <span>Upload Files</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setFolderToEdit(folder);
+                                    setFolderFormName(folder.name);
+                                    setFolderFormDesc(folder.description || "");
+                                    setFolderFormIcon(folder.icon || "Folder");
+                                    setFolderFormColor(folder.color || "blue");
+                                    setIsEditFolderOpen(true);
+                                  }}
+                                  className="gap-2 cursor-pointer text-xs"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span>Edit Folder</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setFolderToDelete(folder);
+                                    setIsDeleteFolderOpen(true);
+                                  }}
+                                  className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete Folder</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECTION 2: ASSET TYPES FILTER */}
+            <div className="p-3 border-b border-border/40">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Asset Types
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { id: "all", label: "All", count: assetTypeCounts.all, icon: Grid },
+                  { id: "icon", label: "Icons", count: assetTypeCounts.icon, icon: Layers },
+                  { id: "image", label: "Images", count: assetTypeCounts.image, icon: ImageIcon },
+                  { id: "video", label: "Videos", count: assetTypeCounts.video, icon: Film },
+                  { id: "document", label: "Docs", count: assetTypeCounts.document, icon: FileText },
+                ].map((tab) => {
+                  const isSelected = selectedAssetType === tab.id;
+                  const TabIcon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSelectedAssetType(tab.id as any)}
+                      className={`flex items-center justify-between px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/10 text-primary border border-primary/30 font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <TabIcon className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{tab.label}</span>
+                      </div>
+                      <span className="text-[10px] font-mono opacity-80">{tab.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECTION 3: CATEGORIES */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-3 pb-2 flex items-center justify-between border-b border-border/30">
+                <h2 className="text-xs font-bold text-foreground tracking-tight">Categories</h2>
                 <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5">
                   {categories.length}
                 </Badge>
               </div>
 
-              {/* Optional Category Quick Search */}
               {categories.length > 8 && (
-                <div className="relative">
-                  <Search className="w-3 h-3 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
-                  <Input
-                    type="text"
-                    placeholder="Filter categories..."
-                    value={categorySearchQuery}
-                    onChange={(e) => setCategorySearchQuery(e.target.value)}
-                    className="h-7 pl-6 text-[11px] bg-background/80"
-                  />
+                <div className="p-2 border-b border-border/30">
+                  <div className="relative">
+                    <Search className="w-3 h-3 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
+                    <Input
+                      type="text"
+                      placeholder="Filter categories..."
+                      value={categorySearchQuery}
+                      onChange={(e) => setCategorySearchQuery(e.target.value)}
+                      className="h-7 pl-6 text-[11px] bg-background/80"
+                    />
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Scrollable Categories List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {/* "All Icons" Item */}
-              <button
-                onClick={() => setSelectedCategory("all")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
-                  selectedCategory === "all"
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <Grid className={`w-4 h-4 flex-shrink-0 ${selectedCategory === "all" ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`} />
-                  <span className="truncate">All Icons</span>
-                </div>
-                <span className={`text-[11px] font-mono ml-2 ${selectedCategory === "all" ? "text-primary-foreground/90 font-bold" : "text-muted-foreground/80"}`}>
-                  {displayAssets.length}
-                </span>
-              </button>
-
-              {/* Category Items */}
-              {filteredCategoryList.map((cat) => {
-                const count = categoryCountMap.get(cat) || 0;
-                const isSelected = selectedCategory === cat;
-                const IconComponent = getCategoryIcon(cat);
-                const formattedName = formatCategoryName(cat);
-
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                <button
+                  onClick={() => setSelectedCategory("all")}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
+                    selectedCategory === "all"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Grid
+                      className={`w-3.5 h-3.5 flex-shrink-0 ${
+                        selectedCategory === "all"
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      }`}
+                    />
+                    <span className="truncate">All Categories</span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono ml-2 ${
+                      selectedCategory === "all"
+                        ? "text-primary-foreground/90 font-bold"
+                        : "text-muted-foreground/80"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <IconComponent className={`w-4 h-4 flex-shrink-0 ${isSelected ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`} />
-                      <span className="truncate" title={formattedName}>
-                        {formattedName}
+                    {activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId).length : displayAssets.length}
+                  </span>
+                </button>
+
+                {filteredCategoryList.map((cat) => {
+                  const count = categoryCountMap.get(cat) || 0;
+                  const isSelected = selectedCategory === cat;
+                  const IconComponent = getCategoryIcon(cat);
+                  const formattedName = formatCategoryName(cat);
+
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <IconComponent
+                          className={`w-3.5 h-3.5 flex-shrink-0 ${
+                            isSelected
+                              ? "text-primary-foreground"
+                              : "text-muted-foreground group-hover:text-foreground"
+                          }`}
+                        />
+                        <span className="truncate" title={formattedName}>
+                          {formattedName}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-mono ml-2 ${
+                          isSelected ? "text-primary-foreground/90 font-bold" : "text-muted-foreground/80"
+                        }`}
+                      >
+                        {count}
                       </span>
-                    </div>
-                    <span className={`text-[11px] font-mono ml-2 ${isSelected ? "text-primary-foreground/90 font-bold" : "text-muted-foreground/80"}`}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </aside>
         )}
 
         {/* Right Content Area: Top Type Filter Bar + Separated Category Sections */}
         <main className="flex-1 flex flex-col overflow-hidden bg-background">
+          {/* Active Folder Header Banner (if folder is selected) */}
+          {currentActiveFolder && (
+            <div className="px-6 py-2.5 border-b border-border bg-primary/5 flex items-center justify-between text-xs flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                  {React.createElement(getFolderIconComponent(currentActiveFolder.icon), { className: "w-3.5 h-3.5" })}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">{currentActiveFolder.name}</span>
+                    <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5">
+                      {folderCountMap.get(currentActiveFolder.id) || 0} items
+                    </Badge>
+                  </div>
+                  {currentActiveFolder.description && (
+                    <p className="text-[11px] text-muted-foreground">{currentActiveFolder.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {canUserEdit() && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setUploadTargetFolderId(currentActiveFolder.id);
+                      fileInputRef.current?.click();
+                    }}
+                    className="h-7 text-xs gap-1.5 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3 h-3 text-primary" />
+                    <span>Upload Files</span>
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveFolderId(null)}
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Exit Folder
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Top Subheader: Icon Type Filter Pills (from metadata.json or folder structure) */}
           {iconTypes.length > 0 && displayAssets.length > 0 && (
             <div className="px-6 py-2.5 border-b border-border bg-muted/15 flex items-center gap-2 overflow-x-auto text-xs flex-shrink-0">
@@ -1851,26 +2714,63 @@ export const AssetsView: React.FC = () => {
                 </div>
               </div>
             ) : filteredAssets.length === 0 ? (
-              /* Search / Filter Empty State */
-              <div className="flex flex-col items-center justify-center h-64 text-center p-6 text-muted-foreground">
-                <Search className="w-8 h-8 mb-2 text-muted-foreground/40" />
-                <p className="text-sm font-semibold text-foreground">No icons match your filters</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Try clearing your search keyword, category, or icon type selection.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedType("all");
-                    setSelectedCategory("all");
-                  }}
-                  className="mt-3 text-xs h-8 cursor-pointer"
-                >
-                  Clear Filters
-                </Button>
-              </div>
+              currentActiveFolder && searchQuery === "" && selectedType === "all" && selectedCategory === "all" && selectedAssetType === "all" ? (
+                /* Empty Folder State */
+                <div className="flex flex-col items-center justify-center py-20 text-center p-6 border-2 border-dashed border-border/80 rounded-2xl bg-card/40 my-8">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <FolderPlus className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">Folder is Empty</h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    {currentActiveFolder.description || `No assets have been added to "${currentActiveFolder.name}" yet.`}
+                  </p>
+                  <div className="flex items-center gap-2 mt-4">
+                    {canUserEdit() && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setUploadTargetFolderId(currentActiveFolder.id);
+                          fileInputRef.current?.click();
+                        }}
+                        className="gap-1.5 text-xs font-semibold cursor-pointer"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Upload Files to {currentActiveFolder.name}</span>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveFolderId(null)}
+                      className="text-xs cursor-pointer"
+                    >
+                      View All Assets
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* Search / Filter Empty State */
+                <div className="flex flex-col items-center justify-center h-64 text-center p-6 text-muted-foreground">
+                  <Search className="w-8 h-8 mb-2 text-muted-foreground/40" />
+                  <p className="text-sm font-semibold text-foreground">No assets match your filters</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Try clearing your search keyword, category, folder, or media type selection.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedType("all");
+                      setSelectedCategory("all");
+                      setSelectedAssetType("all");
+                    }}
+                    className="mt-3 text-xs h-8 cursor-pointer"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              )
             ) : (
               /* Separated Icon Groups directly by Type (Stroke, Two Tone, Solid, etc.) */
               <div className="space-y-8 animate-in fade-in duration-200">
@@ -1944,6 +2844,21 @@ export const AssetsView: React.FC = () => {
             >
               <Edit2 className="w-3.5 h-3.5" />
               <span>Edit Metadata</span>
+            </Button>
+          )}
+
+          {canUserEdit() && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setAssetToMoveId(null);
+                setIsMoveAssetsOpen(true);
+              }}
+              className="h-8 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+            >
+              <FolderInput className="w-3.5 h-3.5 text-blue-500" />
+              <span>Move to Folder</span>
             </Button>
           )}
 
@@ -2883,14 +3798,14 @@ export const AssetsView: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Name / Title / Type / Category / Tag Modal */}
+      {/* Edit Name / Title / Type / Category / Tag / Folder Modal */}
       {editingAsset && (
         <Dialog open={Boolean(editingAsset)} onOpenChange={() => setEditingAsset(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Edit Icon Metadata</DialogTitle>
+              <DialogTitle className="text-sm font-bold">Edit Asset Metadata</DialogTitle>
               <DialogDescription className="text-xs">
-                Update the display title, icon type, category, code identifier, and search tags.
+                Update the display title, icon type, category, folder, code identifier, and search tags.
               </DialogDescription>
             </DialogHeader>
 
@@ -2912,7 +3827,7 @@ export const AssetsView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="editType" className="text-xs font-semibold">
-                    Icon Type
+                    Type / Variant
                   </Label>
                   <Input
                     id="editType"
@@ -2935,6 +3850,29 @@ export const AssetsView: React.FC = () => {
                     className="h-8 text-xs"
                   />
                 </div>
+              </div>
+
+              {/* Folder Assignment */}
+              <div className="space-y-1">
+                <Label htmlFor="editFolder" className="text-xs font-semibold">
+                  Folder
+                </Label>
+                <Select
+                  value={editFormFolderId || "none"}
+                  onValueChange={(val) => setEditFormFolderId(val === "none" ? undefined : val)}
+                >
+                  <SelectTrigger id="editFolder" className="h-8 text-xs">
+                    <SelectValue placeholder="Select folder (or none)" />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs">
+                    <SelectItem value="none">None (All Assets)</SelectItem>
+                    {assetFolders.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -2972,15 +3910,370 @@ export const AssetsView: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => setEditingAsset(null)}
-                  className="text-xs h-8"
+                  className="text-xs h-8 cursor-pointer"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" className="text-xs h-8 font-semibold">
+                <Button type="submit" size="sm" className="text-xs h-8 font-semibold cursor-pointer">
                   Save Changes
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Create Folder Modal */}
+      <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+              <FolderPlus className="w-4 h-4 text-primary" />
+              <span>Create New Folder</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Organize brand icons, marketing imagery, videos, or documents into dedicated folders.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateFolderSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="folderName" className="text-xs font-semibold">
+                Folder Name
+              </Label>
+              <Input
+                id="folderName"
+                value={folderFormName}
+                onChange={(e) => setFolderFormName(e.target.value)}
+                placeholder="e.g. Brand Marketing, Product Shots, Video Assets"
+                required
+                className="h-8 text-xs"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="folderDesc" className="text-xs font-semibold">
+                Description (Optional)
+              </Label>
+              <Input
+                id="folderDesc"
+                value={folderFormDesc}
+                onChange={(e) => setFolderFormDesc(e.target.value)}
+                placeholder="e.g. High-resolution campaign assets and media"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Icon</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {["Folder", "Image", "Video", "FileText", "Sparkles", "Briefcase", "Shield", "Heart", "Globe"].map(
+                  (iconKey) => {
+                    const IconComp = getFolderIconComponent(iconKey);
+                    const isSelected = folderFormIcon.toLowerCase() === iconKey.toLowerCase();
+                    return (
+                      <button
+                        key={iconKey}
+                        type="button"
+                        onClick={() => setFolderFormIcon(iconKey)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground shadow-2xs"
+                            : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                        title={iconKey}
+                      >
+                        <IconComp className="w-4 h-4" />
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateFolderOpen(false)}
+                className="text-xs h-8 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="text-xs h-8 font-semibold cursor-pointer">
+                Create Folder
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Folder Modal */}
+      <Dialog open={isEditFolderOpen} onOpenChange={setIsEditFolderOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+              <Edit2 className="w-4 h-4 text-primary" />
+              <span>Edit Folder</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Update folder name, description, and icon.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleEditFolderSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="editFolderName" className="text-xs font-semibold">
+                Folder Name
+              </Label>
+              <Input
+                id="editFolderName"
+                value={folderFormName}
+                onChange={(e) => setFolderFormName(e.target.value)}
+                required
+                className="h-8 text-xs"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="editFolderDesc" className="text-xs font-semibold">
+                Description (Optional)
+              </Label>
+              <Input
+                id="editFolderDesc"
+                value={folderFormDesc}
+                onChange={(e) => setFolderFormDesc(e.target.value)}
+                placeholder="Folder description"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Icon</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {["Folder", "Image", "Video", "FileText", "Sparkles", "Briefcase", "Shield", "Heart", "Globe"].map(
+                  (iconKey) => {
+                    const IconComp = getFolderIconComponent(iconKey);
+                    const isSelected = folderFormIcon.toLowerCase() === iconKey.toLowerCase();
+                    return (
+                      <button
+                        key={iconKey}
+                        type="button"
+                        onClick={() => setFolderFormIcon(iconKey)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground shadow-2xs"
+                            : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                        title={iconKey}
+                      >
+                        <IconComp className="w-4 h-4" />
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditFolderOpen(false)}
+                className="text-xs h-8 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="text-xs h-8 font-semibold cursor-pointer">
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Folder Modal */}
+      <Dialog open={isDeleteFolderOpen} onOpenChange={setIsDeleteFolderOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="w-5 h-5" />
+              <DialogTitle className="text-sm font-bold">Delete Folder?</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs pt-1">
+              Are you sure you want to delete the folder{" "}
+              <strong className="text-foreground">{folderToDelete?.name}</strong>? Contained assets will be moved to{" "}
+              <strong>All Assets</strong> and will not be deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteFolderOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmDeleteFolder}
+              className="text-xs font-semibold cursor-pointer"
+            >
+              Delete Folder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Assets to Folder Modal */}
+      <Dialog open={isMoveAssetsOpen} onOpenChange={setIsMoveAssetsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+              <FolderInput className="w-4 h-4 text-primary" />
+              <span>Move to Folder</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Select destination folder for{" "}
+              {assetToMoveId ? "this asset" : `${selectedAssetIds.size} selected assets`}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-3 max-h-72 overflow-y-auto">
+            {/* All Assets (Root) option */}
+            <button
+              onClick={() => handleConfirmMoveAssets(null)}
+              className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors text-left text-xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-2.5">
+                <Grid className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
+                <div>
+                  <div className="font-semibold text-foreground">All Assets (Root)</div>
+                  <div className="text-[10px] text-muted-foreground">Remove from assigned folder</div>
+                </div>
+              </div>
+            </button>
+
+            {assetFolders.map((f) => {
+              const IconComp = getFolderIconComponent(f.icon);
+              const count = folderCountMap.get(f.id) || 0;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => handleConfirmMoveAssets(f.id)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors text-left text-xs cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IconComp className="w-4 h-4 text-primary" />
+                    <div>
+                      <div className="font-semibold text-foreground">{f.name}</div>
+                      {f.description && (
+                        <div className="text-[10px] text-muted-foreground truncate max-w-[220px]">
+                          {f.description}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] font-mono">
+                    {count} items
+                  </Badge>
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsMoveAssetsOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Preview Modal (Images, Videos, Documents) */}
+      {previewMediaAsset && (
+        <Dialog open={Boolean(previewMediaAsset)} onOpenChange={() => setPreviewMediaAsset(null)}>
+          <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-card border-border">
+            <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-0.5">
+                <DialogTitle className="text-sm font-bold flex items-center gap-2">
+                  <span>{previewMediaAsset.title || previewMediaAsset.name}</span>
+                  <Badge variant="outline" className="text-[10px] uppercase font-mono py-0 px-1.5">
+                    {getInferredAssetType(previewMediaAsset)}
+                  </Badge>
+                </DialogTitle>
+                <DialogDescription className="text-[11px]">
+                  {previewMediaAsset.contentType} • {formatBytes(previewMediaAsset.size)}
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+
+            <div className="flex-1 min-h-[360px] max-h-[60vh] flex items-center justify-center p-6 bg-muted/20 overflow-auto">
+              {getInferredAssetType(previewMediaAsset) === "video" ? (
+                <video
+                  src={previewMediaAsset.url}
+                  controls
+                  autoPlay
+                  className="max-h-[55vh] max-w-full rounded-lg shadow-md bg-black"
+                />
+              ) : getInferredAssetType(previewMediaAsset) === "document" ? (
+                <div className="flex flex-col items-center justify-center space-y-3 py-12">
+                  <FileText className="w-16 h-16 text-rose-500" />
+                  <div className="text-sm font-semibold text-foreground">{previewMediaAsset.name}</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => previewMediaAsset.url && window.open(previewMediaAsset.url, "_blank")}
+                    className="text-xs gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Document in New Tab</span>
+                  </Button>
+                </div>
+              ) : (
+                <img
+                  src={previewMediaAsset.url}
+                  alt={previewMediaAsset.title || previewMediaAsset.name}
+                  className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-sm"
+                />
+              )}
+            </div>
+
+            <DialogFooter className="p-3 border-t border-border flex items-center justify-between sm:justify-between bg-card">
+              <div className="text-xs text-muted-foreground font-mono truncate max-w-[280px]">
+                {previewMediaAsset.path || previewMediaAsset.name}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => previewMediaAsset && handleDownloadSingleAsset(previewMediaAsset)}
+                  className="text-xs gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setPreviewMediaAsset(null)}
+                  className="text-xs cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

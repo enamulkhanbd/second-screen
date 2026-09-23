@@ -49,6 +49,18 @@ export interface Organization {
   updatedAt: string;
 }
 
+export type AssetType = "icon" | "image" | "video" | "document" | "other";
+
+export interface AssetFolder {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface ProjectAsset {
   id: string;
   name: string;
@@ -56,12 +68,20 @@ export interface ProjectAsset {
   type?: string;
   tag?: string;
   category?: string;
+  /** Folder identifier (undefined or null = root / All Assets) */
+  folderId?: string;
+  /** Semantic asset category type */
+  assetType?: AssetType;
   /** CDN URL for the asset file (R2 public URL) */
   url?: string;
-  /** MIME content type (e.g. "image/svg+xml", "image/png") */
+  /** MIME content type (e.g. "image/svg+xml", "image/png", "video/mp4", "application/pdf") */
   contentType?: string;
   /** File size in bytes */
   size?: number;
+  /** Dimensions for visual media */
+  dimensions?: { width: number; height: number };
+  /** Duration in seconds for media files */
+  duration?: number;
   /**
    * Inline SVG string content.
    * @deprecated Kept for backward compatibility during Firestore→R2 migration.
@@ -127,6 +147,7 @@ export interface Project {
   assetGitConfig?: AssetGitConfig | null;
   assetFigmaConfig?: AssetFigmaConfig | null;
   assets?: ProjectAsset[];
+  assetFolders?: AssetFolder[];
   /** @deprecated Firestore chunking flag — no longer needed with R2 storage */
   hasChunkedAssets?: boolean;
   assetsCount?: number;

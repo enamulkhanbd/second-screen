@@ -5,11 +5,13 @@ import {
   uploadMetadataIndex,
   listProjectAssetKeys,
   getPublicUrl,
+  deriveAssetType,
 } from "@/lib/r2";
+import { ProjectAsset } from "@/types/tenant";
 
 export const dynamic = "force-dynamic";
 
-async function fetchAssetMetadata(orgId: string, projectId: string) {
+async function fetchAssetMetadata(orgId: string, projectId: string): Promise<ProjectAsset[]> {
   let metadata = await loadMetadataIndex(orgId, projectId);
 
   // Auto-recovery: If metadata index is empty but objects exist in R2, reconstruct it
@@ -35,6 +37,7 @@ async function fetchAssetMetadata(orgId: string, projectId: string) {
           title: formattedTitle || cleanName,
           type: cleanName.includes("Fill") ? "fill" : cleanName.includes("Outline") ? "outline" : "general",
           category: "general",
+          assetType: deriveAssetType(contentType, filename),
           url: getPublicUrl(key),
           contentType,
           updatedAt: now,
@@ -116,6 +119,39 @@ export async function POST(req: NextRequest) {
 
     let metadata = await fetchAssetMetadata(orgId, projectId);
 
+    if (action === "move-folder") {
+      const { assetIds, targetFolderId } = body;
+      if (!Array.isArray(assetIds) || assetIds.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "No assetIds provided for move-folder action." },
+          { status: 400 }
+        );
+      }
+
+      const idSet = new Set(assetIds);
+      const now = new Date().toISOString();
+      const updatedMetadata = metadata.map((asset) => {
+        if (idSet.has(asset.id)) {
+          return {
+            ...asset,
+            folderId: targetFolderId || undefined,
+            updatedAt: now,
+          };
+        }
+        return asset;
+      });
+
+      await uploadMetadataIndex(orgId, projectId, updatedMetadata);
+
+      return NextResponse.json({
+        success: true,
+        action: "move-folder",
+        movedCount: assetIds.length,
+        totalAssets: updatedMetadata.length,
+        assets: updatedMetadata,
+      });
+    }
+
     if (action === "update-metadata" && Array.isArray(updates) && updates.length > 0) {
       // Apply metadata updates without re-uploading files
       const updateMap = new Map(updates.map((u) => [u.id, u]));
@@ -131,6 +167,8 @@ export async function POST(req: NextRequest) {
             ...(update.tag !== undefined && { tag: update.tag }),
             ...(update.category !== undefined && { category: update.category }),
             ...(update.name !== undefined && { name: update.name }),
+            ...(update.folderId !== undefined && { folderId: update.folderId || undefined }),
+            ...(update.assetType !== undefined && { assetType: update.assetType }),
             updatedAt: now,
           };
         }

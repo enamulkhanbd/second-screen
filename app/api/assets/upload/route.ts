@@ -8,7 +8,9 @@ import {
   buildAssetKey,
   detectContentType,
   extensionFromContentType,
+  deriveAssetType,
 } from "@/lib/r2";
+import { ProjectAsset } from "@/types/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { orgId, projectId, assets, replaceAll } = body;
+    const { orgId, projectId, assets, replaceAll, folderId: topFolderId } = body;
 
     if (!orgId || !projectId) {
       return NextResponse.json(
@@ -67,24 +69,7 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const uploadedAssets: Array<{
-      id: string;
-      name: string;
-      title?: string;
-      type?: string;
-      tag?: string;
-      category?: string;
-      url: string;
-      contentType: string;
-      size: number;
-      path?: string;
-      updatedAt: string;
-      source: "upload" | "git" | "figma";
-      figmaNodeId?: string;
-      figmaUrl?: string;
-      figmaSourceId?: string;
-      figmaSourceName?: string;
-    }> = [];
+    const uploadedAssets: ProjectAsset[] = [];
 
     // Upload assets to R2 in parallel batches of 25 for maximum performance
     const BATCH_SIZE = 25;
@@ -96,7 +81,7 @@ export async function POST(req: NextRequest) {
             asset.id ||
             `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-          const contentType = asset.contentType || "image/svg+xml";
+          const contentType = asset.contentType || detectContentType(asset.name || "asset.svg");
           const extension = extensionFromContentType(contentType);
 
           // Determine if content is base64-encoded or raw text (SVG)
@@ -105,7 +90,7 @@ export async function POST(req: NextRequest) {
             // Raw SVG string
             bodyContent = Buffer.from(asset.content, "utf-8");
           } else {
-            // Base64-encoded binary
+            // Base64-encoded binary (images, videos, documents)
             bodyContent = Buffer.from(asset.content, "base64");
           }
 
@@ -118,6 +103,9 @@ export async function POST(req: NextRequest) {
             extension
           );
 
+          const targetFolderId = asset.folderId || topFolderId || undefined;
+          const inferredType = asset.assetType || deriveAssetType(result.contentType, asset.name || "");
+
           uploadedAssets.push({
             id: assetId,
             name: asset.name,
@@ -125,6 +113,8 @@ export async function POST(req: NextRequest) {
             type: asset.type,
             tag: asset.tag,
             category: asset.category || "general",
+            folderId: targetFolderId,
+            assetType: inferredType,
             url: result.url,
             contentType: result.contentType,
             size: result.size,
