@@ -86,52 +86,58 @@ export async function POST(req: NextRequest) {
       figmaSourceName?: string;
     }> = [];
 
-    // Upload each asset to R2
-    for (const asset of assets) {
-      const assetId =
-        asset.id ||
-        `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    // Upload assets to R2 in parallel batches of 25 for maximum performance
+    const BATCH_SIZE = 25;
+    for (let i = 0; i < assets.length; i += BATCH_SIZE) {
+      const batch = assets.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (asset) => {
+          const assetId =
+            asset.id ||
+            `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-      const contentType = asset.contentType || "image/svg+xml";
-      const extension = extensionFromContentType(contentType);
+          const contentType = asset.contentType || "image/svg+xml";
+          const extension = extensionFromContentType(contentType);
 
-      // Determine if content is base64-encoded or raw text (SVG)
-      let bodyContent: Buffer;
-      if (contentType === "image/svg+xml" && !isBase64(asset.content)) {
-        // Raw SVG string
-        bodyContent = Buffer.from(asset.content, "utf-8");
-      } else {
-        // Base64-encoded binary
-        bodyContent = Buffer.from(asset.content, "base64");
-      }
+          // Determine if content is base64-encoded or raw text (SVG)
+          let bodyContent: Buffer;
+          if (contentType === "image/svg+xml" && !isBase64(asset.content)) {
+            // Raw SVG string
+            bodyContent = Buffer.from(asset.content, "utf-8");
+          } else {
+            // Base64-encoded binary
+            bodyContent = Buffer.from(asset.content, "base64");
+          }
 
-      const result = await uploadAsset(
-        orgId,
-        projectId,
-        assetId,
-        bodyContent,
-        contentType,
-        extension
+          const result = await uploadAsset(
+            orgId,
+            projectId,
+            assetId,
+            bodyContent,
+            contentType,
+            extension
+          );
+
+          uploadedAssets.push({
+            id: assetId,
+            name: asset.name,
+            title: asset.title || asset.name,
+            type: asset.type,
+            tag: asset.tag,
+            category: asset.category || "general",
+            url: result.url,
+            contentType: result.contentType,
+            size: result.size,
+            path: asset.path,
+            updatedAt: now,
+            source: asset.source || "upload",
+            figmaNodeId: asset.figmaNodeId,
+            figmaUrl: asset.figmaUrl,
+            figmaSourceId: asset.figmaSourceId,
+            figmaSourceName: asset.figmaSourceName,
+          });
+        })
       );
-
-      uploadedAssets.push({
-        id: assetId,
-        name: asset.name,
-        title: asset.title || asset.name,
-        type: asset.type,
-        tag: asset.tag,
-        category: asset.category || "general",
-        url: result.url,
-        contentType: result.contentType,
-        size: result.size,
-        path: asset.path,
-        updatedAt: now,
-        source: asset.source || "upload",
-        figmaNodeId: asset.figmaNodeId,
-        figmaUrl: asset.figmaUrl,
-        figmaSourceId: asset.figmaSourceId,
-        figmaSourceName: asset.figmaSourceName,
-      });
     }
 
     // Update the metadata index

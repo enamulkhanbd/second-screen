@@ -3,6 +3,8 @@ import {
   isR2Configured,
   loadMetadataIndex,
   uploadMetadataIndex,
+  listProjectAssetKeys,
+  getPublicUrl,
 } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +52,42 @@ export async function POST(req: NextRequest) {
     }
 
     // Load metadata index from R2
-    const metadata = await loadMetadataIndex(orgId, projectId);
+    let metadata = await loadMetadataIndex(orgId, projectId);
+
+    // Auto-recovery: If metadata index is empty but objects exist in R2, reconstruct it
+    if (metadata.length === 0) {
+      const keys = await listProjectAssetKeys(orgId, projectId);
+      if (keys.length > 0) {
+        const now = new Date().toISOString();
+        metadata = keys.map((key) => {
+          const filename = key.split("/").pop() || "";
+          const namePart = filename.replace(/\.[^.]+$/, "");
+          const cleanName = namePart.replace(/^git__assets_icons_svg_/, "").replace(/_svg$/, "");
+          const formattedTitle = cleanName
+            .replace(/^Icon/, "")
+            .replace(/([A-Z])/g, " $1")
+            .trim();
+
+          const ext = filename.split(".").pop()?.toLowerCase() || "svg";
+          const contentType = ext === "svg" ? "image/svg+xml" : `image/${ext}`;
+
+          return {
+            id: namePart,
+            name: cleanName,
+            title: formattedTitle || cleanName,
+            type: cleanName.includes("Fill") ? "fill" : cleanName.includes("Outline") ? "outline" : "general",
+            category: "general",
+            url: getPublicUrl(key),
+            contentType,
+            updatedAt: now,
+            source: namePart.startsWith("git_") ? ("git" as const) : ("upload" as const),
+          };
+        });
+
+        // Save reconstructed index to R2 so future reads are instantaneous
+        await uploadMetadataIndex(orgId, projectId, metadata);
+      }
+    }
 
     if (action === "update-metadata" && Array.isArray(updates) && updates.length > 0) {
       // Apply metadata updates without re-uploading files
