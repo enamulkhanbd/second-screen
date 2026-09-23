@@ -1,11 +1,10 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, expect } from "vitest";
 import { generatePairingCode } from "./generatePairingCode";
 
 describe("generatePairingCode", () => {
   it("should generate pairing code in correct XXXX-XXXX format", () => {
     const code = generatePairingCode();
-    assert.match(code, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/);
+    expect(code).toMatch(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/);
   });
 
   it("should only contain allowed character set", () => {
@@ -13,7 +12,7 @@ describe("generatePairingCode", () => {
     for (let i = 0; i < 50; i++) {
       const code = generatePairingCode();
       for (const char of code) {
-        assert.equal(allowedChars.has(char), true);
+        expect(allowedChars.has(char)).toBe(true);
       }
     }
   });
@@ -24,6 +23,6 @@ describe("generatePairingCode", () => {
     for (let i = 0; i < count; i++) {
       codes.add(generatePairingCode());
     }
-    assert.equal(codes.size, count);
+    expect(codes.size).toBe(count);
   });
 });
