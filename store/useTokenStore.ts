@@ -173,6 +173,7 @@ interface TokenStoreState {
   setAssets: (assets: ProjectAsset[]) => void;
   uploadAssets: (
     newAssets: Array<{
+      id?: string;
       name: string;
       title?: string;
       type?: string;
@@ -464,7 +465,31 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     replaceAll = false
   ): Promise<void> => {
     try {
-      // Attempt R2 storage first
+      if (!replaceAll) {
+        // Lightweight metadata update via /api/assets/list without re-uploading file binaries
+        const res = await fetch("/api/assets/list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orgId,
+            projectId,
+            action: "update-metadata",
+            updates: assets.map((a) => ({
+              id: a.id,
+              name: a.name,
+              title: a.title,
+              type: a.type,
+              tag: a.tag,
+              category: a.category,
+              folderId: a.folderId,
+              assetType: a.assetType,
+            })),
+          }),
+        });
+        if (res.ok) return;
+      }
+
+      // Attempt R2 storage first (full sync/replaceAll)
       const r2Assets = assets.map((a) => ({
         id: a.id,
         name: a.name,
@@ -547,6 +572,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             type: a.type,
             tag: a.tag,
             category: a.category,
+            folderId: a.folderId,
+            assetType: a.assetType,
             url: a.url,
             contentType: a.contentType || "image/svg+xml",
             size: a.size,
@@ -2201,8 +2228,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
     const { currentOrg, currentProject, assets, activeFolderId, addToast } = get();
     const now = new Date().toISOString();
-    const created: ProjectAsset[] = newAssets.map((a) => ({
-      id: `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    const created: ProjectAsset[] = newAssets.map((a, i) => ({
+      id: a.id || `asset_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
       name: a.name,
       title: a.title || a.name,
       type: a.type || undefined,

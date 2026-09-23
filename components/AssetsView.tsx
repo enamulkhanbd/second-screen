@@ -800,6 +800,9 @@ export const AssetsView: React.FC = () => {
    * Reads standard FileList, unzipping any .zip archives or extracting folder paths
    */
   const handleProcessIncomingFiles = async (files: FileList | File[], targetFolderId?: string) => {
+    const fileList = Array.from(files);
+    if (fileList.length === 0) return;
+
     if (!canUserEdit()) {
       addToast({
         type: "info",
@@ -809,18 +812,18 @@ export const AssetsView: React.FC = () => {
       return;
     }
 
-    if (files.length > 1) {
+    if (fileList.length > 1) {
       addToast({
         type: "info",
         title: "Uploading Multiple Assets",
-        message: `Processing ${files.length} assets for upload...`,
+        message: `Processing ${fileList.length} assets for upload...`,
       });
     }
 
     const rawFiles: Array<{ path: string; content: string; isBinary?: boolean; contentType?: string; size?: number }> = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
       const relativePath = (file as any).webkitRelativePath || file.name;
       const lower = file.name.toLowerCase();
 
@@ -1844,8 +1847,11 @@ export const AssetsView: React.FC = () => {
         accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.ico,.avif,.mp4,.webm,.mov,.pdf,.json,.zip"
         multiple
         onChange={(e) => {
-          if (e.target.files) handleProcessIncomingFiles(e.target.files);
-          if (fileInputRef.current) fileInputRef.current.value = "";
+          if (e.target.files && e.target.files.length > 0) {
+            const filesArray = Array.from(e.target.files);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            handleProcessIncomingFiles(filesArray);
+          }
         }}
         className="hidden"
       />
@@ -1857,8 +1863,11 @@ export const AssetsView: React.FC = () => {
         multiple
         {...({ webkitdirectory: "", directory: "" } as any)}
         onChange={(e) => {
-          if (e.target.files) handleProcessIncomingFiles(e.target.files);
-          if (folderInputRef.current) folderInputRef.current.value = "";
+          if (e.target.files && e.target.files.length > 0) {
+            const filesArray = Array.from(e.target.files);
+            if (folderInputRef.current) folderInputRef.current.value = "";
+            handleProcessIncomingFiles(filesArray);
+          }
         }}
         className="hidden"
       />

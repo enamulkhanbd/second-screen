@@ -84,6 +84,31 @@ export async function POST(req: NextRequest) {
           const contentType = asset.contentType || detectContentType(asset.name || "asset.svg");
           const extension = extensionFromContentType(contentType);
 
+          // If no content is provided (e.g. metadata-only update), preserve the existing asset file in R2
+          if (!asset.content) {
+            uploadedAssets.push({
+              id: assetId,
+              name: asset.name,
+              title: asset.title || asset.name,
+              type: asset.type,
+              tag: asset.tag,
+              category: asset.category || "general",
+              folderId: asset.folderId || topFolderId || undefined,
+              assetType: asset.assetType,
+              url: asset.url,
+              contentType: asset.contentType,
+              size: asset.size,
+              path: asset.path,
+              updatedAt: now,
+              source: asset.source || "upload",
+              figmaNodeId: asset.figmaNodeId,
+              figmaUrl: asset.figmaUrl,
+              figmaSourceId: asset.figmaSourceId,
+              figmaSourceName: asset.figmaSourceName,
+            });
+            return;
+          }
+
           // Determine if content is base64-encoded or raw text (SVG)
           let bodyContent: Buffer;
           if (contentType === "image/svg+xml" && !isBase64(asset.content)) {
