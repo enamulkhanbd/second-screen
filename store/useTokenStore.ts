@@ -3162,6 +3162,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
         set({ branches: updatedBranches });
         updateProjectInMemoryAndCache(updatedBranches, canonical, groups, activeBranch);
+      } else {
+        updateProjectInMemoryAndCache(undefined, canonical, groups, activeBranch);
       }
     }
 
