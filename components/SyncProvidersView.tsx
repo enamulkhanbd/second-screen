@@ -56,30 +56,34 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const PROVIDERS: { id: GitProvider; label: string; icon: string; docsUrl: string }[] = [
+const PROVIDERS: { id: GitProvider; label: string; icon: string; docsUrl: string; patPlaceholder: string }[] = [
   {
     id: "github",
     label: "GitHub",
     icon: "🐙",
     docsUrl: "https://github.com/settings/tokens/new?scopes=repo",
+    patPlaceholder: "ghp_xxxxxxxxxxxxxxxxxxxx",
   },
   {
     id: "gitlab",
     label: "GitLab",
     icon: "🦊",
     docsUrl: "https://gitlab.com/-/user_settings/personal_access_tokens",
+    patPlaceholder: "glpat-xxxxxxxxxxxxxxxxxxxx",
   },
   {
     id: "azure",
     label: "Azure DevOps",
     icon: "🔷",
     docsUrl: "https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate",
+    patPlaceholder: "Azure DevOps Personal Access Token",
   },
   {
     id: "bitbucket",
     label: "Bitbucket",
     icon: "🪣",
     docsUrl: "https://bitbucket.org/account/settings/app-passwords/",
+    patPlaceholder: "Bitbucket App Password or PAT",
   },
 ];
 
@@ -753,7 +757,7 @@ export const SyncProvidersView: React.FC = () => {
                   <div className="relative">
                     <Input
                       type={showPat ? "text" : "password"}
-                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                      placeholder={activeProvider.patPlaceholder}
                       value={pat}
                       onChange={(e) => setPat(e.target.value)}
                       required
