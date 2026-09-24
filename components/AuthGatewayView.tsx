@@ -26,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 
 export const AuthGatewayView: React.FC = () => {
   const { setCurrentUser, themeMode, setThemeMode, addToast } = useTokenStore();
@@ -202,9 +201,14 @@ export const AuthGatewayView: React.FC = () => {
 
       {/* Top Bar */}
       <header className="h-16 px-6 sm:px-12 flex items-center justify-between border-b border-border/40 backdrop-blur-md z-10">
-        <div className="flex items-center gap-2">
-          <TokensPlatformLogo variant="full" size={24} />
-          <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 border-primary/30 text-primary">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-violet-500 flex items-center justify-center text-white shadow-md">
+            <Layers className="w-4 h-4" />
+          </div>
+          <span className="font-bold text-sm tracking-tight text-foreground">
+            Tokens Platform
+          </span>
+          <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 ml-1 border-primary/30 text-primary">
             v1.3.0
           </Badge>
         </div>

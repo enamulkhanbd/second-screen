@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const size = { width: 32, height: 32 };
+export const size = { width: 24, height: 24 };
 export const contentType = "image/png";
 
 export default function Icon() {
@@ -13,24 +13,24 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#09090b",
-          borderRadius: "8px",
+          background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+          borderRadius: "7px",
+          color: "white",
         }}
       >
         <svg
-          width="24"
-          height="24"
-          viewBox="0 0 32 32"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
           fill="none"
+          stroke="white"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          {/* Top Left Token Pill: Emerald */}
-          <rect x="4.5" y="6" width="10.5" height="5.5" rx="2.75" fill="#10B981" />
-          {/* Top Right Token Pill: Indigo */}
-          <rect x="17" y="6" width="10.5" height="5.5" rx="2.75" fill="#6366F1" />
-          {/* Center Token Resolver Node */}
-          <circle cx="16" cy="16.25" r="2.75" fill="#38BDF8" />
-          {/* Vertical Foundation Pillar */}
-          <rect x="13.25" y="20.5" width="5.5" height="6" rx="2.75" fill="#10B981" />
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
         </svg>
       </div>
     ),
