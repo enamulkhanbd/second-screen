@@ -25,8 +25,12 @@
       "url": "https://observability.mcp.cloudflare.com/mcp"
     },
     "vercel": {
-      "serverUrl": "https://mcp.vercel.com",
-      "url": "https://mcp.vercel.com"
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.vercel.com"
+      ]
     }
   }
 }
