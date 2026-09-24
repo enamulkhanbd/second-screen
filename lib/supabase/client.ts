@@ -7,8 +7,8 @@ let browserClient: ReturnType<typeof createBrowserClient> | null = null;
  * Automatically handles cookie-based session management and browser refresh tokens.
  */
 export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
 
   if (typeof window === "undefined") {
     return createBrowserClient(supabaseUrl, supabaseAnonKey);

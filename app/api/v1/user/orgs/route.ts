@@ -3,6 +3,8 @@ import { authenticateRequest } from "@/utils/auth";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { getUserOrganizations, getOrgProjects, getOrganization } from "@/services/organizationService";
 
+export const dynamic = "force-dynamic";
+
 export async function OPTIONS() {
   return handleOptionsCors();
 }
