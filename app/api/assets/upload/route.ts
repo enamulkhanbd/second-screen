@@ -130,6 +130,8 @@ export async function POST(req: NextRequest) {
 
           const targetFolderId = asset.folderId || topFolderId || undefined;
           const inferredType = asset.assetType || deriveAssetType(result.contentType, asset.name || "");
+          const isSvg = (contentType || "").includes("svg") || (result.contentType || "").includes("svg");
+          const rawSvg = isSvg && typeof asset.content === "string" && asset.content.includes("<svg") ? asset.content : undefined;
 
           uploadedAssets.push({
             id: assetId,
@@ -143,6 +145,7 @@ export async function POST(req: NextRequest) {
             url: result.url,
             contentType: result.contentType,
             size: result.size,
+            svg: rawSvg,
             path: asset.path,
             updatedAt: now,
             source: asset.source || "upload",

@@ -79,12 +79,19 @@ export async function GET(req: NextRequest) {
 
     const metadata = await fetchAssetMetadata(orgId, projectId);
 
-    return NextResponse.json({
-      success: true,
-      action: "list",
-      totalAssets: metadata.length,
-      assets: metadata,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        action: "list",
+        totalAssets: metadata.length,
+        assets: metadata,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("R2 list error (GET):", err);
     return NextResponse.json(
@@ -187,12 +194,19 @@ export async function POST(req: NextRequest) {
     }
 
     // Default: list all assets
-    return NextResponse.json({
-      success: true,
-      action: "list",
-      totalAssets: metadata.length,
-      assets: metadata,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        action: "list",
+        totalAssets: metadata.length,
+        assets: metadata,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("R2 list/metadata error (POST):", err);
     return NextResponse.json(

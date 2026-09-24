@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ProjectAsset, AssetFolder, AssetType, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
 import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
@@ -353,6 +353,107 @@ export function getFolderIconComponent(iconName?: string) {
       return Folder;
   }
 }
+
+interface AssetPreviewThumbnailProps {
+  icon: ProjectAsset;
+  displayTitle: string;
+}
+
+const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+  }, [icon.url]);
+
+  if (icon.svg) {
+    return (
+      <div
+        className="w-11 h-11 flex items-center justify-center text-foreground transition-transform duration-150 group-hover:scale-105 mt-1 [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-[44px] [&>svg]:max-h-[44px]"
+        dangerouslySetInnerHTML={{ __html: icon.svg }}
+      />
+    );
+  }
+
+  if (icon.url) {
+    return (
+      <div className="w-11 h-11 relative flex items-center justify-center mt-1">
+        {!isLoaded && !hasError && (
+          <div className="absolute inset-0 rounded-lg bg-muted/60 animate-pulse flex items-center justify-center pointer-events-none">
+            <div className="w-4 h-4 rounded-full bg-muted/80" />
+          </div>
+        )}
+
+        {hasError ? (
+          <div className="w-11 h-11 rounded-lg bg-muted/30 border border-border/40 flex items-center justify-center text-muted-foreground/50">
+            <ImageIcon className="w-4 h-4" />
+          </div>
+        ) : (
+          <img
+            src={icon.url}
+            alt={displayTitle}
+            onLoad={() => setIsLoaded(true)}
+            onError={() => setHasError(true)}
+            className={`w-11 h-11 object-contain transition-all duration-200 group-hover:scale-105 ${
+              isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
+            } ${
+              icon.contentType === "image/svg+xml" || !icon.contentType || icon.url.endsWith(".svg")
+                ? "dark:invert dark:opacity-90"
+                : ""
+            }`}
+            loading="lazy"
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-11 h-11 rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground/40 mt-1">
+      <ImageIcon className="w-4 h-4" />
+    </div>
+  );
+});
+
+AssetPreviewThumbnail.displayName = "AssetPreviewThumbnail";
+
+const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+  }, [icon.url]);
+
+  return (
+    <div className="w-full h-20 rounded-lg bg-muted/40 overflow-hidden flex items-center justify-center relative mt-1 group-hover:bg-muted/60 transition-colors">
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-muted/50 animate-pulse pointer-events-none" />
+      )}
+      {hasError ? (
+        <div className="w-full h-full flex items-center justify-center text-muted-foreground/50 text-xs">
+          <ImageIcon className="w-6 h-6" />
+        </div>
+      ) : (
+        <img
+          src={icon.url}
+          alt={displayTitle}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          className={`max-h-full max-w-full object-contain transition-all duration-200 group-hover:scale-105 ${
+            isLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          loading="lazy"
+        />
+      )}
+    </div>
+  );
+});
+
+ImagePreviewThumbnail.displayName = "ImagePreviewThumbnail";
 
 export const AssetsView: React.FC = () => {
   const {
@@ -1686,40 +1787,21 @@ export const AssetsView: React.FC = () => {
             <span className="text-[9px] font-mono uppercase font-bold text-rose-600 dark:text-rose-400">PDF</span>
           </div>
         ) : itemType === "image" ? (
-          <div className="w-full h-20 rounded-lg bg-muted/40 overflow-hidden flex items-center justify-center relative mt-1 group-hover:bg-muted/60 transition-colors">
-            <img
-              src={icon.url}
-              alt={displayTitle}
-              className="max-h-full max-w-full object-contain transition-transform duration-150 group-hover:scale-105"
-              loading="lazy"
-            />
+          <div className="relative w-full">
+            <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} />
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setPreviewMediaAsset(icon);
               }}
-              className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer"
+              className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
               title="Preview Image"
             >
               <Maximize2 className="w-3 h-3" />
             </button>
           </div>
-        ) : icon.url && !icon.svg ? (
-          <img
-            src={icon.url}
-            alt={displayTitle}
-            className={`w-11 h-11 object-contain transition-transform duration-150 group-hover:scale-105 mt-1 ${
-              icon.contentType === "image/svg+xml" || !icon.contentType || icon.url.endsWith(".svg")
-                ? "dark:invert dark:opacity-90"
-                : ""
-            }`}
-            loading="lazy"
-          />
         ) : (
-          <div
-            className="w-11 h-11 flex items-center justify-center text-foreground transition-transform duration-150 group-hover:scale-105 mt-1"
-            dangerouslySetInnerHTML={{ __html: icon.svg || "" }}
-          />
+          <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} />
         )}
 
         {/* Asset Metadata: Title as primary, badges below */}

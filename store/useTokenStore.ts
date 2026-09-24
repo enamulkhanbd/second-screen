@@ -439,6 +439,10 @@ function resolveTokensWithActiveThemes(
   return flattenAndResolveTokens(doc, activeSet, themeConfig);
 }
 
+// Client-side in-memory SWR cache for project assets & configuration (0ms reloads)
+const projectAssetsCache = new Map<string, ProjectAsset[]>();
+const projectConfigCache = new Map<string, any>();
+
 export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
   let isCheckingRemoteUpdates = false;
@@ -531,6 +535,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               url: (urlMap.get(a.id) || a.url) as string | undefined,
               contentType: a.contentType || "image/svg+xml",
             }));
+            const cacheKey = `${orgId}::${projectId}`;
+            projectAssetsCache.set(cacheKey, updatedAssets);
             set({ assets: updatedAssets });
           }
           return;
@@ -554,6 +560,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     orgId: string,
     projectId: string
   ): Promise<ProjectAsset[]> => {
+    const cacheKey = `${orgId}::${projectId}`;
     try {
       const res = await fetch("/api/assets/list", {
         method: "POST",
@@ -565,7 +572,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         const data = await res.json();
         if (data.success && Array.isArray(data.assets)) {
           set({ r2StorageError: null });
-          return data.assets.map((a: any) => ({
+          const mapped: ProjectAsset[] = data.assets.map((a: any) => ({
             id: a.id,
             name: a.name,
             title: a.title,
@@ -577,7 +584,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             url: a.url,
             contentType: a.contentType || "image/svg+xml",
             size: a.size,
-            svg: a.svg, // may be undefined for R2-native assets
+            svg: a.svg, // preserved for 0ms instant vector rendering
             path: a.path,
             updatedAt: a.updatedAt,
             source: a.source || "upload",
@@ -586,6 +593,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             figmaSourceId: a.figmaSourceId,
             figmaSourceName: a.figmaSourceName,
           }));
+          projectAssetsCache.set(cacheKey, mapped);
+          return mapped;
         }
       } else {
         const data = await res.json().catch(() => ({}));
@@ -596,11 +605,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         set({ r2StorageError: errMessage });
       }
 
-      return [];
+      return projectAssetsCache.get(cacheKey) || [];
     } catch (err: any) {
       console.error("[R2 Storage Error]: Failed to load assets from Cloudflare R2:", err);
       set({ r2StorageError: err.message || "Failed to connect to Cloudflare R2 storage." });
-      return [];
+      return projectAssetsCache.get(cacheKey) || [];
     }
   };
 
@@ -623,6 +632,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
+          const cacheKey = `${orgId}::${projectId}`;
+          const current = projectAssetsCache.get(cacheKey) || [];
+          const updated = current.filter((a) => !assetIds.includes(a.id));
+          projectAssetsCache.set(cacheKey, updated);
           return true;
         }
       }
@@ -674,6 +687,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     assetFigmaConfig?: AssetFigmaConfig | null;
     folders?: AssetFolder[];
   } | null> => {
+    const cacheKey = `${orgId}::${projectId}`;
     try {
       const res = await fetch(
         `/api/assets/config?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`
@@ -683,13 +697,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         if (res.status === 503 && data.error) {
           set({ r2StorageError: data.error });
         }
-        return null;
+        return projectConfigCache.get(cacheKey) || null;
       }
       const data = await res.json();
-      return data.success && data.config ? data.config : null;
+      if (data.success && data.config) {
+        projectConfigCache.set(cacheKey, data.config);
+        return data.config;
+      }
+      return projectConfigCache.get(cacheKey) || null;
     } catch (err) {
       console.error("[R2 Config Error]: Failed to load asset configuration from R2:", err);
-      return null;
+      return projectConfigCache.get(cacheKey) || null;
     }
   };
 
@@ -1324,22 +1342,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           ? flattenAndResolveTokens(rawFigmaVars, "ALL")
           : [];
 
+      const cacheKey = `${proj.orgId}::${proj.id}`;
+      const cachedAssets = projectAssetsCache.get(cacheKey) || proj.assets || [];
+      const cachedConfig = projectConfigCache.get(cacheKey);
+
       set({
         figmaVariables: rawFigmaVars,
         figmaResolvedVariables: resolvedFigmaVars,
         figmaUpdatedAt: proj.figmaUpdatedAt || null,
         figmaMeta: proj.figmaMeta || null,
-        assets: proj.assets || [],
-        assetFolders: proj.assetFolders || [],
+        assets: cachedAssets,
+        assetFolders: cachedConfig?.folders || proj.assetFolders || [],
         activeFolderId: null,
-        assetGitConfig: proj.assetGitConfig || null,
-        assetFigmaConfig: normalizedFigmaConfig,
+        assetGitConfig: cachedConfig?.assetGitConfig !== undefined ? cachedConfig.assetGitConfig : (proj.assetGitConfig || null),
+        assetFigmaConfig: cachedConfig?.assetFigmaConfig !== undefined ? cachedConfig.assetFigmaConfig : normalizedFigmaConfig,
         documentation: docToUse,
         activeDocPageId: docToUse.pages[0]?.id || null,
         activeDocFolderId: null,
         isSyncingAssets: false,
         isSyncingFigmaAssets: false,
-        isLoadingAssets: true,
+        isLoadingAssets: cachedAssets.length === 0,
       });
 
       // Hydrate assets from R2
