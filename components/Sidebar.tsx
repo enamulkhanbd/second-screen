@@ -39,6 +39,7 @@ import {
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { LATEST_VERSION } from "@/data/systemChangelog";
 import { supabase } from "@/lib/supabase/client";
+import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 
 import {
   DropdownMenu,
@@ -1025,7 +1026,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
           </DropdownMenu>
         ) : !isCollapsed ? (
           <div className="px-3 py-1 flex items-center justify-between text-[10px] text-muted-foreground font-mono select-none">
-            <span>Tokens Platform</span>
+            <div className="flex items-center gap-1.5">
+              <TokensPlatformLogo size={14} className="shrink-0" />
+              <span>Tokens Platform</span>
+            </div>
             <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
               {LATEST_VERSION}
             </Badge>
