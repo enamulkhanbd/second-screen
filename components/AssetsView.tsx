@@ -64,6 +64,7 @@ import {
   SlidersHorizontal,
   Save,
   Maximize2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1806,13 +1807,14 @@ export const AssetsView: React.FC = () => {
     <div
       key={`skeleton-${index}`}
       className="p-4 rounded-xl border border-border/40 bg-card/40 shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[148px] animate-pulse pointer-events-none select-none"
+      style={{ animationDelay: `${(index % 8) * 60}ms` }}
     >
-      <div className="w-11 h-11 rounded-lg bg-muted/60 flex items-center justify-center mt-1" />
-      <div className="w-full flex flex-col items-center gap-1.5 mt-3 px-1">
-        <div className="w-16 h-3 bg-muted/60 rounded" />
-        <div className="w-10 h-2 bg-muted/30 rounded" />
+      <div className="w-11 h-11 rounded-xl bg-muted/50 flex items-center justify-center mt-1" />
+      <div className="w-full flex flex-col items-center gap-2 mt-3 px-1">
+        <div className="w-20 h-3 bg-muted/60 rounded-md" />
+        <div className="w-12 h-2.5 bg-muted/35 rounded-full" />
       </div>
-      <div className="w-12 h-2.5 bg-muted/20 rounded mt-2" />
+      <div className="w-14 h-2 bg-muted/20 rounded-md mt-2" />
     </div>
   );
 
@@ -2530,10 +2532,16 @@ export const AssetsView: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto p-6 pb-24 space-y-6">
             {isLoadingAssets ? (
-              <div className="flex flex-col items-center justify-center py-28 space-y-4">
-                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <div className="text-sm font-semibold text-foreground">Loading Vector Assets from Cloudflare R2...</div>
-                <div className="text-xs text-muted-foreground">Connecting to edge CDN storage</div>
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground/70" />
+                    <span className="text-xs font-medium text-muted-foreground">Loading assets...</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+                  {Array.from({ length: 18 }).map((_, idx) => renderSkeletonCard(idx))}
+                </div>
               </div>
             ) : displayAssets.length === 0 ? (
               /* High-Value Onboarding Setup Guide Empty State */
