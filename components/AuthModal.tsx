@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Building2,
   Crown,
+  Github,
 } from "lucide-react";
 import {
   Dialog,
@@ -145,6 +146,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const handleGithubSignIn = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      setError("Supabase Authentication is not configured or GitHub Sign-In is unavailable.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+      const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: callbackUrl,
+        },
+      });
+      if (oAuthErr) throw oAuthErr;
+    } catch (err: any) {
+      setError(err.message || "GitHub sign in failed");
+      setLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
@@ -252,16 +276,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full gap-2 text-xs h-9"
-            >
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span>Continue with Google</span>
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full gap-2 text-xs h-9 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <span>Google</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGithubSignIn}
+                disabled={loading}
+                className="w-full gap-2 text-xs h-9 cursor-pointer"
+              >
+                <Github className="w-3.5 h-3.5 flex-shrink-0 text-foreground" />
+                <span>GitHub</span>
+              </Button>
+            </div>
 
             <div className="flex items-center gap-2 my-2">
               <div className="flex-1 h-px bg-border" />

@@ -3609,6 +3609,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               displayName:
                 sbUser.user_metadata?.full_name ||
                 sbUser.user_metadata?.name ||
+                sbUser.user_metadata?.user_name ||
                 sbUser.email?.split("@")[0] ||
                 "User",
               avatarUrl: sbUser.user_metadata?.avatar_url || undefined,

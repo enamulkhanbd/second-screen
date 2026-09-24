@@ -13,6 +13,7 @@ import {
   UserCheck,
   X,
   AlertCircle,
+  Github,
 } from "lucide-react";
 import {
   Dialog,
@@ -60,6 +61,29 @@ export const AcceptInviteModal: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGithubSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+        const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
+          provider: "github",
+          options: {
+            redirectTo: callbackUrl,
+          },
+        });
+        if (oAuthErr) throw oAuthErr;
+      } else {
+        throw new Error("Supabase Database & Authentication are not configured.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with GitHub.");
     } finally {
       setLoading(false);
     }
@@ -155,17 +179,30 @@ export const AcceptInviteModal: React.FC = () => {
           {!currentUser ? (
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-3 text-center">
               <p className="text-xs text-muted-foreground">
-                Sign in with your Google account to accept and verify your membership.
+                Sign in with your Google or GitHub account to accept and verify your membership.
               </p>
-              <Button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full gap-2 text-xs font-bold"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>{loading ? "Signing In..." : "Sign In with Google to Join"}</span>
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full gap-2 text-xs font-semibold cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span>Google</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGithubSignIn}
+                  disabled={loading}
+                  className="w-full gap-2 text-xs font-semibold cursor-pointer"
+                >
+                  <Github className="w-3.5 h-3.5 flex-shrink-0 text-foreground" />
+                  <span>GitHub</span>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border text-xs">
