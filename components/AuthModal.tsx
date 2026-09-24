@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
 
 interface AuthModalProps {
@@ -284,9 +285,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="space-y-4">
             <DialogHeader className="gap-1 text-left">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
+                <TokensPlatformLogo variant="app-icon" size={32} />
                 <div>
                   <div className="flex items-center gap-2">
                     <DialogTitle className="text-base">

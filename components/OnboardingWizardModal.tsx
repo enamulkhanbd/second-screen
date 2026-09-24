@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 
 interface OnboardingWizardModalProps {
   isOpen: boolean;
@@ -130,9 +131,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
         {/* Step Indicator Header */}
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
-              <Layers className="w-4 h-4" />
-            </div>
+            <TokensPlatformLogo variant="app-icon" size={28} />
             <div>
               <span className="font-bold text-xs tracking-tight text-foreground block">
                 Tokens Platform

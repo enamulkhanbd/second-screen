@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 import { useTokenStore } from "@/store/useTokenStore";
 
 interface InviteEmailPreviewModalProps {
@@ -102,12 +103,7 @@ export const InviteEmailPreviewModal: React.FC<InviteEmailPreviewModalProps> = (
           {/* Rendered Email Template */}
           <div className="p-6 rounded-xl bg-card border border-border shadow-sm space-y-5 text-left">
             {/* Brand Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
-                T
-              </div>
-              <span className="font-bold text-sm tracking-tight text-foreground">Tokens Platform</span>
-            </div>
+            <TokensPlatformLogo variant="full" />
 
             {/* Main Message */}
             <div className="space-y-2">

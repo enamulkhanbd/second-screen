@@ -55,6 +55,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { cn } from "@/lib/utils";
+import { TokensPlatformMark } from "@/components/TokensPlatformLogo";
 
 function FigmaVariableIcon({ className }: { className?: string }) {
   return (
@@ -1003,7 +1004,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
           </DropdownMenu>
         ) : !isCollapsed ? (
           <div className="px-3 py-1 flex items-center justify-between text-[10px] text-muted-foreground font-mono select-none">
-            <span>Tokens Platform</span>
+            <div className="flex items-center gap-1.5">
+              <TokensPlatformMark className="w-3.5 h-3.5 text-primary" strokeWidth={2.2} />
+              <span>Tokens Platform</span>
+            </div>
             <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
               {LATEST_VERSION}
             </Badge>
