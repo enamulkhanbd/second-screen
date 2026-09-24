@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -15,6 +15,7 @@ import {
   Building2,
   Crown,
   Github,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -56,7 +57,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Reset loading states when returning via browser back/forward (bfcache) or tab focus
+    const handleReset = () => {
+      setLoading(false);
+      setOauthLoading(null);
+    };
+
+    window.addEventListener("pageshow", handleReset);
+    window.addEventListener("focus", handleReset);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handleReset();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handleReset);
+      window.removeEventListener("focus", handleReset);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    setLoading(true);
+    setOauthLoading("google");
     setError(null);
     try {
       const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
@@ -142,7 +167,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (oAuthErr) throw oAuthErr;
     } catch (err: any) {
       setError(err.message || "Google sign in failed");
-      setLoading(false);
+      setOauthLoading(null);
     }
   };
 
@@ -152,7 +177,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    setLoading(true);
+    setOauthLoading("github");
     setError(null);
     try {
       const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
@@ -165,7 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (oAuthErr) throw oAuthErr;
     } catch (err: any) {
       setError(err.message || "GitHub sign in failed");
-      setLoading(false);
+      setOauthLoading(null);
     }
   };
 
@@ -281,22 +306,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="button"
                 variant="outline"
                 onClick={handleGoogleSignIn}
-                disabled={loading}
+                disabled={loading || oauthLoading !== null}
                 className="w-full gap-2 text-xs h-9 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                <span>Google</span>
+                {oauthLoading === "google" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary flex-shrink-0" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                )}
+                <span>{oauthLoading === "google" ? "Connecting..." : "Google"}</span>
               </Button>
 
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleGithubSignIn}
-                disabled={loading}
+                disabled={loading || oauthLoading !== null}
                 className="w-full gap-2 text-xs h-9 cursor-pointer"
               >
-                <Github className="w-3.5 h-3.5 flex-shrink-0 text-foreground" />
-                <span>GitHub</span>
+                {oauthLoading === "github" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground flex-shrink-0" />
+                ) : (
+                  <Github className="w-3.5 h-3.5 flex-shrink-0 text-foreground" />
+                )}
+                <span>{oauthLoading === "github" ? "Connecting..." : "GitHub"}</span>
               </Button>
             </div>
 
@@ -351,11 +384,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || oauthLoading !== null}
                 className="w-full gap-1.5 text-xs h-9 mt-2"
               >
                 <span>{loading ? "Authenticating..." : isSignUp ? "Create Account" : "Sign In"}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
               </Button>
             </form>
 

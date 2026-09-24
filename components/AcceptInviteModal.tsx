@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -14,6 +14,7 @@ import {
   X,
   AlertCircle,
   Github,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -37,7 +38,31 @@ export const AcceptInviteModal: React.FC = () => {
   } = useTokenStore();
 
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Reset loading states when returning via browser back/forward (bfcache) or tab focus
+    const handleReset = () => {
+      setLoading(false);
+      setOauthLoading(null);
+    };
+
+    window.addEventListener("pageshow", handleReset);
+    window.addEventListener("focus", handleReset);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handleReset();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handleReset);
+      window.removeEventListener("focus", handleReset);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   if (!pendingInvitePrompt) return null;
 
@@ -45,7 +70,7 @@ export const AcceptInviteModal: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setError(null);
-    setLoading(true);
+    setOauthLoading("google");
     try {
       if (isSupabaseConfigured && supabase) {
         const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
@@ -61,14 +86,13 @@ export const AcceptInviteModal: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
-    } finally {
-      setLoading(false);
+      setOauthLoading(null);
     }
   };
 
   const handleGithubSignIn = async () => {
     setError(null);
-    setLoading(true);
+    setOauthLoading("github");
     try {
       if (isSupabaseConfigured && supabase) {
         const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
@@ -84,8 +108,7 @@ export const AcceptInviteModal: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with GitHub.");
-    } finally {
-      setLoading(false);
+      setOauthLoading(null);
     }
   };
 
@@ -186,21 +209,29 @@ export const AcceptInviteModal: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={handleGoogleSignIn}
-                  disabled={loading}
+                  disabled={loading || oauthLoading !== null}
                   className="w-full gap-2 text-xs font-semibold cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  <span>Google</span>
+                  {oauthLoading === "google" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary flex-shrink-0" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  )}
+                  <span>{oauthLoading === "google" ? "Connecting..." : "Google"}</span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleGithubSignIn}
-                  disabled={loading}
+                  disabled={loading || oauthLoading !== null}
                   className="w-full gap-2 text-xs font-semibold cursor-pointer"
                 >
-                  <Github className="w-3.5 h-3.5 flex-shrink-0 text-foreground" />
-                  <span>GitHub</span>
+                  {oauthLoading === "github" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground flex-shrink-0" />
+                  ) : (
+                    <Github className="w-3.5 h-3.5 flex-shrink-0 text-foreground" />
+                  )}
+                  <span>{oauthLoading === "github" ? "Connecting..." : "GitHub"}</span>
                 </Button>
               </div>
             </div>
@@ -233,7 +264,7 @@ export const AcceptInviteModal: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleDismiss}
-            disabled={loading}
+            disabled={loading || oauthLoading !== null}
             className="text-xs"
           >
             Decline
@@ -243,10 +274,10 @@ export const AcceptInviteModal: React.FC = () => {
             <Button
               size="sm"
               onClick={handleAccept}
-              disabled={loading}
+              disabled={loading || oauthLoading !== null}
               className="gap-1.5 text-xs font-bold"
             >
-              <UserCheck className="w-3.5 h-3.5" />
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
               <span>{loading ? "Joining..." : "Accept & Join Workspace"}</span>
             </Button>
           )}
