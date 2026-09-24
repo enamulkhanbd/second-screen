@@ -76,6 +76,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const authErr = params.get("auth_error");
+      const oauthErr = params.get("error");
+      const oauthErrDesc = params.get("error_description");
+
+      if (authErr || oauthErr || oauthErrDesc) {
+        if (oauthErr === "access_denied" || oauthErrDesc?.toLowerCase().includes("denied")) {
+          setError(null);
+        } else {
+          setError(decodeURIComponent(oauthErrDesc || authErr || oauthErr || "Authentication was not completed."));
+        }
+
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("auth_error");
+        cleanUrl.searchParams.delete("error");
+        cleanUrl.searchParams.delete("error_code");
+        cleanUrl.searchParams.delete("error_description");
+        window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? `?${cleanUrl.search}` : ""));
+      }
+    }
+
     return () => {
       window.removeEventListener("pageshow", handleReset);
       window.removeEventListener("focus", handleReset);

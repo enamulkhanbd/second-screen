@@ -56,10 +56,22 @@ export const AuthGatewayView: React.FC = () => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const authErr = params.get("auth_error");
-      if (authErr) {
-        setError(decodeURIComponent(authErr));
+      const oauthErr = params.get("error");
+      const oauthErrDesc = params.get("error_description");
+
+      if (authErr || oauthErr || oauthErrDesc) {
+        // If the user cancelled GitHub/Google login, reset cleanly without a scary error
+        if (oauthErr === "access_denied" || oauthErrDesc?.toLowerCase().includes("denied")) {
+          setError(null);
+        } else {
+          setError(decodeURIComponent(oauthErrDesc || authErr || oauthErr || "Authentication was not completed."));
+        }
+
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete("auth_error");
+        cleanUrl.searchParams.delete("error");
+        cleanUrl.searchParams.delete("error_code");
+        cleanUrl.searchParams.delete("error_description");
         window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? `?${cleanUrl.search}` : ""));
       }
     }
