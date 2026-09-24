@@ -14,8 +14,13 @@ export async function GET(request: NextRequest) {
   const isLocalEnv = process.env.NODE_ENV === "development";
   const targetOrigin = !isLocalEnv && forwardedHost ? `https://${forwardedHost}` : origin;
 
-  // If Supabase returned an OAuth error (e.g. invalid client secret from Google)
+  // If Supabase returned an OAuth error or cancellation
   if (error || errorDescription) {
+    // If the user simply cancelled (access_denied), redirect back to login page cleanly
+    if (error === "access_denied" || errorDescription?.toLowerCase().includes("denied")) {
+      return NextResponse.redirect(`${targetOrigin}${next}`);
+    }
+
     console.error("Auth callback received error from OAuth provider:", error, errorDescription);
     const friendlyMsg = errorDescription?.includes("client secret is invalid")
       ? "Google OAuth Client Secret configured in Supabase is invalid. In Google Cloud Console, copy the Web Client Secret (starts with GOCSPX-)."
