@@ -367,9 +367,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       setRawTokens(data.tokens);
       resetDirtyState();
       useTokenStore.setState({
+        activeBranch: targetBranch,
         lastFetchedSha: data.commitSha || null,
         hasRemoteChanges: false,
       });
+      if (typeof window !== "undefined") {
+        try {
+          const curProj = useTokenStore.getState().currentProject;
+          if (curProj?.id) {
+            localStorage.setItem(`ts_project_branch_${curProj.id}`, targetBranch);
+          }
+          localStorage.setItem("ts_active_branch", targetBranch);
+        } catch {}
+      }
       setShowBranchMenu(false);
       setSyncStatus("success");
       logUserActivity({
@@ -424,10 +434,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       const data = await res.json();
       setRawTokens(data.tokens);
       resetDirtyState();
+      const currentBranch = credentials.branch || useTokenStore.getState().activeBranch;
       useTokenStore.setState({
+        activeBranch: currentBranch,
         lastFetchedSha: data.commitSha || null,
         hasRemoteChanges: false,
       });
+      if (typeof window !== "undefined") {
+        try {
+          const curProj = useTokenStore.getState().currentProject;
+          if (curProj?.id && currentBranch) {
+            localStorage.setItem(`ts_project_branch_${curProj.id}`, currentBranch);
+          }
+          if (currentBranch) {
+            localStorage.setItem("ts_active_branch", currentBranch);
+          }
+        } catch {}
+      }
       setSyncStatus("success");
       addToast({
         type: "success",

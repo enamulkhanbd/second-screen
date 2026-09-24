@@ -1158,7 +1158,30 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           }
         } catch {}
       }
-      let activeBranchName = proj.activeBranch || "main";
+
+      // If the project has a configured Git branch, ensure it is registered in projectBranches
+      const configuredGitBranch = proj.gitConfig?.branch;
+      if (configuredGitBranch && !projectBranches.some((b) => b.name === configuredGitBranch)) {
+        projectBranches.push({
+          id: `branch_${proj.id}_${configuredGitBranch.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+          name: configuredGitBranch,
+          title: configuredGitBranch,
+          description: `Linked to remote Git branch ${configuredGitBranch}`,
+          isDefault: false,
+          createdAt: proj.createdAt || new Date().toISOString(),
+          updatedAt: proj.updatedAt || new Date().toISOString(),
+          rawTokens: proj.rawTokens || {},
+          themeGroups: proj.themeGroups || [],
+          commits: [],
+          comments: [],
+        });
+      }
+
+      let activeBranchName =
+        proj.activeBranch ||
+        (configuredGitBranch && projectBranches.some((b) => b.name === configuredGitBranch) ? configuredGitBranch : null) ||
+        "main";
+
       if (typeof window !== "undefined") {
         try {
           const savedBranch =
@@ -1169,13 +1192,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           }
         } catch {}
       }
-      const activeBranchObj = projectBranches.find((b) => b.name === activeBranchName) || projectBranches[0];
+      const activeBranchObj =
+        projectBranches.find((b) => b.name === activeBranchName) ||
+        (configuredGitBranch ? projectBranches.find((b) => b.name === configuredGitBranch) : null) ||
+        projectBranches[0];
 
       let initialTokens =
-        proj.rawTokens && Object.keys(proj.rawTokens).length > 0
-          ? proj.rawTokens
-          : activeBranchObj && activeBranchObj.rawTokens && Object.keys(activeBranchObj.rawTokens).length > 0
+        activeBranchObj && activeBranchObj.rawTokens && Object.keys(activeBranchObj.rawTokens).length > 0
           ? activeBranchObj.rawTokens
+          : proj.rawTokens && Object.keys(proj.rawTokens).length > 0
+          ? proj.rawTokens
           : {};
 
       if (activeBranchObj) {
@@ -1193,7 +1219,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       set({
         branches: projectBranches,
-        activeBranch: activeBranchObj?.name || "main",
+        activeBranch: activeBranchObj?.name || activeBranchName || "main",
       });
 
       // 1b. Git Provider Connection (if configured)
@@ -1268,7 +1294,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           getProject(proj.orgId, proj.id).then((freshProj) => {
             if (freshProj && get().currentProject?.id === proj.id && switchVersion === scopeSwitchVersion) {
               const freshBranches = ensureProjectDefaultBranch(freshProj);
-              const branchName = proj.activeBranch || freshProj.activeBranch || "main";
+              const branchName =
+                (freshProj.gitConfig?.branch && freshBranches.some((b) => b.name === freshProj.gitConfig?.branch)
+                  ? freshProj.gitConfig.branch
+                  : null) ||
+                proj.activeBranch ||
+                freshProj.activeBranch ||
+                "main";
               const freshActiveBranch = freshBranches.find((b) => b.name === branchName) || freshBranches[0];
               const freshTokens =
                 freshActiveBranch?.rawTokens && Object.keys(freshActiveBranch.rawTokens).length > 0
@@ -3446,13 +3478,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
-      get().setRawTokens(data.tokens, data.syncMeta);
+      const targetBranch = creds.branch || get().activeBranch;
       set({
+        activeBranch: targetBranch,
         syncStatus: "success",
         syncError: null,
         lastFetchedSha: data.commitSha || null,
         hasRemoteChanges: false,
       });
+      if (typeof window !== "undefined" && scopeProjectId && targetBranch) {
+        try {
+          localStorage.setItem(`ts_project_branch_${scopeProjectId}`, targetBranch);
+          localStorage.setItem("ts_active_branch", targetBranch);
+        } catch {}
+      }
+      get().setRawTokens(data.tokens, data.syncMeta);
       return true;
     } catch (err: any) {
       set({ syncStatus: "error", syncError: err.message });
@@ -3703,23 +3743,42 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       groups[0];
 
     // Synchronize loaded tokens with active Project in Cloud Firestore and Active Branch
-    const { currentOrg, currentProject, branches, activeBranch } = get();
+    const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
     if (currentOrg && currentProject) {
       saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups).catch(() => {});
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
-      const updatedBranches = projectBranches.map((b) =>
-        b.name === activeBranch
-          ? {
-              ...b,
-              rawTokens: canonical,
-              themeGroups: groups || b.themeGroups,
+      const effectiveBranch = credentials.branch || activeBranch || "main";
+      const hasBranch = projectBranches.some((b) => b.name === effectiveBranch);
+      const updatedBranches = hasBranch
+        ? projectBranches.map((b) =>
+            b.name === effectiveBranch
+              ? {
+                  ...b,
+                  rawTokens: canonical,
+                  themeGroups: groups || b.themeGroups,
+                  updatedAt: new Date().toISOString(),
+                }
+              : b
+          )
+        : [
+            ...projectBranches,
+            {
+              id: `branch_${currentProject.id}_${effectiveBranch.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+              name: effectiveBranch,
+              title: effectiveBranch,
+              description: `Imported from Git branch ${effectiveBranch}`,
+              isDefault: false,
+              createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
-            }
-          : b
-      );
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
-      set({ branches: updatedBranches });
-      updateProjectInMemoryAndCache(updatedBranches, canonical, groups, activeBranch);
+              rawTokens: canonical,
+              themeGroups: groups,
+              commits: [],
+              comments: [],
+            },
+          ];
+      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, effectiveBranch).catch(() => {});
+      set({ branches: updatedBranches, activeBranch: effectiveBranch });
+      updateProjectInMemoryAndCache(updatedBranches, canonical, groups, effectiveBranch);
     }
 
     set({
