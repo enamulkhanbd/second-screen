@@ -33,7 +33,6 @@ import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { TokenDiffViewer } from "@/components/TokenDiffViewer";
 import { UserActivityDrawer } from "@/components/UserActivityDrawer";
-import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

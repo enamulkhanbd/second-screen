@@ -1,14 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  updateProfile,
-} from "firebase/auth";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   Layers,
   Sparkles,
@@ -40,54 +34,74 @@ export const AuthGatewayView: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const authErr = params.get("auth_error");
+      if (authErr) {
+        setError(decodeURIComponent(authErr));
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("auth_error");
+        window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? `?${cleanUrl.search}` : ""));
+      }
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      if (isFirebaseConfigured && auth) {
+      if (isSupabaseConfigured && supabase) {
         if (isSignUp) {
-          const cred = await createUserWithEmailAndPassword(auth, email, password);
-          if (name && cred.user) {
-            await updateProfile(cred.user, { displayName: name });
+          const { data, error: signUpErr } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name,
+                name: name,
+              },
+            },
+          });
+          if (signUpErr) throw signUpErr;
+          if (data.user) {
+            setCurrentUser({
+              uid: data.user.id,
+              email: data.user.email || email,
+              displayName: name || data.user.email?.split("@")[0] || "User",
+            });
+            addToast({
+              type: "success",
+              title: "Welcome to Tokens Platform!",
+              message: `Account created for ${email}.`,
+            });
           }
-          setCurrentUser({
-            uid: cred.user.uid,
-            email: cred.user.email || email,
-            displayName: name || cred.user.email?.split("@")[0] || "User",
-          });
-          addToast({
-            type: "success",
-            title: "Welcome to Tokens Platform!",
-            message: `Account created for ${email}.`,
-          });
         } else {
-          const cred = await signInWithEmailAndPassword(auth, email, password);
-          setCurrentUser({
-            uid: cred.user.uid,
-            email: cred.user.email || email,
-            displayName: cred.user.displayName || email.split("@")[0],
+          const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password,
           });
-          addToast({
-            type: "success",
-            title: "Signed In",
-            message: `Welcome back, ${cred.user.displayName || email}!`,
-          });
+          if (signInErr) throw signInErr;
+          if (data.user) {
+            setCurrentUser({
+              uid: data.user.id,
+              email: data.user.email || email,
+              displayName:
+                data.user.user_metadata?.full_name ||
+                data.user.user_metadata?.name ||
+                email.split("@")[0],
+            });
+            addToast({
+              type: "success",
+              title: "Signed In",
+              message: `Welcome back, ${data.user.user_metadata?.full_name || email}!`,
+            });
+          }
         }
       } else {
-        // Local mode fallback
-        const mockUid = `usr_${email.replace(/[^a-zA-Z0-9]/g, "_")}`;
-        setCurrentUser({
-          uid: mockUid,
-          email,
-          displayName: name || email.split("@")[0] || "Designer",
-        });
-        addToast({
-          type: "success",
-          title: "Signed In",
-          message: `Signed in as ${name || email}.`,
-        });
+        throw new Error("Supabase Database & Authentication are not configured.");
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed. Please check your credentials.");
@@ -97,32 +111,24 @@ export const AuthGatewayView: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      setError("Supabase Authentication is not configured or Google Sign-In is unavailable.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      if (isFirebaseConfigured && auth && googleProvider) {
-        const cred = await signInWithPopup(auth, googleProvider);
-        setCurrentUser({
-          uid: cred.user.uid,
-          email: cred.user.email || "",
-          displayName: cred.user.displayName || "Google User",
-          avatarUrl: cred.user.photoURL || undefined,
-        });
-        addToast({
-          type: "success",
-          title: "Signed In with Google",
-          message: `Welcome ${cred.user.displayName || cred.user.email}!`,
-        });
-      } else {
-        setError("Firebase Authentication is not configured or Google Sign-In is unavailable.");
-      }
+      const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+      const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: callbackUrl,
+        },
+      });
+      if (oAuthErr) throw oAuthErr;
     } catch (err: any) {
-      if (err.code === "auth/unauthorized-domain" || err.message?.includes("unauthorized-domain")) {
-        setError("Firebase auth/unauthorized-domain: This domain is not in Firebase Authorized Domains. Access via http://localhost:3000 or add this domain in Firebase Console.");
-      } else {
-        setError(err.message || "Google sign in failed.");
-      }
-    } finally {
+      setError(err.message || "Google sign in failed.");
       setLoading(false);
     }
   };
@@ -245,10 +251,10 @@ export const AuthGatewayView: React.FC = () => {
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span className="leading-snug">{error}</span>
                 </div>
-                {error.includes("unauthorized-domain") && (
+                {error.includes("redirect_uri") && (
                   <div className="pt-2 border-t border-destructive/20 flex flex-col gap-2">
                     <p className="text-[11px] text-muted-foreground font-normal leading-relaxed">
-                      If running locally, visit <span className="font-mono font-semibold text-foreground">http://localhost:3000</span> instead of <span className="font-mono">127.0.0.1</span>. Or add this domain to Firebase Console &gt; Auth &gt; Settings &gt; Authorized domains.
+                      If running locally, visit <span className="font-mono font-semibold text-foreground">http://localhost:3000</span>. Ensure your site URL and redirect URLs are configured in your Supabase Auth dashboard.
                     </p>
                   </div>
                 )}
@@ -391,7 +397,7 @@ export const AuthGatewayView: React.FC = () => {
       {/* Footer */}
       <footer className="py-4 px-6 text-center text-xs text-muted-foreground border-t border-border/30 z-10">
         <div className="flex flex-wrap items-center justify-center gap-4 text-[11px]">
-          <span>Protected by Firebase Cloud Authentication</span>
+          <span>Protected by Supabase Cloud Authentication</span>
           <span>•</span>
           <span>End-to-End Git &amp; Figma Encryption</span>
           <span>•</span>

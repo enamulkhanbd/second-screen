@@ -1,18 +1,5 @@
-import { db, isFirebaseConfigured } from "@/lib/firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  writeBatch,
-} from "firebase/firestore/lite";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   Organization,
   Project,
@@ -23,61 +10,216 @@ import {
 import { RawTokensDocument, ThemeGroup, GitCredentials, UserActivityItem, ProjectBranch } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 
+/**
+ * Returns the appropriate Supabase client depending on the execution environment.
+ * On server side (Node.js API routes / Server Components), uses the service-role admin client.
+ * In the browser, uses the standard Supabase client with active user session cookies.
+ */
+function getClient() {
+  if (typeof window === "undefined") {
+    try {
+      return createAdminClient();
+    } catch {
+      return supabase;
+    }
+  }
+  return supabase;
+}
+
 // -------------------------------------------------------------
-// ORGANIZATION OPERATIONS (100% Dynamic Firestore)
+// DATA MAPPING HELPERS
+// -------------------------------------------------------------
+
+function mapDbOrgToOrganization(row: any, membersRows: any[] = []): Organization {
+  const members: OrganizationMember[] = membersRows.map((m) => ({
+    uid: m.user_id,
+    email: m.email,
+    displayName: m.display_name || m.email?.split("@")[0] || "Member",
+    role: m.role as UserRole,
+    joinedAt: m.joined_at,
+  }));
+
+  const memberUids = Array.from(new Set(members.map((m) => m.uid).filter(Boolean)));
+  const memberEmails = Array.from(new Set(members.map((m) => m.email.toLowerCase()).filter(Boolean)));
+
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    icon: row.icon || "🏢",
+    color: row.color || "#6366f1",
+    logoUrl: row.logo_url || "",
+    avatarUrl: row.logo_url || "",
+    ownerUid: row.owner_uid,
+    memberUids,
+    memberEmails,
+    members,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapDbProjectToProject(row: any): Project {
+  const extra = row.extra_data || {};
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    name: row.name,
+    slug: row.slug,
+    description: row.description || undefined,
+    icon: row.icon || "🎯",
+    color: row.color || "#6366f1",
+    logoUrl: row.logo_url || "",
+    activeBranch: row.active_branch || "main",
+    branches: row.branches || [],
+    rawTokens: row.raw_tokens || {},
+    themeGroups: row.theme_groups || [],
+    enabledSchemas: row.enabled_schemas || [],
+    gitConfig: row.git_config && Object.keys(row.git_config).length > 0 ? row.git_config : (row.credentials || null),
+    assetGitConfig: row.asset_git_config && Object.keys(row.asset_git_config).length > 0 ? row.asset_git_config : null,
+    assetFigmaConfig: row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0 ? row.asset_figma_config : null,
+    figmaVariables: row.figma_variables || {},
+    documentation: row.documentation || null,
+    assets: extra.assets || [],
+    assetFolders: extra.assetFolders || [],
+    assetsCount: extra.assetsCount || (extra.assets?.length || 0),
+    figmaMeta: extra.figmaMeta || {},
+    figmaUpdatedAt: extra.figmaUpdatedAt || null,
+    createdByName: extra.createdByName || "Team Member",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapDbInvitation(row: any): OrganizationInvitation {
+  return {
+    id: row.id,
+    token: row.token,
+    orgId: row.org_id,
+    orgName: row.org_name,
+    invitedByUid: row.inviter_uid,
+    invitedByName: row.inviter_name || row.inviter_email?.split("@")[0] || "User",
+    invitedByEmail: row.inviter_email,
+    inviteeEmail: row.email,
+    role: row.role as UserRole,
+    status: row.status as "pending" | "accepted" | "declined" | "revoked",
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+  };
+}
+
+// -------------------------------------------------------------
+// ORGANIZATION OPERATIONS (100% Dynamic Supabase)
 // -------------------------------------------------------------
 
 /**
- * Dynamically fetches all organizations where the user is a member or owner from Firestore
+ * Dynamically fetches all organizations where the user is a member or owner from Supabase
  */
 export async function getUserOrganizations(uid: string, userEmail?: string): Promise<Organization[]> {
   if (!uid && !userEmail) return [];
-  if (!isFirebaseConfigured || !db) return [];
+  if (!isSupabaseConfigured) return [];
+
+  const client = getClient();
+  const cleanEmail = userEmail?.trim().toLowerCase();
 
   try {
-    const orgsMap = new Map<string, Organization>();
-    const queries = [];
-
-    if (uid) {
-      queries.push(getDocs(query(collection(db, "organizations"), where("ownerUid", "==", uid))));
-      queries.push(getDocs(query(collection(db, "organizations"), where("memberUids", "array-contains", uid))));
+    // 1. Find all org IDs where user is a direct member or has matching email
+    let memberOrgIds: string[] = [];
+    let memberFilter = "";
+    if (uid && cleanEmail) {
+      memberFilter = `user_id.eq.${uid},email.ilike.${cleanEmail}`;
+    } else if (uid) {
+      memberFilter = `user_id.eq.${uid}`;
+    } else if (cleanEmail) {
+      memberFilter = `email.ilike.${cleanEmail}`;
     }
 
-    const cleanEmail = userEmail?.trim().toLowerCase();
-    if (cleanEmail) {
-      queries.push(getDocs(query(collection(db, "organizations"), where("memberEmails", "array-contains", cleanEmail))));
-    }
-
-    const results = await Promise.allSettled(queries);
-    for (const res of results) {
-      if (res.status === "fulfilled") {
-        res.value.forEach((d) => {
-          orgsMap.set(d.id, d.data() as Organization);
-        });
+    if (memberFilter) {
+      const { data: memberRows, error: mErr } = await client
+        .from("organization_members")
+        .select("org_id")
+        .or(memberFilter);
+      if (!mErr && memberRows) {
+        memberOrgIds = memberRows.map((m: any) => m.org_id);
       }
     }
 
-    return Array.from(orgsMap.values());
+    // Auto-link user_id in background if matched by email
+    if (uid && cleanEmail) {
+      client
+        .from("organization_members")
+        .update({ user_id: uid })
+        .eq("email", cleanEmail)
+        .neq("user_id", uid)
+        .then(() => {})
+        .catch(() => {});
+    }
+
+    // 2. Fetch all organizations where user is owner OR user is a member
+    let orgQuery = client.from("organizations").select(`
+      *,
+      organization_members (*)
+    `);
+
+    if (memberOrgIds.length > 0 && uid) {
+      orgQuery = orgQuery.or(`owner_uid.eq.${uid},id.in.(${memberOrgIds.join(",")})`);
+    } else if (memberOrgIds.length > 0) {
+      orgQuery = orgQuery.in("id", memberOrgIds);
+    } else if (uid) {
+      orgQuery = orgQuery.eq("owner_uid", uid);
+    }
+
+    const { data: orgsData, error: orgsErr } = await orgQuery.order("created_at", { ascending: true });
+
+    if (orgsErr) {
+      console.warn("Supabase error fetching user organizations:", orgsErr.message);
+      // Fallback query without joins if RLS limits nested select
+      const fallbackQuery = client.from("organizations").select("*");
+      const { data: fallbackOrgs } = await fallbackQuery;
+      if (fallbackOrgs && fallbackOrgs.length > 0) {
+        return fallbackOrgs.map((o: any) => mapDbOrgToOrganization(o, []));
+      }
+      return [];
+    }
+
+    if (!orgsData || orgsData.length === 0) {
+      // In case user is viewing all available orgs in a self-hosted workspace
+      const { data: allOrgs } = await client.from("organizations").select("*, organization_members(*)");
+      if (allOrgs && allOrgs.length > 0) {
+        return allOrgs.map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
+      }
+      return [];
+    }
+
+    return orgsData.map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
   } catch (e) {
-    console.warn("Firestore error fetching user organizations:", e);
+    console.warn("Supabase error fetching user organizations:", e);
     return [];
   }
 }
 
 /**
- * Dynamically fetches a specific organization by ID from Firestore
+ * Dynamically fetches a specific organization by ID from Supabase
  */
 export async function getOrganization(orgId: string): Promise<Organization | null> {
-  if (!orgId || !isFirebaseConfigured || !db) return null;
+  if (!orgId || !isSupabaseConfigured) return null;
+  const client = getClient();
   try {
-    const snap = await getDoc(doc(db, "organizations", orgId));
-    if (snap.exists()) {
-      return snap.data() as Organization;
+    const { data: orgData, error: orgErr } = await client
+      .from("organizations")
+      .select("*, organization_members(*)")
+      .eq("id", orgId)
+      .maybeSingle();
+
+    if (orgErr || !orgData) {
+      return null;
     }
+
+    return mapDbOrgToOrganization(orgData, orgData.organization_members || []);
   } catch (e) {
-    console.warn("Firestore error fetching organization:", e);
+    console.warn("Supabase error fetching organization:", e);
+    return null;
   }
-  return null;
 }
 
 /**
@@ -95,20 +237,23 @@ export async function checkOrganizationNameAvailable(
   const normalized = trimmed.toLowerCase();
   const slug = normalized.replace(/[^a-z0-9]/g, "-");
 
-  // 1. Check in Firestore with targeted slug query (O(1) indexed lookup)
-  if (isFirebaseConfigured && db) {
+  // 1. Check in Supabase with targeted slug/name query
+  if (isSupabaseConfigured) {
     try {
-      const slugQ = query(collection(db, "organizations"), where("slug", "==", slug), limit(1));
-      const snap = await getDocs(slugQ);
-      for (const d of snap.docs) {
-        if (excludeOrgId && d.id === excludeOrgId) continue;
+      const client = getClient();
+      let query = client.from("organizations").select("id, name, slug").or(`slug.eq.${slug},name.ilike.${trimmed}`);
+      if (excludeOrgId) {
+        query = query.neq("id", excludeOrgId);
+      }
+      const { data, error } = await query.limit(1);
+      if (!error && data && data.length > 0) {
         return {
           available: false,
           error: `An organization with the name "${trimmed}" already exists.`,
         };
       }
     } catch (e) {
-      console.warn("Firestore error checking org name availability:", e);
+      console.warn("Supabase error checking org name availability:", e);
     }
   }
 
@@ -139,7 +284,7 @@ export async function checkOrganizationNameAvailable(
 }
 
 /**
- * Creates a new Organization directly in Firestore
+ * Creates a new Organization directly in Supabase
  */
 export async function createOrganization(
   name: string,
@@ -155,6 +300,7 @@ export async function createOrganization(
 
   const orgId = `org_${Date.now()}`;
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const now = new Date().toISOString();
 
   const newOrg: Organization = {
     id: orgId,
@@ -172,26 +318,49 @@ export async function createOrganization(
         email: owner.email,
         displayName: owner.displayName || owner.email.split("@")[0],
         role: "owner",
-        joinedAt: new Date().toISOString(),
+        joinedAt: now,
       },
     ],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
 
-  if (isFirebaseConfigured && db) {
-    try {
-      await setDoc(doc(db, "organizations", orgId), newOrg);
-    } catch (e) {
-      console.warn("Firestore error creating org:", e);
+  if (isSupabaseConfigured) {
+    const client = getClient();
+    // 1. Insert organization
+    const { error: orgErr } = await client.from("organizations").insert({
+      id: orgId,
+      name: newOrg.name,
+      slug: newOrg.slug,
+      owner_uid: newOrg.ownerUid,
+      icon: newOrg.icon,
+      color: newOrg.color,
+      logo_url: newOrg.logoUrl,
+      created_at: now,
+      updated_at: now,
+    });
+
+    if (orgErr) {
+      console.error("Supabase error creating organization:", orgErr.message);
+      throw new Error(`Failed creating organization: ${orgErr.message}`);
     }
+
+    // 2. Insert owner into organization_members
+    await client.from("organization_members").insert({
+      org_id: orgId,
+      user_id: owner.uid,
+      email: owner.email,
+      display_name: owner.displayName || owner.email.split("@")[0],
+      role: "owner",
+      joined_at: now,
+    });
   }
 
   return newOrg;
 }
 
 /**
- * Updates Organization metadata (e.g. name, slug, icon, color, logoUrl) in Firestore
+ * Updates Organization metadata in Supabase
  */
 export async function updateOrganization(
   orgId: string,
@@ -206,104 +375,99 @@ export async function updateOrganization(
     }
   }
 
-  if (!isFirebaseConfigured || !db) return;
-  try {
-    const orgRef = doc(db, "organizations", orgId);
-    await updateDoc(orgRef, {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (e) {
-    console.warn("Firestore error updating organization:", e);
-    throw e;
+  if (!isSupabaseConfigured) return;
+  const client = getClient();
+  const dbUpdates: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (updates.name !== undefined) dbUpdates.name = updates.name.trim();
+  if (updates.slug !== undefined) dbUpdates.slug = updates.slug;
+  if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+  if (updates.color !== undefined) dbUpdates.color = updates.color;
+  if (updates.logoUrl !== undefined) dbUpdates.logo_url = updates.logoUrl;
+  if (updates.avatarUrl !== undefined && !updates.logoUrl) dbUpdates.logo_url = updates.avatarUrl;
+
+  const { error } = await client.from("organizations").update(dbUpdates).eq("id", orgId);
+  if (error) {
+    console.error("Supabase error updating organization:", error.message);
+    throw error;
   }
 }
 
 /**
- * Deletes an Organization and its projects from Firestore
+ * Deletes an Organization and cascades to projects, members, and invitations in Supabase
  */
 export async function deleteOrganization(orgId: string): Promise<void> {
-  if (!orgId || !isFirebaseConfigured || !db) return;
-  try {
-    const projsRef = collection(db, "organizations", orgId, "projects");
-    const snap = await getDocs(projsRef);
-    const deletePromises = snap.docs.map((docSnap) => deleteDoc(docSnap.ref));
-    await Promise.all(deletePromises);
-
-    await deleteDoc(doc(db, "organizations", orgId));
-  } catch (e) {
-    console.warn("Firestore error deleting organization:", e);
-    throw e;
+  if (!orgId || !isSupabaseConfigured) return;
+  const client = getClient();
+  const { error } = await client.from("organizations").delete().eq("id", orgId);
+  if (error) {
+    console.error("Supabase error deleting organization:", error.message);
+    throw error;
   }
 }
 
 /**
- * Adds or updates a member in an Organization in Firestore
+ * Adds or updates a member in an Organization in Supabase
  */
 export async function updateOrgMember(
   orgId: string,
   member: OrganizationMember
 ): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+  if (!isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const orgRef = doc(db, "organizations", orgId);
-    const orgSnap = await getDoc(orgRef);
-    if (orgSnap.exists()) {
-      const orgData = orgSnap.data() as Organization;
-      const filtered = orgData.members.filter(
-        (m) => m.uid !== member.uid && m.email.toLowerCase() !== member.email.toLowerCase()
-      );
-      filtered.push(member);
-      const memberUids = Array.from(new Set(filtered.map((m) => m.uid).filter(Boolean)));
-      const memberEmails = Array.from(new Set(filtered.map((m) => m.email.toLowerCase()).filter(Boolean)));
-      await updateDoc(orgRef, {
-        members: filtered,
-        memberUids,
-        memberEmails,
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    await client.from("organization_members").upsert(
+      {
+        org_id: orgId,
+        user_id: member.uid,
+        email: member.email.trim().toLowerCase(),
+        display_name: member.displayName || null,
+        role: member.role,
+        joined_at: member.joinedAt || new Date().toISOString(),
+      },
+      { onConflict: "org_id,user_id" }
+    );
   } catch (e) {
-    console.warn("Firestore error updating member:", e);
+    console.warn("Supabase error updating member:", e);
   }
 }
 
 /**
- * Removes a member from an Organization in Firestore
+ * Removes a member from an Organization in Supabase
  */
 export async function removeOrgMember(
   orgId: string,
   memberEmailOrUid: string
 ): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+  if (!isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const orgRef = doc(db, "organizations", orgId);
-    const orgSnap = await getDoc(orgRef);
-    if (orgSnap.exists()) {
-      const orgData = orgSnap.data() as Organization;
-      const filtered = orgData.members.filter(
-        (m) => m.uid !== memberEmailOrUid && m.email.toLowerCase() !== memberEmailOrUid.toLowerCase()
-      );
-      const memberUids = Array.from(new Set(filtered.map((m) => m.uid).filter(Boolean)));
-      const memberEmails = Array.from(new Set(filtered.map((m) => m.email.toLowerCase()).filter(Boolean)));
-      await updateDoc(orgRef, {
-        members: filtered,
-        memberUids,
-        memberEmails,
-        updatedAt: new Date().toISOString(),
-      });
+    const isEmail = memberEmailOrUid.includes("@");
+    if (isEmail) {
+      await client
+        .from("organization_members")
+        .delete()
+        .eq("org_id", orgId)
+        .ilike("email", memberEmailOrUid.trim());
+    } else {
+      await client
+        .from("organization_members")
+        .delete()
+        .eq("org_id", orgId)
+        .eq("user_id", memberEmailOrUid);
     }
   } catch (e) {
-    console.warn("Firestore error removing member:", e);
+    console.warn("Supabase error removing member:", e);
   }
 }
 
 // -------------------------------------------------------------
-// INVITATION OPERATIONS (100% Dynamic Firestore)
+// INVITATION OPERATIONS (100% Dynamic Supabase)
 // -------------------------------------------------------------
 
 /**
- * Generates an invitation for an email in Firestore
+ * Generates an invitation for an email in Supabase
  */
 export async function createOrganizationInvitation(
   orgId: string,
@@ -315,6 +479,7 @@ export async function createOrganizationInvitation(
   const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const token = `tok_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+  const now = new Date().toISOString();
 
   const newInvitation: OrganizationInvitation = {
     id,
@@ -327,15 +492,29 @@ export async function createOrganizationInvitation(
     inviteeEmail: inviteeEmail.trim().toLowerCase(),
     role,
     status: "pending",
-    createdAt: new Date().toISOString(),
+    createdAt: now,
     expiresAt,
   };
 
-  if (isFirebaseConfigured && db) {
+  if (isSupabaseConfigured) {
+    const client = getClient();
     try {
-      await setDoc(doc(db, "invitations", id), newInvitation);
+      await client.from("invitations").insert({
+        id,
+        org_id: orgId,
+        org_name: orgName,
+        email: newInvitation.inviteeEmail,
+        role,
+        inviter_uid: inviter.uid,
+        inviter_email: inviter.email,
+        inviter_name: newInvitation.invitedByName,
+        token,
+        status: "pending",
+        created_at: now,
+        expires_at: expiresAt,
+      });
     } catch (e) {
-      console.warn("Firestore error saving invitation:", e);
+      console.warn("Supabase error saving invitation:", e);
     }
   }
 
@@ -343,117 +522,105 @@ export async function createOrganizationInvitation(
 }
 
 /**
- * Gets all pending invitations for a specific organization from Firestore
+ * Gets all pending invitations for a specific organization from Supabase
  */
 export async function getOrganizationInvitations(orgId: string): Promise<OrganizationInvitation[]> {
-  if (!orgId || !isFirebaseConfigured || !db) return [];
+  if (!orgId || !isSupabaseConfigured) return [];
+  const client = getClient();
   try {
-    const q = query(
-      collection(db, "invitations"),
-      where("orgId", "==", orgId)
-    );
-    const snap = await getDocs(q);
-    const invs: OrganizationInvitation[] = [];
-    snap.forEach((d) => {
-      const data = d.data() as OrganizationInvitation;
-      // Only keep pending invitations (exclude accepted or revoked)
-      if (data.status === "pending") {
-        invs.push(data);
-      }
-    });
-    return invs;
+    const { data, error } = await client
+      .from("invitations")
+      .select("*")
+      .eq("org_id", orgId)
+      .eq("status", "pending");
+
+    if (error || !data) return [];
+    return data.map(mapDbInvitation);
   } catch (e) {
-    console.warn("Firestore error getting org invitations:", e);
+    console.warn("Supabase error getting org invitations:", e);
     return [];
   }
 }
 
 /**
- * Resends / renews an invitation in Firestore with a new token and fresh 7-day expiration
+ * Resends / renews an invitation in Supabase with a new token and fresh 7-day expiration
  */
 export async function resendOrganizationInvitation(
   invitationId: string
 ): Promise<OrganizationInvitation | null> {
-  if (!invitationId) return null;
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days from now
+  if (!invitationId || !isSupabaseConfigured) return null;
+  const client = getClient();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const newToken = `tok_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
-  const createdAt = new Date().toISOString();
+  const now = new Date().toISOString();
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const invRef = doc(db, "invitations", invitationId);
-      const invSnap = await getDoc(invRef);
-      if (invSnap.exists()) {
-        const existing = invSnap.data() as OrganizationInvitation;
-        const updatedInv: OrganizationInvitation = {
-          ...existing,
-          token: newToken,
-          status: "pending",
-          createdAt,
-          expiresAt,
-        };
-        await updateDoc(invRef, {
-          token: newToken,
-          status: "pending",
-          createdAt,
-          expiresAt,
-          updatedAt: createdAt,
-        });
-        return updatedInv;
-      }
-    } catch (e) {
-      console.warn("Firestore error resending invitation:", e);
-      throw e;
-    }
+  try {
+    const { data, error } = await client
+      .from("invitations")
+      .update({
+        token: newToken,
+        status: "pending",
+        created_at: now,
+        expires_at: expiresAt,
+      })
+      .eq("id", invitationId)
+      .select()
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapDbInvitation(data);
+  } catch (e) {
+    console.warn("Supabase error resending invitation:", e);
+    throw e;
   }
-  return null;
 }
 
 /**
- * Gets pending invitations for a user's email address from Firestore
+ * Gets pending invitations for a user's email address from Supabase
  */
 export async function getPendingInvitationsForEmail(email: string): Promise<OrganizationInvitation[]> {
-  if (!email || !isFirebaseConfigured || !db) return [];
+  if (!email || !isSupabaseConfigured) return [];
+  const client = getClient();
   const normalized = email.trim().toLowerCase();
 
   try {
-    const q = query(
-      collection(db, "invitations"),
-      where("inviteeEmail", "==", normalized),
-      where("status", "==", "pending")
-    );
-    const snap = await getDocs(q);
-    const invs: OrganizationInvitation[] = [];
-    snap.forEach((d) => invs.push(d.data() as OrganizationInvitation));
-    return invs;
+    const { data, error } = await client
+      .from("invitations")
+      .select("*")
+      .ilike("email", normalized)
+      .eq("status", "pending");
+
+    if (error || !data) return [];
+    return data.map(mapDbInvitation);
   } catch (e) {
-    console.warn("Firestore error getting email invitations:", e);
+    console.warn("Supabase error getting email invitations:", e);
     return [];
   }
 }
 
 /**
- * Looks up an invitation by its unique token in Firestore
+ * Looks up an invitation by its unique token in Supabase
  */
 export async function getInvitationByToken(token: string): Promise<OrganizationInvitation | null> {
-  if (!token || !isFirebaseConfigured || !db) return null;
+  if (!token || !isSupabaseConfigured) return null;
+  const client = getClient();
   try {
-    const q = query(
-      collection(db, "invitations"),
-      where("token", "==", token)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      return snap.docs[0].data() as OrganizationInvitation;
-    }
+    const { data, error } = await client
+      .from("invitations")
+      .select("*")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapDbInvitation(data);
   } catch (e) {
-    console.warn("Firestore error looking up invitation token:", e);
+    console.warn("Supabase error looking up invitation token:", e);
+    return null;
   }
-  return null;
 }
 
 /**
- * Accepts an invitation in Firestore
+ * Accepts an invitation in Supabase
  */
 export async function acceptOrganizationInvitation(
   token: string,
@@ -464,7 +631,6 @@ export async function acceptOrganizationInvitation(
     throw new Error("Invitation is invalid or has already been used.");
   }
 
-  // Check expiration
   if (inv.expiresAt && new Date(inv.expiresAt).getTime() < Date.now()) {
     throw new Error("This invitation has expired. Please ask your team administrator to resend it.");
   }
@@ -481,15 +647,17 @@ export async function acceptOrganizationInvitation(
   await updateOrgMember(inv.orgId, newMember);
 
   // 2. Mark invitation status as accepted
-  if (isFirebaseConfigured && db) {
+  if (isSupabaseConfigured) {
+    const client = getClient();
     try {
-      await updateDoc(doc(db, "invitations", inv.id), {
-        status: "accepted",
-        acceptedAt: new Date().toISOString(),
-        acceptedByUid: user.uid,
-      });
+      await client
+        .from("invitations")
+        .update({
+          status: "accepted",
+        })
+        .eq("id", inv.id);
     } catch (e) {
-      console.warn("Firestore error updating invitation status:", e);
+      console.warn("Supabase error updating invitation status:", e);
     }
   }
 
@@ -497,27 +665,27 @@ export async function acceptOrganizationInvitation(
 }
 
 /**
- * Revokes a pending invitation in Firestore
+ * Revokes a pending invitation in Supabase
  */
 export async function revokeInvitation(invitationId: string): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+  if (!isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    await updateDoc(doc(db, "invitations", invitationId), {
-      status: "revoked",
-      updatedAt: new Date().toISOString(),
-    });
+    await client
+      .from("invitations")
+      .update({
+        status: "revoked",
+      })
+      .eq("id", invitationId);
   } catch (e) {
-    console.warn("Firestore error revoking invitation:", e);
+    console.warn("Supabase error revoking invitation:", e);
   }
 }
 
 // -------------------------------------------------------------
-// PROJECT OPERATIONS (100% Dynamic Firestore)
+// PROJECT OPERATIONS (100% Dynamic Supabase)
 // -------------------------------------------------------------
 
-/**
- * In-flight promise registry to deduplicate concurrent requests for the same organization
- */
 const inFlightOrgProjectsPromises = new Map<string, Promise<Project[]>>();
 
 /**
@@ -525,114 +693,106 @@ const inFlightOrgProjectsPromises = new Map<string, Promise<Project[]>>();
  * and asset blobs, while keeping token dictionaries intact so tokens never fail to load.
  */
 export function sanitizeProjectsForCache(projs: Project[]): Project[] {
-  return projs.map((p) => ({
-    ...p,
-    rawTokens: p.rawTokens || {},
-    assets: [],
-    figmaVariables: undefined,
-    figmaResolvedVariables: [],
-    documentation: p.documentation
-      ? {
-          ...p.documentation,
-          pages: [],
-          folders: [],
-        }
-      : undefined,
-    branches: p.branches?.map((b) => ({
-      ...b,
-      rawTokens: b.rawTokens || {},
-      commits: b.commits?.map((c) => ({
-        id: c.id,
-        sha: c.sha,
-        message: c.message,
-        timestamp: c.timestamp,
-        author: c.author,
-        totalAdded: c.totalAdded,
-        totalModified: c.totalModified,
-        totalDeleted: c.totalDeleted,
-        changes: [], // Strip heavy diff change arrays
-      })),
-    })),
-  }));
+  return projs.map((p) => {
+    const { documentation, assets, assetFolders, ...safeProject } = p;
+    return {
+      ...safeProject,
+      assetsCount: p.assetsCount || (assets ? assets.length : 0),
+    } as Project;
+  });
 }
 
 /**
- * Resilient localStorage caching without dropping other workspaces
+ * Safely persists projects to localStorage with automatic compression and fallback
+ * to prevent browser QuotaExceededError when storing large token sets.
  */
 export function safeSetCachedProjects(orgId: string, projs: Project[]): void {
   if (typeof window === "undefined" || !orgId) return;
-  const key = `ts_cached_org_projects_${orgId}`;
+  const cacheKey = `ts_cached_org_projects_${orgId}`;
+
   try {
-    const serialized = JSON.stringify(sanitizeProjectsForCache(projs));
-    localStorage.setItem(key, serialized);
-  } catch (err) {
-    // If QuotaExceededError, fallback to storing without tokens only for this key as emergency fallback
+    const sanitized = sanitizeProjectsForCache(projs);
+    localStorage.setItem(cacheKey, JSON.stringify(sanitized));
+  } catch {
     try {
-      const emergency = projs.map((p) => ({
+      const minimal = projs.map((p) => ({
         id: p.id,
         orgId: p.orgId,
         name: p.name,
         slug: p.slug,
+        description: p.description,
         icon: p.icon,
         color: p.color,
-        description: p.description,
-        updatedAt: p.updatedAt,
+        activeBranch: p.activeBranch,
+        branches: p.branches,
+        rawTokens: p.rawTokens,
+        themeGroups: p.themeGroups,
         createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
       }));
-      localStorage.setItem(key, JSON.stringify(emergency));
+      localStorage.setItem(cacheKey, JSON.stringify(minimal));
     } catch {
-      console.warn("Storage quota exceeded; unable to persist projects cache for org:", orgId);
+      try {
+        localStorage.removeItem(cacheKey);
+      } catch {}
     }
   }
 }
 
 /**
- * Fetches a single project from Firestore by orgId and projectId with full tokens and branches
+ * Fetches a single project from Supabase by orgId and projectId with full tokens and branches
  */
 export async function getProject(orgId: string, projectId: string): Promise<Project | null> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return null;
+  if (!orgId || !projectId || !isSupabaseConfigured) return null;
+  const client = getClient();
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    const snap = await getDoc(projRef);
-    if (snap.exists()) {
-      return snap.data() as Project;
-    }
+    const { data, error } = await client
+      .from("projects")
+      .select("*")
+      .eq("org_id", orgId)
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapDbProjectToProject(data);
   } catch (e) {
-    console.warn("Firestore error fetching single project:", e);
+    console.warn("Supabase error fetching single project:", e);
+    return null;
   }
-  return null;
 }
 
 /**
- * Dynamically fetches all projects under an Organization from Firestore with in-flight deduplication
+ * Dynamically fetches all projects under an Organization from Supabase with in-flight deduplication
  */
 export async function getOrgProjects(orgId: string): Promise<Project[]> {
   if (!orgId) return [];
 
-  // Deduplicate in-flight queries for the same org
   const inFlight = inFlightOrgProjectsPromises.get(orgId);
   if (inFlight) {
     return inFlight;
   }
 
   const fetchPromise = (async () => {
-    // 1. Try Firestore if configured
-    if (isFirebaseConfigured && db) {
+    if (isSupabaseConfigured) {
       try {
-        const projsRef = collection(db, "organizations", orgId, "projects");
-        const snap = await getDocs(projsRef);
-        const projs: Project[] = [];
-        snap.forEach((docSnap) => projs.push(docSnap.data() as Project));
-        if (projs.length > 0) {
+        const client = getClient();
+        const { data, error } = await client
+          .from("projects")
+          .select("*")
+          .eq("org_id", orgId)
+          .order("created_at", { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          const projs = data.map(mapDbProjectToProject);
           safeSetCachedProjects(orgId, projs);
           return projs;
         }
       } catch (e) {
-        console.warn("Firestore error fetching projects:", e);
+        console.warn("Supabase error fetching projects:", e);
       }
     }
 
-    // 2. Fallback to localStorage cache for offline/local continuity
+    // Fallback to localStorage cache for offline/local continuity
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
@@ -656,8 +816,6 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
 
 /**
  * Checks whether a project name is available inside a specific organization.
- * Case-insensitive & trimmed comparison.
- * Scoped strictly to orgId (two different orgs CAN have the same project name).
  */
 export async function checkProjectNameAvailable(
   orgId: string,
@@ -673,28 +831,26 @@ export async function checkProjectNameAvailable(
   }
   const normalized = trimmed.toLowerCase();
 
-  // 1. Check in Firestore under organizations/{orgId}/projects
-  if (isFirebaseConfigured && db) {
+  if (isSupabaseConfigured) {
     try {
-      const projsRef = collection(db, "organizations", orgId, "projects");
-      const snap = await getDocs(projsRef);
-      for (const d of snap.docs) {
-        if (excludeProjectId && d.id === excludeProjectId) continue;
-        const projData = d.data() as Project;
-        const existingName = (projData.name || "").trim().toLowerCase();
-        if (existingName === normalized) {
-          return {
-            available: false,
-            error: `A project with the name "${trimmed}" already exists in this organization.`,
-          };
-        }
+      const client = getClient();
+      let q = client.from("projects").select("id, name").eq("org_id", orgId).ilike("name", trimmed);
+      if (excludeProjectId) {
+        q = q.neq("id", excludeProjectId);
+      }
+      const { data, error } = await q.limit(1);
+      if (!error && data && data.length > 0) {
+        return {
+          available: false,
+          error: `A project with the name "${trimmed}" already exists in this organization.`,
+        };
       }
     } catch (e) {
-      console.warn("Firestore error checking project name availability:", e);
+      console.warn("Supabase error checking project name availability:", e);
     }
   }
 
-  // 2. Check in localStorage cache for this specific org
+  // Fallback to localStorage cache
   if (typeof window !== "undefined") {
     try {
       const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
@@ -720,7 +876,7 @@ export async function checkProjectNameAvailable(
 }
 
 /**
- * Creates a new Project inside an Organization directly in Firestore
+ * Creates a new Project inside an Organization directly in Supabase
  */
 export async function createProject(
   orgId: string,
@@ -741,6 +897,7 @@ export async function createProject(
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
   const rawTokens = initialTokens && Object.keys(initialTokens).length > 0 ? initialTokens : {};
   const themeGroups = extractThemeGroups(rawTokens);
+  const now = new Date().toISOString();
 
   const defaultBranch: ProjectBranch = {
     id: `branch_main_${projId}`,
@@ -748,8 +905,8 @@ export async function createProject(
     title: "Main",
     description: "Default production branch",
     isDefault: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     createdBy: {
       name: createdByName || "Team Member",
       email: "user@example.com",
@@ -761,7 +918,7 @@ export async function createProject(
         id: `commit_init_${projId}`,
         sha: "init-" + Math.random().toString(36).substring(2, 8),
         message: "Initial project setup",
-        timestamp: new Date().toISOString(),
+        timestamp: now,
         author: {
           name: createdByName || "Team Member",
           email: "user@example.com",
@@ -788,16 +945,43 @@ export async function createProject(
     themeGroups,
     branches: [defaultBranch],
     activeBranch: "main",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     createdByName: createdByName || "Team Member",
   };
 
-  if (isFirebaseConfigured && db) {
+  if (isSupabaseConfigured) {
+    const client = getClient();
     try {
-      await setDoc(doc(db, "organizations", orgId, "projects", projId), newProject);
+      await client.from("projects").insert({
+        id: projId,
+        org_id: orgId,
+        name,
+        slug,
+        description: newProject.description,
+        icon: newProject.icon,
+        color: newProject.color,
+        logo_url: newProject.logoUrl,
+        active_branch: "main",
+        branches: newProject.branches,
+        raw_tokens: rawTokens,
+        theme_groups: themeGroups,
+        credentials: {},
+        compiler_config: {},
+        enabled_schemas: [],
+        git_config: {},
+        asset_git_config: {},
+        asset_figma_config: {},
+        figma_variables: {},
+        documentation: null,
+        extra_data: {
+          createdByName: newProject.createdByName,
+        },
+        created_at: now,
+        updated_at: now,
+      });
     } catch (e) {
-      console.warn("Firestore error creating project:", e);
+      console.warn("Supabase error creating project:", e);
     }
   }
 
@@ -862,7 +1046,7 @@ export function ensureProjectDefaultBranch(proj: Project): ProjectBranch[] {
 }
 
 /**
- * Dynamically saves native branches for a specific Project in Firestore
+ * Dynamically saves native branches for a specific Project in Supabase
  */
 export async function saveProjectBranches(
   orgId: string,
@@ -870,33 +1054,32 @@ export async function saveProjectBranches(
   branches: ProjectBranch[],
   activeBranch?: string
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
-  const projRef = doc(db, "organizations", orgId, "projects", projectId);
-  const data = {
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  const client = getClient();
+  const updates: Record<string, any> = {
     branches,
-    ...(activeBranch ? { activeBranch } : {}),
-    updatedAt: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
+  if (activeBranch) {
+    updates.active_branch = activeBranch;
+  }
   try {
-    await updateDoc(projRef, data);
-  } catch {
-    try {
-      await setDoc(projRef, data, { merge: true });
-    } catch (e) {
-      console.warn("Firestore error saving project branches:", e);
-    }
+    await client.from("projects").update(updates).eq("id", projectId).eq("org_id", orgId);
+  } catch (e) {
+    console.warn("Supabase error saving project branches:", e);
   }
 }
 
 /**
- * Deletes a Project from an Organization in Firestore
+ * Deletes a Project from an Organization in Supabase
  */
 export async function deleteProject(orgId: string, projectId: string): Promise<void> {
-  if (isFirebaseConfigured && db) {
+  if (isSupabaseConfigured) {
+    const client = getClient();
     try {
-      await deleteDoc(doc(db, "organizations", orgId, "projects", projectId));
+      await client.from("projects").delete().eq("id", projectId).eq("org_id", orgId);
     } catch (e) {
-      console.warn("Firestore error deleting project:", e);
+      console.warn("Supabase error deleting project:", e);
     }
   }
   if (typeof window !== "undefined") {
@@ -913,7 +1096,7 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
 }
 
 /**
- * Updates Project metadata (name, description, slug, icon, color, logoUrl) in Firestore
+ * Updates Project metadata in Supabase
  */
 export async function updateProject(
   orgId: string,
@@ -927,18 +1110,26 @@ export async function updateProject(
     }
   }
 
-  if (isFirebaseConfigured && db && orgId && projectId) {
+  if (isSupabaseConfigured && orgId && projectId) {
+    const client = getClient();
+    const dbUpdates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.name !== undefined) dbUpdates.name = updates.name.trim();
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.slug !== undefined) dbUpdates.slug = updates.slug;
+    if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.logoUrl !== undefined) dbUpdates.logo_url = updates.logoUrl;
+
     try {
-      const projRef = doc(db, "organizations", orgId, "projects", projectId);
-      await updateDoc(projRef, {
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      });
+      await client.from("projects").update(dbUpdates).eq("id", projectId).eq("org_id", orgId);
     } catch (e) {
-      console.warn("Firestore error updating project:", e);
+      console.warn("Supabase error updating project:", e);
       throw e;
     }
   }
+
   if (typeof window !== "undefined") {
     try {
       const key = `ts_cached_org_projects_${orgId}`;
@@ -955,7 +1146,7 @@ export async function updateProject(
 }
 
 /**
- * Dynamically saves updated design tokens & themes for a specific Project in Firestore
+ * Dynamically saves updated design tokens & themes for a specific Project in Supabase
  */
 export async function saveProjectTokens(
   orgId: string,
@@ -963,54 +1154,51 @@ export async function saveProjectTokens(
   rawTokens: RawTokensDocument,
   themeGroups?: ThemeGroup[]
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
   const groups = themeGroups || extractThemeGroups(rawTokens);
-  const projRef = doc(db, "organizations", orgId, "projects", projectId);
-  const data = {
-    rawTokens,
-    themeGroups: groups,
-    updatedAt: new Date().toISOString(),
-  };
+  const client = getClient();
 
   try {
-    // Check rough serialized size to guard against Firestore 1MB document limit
-    const jsonSize = JSON.stringify(data).length;
-    if (jsonSize > 950000) {
-      console.warn(`[saveProjectTokens] Document size (${(jsonSize / 1024).toFixed(1)} KB) approaches Firestore 1MB limit. Syncing in memory.`);
-      return;
-    }
-    await updateDoc(projRef, data);
-  } catch {
-    try {
-      await setDoc(projRef, data, { merge: true });
-    } catch (e) {
-      console.warn("Firestore error saving project tokens:", e);
-    }
+    await client
+      .from("projects")
+      .update({
+        raw_tokens: rawTokens,
+        theme_groups: groups,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId)
+      .eq("org_id", orgId);
+  } catch (e) {
+    console.warn("Supabase error saving project tokens:", e);
   }
 }
 
 /**
- * Dynamically saves Git configuration for a specific Project in Firestore
+ * Dynamically saves Git configuration for a specific Project in Supabase
  */
 export async function saveProjectGitConfig(
   orgId: string,
   projectId: string,
   gitConfig: GitCredentials | null
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await updateDoc(projRef, {
-      gitConfig,
-      updatedAt: new Date().toISOString(),
-    });
+    await client
+      .from("projects")
+      .update({
+        git_config: gitConfig || {},
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId)
+      .eq("org_id", orgId);
   } catch (e) {
-    console.warn("Firestore error saving project git config:", e);
+    console.warn("Supabase error saving project git config:", e);
   }
 }
 
 /**
- * Dynamically saves or clears Figma Variables for a specific Project in Firestore
+ * Dynamically saves or clears Figma Variables for a specific Project in Supabase
  */
 export async function saveProjectFigmaVariables(
   orgId: string,
@@ -1018,71 +1206,85 @@ export async function saveProjectFigmaVariables(
   figmaVariables: RawTokensDocument | null,
   meta?: Record<string, any>
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
-        figmaVariables: figmaVariables || {},
-        figmaUpdatedAt: figmaVariables && Object.keys(figmaVariables).length > 0 ? new Date().toISOString() : null,
-        figmaMeta: meta || {},
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    const { data: currentProj } = await client
+      .from("projects")
+      .select("extra_data")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    const currentExtra = currentProj?.extra_data || {};
+    const updatedExtra = {
+      ...currentExtra,
+      figmaMeta: meta || {},
+      figmaUpdatedAt: figmaVariables && Object.keys(figmaVariables).length > 0 ? new Date().toISOString() : null,
+    };
+
+    await client
+      .from("projects")
+      .update({
+        figma_variables: figmaVariables || {},
+        extra_data: updatedExtra,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId)
+      .eq("org_id", orgId);
   } catch (e) {
-    console.warn("Firestore error saving figma variables:", e);
+    console.warn("Supabase error saving figma variables:", e);
   }
 }
 
-
 // -------------------------------------------------------------
-// DOCUMENTATION OPERATIONS (100% Dynamic Firestore)
+// DOCUMENTATION OPERATIONS (100% Dynamic Supabase)
 // -------------------------------------------------------------
 
 /**
- * Saves project documentation (folders, pages, blocks, publish settings) in Firestore
+ * Saves project documentation in Supabase
  */
 export async function saveProjectDocumentation(
   orgId: string,
   projectId: string,
   documentation: import("@/types/documentation").ProjectDocumentation | null
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await setDoc(
-      projRef,
-      {
+    await client
+      .from("projects")
+      .update({
         documentation: documentation || null,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId)
+      .eq("org_id", orgId);
   } catch (e) {
-    console.warn("Firestore error saving project documentation:", e);
+    console.warn("Supabase error saving project documentation:", e);
   }
 }
 
 /**
- * Fetches project documentation from Firestore
+ * Fetches project documentation from Supabase
  */
 export async function getProjectDocumentation(
   orgId: string,
   projectId: string
 ): Promise<import("@/types/documentation").ProjectDocumentation | null> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return null;
+  if (!orgId || !projectId || !isSupabaseConfigured) return null;
+  const client = getClient();
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    const snap = await getDoc(projRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      return (data.documentation as import("@/types/documentation").ProjectDocumentation) || null;
-    }
-    return null;
+    const { data, error } = await client
+      .from("projects")
+      .select("documentation")
+      .eq("id", projectId)
+      .eq("org_id", orgId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return (data.documentation as import("@/types/documentation").ProjectDocumentation) || null;
   } catch (e) {
-    console.warn("Firestore error getting project documentation:", e);
+    console.warn("Supabase error getting project documentation:", e);
     return null;
   }
 }
@@ -1101,48 +1303,47 @@ export async function getPublishedProjectDocs(
   figmaVariables?: import("@/types/tokens").RawTokensDocument;
   themeGroups?: import("@/types/tokens").ThemeGroup[];
 } | null> {
-  if (!isFirebaseConfigured || !db) return null;
+  if (!isSupabaseConfigured) return null;
+  const client = getClient();
   try {
     // 1. Try finding org by ID or slug
-    let orgDoc = await getDoc(doc(db, "organizations", orgSlugOrId));
-    let orgData: Organization | null = orgDoc.exists() ? (orgDoc.data() as Organization) : null;
+    const { data: orgData, error: orgErr } = await client
+      .from("organizations")
+      .select("*")
+      .or(`id.eq.${orgSlugOrId},slug.eq.${orgSlugOrId}`)
+      .maybeSingle();
 
-    if (!orgData) {
-      const orgQuery = query(collection(db, "organizations"), where("slug", "==", orgSlugOrId));
-      const orgSnaps = await getDocs(orgQuery);
-      if (!orgSnaps.empty) {
-        orgData = orgSnaps.docs[0].data() as Organization;
-      }
-    }
+    if (orgErr || !orgData) return null;
 
-    if (!orgData) return null;
+    // 2. Query projects in this org
+    const { data: projsData, error: projErr } = await client
+      .from("projects")
+      .select("*")
+      .eq("org_id", orgData.id);
 
-    // 2. Query project in this org
-    const projsQuery = collection(db, "organizations", orgData.id, "projects");
-    const projSnaps = await getDocs(projsQuery);
-    let targetProject: Project | null = null;
+    if (projErr || !projsData) return null;
 
-    projSnaps.forEach((pDoc) => {
-      const p = pDoc.data() as Project;
-      const cleanNameSlug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    let targetProject: any = null;
+    for (const p of projsData) {
+      const cleanNameSlug = (p.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
       const docSlug = p.documentation?.publishedUrlSlug;
       if (
         p.id === projectSlugOrName ||
+        p.slug === projectSlugOrName ||
         cleanNameSlug === projectSlugOrName ||
         docSlug === projectSlugOrName
       ) {
         targetProject = p;
+        break;
       }
-    });
+    }
 
     if (!targetProject) return null;
-
-    const proj = targetProject as Project;
+    const proj = mapDbProjectToProject(targetProject);
     if (!proj.documentation || !proj.documentation.isPublishedGlobally) {
       return null;
     }
 
-    // Extract tokens to serve with public docs
     let rawTokensToReturn = proj.documentation.publishedTokens;
     let figmaVariablesToReturn = proj.documentation.publishedVariables;
 
@@ -1180,68 +1381,87 @@ export async function getPublishedProjectDocs(
 }
 
 // -------------------------------------------------------------
-// USER & WORKSPACE ACTIVITY AUDIT LOG (Dynamic Firestore)
+// USER & WORKSPACE ACTIVITY AUDIT LOG (Dynamic Supabase)
 // -------------------------------------------------------------
 
 /**
- * Persists an activity item to the organization's activities subcollection in Firestore
+ * Persists an activity item to the organization's activities in Supabase
  */
 export async function logOrganizationActivity(
   orgId: string,
   activity: UserActivityItem
 ): Promise<void> {
-  if (!orgId || !isFirebaseConfigured || !db) return;
+  if (!orgId || !isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const actRef = doc(db, "organizations", orgId, "activities", activity.id);
-    await setDoc(actRef, {
-      ...activity,
-      createdAt: activity.timestamp || new Date().toISOString(),
+    await client.from("activities").insert({
+      id: activity.id,
+      org_id: orgId,
+      type: activity.type || "system",
+      title: activity.title,
+      description: activity.description,
+      user_data: activity.actor || (activity as any).user || {},
+      timestamp: activity.timestamp || new Date().toISOString(),
+      metadata: activity.metadata || {},
     });
   } catch (e) {
-    console.warn("Firestore error logging organization activity:", e);
+    console.warn("Supabase error logging organization activity:", e);
   }
 }
 
 /**
- * Fetches recent activity logs for an organization from Firestore (ordered by timestamp desc)
+ * Fetches recent activity logs for an organization from Supabase (ordered by timestamp desc)
  */
 export async function getOrganizationActivities(
   orgId: string,
   maxItems = 60
 ): Promise<UserActivityItem[]> {
-  if (!orgId || !isFirebaseConfigured || !db) return [];
+  if (!orgId || !isSupabaseConfigured) return [];
+  const client = getClient();
   try {
-    const actCol = collection(db, "organizations", orgId, "activities");
-    const q = query(actCol, orderBy("timestamp", "desc"), limit(maxItems));
-    const snapshot = await getDocs(q);
-    const activities: UserActivityItem[] = [];
-    snapshot.forEach((d) => {
-      activities.push(d.data() as UserActivityItem);
-    });
-    return activities;
+    const { data, error } = await client
+      .from("activities")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("timestamp", { ascending: false })
+      .limit(maxItems);
+
+    if (error || !data) return [];
+    return data.map((d: any) => ({
+      id: d.id,
+      type: d.type as any,
+      title: d.title,
+      description: d.description,
+      actor: d.user_data || { name: "User", email: "" },
+      timestamp: d.timestamp,
+      metadata: d.metadata,
+    }));
   } catch (e) {
-    console.warn("Firestore error fetching organization activities:", e);
+    console.warn("Supabase error fetching organization activities:", e);
     return [];
   }
 }
 
 /**
- * Persists enabled schemas configuration for a Project in Firestore
+ * Persists enabled schemas configuration for a Project in Supabase
  */
 export async function saveProjectSchemas(
   orgId: string,
   projectId: string,
   enabledSchemas: string[]
 ): Promise<void> {
-  if (!orgId || !projectId || !isFirebaseConfigured || !db) return;
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  const client = getClient();
   try {
-    const projRef = doc(db, "organizations", orgId, "projects", projectId);
-    await updateDoc(projRef, {
-      enabledSchemas,
-      updatedAt: new Date().toISOString(),
-    });
+    await client
+      .from("projects")
+      .update({
+        enabled_schemas: enabledSchemas,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId)
+      .eq("org_id", orgId);
   } catch (e) {
-    console.warn("Firestore error saving project schemas:", e);
+    console.warn("Supabase error saving project schemas:", e);
   }
 }
-

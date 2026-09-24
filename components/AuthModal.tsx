@@ -2,14 +2,7 @@
 
 import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-} from "firebase/auth";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   ShieldCheck,
   Mail,
@@ -70,48 +63,55 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
 
     try {
-      if (isFirebaseConfigured && auth) {
+      if (isSupabaseConfigured && supabase) {
         if (isSignUp) {
-          const cred = await createUserWithEmailAndPassword(auth, email, password);
-          if (name && cred.user) {
-            await updateProfile(cred.user, { displayName: name });
+          const { data, error: signUpErr } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name,
+                name: name,
+              },
+            },
+          });
+          if (signUpErr) throw signUpErr;
+          if (data.user) {
+            setCurrentUser({
+              uid: data.user.id,
+              email: data.user.email || email,
+              displayName: name || data.user.email?.split("@")[0] || "User",
+            });
+            addToast({
+              type: "success",
+              title: "Welcome to Tokens Platform!",
+              message: `Account created successfully for ${email}.`,
+            });
           }
-          setCurrentUser({
-            uid: cred.user.uid,
-            email: cred.user.email || email,
-            displayName: name || cred.user.email?.split("@")[0] || "User",
-          });
-          addToast({
-            type: "success",
-            title: "Welcome to Tokens Platform!",
-            message: `Account created successfully for ${email}.`,
-          });
         } else {
-          const cred = await signInWithEmailAndPassword(auth, email, password);
-          setCurrentUser({
-            uid: cred.user.uid,
-            email: cred.user.email || email,
-            displayName: cred.user.displayName || email.split("@")[0],
+          const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password,
           });
-          addToast({
-            type: "success",
-            title: "Logged In",
-            message: `Welcome back, ${cred.user.displayName || email}!`,
-          });
+          if (signInErr) throw signInErr;
+          if (data.user) {
+            setCurrentUser({
+              uid: data.user.id,
+              email: data.user.email || email,
+              displayName:
+                data.user.user_metadata?.full_name ||
+                data.user.user_metadata?.name ||
+                email.split("@")[0],
+            });
+            addToast({
+              type: "success",
+              title: "Logged In",
+              message: `Welcome back, ${data.user.user_metadata?.full_name || email}!`,
+            });
+          }
         }
       } else {
-        // Local Dev / Demo Mode Login
-        const mockUid = `usr_${email.replace(/[^a-zA-Z0-9]/g, "_")}`;
-        setCurrentUser({
-          uid: mockUid,
-          email,
-          displayName: name || email.split("@")[0] || "Designer",
-        });
-        addToast({
-          type: "success",
-          title: "Logged In (Local Mode)",
-          message: `Signed in as ${name || email}.`,
-        });
+        throw new Error("Supabase Database & Authentication are not configured.");
       }
       onClose();
       if (onSuccess) onSuccess();
@@ -123,42 +123,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleGoogleSignIn = async () => {
-    if (!isFirebaseConfigured || !auth || !googleProvider) {
-      setError("Firebase Authentication is not configured or Google Sign-In is unavailable.");
+    if (!isSupabaseConfigured || !supabase) {
+      setError("Supabase Authentication is not configured or Google Sign-In is unavailable.");
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      setCurrentUser({
-        uid: cred.user.uid,
-        email: cred.user.email || "",
-        displayName: cred.user.displayName || "Google User",
-        avatarUrl: cred.user.photoURL || undefined,
+      const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+      const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: callbackUrl,
+        },
       });
-      addToast({
-        type: "success",
-        title: "Signed In with Google",
-        message: `Welcome ${cred.user.displayName || cred.user.email}!`,
-      });
-      onClose();
-      if (onSuccess) onSuccess();
+      if (oAuthErr) throw oAuthErr;
     } catch (err: any) {
-      if (err.code === "auth/unauthorized-domain" || err.message?.includes("unauthorized-domain")) {
-        setError("Firebase auth/unauthorized-domain: This domain is not in Firebase Authorized Domains. Access via http://localhost:3000 or add this domain in Firebase Console.");
-      } else {
-        setError(err.message || "Google sign in failed");
-      }
-    } finally {
+      setError(err.message || "Google sign in failed");
       setLoading(false);
     }
   };
 
   const handleSignOut = async () => {
-    if (isFirebaseConfigured && auth) {
-      await signOut(auth);
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut();
     }
     setCurrentUser(null);
     addToast({
@@ -253,10 +242,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span className="leading-snug">{error}</span>
                 </div>
-                {error.includes("unauthorized-domain") && (
+                {error.includes("redirect_uri") && (
                   <div className="pt-2 border-t border-destructive/20 flex flex-col gap-2">
                     <p className="text-[11px] text-muted-foreground font-normal leading-relaxed">
-                      Use <span className="font-mono font-semibold text-foreground">http://localhost:3000</span> instead of <span className="font-mono">127.0.0.1</span>, or add your current domain to Firebase Authorized Domains.
+                      Use <span className="font-mono font-semibold text-foreground">http://localhost:3000</span>, or configure your domain in your Supabase Auth Redirect URLs.
                     </p>
                   </div>
                 )}

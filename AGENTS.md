@@ -9,7 +9,7 @@ This document defines the behavioral constraints, architectural rules, and engin
 1. **Framework**: Next.js 14 (App Router, React 18, TypeScript).
 2. **State Management**: Zustand stores ([`store/useTokenStore.ts`](file:///d:/GitHub/second-screen/store/useTokenStore.ts)).
 3. **Styling**: Tailwind CSS with custom theme variables, Radix UI primitives, Lucide React icons.
-4. **Backend & Tenancy**: Firebase Client SDK / Cloud Firestore (`organizations/{orgId}/projects/{projectId}`), Next.js API route handlers (`app/api/*`).
+4. **Backend & Tenancy**: Supabase Client & Admin SDK / PostgreSQL Cloud Database (`organizations`, `organization_members`, `projects`), Next.js API route handlers (`app/api/*`).
 5. **Token Standards**: DTCG 2025.10 design token specification, self-hosted Draft 2020-12 JSON Schema registry.
 
 ---

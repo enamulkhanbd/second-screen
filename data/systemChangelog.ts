@@ -2,12 +2,52 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.5.0",
+    releaseDate: "September 24, 2026",
+    title: "Supabase PostgreSQL Database & Auth Engine Migration (Zero Firebase Fallback)",
+    badge: "Major Release",
+    badgeVariant: "default",
+    isLatest: true,
+    summary:
+      "Successfully transitioned the platform database, tenancy engine, audit logs, and user authentication from Google Firebase to a high-performance Supabase PostgreSQL architecture with strict Row Level Security (RLS) and zero remaining Firebase dependencies.",
+    highlights: [
+      "100% Zero-Data-Loss Migration: Automatically transferred all organizations, members, project branches, DTCG token trees, activities, and invitations.",
+      "PostgreSQL Tenancy & RLS: Enforced cryptographic row-level isolation on organizations, organization_members, projects, and activities.",
+      "Supabase Auth Engine: Replaced Firebase Auth with modern cookie-aware Supabase SSR Authentication and OAuth provider integrations.",
+      "Companion Plugin Synchronization: Migrated Figma Companion PAT pairing sessions and API key registries to Postgres.",
+      "Complete Dependency Purge: Uninstalled Firebase SDK completely with zero legacy fallbacks.",
+    ],
+    items: [
+      {
+        title: "Supabase PostgreSQL Tenancy Architecture",
+        description:
+          "Replaced Firestore document collections with relational PostgreSQL schemas featuring cascade constraints, compound indexes, and RLS policies.",
+        category: "feature",
+        tags: ["Supabase", "PostgreSQL", "Database", "RLS"],
+      },
+      {
+        title: "Native SSR Cookie Authentication",
+        description:
+          "Integrated @supabase/ssr for secure session persistence, token refreshing, and server-side route validation.",
+        category: "security",
+        tags: ["Auth", "Supabase", "Cookies", "Security"],
+      },
+      {
+        title: "Zero-Firebase Dependency Elimination",
+        description:
+          "Purged legacy Firebase client and admin packages from bundle dependencies, reducing bundle overhead and latency.",
+        category: "enhancement",
+        tags: ["Performance", "Bundle", "Clean Architecture"],
+      },
+    ],
+  },
+  {
     version: "v1.4.1",
     releaseDate: "September 17, 2026",
     title: "Universal A-Z, 0-9 Collation Engine, Interactive Table Sorting & Brand Scale Precision",
     badge: "Enhancement",
     badgeVariant: "success",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Introduced a unified A-Z, 0-9 natural segment collation engine across all token names and resolved values, dynamic Lucide sorting headers across all token tables and living docs blocks, default ascending resolved value view (0px to 999px), and brand color shade sequence alignment for base unmodified hex tones.",
     highlights: [

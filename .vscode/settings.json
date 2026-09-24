@@ -6,5 +6,6 @@
   ],
   "git.autoRepositoryDetection": "subFolders",
   "git.scanRepositories": false,
-  "git.repositoryScanMaxDepth": 0
+  "git.repositoryScanMaxDepth": 0,
+  "git.ignoreLimitWarning": true
 }

@@ -3,8 +3,7 @@
 import React, { useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ROLE_DEFINITIONS } from "@/types/tenant";
-import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   Sparkles,
   Check,
@@ -47,23 +46,17 @@ export const AcceptInviteModal: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      if (isFirebaseConfigured && auth && googleProvider) {
-        const cred = await signInWithPopup(auth, googleProvider);
-        const userObj = {
-          uid: cred.user.uid,
-          email: cred.user.email || "",
-          displayName: cred.user.displayName || cred.user.email?.split("@")[0] || "User",
-          avatarUrl: cred.user.photoURL || undefined,
-        };
-        setCurrentUser(userObj);
-      } else {
-        // Local demo mode login
-        const email = pendingInvitePrompt.inviteeEmail || "teammate@company.com";
-        setCurrentUser({
-          uid: `usr_${email.replace(/[^a-zA-Z0-9]/g, "_")}`,
-          email,
-          displayName: email.split("@")[0],
+      if (isSupabaseConfigured && supabase) {
+        const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+        const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: callbackUrl,
+          },
         });
+        if (oAuthErr) throw oAuthErr;
+      } else {
+        throw new Error("Supabase Database & Authentication are not configured.");
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");

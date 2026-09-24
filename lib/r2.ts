@@ -2,7 +2,7 @@
  * Cloudflare R2 Object Storage Client
  * ====================================
  * S3-compatible client for managing project assets (SVG, PNG, PDF, etc.)
- * in Cloudflare R2. Replaces Firebase Firestore as the asset persistence layer.
+ * in Cloudflare R2 as the high-performance asset persistence layer.
  *
  * Environment Variables Required:
  *   R2_ACCOUNT_ID          — Cloudflare Account ID

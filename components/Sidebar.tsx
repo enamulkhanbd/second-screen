@@ -38,8 +38,7 @@ import {
 } from "lucide-react";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { LATEST_VERSION } from "@/data/systemChangelog";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { supabase } from "@/lib/supabase/client";
 
 import {
   DropdownMenu,
@@ -156,8 +155,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
   const handleSignOut = async () => {
     try {
-      if (auth) {
-        await signOut(auth);
+      if (supabase) {
+        await supabase.auth.signOut();
       }
     } catch { }
     setCurrentUser(null);

@@ -89,8 +89,7 @@ import {
   saveProjectSchemas,
 } from "@/services/organizationService";
 import { DEFAULT_ENABLED_SCHEMA_IDS } from "@/data/schemaCatalog";
-import { auth, isFirebaseConfigured } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 interface TokenStoreState {
   // Multi-Tenant Identity & Scope
@@ -336,7 +335,7 @@ interface TokenStoreState {
   toasts: ToastMessage[];
 
   // Actions
-  initializeFromStorage: () => void;
+  initializeFromStorage: () => Promise<void> | void;
   fetchLiveTokens: (customCreds?: GitCredentials) => Promise<boolean>;
   setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
@@ -955,7 +954,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   getCurrentUserRole: () => {
     const { currentOrg, currentUser } = get();
     if (!currentUser) {
-      return isFirebaseConfigured ? "viewer" : "admin";
+      return isSupabaseConfigured ? "viewer" : "admin";
     }
     if (!currentOrg) return "admin";
     if (currentOrg.ownerUid === currentUser.uid) return "owner";
@@ -1227,8 +1226,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           isDirty: false,
         });
 
-        // If tokens are not yet in memory/cache, fetch the full project document directly from Firestore
-        if (proj.orgId && proj.id && isFirebaseConfigured) {
+        // If tokens are not yet in memory/cache, fetch the full project document directly from Supabase
+        if (proj.orgId && proj.id && isSupabaseConfigured) {
           getProject(proj.orgId, proj.id).then((freshProj) => {
             if (freshProj && get().currentProject?.id === proj.id && switchVersion === scopeSwitchVersion) {
               const freshBranches = ensureProjectDefaultBranch(freshProj);
@@ -1436,9 +1435,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         const found = orgs.find((o) => o.id === savedOrgId);
         if (found) activeOrg = found;
       }
-      if (!activeOrg) {
+      if (!activeOrg && orgs.length === 0) {
         try {
-          const defaultOrg = await get().createOrgAction("Planet Design System");
+          const userName = get().currentUser?.displayName || "My";
+          const orgCandidate = `${userName}'s Organization`;
+          const avail = await checkOrganizationNameAvailable(orgCandidate);
+          const finalName = avail.available ? orgCandidate : `${orgCandidate} ${Date.now().toString().slice(-4)}`;
+          const defaultOrg = await get().createOrgAction(finalName);
           if (defaultOrg) {
             activeOrg = defaultOrg;
             const defaultProj = await get().createProjectAction(
@@ -3416,7 +3419,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  initializeFromStorage: () => {
+  initializeFromStorage: async () => {
     if (typeof window === "undefined") return;
 
     try {
@@ -3546,9 +3549,24 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         toasts: [],
       });
 
-      // 7. Check for Invitation Token in URL Query Parameters
+      // 7. Check for OAuth PKCE Code and Invitation in URL Query Parameters
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
+        const authCode = urlParams.get("code");
+        if (authCode && isSupabaseConfigured && supabase) {
+          try {
+            set({ isLoadingTenant: true });
+            const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
+            if (!error && data?.session) {
+              const cleanUrl = new URL(window.location.href);
+              cleanUrl.searchParams.delete("code");
+              window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? `?${cleanUrl.search}` : ""));
+            }
+          } catch (e) {
+            console.warn("Client PKCE exchange fallback:", e);
+          }
+        }
+
         const inviteToken = urlParams.get("invite");
         if (inviteToken) {
           set({ activeInviteToken: inviteToken });
@@ -3560,15 +3578,40 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
       }
 
-      // 8. Listen to Firebase Authentication State Changes
-      if (isFirebaseConfigured && auth) {
-        onAuthStateChanged(auth, async (fbUser) => {
-          if (fbUser) {
+      // 8. Listen to Supabase Authentication State Changes
+      if (isSupabaseConfigured && supabase) {
+        // Fast-path: check existing session from cookies/storage
+        try {
+          const { data: { session: initialSession } } = await supabase.auth.getSession();
+          if (initialSession?.user) {
+            const sbUser = initialSession.user;
             const userObj = {
-              uid: fbUser.uid,
-              email: fbUser.email || "",
-              displayName: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
-              avatarUrl: fbUser.photoURL || undefined,
+              uid: sbUser.id,
+              email: sbUser.email || "",
+              displayName:
+                sbUser.user_metadata?.full_name ||
+                sbUser.user_metadata?.name ||
+                sbUser.email?.split("@")[0] ||
+                "User",
+              avatarUrl: sbUser.user_metadata?.avatar_url || undefined,
+            };
+            set({ currentUser: userObj });
+            await get().loadTenantData(userObj.uid, userObj.email);
+          }
+        } catch {}
+
+        supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+          const sbUser = session?.user;
+          if (sbUser) {
+            const userObj = {
+              uid: sbUser.id,
+              email: sbUser.email || "",
+              displayName:
+                sbUser.user_metadata?.full_name ||
+                sbUser.user_metadata?.name ||
+                sbUser.email?.split("@")[0] ||
+                "User",
+              avatarUrl: sbUser.user_metadata?.avatar_url || undefined,
             };
             set({ currentUser: userObj });
             await get().loadTenantData(userObj.uid, userObj.email);
@@ -3579,6 +3622,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               }
             }
           } else {
+            // If code is still in URL, wait for code exchange rather than unblocking as logged out
+            if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("code")) {
+              return;
+            }
             const savedLocal = typeof window !== "undefined" ? localStorage.getItem("ts_tokens_platform_user") : null;
             if (savedLocal) {
               try {

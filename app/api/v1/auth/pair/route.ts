@@ -3,8 +3,8 @@ import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
 import { getOrganization, getOrgProjects } from "@/services/organizationService";
-import { db, isFirebaseConfigured } from "@/lib/firebase";
-import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore/lite";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,10 @@ interface PairingSession {
 
 // In-memory runtime cache
 const pairingSessions = new Map<string, PairingSession>();
+
+function getDbClient() {
+  return createAdminClient();
+}
 
 function getRequestOrigin(req: NextRequest): string {
   const forwardedProto = req.headers.get("x-forwarded-proto");
@@ -70,11 +74,18 @@ export async function POST(req: NextRequest) {
 
   pairingSessions.set(code, session);
 
-  if (isFirebaseConfigured && db) {
+  if (isSupabaseConfigured) {
     try {
-      await setDoc(doc(db, "pairing_sessions", code), session);
+      const client = getDbClient();
+      await client.from("pairing_sessions").upsert({
+        code,
+        status: "pending",
+        created_at: now,
+        expires_at: expiresAt,
+        server_url: origin,
+      });
     } catch (e) {
-      console.warn("Firestore save pairing session error:", e);
+      console.warn("Supabase save pairing session error:", e);
     }
   }
 
@@ -100,16 +111,33 @@ export async function GET(req: NextRequest) {
 
   let session = pairingSessions.get(code);
 
-  // Fallback to Firestore to share state across localhost, production, and serverless lambdas
-  if ((!session || session.status !== "approved") && isFirebaseConfigured && db) {
+  // Fallback to Supabase to share state across localhost, production, and serverless edge
+  if ((!session || session.status !== "approved") && isSupabaseConfigured) {
     try {
-      const snap = await getDoc(doc(db, "pairing_sessions", code));
-      if (snap.exists()) {
-        session = snap.data() as PairingSession;
+      const client = getDbClient();
+      const { data, error } = await client
+        .from("pairing_sessions")
+        .select("*")
+        .eq("code", code)
+        .maybeSingle();
+
+      if (!error && data) {
+        session = {
+          code: data.code,
+          status: data.status as any,
+          createdAt: Number(data.created_at),
+          expiresAt: Number(data.expires_at),
+          serverUrl: data.server_url || undefined,
+          pat: data.pat || undefined,
+          orgId: data.org_id || undefined,
+          projectId: data.project_id || undefined,
+          orgName: data.org_name || undefined,
+          projectName: data.project_name || undefined,
+        };
         pairingSessions.set(code, session);
       }
     } catch (e) {
-      console.warn("Firestore fetch pairing session error:", e);
+      console.warn("Supabase fetch pairing session error:", e);
     }
   }
 
@@ -122,10 +150,11 @@ export async function GET(req: NextRequest) {
 
   if (session.expiresAt < Date.now()) {
     pairingSessions.delete(code);
-    if (isFirebaseConfigured && db) {
+    if (isSupabaseConfigured) {
       try {
-        await deleteDoc(doc(db, "pairing_sessions", code));
-      } catch { }
+        const client = getDbClient();
+        await client.from("pairing_sessions").delete().eq("code", code);
+      } catch {}
     }
     return jsonWithCors({
       status: "expired",
@@ -168,13 +197,30 @@ export async function PUT(req: NextRequest) {
 
     let session = pairingSessions.get(cleanCode);
 
-    if (!session && isFirebaseConfigured && db) {
+    if (!session && isSupabaseConfigured) {
       try {
-        const snap = await getDoc(doc(db, "pairing_sessions", cleanCode));
-        if (snap.exists()) {
-          session = snap.data() as PairingSession;
+        const client = getDbClient();
+        const { data, error } = await client
+          .from("pairing_sessions")
+          .select("*")
+          .eq("code", cleanCode)
+          .maybeSingle();
+
+        if (!error && data) {
+          session = {
+            code: data.code,
+            status: data.status as any,
+            createdAt: Number(data.created_at),
+            expiresAt: Number(data.expires_at),
+            serverUrl: data.server_url || undefined,
+            pat: data.pat || undefined,
+            orgId: data.org_id || undefined,
+            projectId: data.project_id || undefined,
+            orgName: data.org_name || undefined,
+            projectName: data.project_name || undefined,
+          };
         }
-      } catch { }
+      } catch {}
     }
 
     if (!session) {
@@ -195,7 +241,7 @@ export async function PUT(req: NextRequest) {
       try {
         const org = await getOrganization(orgId);
         if (org?.name) resolvedOrgName = org.name;
-      } catch { }
+      } catch {}
     }
 
     if (orgId && projectId && !resolvedProjName) {
@@ -203,7 +249,7 @@ export async function PUT(req: NextRequest) {
         const projs = await getOrgProjects(orgId);
         const proj = projs.find((p) => p.id === projectId);
         if (proj?.name) resolvedProjName = proj.name;
-      } catch { }
+      } catch {}
     }
 
     // Generate valid PAT record and persist it into cloud API keys store
@@ -232,11 +278,23 @@ export async function PUT(req: NextRequest) {
 
     pairingSessions.set(cleanCode, session);
 
-    if (isFirebaseConfigured && db) {
+    if (isSupabaseConfigured) {
       try {
-        await setDoc(doc(db, "pairing_sessions", cleanCode), session);
+        const client = getDbClient();
+        await client.from("pairing_sessions").upsert({
+          code: cleanCode,
+          status: "approved",
+          pat: plaintextKey,
+          org_id: orgId || null,
+          project_id: projectId || null,
+          org_name: resolvedOrgName || null,
+          project_name: resolvedProjName || null,
+          server_url: origin,
+          created_at: session.createdAt,
+          expires_at: session.expiresAt,
+        });
       } catch (e) {
-        console.warn("Firestore update pairing session error:", e);
+        console.warn("Supabase update pairing session error:", e);
       }
     }
 
