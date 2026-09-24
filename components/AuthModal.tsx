@@ -48,6 +48,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const {
     currentUser,
     setCurrentUser,
+    signOutUser,
     currentOrg,
     getCurrentUserRole,
     addToast,
@@ -217,10 +218,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleSignOut = async () => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
-    }
-    setCurrentUser(null);
+    await signOutUser();
     addToast({
       type: "info",
       title: "Signed Out",

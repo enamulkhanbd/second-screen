@@ -105,6 +105,7 @@ interface TokenStoreState {
   activeInviteToken: string | null;
 
   setCurrentUser: (user: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null) => void;
+  signOutUser: () => Promise<void>;
   setCurrentOrg: (org: Organization | null) => void;
   setCurrentProject: (project: Project | null) => void;
   setActiveInviteToken: (token: string | null) => void;
@@ -927,6 +928,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     } else {
       // Complete state sanitization on logout
       set({
+        currentUser: null,
         userOrgs: [],
         currentOrg: null,
         orgProjects: [],
@@ -942,6 +944,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (typeof window !== "undefined") {
         try {
           localStorage.removeItem("ts_tokens_platform_user");
+          localStorage.removeItem("ts_second_screen_user");
           sessionStorage.removeItem("ts_tokens_platform_pat");
           localStorage.removeItem("ts_tokens_platform_pat_enc");
           localStorage.removeItem("ts_active_org_id");
@@ -949,6 +952,22 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
     }
+  },
+
+  signOutUser: async () => {
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.warn("Client signOut warning:", e);
+    }
+    try {
+      await fetch("/api/v1/auth/signout", { method: "POST" });
+    } catch (e) {
+      console.warn("Server signout endpoint warning:", e);
+    }
+    get().setCurrentUser(null);
   },
 
   getCurrentUserRole: () => {
@@ -3627,15 +3646,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("code")) {
               return;
             }
-            const savedLocal = typeof window !== "undefined" ? localStorage.getItem("ts_tokens_platform_user") : null;
-            if (savedLocal) {
+            // Supabase session is null -> user is completely signed out.
+            // Never fall back to unauthenticated localStorage data.
+            if (typeof window !== "undefined") {
               try {
-                const userObj = JSON.parse(savedLocal);
-                if (userObj?.uid) {
-                  set({ currentUser: userObj });
-                  await get().loadTenantData(userObj.uid, userObj.email);
-                  return;
-                }
+                localStorage.removeItem("ts_tokens_platform_user");
+                localStorage.removeItem("ts_second_screen_user");
               } catch {}
             }
             set({ currentUser: null, isLoadingTenant: false });

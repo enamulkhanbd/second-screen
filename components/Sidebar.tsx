@@ -87,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   const {
     currentUser,
     setCurrentUser,
+    signOutUser,
     userOrgs,
     currentOrg,
     setCurrentOrg,
@@ -154,12 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   };
 
   const handleSignOut = async () => {
-    try {
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
-    } catch { }
-    setCurrentUser(null);
+    await signOutUser();
     addToast({
       type: "info",
       title: "Signed Out",
