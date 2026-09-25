@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Upload,
   Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,52 +267,117 @@ export const ProjectSettingsView: React.FC = () => {
 
           {/* Custom Logo URL or Upload Logo (Optional) */}
           <div className="space-y-2 pt-2 border-t border-border/60">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Custom Logo URL or Upload Logo <span className="text-muted-foreground font-normal">(Optional)</span></span>
-              </Label>
-              {projectLogoUrl && canEditSettings && (
-                <button
-                  type="button"
-                  onClick={() => setProjectLogoUrl("")}
-                  className="text-[11px] text-destructive hover:underline cursor-pointer font-medium"
-                >
-                  Remove Logo
-                </button>
-              )}
-            </div>
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Project Logo <span className="text-muted-foreground font-normal">(Optional)</span></span>
+            </Label>
 
-            <div className="flex items-center gap-2">
-              <Input
-                type="text"
-                value={projectLogoUrl}
-                onChange={(e) => setProjectLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                disabled={!canEditSettings}
-                className="h-9 text-xs font-mono flex-1 bg-background"
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
-                onChange={handleLogoFileUpload}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!canEditSettings}
-                onClick={() => fileInputRef.current?.click()}
-                className="h-9 px-3 text-xs gap-1.5 shrink-0"
+            <div className="flex items-center gap-3">
+              {/* Live Avatar Preview / Click to upload */}
+              <div
+                onClick={() => canEditSettings && fileInputRef.current?.click()}
+                className={`w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-xl flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden border border-border/80 shadow-2xs transition-all relative group ${
+                  canEditSettings ? "cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-primary/20" : ""
+                }`}
+                style={{
+                  width: 48,
+                  height: 48,
+                  minWidth: 48,
+                  minHeight: 48,
+                  maxWidth: 48,
+                  maxHeight: 48,
+                  backgroundColor: projectLogoUrl
+                    ? undefined
+                    : isCustomOrgColor
+                    ? currentOrg?.color
+                    : "#ecfdf5",
+                  color: projectLogoUrl ? undefined : isCustomOrgColor ? "#fff" : "#15803d",
+                }}
+                title={canEditSettings ? "Click to upload project logo" : undefined}
               >
-                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Upload</span>
-              </Button>
+                {projectLogoUrl ? (
+                  <img
+                    src={projectLogoUrl}
+                    alt={projectName}
+                    className="w-full h-full object-cover block"
+                    onError={() => setProjectLogoUrl("")}
+                  />
+                ) : (
+                  <span>{projectName?.[0]?.toUpperCase() || "P"}</span>
+                )}
+
+                {canEditSettings && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-2xs">
+                    <Upload className="w-3.5 h-3.5" />
+                  </div>
+                )}
+              </div>
+
+              {/* URL Input & Dynamic Action Buttons */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="relative flex-1 min-w-0">
+                  <Input
+                    type="text"
+                    value={projectLogoUrl.startsWith("data:") ? "" : projectLogoUrl}
+                    onChange={(e) => setProjectLogoUrl(e.target.value)}
+                    placeholder={
+                      projectLogoUrl.startsWith("data:")
+                        ? "Custom image uploaded (or paste image URL)"
+                        : "Paste image URL (https://...) or upload file"
+                    }
+                    disabled={!canEditSettings}
+                    className="h-9 text-xs font-mono w-full bg-background pr-8"
+                  />
+                  {projectLogoUrl && !projectLogoUrl.startsWith("data:") && canEditSettings && (
+                    <button
+                      type="button"
+                      onClick={() => setProjectLogoUrl("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground p-1 rounded-sm cursor-pointer transition-colors"
+                      title="Clear image URL"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                  onChange={handleLogoFileUpload}
+                  className="hidden"
+                />
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canEditSettings}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-9 px-3 text-xs gap-1.5 shrink-0 cursor-pointer shadow-2xs font-medium"
+                  title="Upload image from computer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{projectLogoUrl ? "Change" : "Upload Image"}</span>
+                </Button>
+
+                {projectLogoUrl && canEditSettings && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setProjectLogoUrl("")}
+                    className="h-9 px-2.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer gap-1.5 shrink-0 font-medium transition-colors"
+                    title="Remove project logo"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </Button>
+                )}
+              </div>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Provide an image URL or upload from your device. Colors inherit from the workspace branding.
+              Square SVG, PNG, or JPG recommended (max 2MB).
             </p>
           </div>
 

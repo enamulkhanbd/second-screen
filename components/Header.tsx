@@ -221,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         extensions: "Extensions",
         members: "Members",
         "project-settings": "Project Settings",
-        "org-settings": "Organization Settings",
+        "org-settings": "Workspace Settings",
         integrations: "Integrations",
         sync: "Integrations",
         mcp: "MCP & CLI",

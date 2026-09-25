@@ -112,7 +112,7 @@ interface TokenStoreState {
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
   createOrgAction: (name: string, icon?: string, color?: string, logoUrl?: string) => Promise<Organization | null>;
-  updateOrgAction: (orgId: string, updates: { name?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
+  updateOrgAction: (orgId: string, updates: { name?: string; slug?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
   deleteOrgAction: (orgId: string) => Promise<void>;
   createProjectAction: (name: string, description?: string, icon?: string, color?: string, logoUrl?: string) => Promise<Project | null>;
   updateProjectAction: (orgId: string, projectId: string, updates: { name?: string; description?: string; icon?: string; color?: string; logoUrl?: string; isArchived?: boolean }) => Promise<Project | null>;
@@ -1807,9 +1807,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     try {
       const existingOrg = get().userOrgs.find((org) => org.id === orgId);
       const name = updates.name ? updates.name.trim() : existingOrg?.name;
+      const slug =
+        updates.slug !== undefined
+          ? updates.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-")
+          : updates.name
+          ? String(updates.name).toLowerCase().replace(/[^a-z0-9-]/g, "-")
+          : undefined;
       const orgUpdates = {
         ...(name ? { name } : {}),
-        ...(updates.name ? { slug: String(updates.name).toLowerCase().replace(/[^a-z0-9]/g, "-") } : {}),
+        ...(slug ? { slug } : {}),
         ...(updates.icon !== undefined ? { icon: updates.icon } : {}),
         ...(updates.color !== undefined ? { color: updates.color } : {}),
         ...(updates.logoUrl !== undefined ? { logoUrl: updates.logoUrl } : {}),

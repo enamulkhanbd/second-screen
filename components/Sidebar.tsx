@@ -347,6 +347,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                       No workspace selected
                     </div>
                   )}
+                  {currentOrg && (
+                    <>
+                      <DropdownMenuSeparator className="my-1.5" />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setCurrentProject(null);
+                          setSidebarTab("org-settings");
+                        }}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-muted-foreground hover:text-foreground font-medium"
+                      >
+                        <Settings className="size-3.5" />
+                        <span>Workspace Settings</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -538,6 +553,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                       No workspace selected
                     </div>
                   )}
+                  {currentOrg && (
+                    <>
+                      <DropdownMenuSeparator className="my-1.5" />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setCurrentProject(null);
+                          setSidebarTab("org-settings");
+                        }}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-muted-foreground hover:text-foreground font-medium"
+                      >
+                        <Settings className="size-3.5" />
+                        <span>Workspace Settings</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -638,14 +668,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 setCurrentProject(null);
                 setSidebarTab("org-settings");
               }}
-              title="Settings"
+              title="Workspace Settings"
               className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "org-settings" && !currentProject
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
             >
               <Settings className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Settings</span>}
+              {!isCollapsed && <span>Workspace Settings</span>}
             </button>
           </div>
         )}

@@ -72,12 +72,6 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 
-// Preset icon choices
-const ICON_PRESETS = [
-  "🏢", "🚀", "⚡", "💎", "🎨", "🎯", "🔮", "📱",
-  "💻", "🌐", "📦", "🔥", "🌈", "🛡️", "⚙️", "🦄",
-  "✨", "🌿", "💡", "🪐"
-];
 
 // Preset color choices
 const COLOR_PRESETS = [
@@ -153,6 +147,7 @@ export const WorkspacesProjectsView: React.FC = () => {
   const [projectFormLogoUrl, setProjectFormLogoUrl] = useState("");
   const [isSavingProject, setIsSavingProject] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const orgFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const isCustomOrgColor = useMemo(() => {
     if (!currentOrg?.color) return false;
@@ -176,6 +171,28 @@ export const WorkspacesProjectsView: React.FC = () => {
       const result = event.target?.result;
       if (typeof result === "string") {
         setProjectFormLogoUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleOrgLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      addToast({
+        type: "error",
+        title: "File Too Large",
+        message: "Please select an image smaller than 2MB.",
+      });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === "string") {
+        setOrgFormLogoUrl(result);
       }
     };
     reader.readAsDataURL(file);
@@ -261,12 +278,9 @@ export const WorkspacesProjectsView: React.FC = () => {
   };
 
   const handleOpenEditWorkspace = (org: Organization) => {
-    setEditingOrgId(org.id);
-    setOrgFormName(org.name);
-    setOrgFormIcon(org.icon || "🏢");
-    setOrgFormColor(org.color || "#171717");
-    setOrgFormLogoUrl(org.logoUrl || "");
-    setIsWorkspaceFormOpen(true);
+    setCurrentOrg(org);
+    setCurrentProject(null);
+    setSidebarTab("org-settings");
   };
 
   const handleSaveWorkspace = async (e: React.FormEvent) => {
@@ -1465,13 +1479,13 @@ export const WorkspacesProjectsView: React.FC = () => {
                   <SheetHeader className="px-6 py-5 border-b border-border/80 bg-card/50 flex-shrink-0">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-xs flex-shrink-0 transition-colors"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-xs flex-shrink-0 transition-colors overflow-hidden"
                         style={{ backgroundColor: orgFormColor }}
                       >
                         {orgFormLogoUrl ? (
                           <img src={orgFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                         ) : (
-                          <span>{orgFormIcon}</span>
+                          <span>{orgFormName?.trim() ? orgFormName.trim()[0].toUpperCase() : "W"}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0 pr-6">
@@ -1504,32 +1518,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Icon Selection */}
-                    <div className="space-y-2 pt-1 border-t border-border/60">
-                      <div className="flex items-center justify-between text-xs font-medium text-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <Smile className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>Icon / Emoji</span>
-                        </span>
-                        <span className="text-[11px] text-muted-foreground font-mono">{orgFormIcon}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1 p-1.5 rounded-xl bg-muted/30 border border-border/70">
-                        {ICON_PRESETS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => setOrgFormIcon(emoji)}
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
-                              orgFormIcon === emoji
-                                ? "bg-violet-500/20 ring-2 ring-violet-500 scale-110 shadow-xs"
-                                : "hover:bg-muted/80 opacity-80 hover:opacity-100 hover:scale-105"
-                            }`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
 
                     {/* Color Accent Selection */}
                     <div className="pt-1 border-t border-border/60">
@@ -1539,18 +1527,52 @@ export const WorkspacesProjectsView: React.FC = () => {
                       />
                     </div>
 
-                    {/* Custom Logo URL */}
-                    <div className="space-y-1.5 pt-1 border-t border-border/60">
-                      <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>Custom Organization Logo URL (Optional)</span>
-                      </Label>
-                      <Input
-                        value={orgFormLogoUrl}
-                        onChange={(e) => setOrgFormLogoUrl(e.target.value)}
-                        placeholder="https://example.com/org-logo.png"
-                        className="h-9 text-xs font-mono"
-                      />
+                    {/* Custom Logo URL & Upload */}
+                    <div className="space-y-2 pt-2 border-t border-border/60">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Workspace Logo <span className="text-muted-foreground font-normal">(Optional)</span></span>
+                        </Label>
+                        {orgFormLogoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setOrgFormLogoUrl("")}
+                            className="text-[11px] text-destructive hover:underline cursor-pointer font-medium"
+                          >
+                            Remove logo
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={orgFormLogoUrl}
+                          onChange={(e) => setOrgFormLogoUrl(e.target.value)}
+                          placeholder="Paste image URL (https://...) or upload"
+                          className="h-9 text-xs font-mono flex-1"
+                        />
+                        <input
+                          ref={orgFileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                          onChange={handleOrgLogoFileUpload}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => orgFileInputRef.current?.click()}
+                          className="h-9 px-3 text-xs gap-1.5 shrink-0 cursor-pointer shadow-2xs"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Upload</span>
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Square SVG, PNG, or JPG recommended (max 2MB).
+                      </p>
                     </div>
                   </div>
 
@@ -1601,7 +1623,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform"
+                            className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden"
                             style={{ backgroundColor: orgColor }}
                           >
                             {org.logoUrl ? (
@@ -1644,8 +1666,8 @@ export const WorkspacesProjectsView: React.FC = () => {
                               onClick={() => handleOpenEditWorkspace(org)}
                               className="gap-2 text-xs cursor-pointer"
                             >
-                              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span>Edit Workspace</span>
+                              <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span>Workspace Settings</span>
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
@@ -1701,9 +1723,21 @@ export const WorkspacesProjectsView: React.FC = () => {
                       </span>
 
                       {isActive ? (
-                        <Badge variant="outline" className="text-xs text-violet-600 border-violet-500/40">
-                          Current Workspace
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs text-violet-600 border-violet-500/40">
+                            Current Workspace
+                          </Badge>
+                          <Button
+                            onClick={() => handleOpenEditWorkspace(org)}
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-xs h-7 px-2 cursor-pointer text-muted-foreground hover:text-foreground"
+                            title="Open Workspace Settings"
+                          >
+                            <Settings className="w-3 h-3" />
+                            <span>Settings</span>
+                          </Button>
+                        </div>
                       ) : (
                         <Button
                           onClick={() => {

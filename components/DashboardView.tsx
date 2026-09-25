@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
 import {
@@ -33,37 +33,14 @@ import {
   AlertTriangle,
   Crown,
   Save,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { countTokensInDocument } from "@/utils/transformTokens";
-
-const ICON_PRESETS = ["🏢", "🪐", "🚀", "🎨", "💻", "🎯", "⚡", "💎", "🌟", "🛡️"];
-const COLOR_PRESETS = [
-  "#171717",
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#ef4444",
-  "#f59e0b",
-  "#10b981",
-  "#06b6d4",
-  "#3b82f6",
-  "#0f172a",
-];
 
 export const DashboardView: React.FC = () => {
   const {
@@ -82,102 +59,18 @@ export const DashboardView: React.FC = () => {
     setMembersSubTab,
     currentUser,
     getCurrentUserRole,
-    updateOrgAction,
-    deleteOrgAction,
     addToast,
   } = useTokenStore();
 
   const [showCreateProj, setShowCreateProj] = useState(false);
 
-  // Organization Settings Modal State
-  const [showOrgSettingsModal, setShowOrgSettingsModal] = useState(false);
-  const [orgFormName, setOrgFormName] = useState("");
-  const [orgFormIcon, setOrgFormIcon] = useState("🏢");
-  const [orgFormColor, setOrgFormColor] = useState("#171717");
-  const [orgFormLogoUrl, setOrgFormLogoUrl] = useState("");
-  const [isSavingOrg, setIsSavingOrg] = useState(false);
-  const [copiedOrgId, setCopiedOrgId] = useState(false);
-  const [showDeleteOrgConfirm, setShowDeleteOrgConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [isDeletingOrg, setIsDeletingOrg] = useState(false);
-
   const userRole = getCurrentUserRole();
   const isOwner = currentOrg?.ownerUid === currentUser?.uid || userRole === "owner";
   const canManageOrg = isOwner || userRole === "admin";
 
-  const handleOpenOrgSettings = () => {
-    if (!currentOrg) return;
-    setOrgFormName(currentOrg.name);
-    setOrgFormIcon(currentOrg.icon || "🏢");
-    setOrgFormColor(currentOrg.color || "#171717");
-    setOrgFormLogoUrl(currentOrg.logoUrl || "");
-    setShowDeleteOrgConfirm(false);
-    setDeleteConfirmText("");
-    setShowOrgSettingsModal(true);
-  };
-
-  const handleSaveOrgSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentOrg || !orgFormName.trim()) return;
-
-    setIsSavingOrg(true);
-    try {
-      await updateOrgAction(currentOrg.id, {
-        name: orgFormName.trim(),
-        icon: orgFormIcon,
-        color: orgFormColor,
-        logoUrl: orgFormLogoUrl.trim(),
-      });
-      addToast({
-        type: "success",
-        title: "Organization Settings Saved",
-        message: `Updated workspace details for "${orgFormName.trim()}".`,
-      });
-      setShowOrgSettingsModal(false);
-    } catch (err: any) {
-      addToast({
-        type: "error",
-        title: "Update Failed",
-        message: err.message || "Failed to update organization.",
-      });
-    } finally {
-      setIsSavingOrg(false);
-    }
-  };
-
-  const handleCopyOrgId = () => {
-    if (!currentOrg) return;
-    navigator.clipboard.writeText(currentOrg.id);
-    setCopiedOrgId(true);
-    setTimeout(() => setCopiedOrgId(false), 2000);
-    addToast({
-      type: "success",
-      title: "Organization ID Copied",
-      message: "Copied organization identifier to clipboard.",
-    });
-  };
-
-  const handleDeleteOrganization = async () => {
-    if (!currentOrg) return;
-    setIsDeletingOrg(true);
-    try {
-      await deleteOrgAction(currentOrg.id);
-      addToast({
-        type: "info",
-        title: "Organization Deleted",
-        message: `Removed organization "${currentOrg.name}".`,
-      });
-      setShowDeleteOrgConfirm(false);
-      setShowOrgSettingsModal(false);
-    } catch (err: any) {
-      addToast({
-        type: "error",
-        title: "Delete Failed",
-        message: err.message || "Failed to delete organization.",
-      });
-    } finally {
-      setIsDeletingOrg(false);
-    }
+  const handleOpenWorkspaceSettings = () => {
+    setCurrentProject(null);
+    setSidebarTab("org-settings");
   };
 
   // Active Organization Info
@@ -293,9 +186,9 @@ export const DashboardView: React.FC = () => {
                   </h1>
                   {canManageOrg && (
                     <button
-                      onClick={() => setSidebarTab("org-settings")}
+                      onClick={handleOpenWorkspaceSettings}
                       className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-                      title="Edit Organization Settings"
+                      title="Workspace Settings"
                     >
                       <Settings className="w-4 h-4" />
                     </button>
@@ -311,12 +204,12 @@ export const DashboardView: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSidebarTab("org-settings")}
+                onClick={handleOpenWorkspaceSettings}
                 className="gap-1.5 text-xs font-semibold cursor-pointer border-border hover:bg-muted/80 shadow-2xs"
-                title="Organization Settings"
+                title="Workspace Settings"
               >
                 <Settings className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Org Settings</span>
+                <span>Workspace Settings</span>
               </Button>
 
               <Button
@@ -610,15 +503,15 @@ export const DashboardView: React.FC = () => {
             </div>
 
             <div
-              onClick={() => setSidebarTab("org-settings")}
+              onClick={handleOpenWorkspaceSettings}
               className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs space-y-2 group"
             >
               <div className="flex items-center gap-2 text-foreground font-semibold text-xs group-hover:text-primary transition-colors">
                 <Building2 className="w-4 h-4 text-primary" />
-                <span>Workspace &amp; Org Settings</span>
+                <span>Workspace Settings</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Configure brand colors, organization name, emoji icon, and general workspace details.
+                Configure brand colors, workspace name, logo, and general organization details.
               </p>
             </div>
           </div>
@@ -692,322 +585,6 @@ export const DashboardView: React.FC = () => {
         isOpen={showCreateProj}
         onClose={() => setShowCreateProj(false)}
       />
-
-      {/* Organization Settings Modal */}
-      <Dialog open={showOrgSettingsModal} onOpenChange={setShowOrgSettingsModal}>
-        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden font-sans border-border">
-          <DialogHeader className="p-5 border-b border-border/70 bg-card/60">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-lg shadow-xs shrink-0"
-                style={{ backgroundColor: orgFormColor || "#171717" }}
-              >
-                <span>{orgFormIcon || "🏢"}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <DialogTitle className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
-                  <span>Organization Settings</span>
-                  <Badge variant="outline" className="text-[10px] font-mono capitalize">
-                    {userRole}
-                  </Badge>
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5 truncate">
-                  Manage branding, identity and configuration for {orgName}.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <form onSubmit={handleSaveOrgSettings}>
-            <Tabs defaultValue="general" className="w-full">
-              <div className="px-5 pt-3 border-b border-border/60 bg-muted/20">
-                <TabsList className="bg-muted/60 p-0.5 h-8">
-                  <TabsTrigger value="general" className="text-xs px-3 py-1">
-                    General
-                  </TabsTrigger>
-                  <TabsTrigger value="info" className="text-xs px-3 py-1">
-                    Workspace Info
-                  </TabsTrigger>
-                  {isOwner && (
-                    <TabsTrigger value="danger" className="text-xs px-3 py-1 text-destructive">
-                      Danger Zone
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-              </div>
-
-              {/* Tab 1: General Identity & Branding */}
-              <TabsContent value="general" className="p-5 space-y-4 m-0 max-h-[60vh] overflow-y-auto">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Workspace Name</Label>
-                  <Input
-                    value={orgFormName}
-                    onChange={(e) => setOrgFormName(e.target.value)}
-                    placeholder="e.g. Planet Design System"
-                    disabled={!canManageOrg}
-                    className="h-8 text-xs bg-background"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Workspace Icon / Emoji</Label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {ICON_PRESETS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => setOrgFormIcon(emoji)}
-                        disabled={!canManageOrg}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
-                          orgFormIcon === emoji
-                            ? "bg-primary/15 border-2 border-primary scale-105"
-                            : "bg-muted/60 hover:bg-muted border border-border"
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                    <Input
-                      value={orgFormIcon}
-                      onChange={(e) => setOrgFormIcon(e.target.value)}
-                      placeholder="Emoji"
-                      disabled={!canManageOrg}
-                      className="w-16 h-8 text-xs text-center bg-background"
-                      maxLength={4}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Brand Color</Label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {COLOR_PRESETS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setOrgFormColor(color)}
-                        disabled={!canManageOrg}
-                        className={`w-6 h-6 rounded-full transition-transform cursor-pointer shadow-2xs ${
-                          orgFormColor.toLowerCase() === color.toLowerCase()
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
-                            : "hover:scale-105 opacity-90"
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <div className="flex items-center gap-1.5 ml-1">
-                      <input
-                        type="color"
-                        value={orgFormColor}
-                        onChange={(e) => setOrgFormColor(e.target.value)}
-                        disabled={!canManageOrg}
-                        className="w-7 h-7 rounded-md cursor-pointer border border-border bg-background p-0.5"
-                      />
-                      <Input
-                        value={orgFormColor}
-                        onChange={(e) => setOrgFormColor(e.target.value)}
-                        disabled={!canManageOrg}
-                        placeholder="#171717"
-                        className="w-24 h-8 text-xs font-mono bg-background"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Logo URL (Optional)</Label>
-                  <Input
-                    value={orgFormLogoUrl}
-                    onChange={(e) => setOrgFormLogoUrl(e.target.value)}
-                    placeholder="https://example.com/logo.png"
-                    disabled={!canManageOrg}
-                    className="h-8 text-xs bg-background"
-                  />
-                  {orgFormLogoUrl && (
-                    <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground">
-                      <img
-                        src={orgFormLogoUrl}
-                        alt="Logo Preview"
-                        className="w-6 h-6 rounded-md object-cover"
-                        onError={(e) => ((e.target as any).style.display = "none")}
-                      />
-                      <span className="text-[11px]">Logo preview</span>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              {/* Tab 2: Workspace Info & Metadata */}
-              <TabsContent value="info" className="p-5 space-y-4 m-0 max-h-[60vh] overflow-y-auto text-xs">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Organization ID</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={currentOrg?.id || ""}
-                      readOnly
-                      className="h-8 text-xs font-mono bg-muted/50 flex-1 select-all"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopyOrgId}
-                      className="h-8 text-xs gap-1.5 px-3"
-                    >
-                      {copiedOrgId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedOrgId ? "Copied" : "Copy ID"}</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Slug</span>
-                    <div className="font-mono text-xs font-semibold text-foreground truncate">{currentOrg?.slug || "org"}</div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Projects</span>
-                    <div className="text-xs font-semibold text-foreground font-mono">{orgProjects.length} active</div>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Users className="w-4 h-4 text-primary" />
-                    <div>
-                      <div className="font-semibold text-foreground">Team Management</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {currentOrg?.members?.length || 1} team {currentOrg?.members?.length === 1 ? "member" : "members"}
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowOrgSettingsModal(false);
-                      setSidebarTab("members");
-                      setMembersSubTab("members");
-                    }}
-                    className="text-xs h-7 gap-1"
-                  >
-                    <span>Manage Members</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Tab 3: Danger Zone */}
-              {isOwner && (
-                <TabsContent value="danger" className="p-5 space-y-4 m-0 max-h-[60vh] overflow-y-auto">
-                  <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-3">
-                    <div className="flex items-center gap-2 text-destructive font-bold text-xs">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Delete this Organization</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Permanently delete <strong>{currentOrg?.name}</strong> and all its {orgProjects.length} projects. This action cannot be undone.
-                    </p>
-                    {userOrgs.length <= 1 ? (
-                      <p className="text-[11px] text-amber-600 font-medium">
-                        You cannot delete your only organization. Create another workspace first.
-                      </p>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setShowDeleteOrgConfirm(true)}
-                        className="text-xs h-8 gap-1.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Organization</span>
-                      </Button>
-                    )}
-                  </div>
-                </TabsContent>
-              )}
-            </Tabs>
-
-            <DialogFooter className="p-4 border-t border-border/70 bg-card/60 flex items-center justify-between gap-2 sm:justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowOrgSettingsModal(false)}
-                className="text-xs h-8"
-              >
-                Cancel
-              </Button>
-
-              {canManageOrg && (
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSavingOrg || !orgFormName.trim()}
-                  className="text-xs h-8 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>{isSavingOrg ? "Saving..." : "Save Changes"}</span>
-                </Button>
-              )}
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Org Confirmation Dialog */}
-      <Dialog open={showDeleteOrgConfirm} onOpenChange={setShowDeleteOrgConfirm}>
-        <DialogContent className="max-w-md p-6 gap-4 font-sans">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              <span>Delete Organization</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              This action cannot be undone. This will permanently delete <strong>{currentOrg?.name}</strong> and all associated projects.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2 py-2">
-            <Label className="text-xs font-semibold text-foreground">
-              Type <span className="font-mono text-destructive font-bold">{currentOrg?.name}</span> to confirm:
-            </Label>
-            <Input
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder={currentOrg?.name}
-              className="h-8 text-xs font-mono"
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setShowDeleteOrgConfirm(false);
-                setDeleteConfirmText("");
-              }}
-              className="text-xs h-8"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={isDeletingOrg || deleteConfirmText !== currentOrg?.name}
-              onClick={handleDeleteOrganization}
-              className="text-xs h-8 font-bold gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{isDeletingOrg ? "Deleting..." : "Delete Organization"}</span>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

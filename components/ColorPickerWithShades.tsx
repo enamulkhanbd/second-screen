@@ -5,6 +5,8 @@ import {
   COLOR_FAMILIES,
   SHADE_STEPS,
   findMatchingColorFamily,
+  findExactColorFamily,
+  getBestMatchingShadeStep,
   generateDynamicShades,
   getContrastTextColor,
   ColorShade,
@@ -24,77 +26,73 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
   onChange,
 }) => {
   const [selectedHex, setSelectedHex] = useState(value);
-  const [activeFamily, setActiveFamily] = useState<ColorFamily>(() => findMatchingColorFamily(value));
-  const [hexInput, setHexInput] = useState(value);
+  const [hexInput, setHexInput] = useState(() => value.replace(/^#/, ""));
 
   useEffect(() => {
     if (value && value.toLowerCase() !== selectedHex.toLowerCase()) {
       setSelectedHex(value);
-      setHexInput(value);
-      setActiveFamily(findMatchingColorFamily(value));
+      setHexInput(value.replace(/^#/, ""));
     }
   }, [value]);
 
-  const currentShades = useMemo(() => {
-    const familyShades = activeFamily.shades;
-    const isStandardFamily = Object.values(familyShades).some(
-      (s) => s.toLowerCase() === selectedHex.toLowerCase()
-    );
+  const exactFamily = useMemo(() => findExactColorFamily(selectedHex), [selectedHex]);
 
-    if (isStandardFamily) {
-      return familyShades;
+  const currentShades = useMemo(() => {
+    if (exactFamily) {
+      return exactFamily.shades;
     }
     return generateDynamicShades(selectedHex);
-  }, [activeFamily, selectedHex]);
+  }, [exactFamily, selectedHex]);
 
   const currentStep = useMemo(() => {
-    const clean = selectedHex.toLowerCase();
+    const clean = selectedHex.toLowerCase().trim();
     for (const [stepStr, hex] of Object.entries(currentShades)) {
       if (hex.toLowerCase() === clean) {
         return Number(stepStr) as ColorShade["step"];
       }
     }
-    return null;
+    return getBestMatchingShadeStep(selectedHex);
   }, [currentShades, selectedHex]);
 
   const handleSelectFamily = (family: ColorFamily) => {
-    setActiveFamily(family);
     const targetStep = currentStep || 500;
     const newHex = family.shades[targetStep] || family.baseHex;
     setSelectedHex(newHex);
-    setHexInput(newHex);
+    setHexInput(newHex.replace(/^#/, ""));
     onChange(newHex);
   };
 
   const handleSelectShade = (step: ColorShade["step"], hex: string) => {
     setSelectedHex(hex);
-    setHexInput(hex);
+    setHexInput(hex.replace(/^#/, ""));
     onChange(hex);
   };
 
-  const handleHexInputChange = (newHex: string) => {
-    setHexInput(newHex);
-    const clean = newHex.trim();
-    if (/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(clean)) {
-      const formatted = clean.startsWith("#") ? clean : `#${clean}`;
+  const handleHexInputChange = (raw: string) => {
+    const clean = raw.trim().replace(/^#/, "");
+    setHexInput(clean);
+    if (/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(clean)) {
+      const fullHex = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+      const formatted = `#${fullHex.toLowerCase()}`;
       setSelectedHex(formatted);
-      setActiveFamily(findMatchingColorFamily(formatted));
       onChange(formatted);
     }
   };
 
   return (
-    <div className="space-y-3.5 w-full">
-      {/* 1. Primary Hue Swatches (Clean, neatly wrapped grid) */}
+    <div className="space-y-3.5 w-full select-none font-sans">
+      {/* 1. Primary Hue Swatches */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-muted-foreground font-medium">Color Palette</span>
-          <span className="text-[11px] font-semibold text-foreground">{activeFamily.name}</span>
+          <span className="text-[11px] font-semibold text-foreground">
+            {exactFamily ? exactFamily.name : "Custom Color"}
+          </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-muted/30 border border-border/70">
+        <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-muted/30 border border-border/70 items-center">
           {COLOR_FAMILIES.map((family) => {
-            const isSelected = activeFamily.id === family.id;
+            const isSelected = exactFamily?.id === family.id;
             return (
               <button
                 key={family.id}
@@ -117,6 +115,20 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
               </button>
             );
           })}
+
+          {/* Dynamic Custom Color Indicator Swatch when not in a standard preset */}
+          {!exactFamily && (
+            <div
+              className="w-6 h-6 rounded-full ring-2 ring-offset-2 ring-primary scale-110 shadow-xs z-10 relative flex items-center justify-center border border-border/70 transition-all cursor-default"
+              style={{ backgroundColor: selectedHex }}
+              title={`Custom Accent Color (${selectedHex})`}
+            >
+              <Check
+                className="w-3 h-3 drop-shadow-xs"
+                style={{ color: getContrastTextColor(selectedHex) }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -134,7 +146,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
           <div className="flex items-center h-7 rounded-lg overflow-hidden border border-border/80 p-0.5 bg-muted/40 gap-0.5">
             {SHADE_STEPS.map((step) => {
               const shadeHex = currentShades[step];
-              const isShadeSelected = selectedHex.toLowerCase() === shadeHex.toLowerCase();
+              const isShadeSelected = currentStep === step;
               const shadeContrast = getContrastTextColor(shadeHex);
 
               return (
@@ -148,7 +160,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
                       ? "ring-2 ring-primary ring-offset-1 scale-105 z-10 shadow-xs"
                       : "hover:scale-105 hover:z-10 opacity-90 hover:opacity-100"
                   }`}
-                  title={`${activeFamily.name} ${step} (${shadeHex})`}
+                  title={`${exactFamily?.name || "Custom"} ${step} (${shadeHex})`}
                 >
                   {isShadeSelected && (
                     <div
@@ -189,15 +201,15 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
           />
         </label>
 
-        {/* Hex input */}
+        {/* Hex input without duplicate # prefix */}
         <div className="relative flex-1">
           <Hash className="w-3 h-3 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
           <Input
-            value={hexInput}
+            value={hexInput.replace(/^#/, "")}
             onChange={(e) => handleHexInputChange(e.target.value)}
-            placeholder="#171717"
+            placeholder="171717"
             className="h-8 pl-7 text-xs font-mono uppercase bg-background"
-            maxLength={7}
+            maxLength={6}
           />
         </div>
 

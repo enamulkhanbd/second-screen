@@ -378,34 +378,55 @@ export const SHADE_STEPS: Array<ColorShade["step"]> = [
 ];
 
 /**
- * Finds the closest matching ColorFamily for a given hex color
+ * Checks if a hex color directly matches a known standard ColorFamily shade
+ */
+export function findExactColorFamily(hex: string): ColorFamily | null {
+  const cleanHex = hex.toLowerCase().trim();
+  for (const family of COLOR_FAMILIES) {
+    if (Object.values(family.shades).some((s) => s.toLowerCase() === cleanHex) || family.baseHex.toLowerCase() === cleanHex) {
+      return family;
+    }
+  }
+  return null;
+}
+
+/**
+ * Finds the closest matching ColorFamily for a given hex color using true circular HUE distance
  */
 export function findMatchingColorFamily(hex: string): ColorFamily {
   const cleanHex = hex.toLowerCase().trim();
   
   // 1. Direct exact shade match in known families
-  for (const family of COLOR_FAMILIES) {
-    if (Object.values(family.shades).some((s) => s.toLowerCase() === cleanHex)) {
-      return family;
-    }
+  const exact = findExactColorFamily(cleanHex);
+  if (exact) return exact;
+
+  const targetRgb = hexToRgb(cleanHex);
+  if (!targetRgb) return COLOR_FAMILIES[0];
+
+  const targetHsl = rgbToHsl(targetRgb.r, targetRgb.g, targetRgb.b);
+
+  // If very desaturated, it belongs to the Neutral / Slate / Zinc families
+  if (targetHsl.s < 0.12 || targetHsl.l < 0.06 || targetHsl.l > 0.98) {
+    return COLOR_FAMILIES.find((f) => f.id === "neutral") || COLOR_FAMILIES[0];
   }
 
-  // 2. Compute closest hue by RGB distance
-  let closestFamily = COLOR_FAMILIES[0];
-  let minDistance = Infinity;
+  const targetHueDeg = targetHsl.h * 360;
 
-  const targetRgb = hexToRgb(cleanHex) || { r: 99, g: 102, b: 241 };
+  let closestFamily = COLOR_FAMILIES[1]; // default to first colored family
+  let minHueDiff = Infinity;
 
   for (const family of COLOR_FAMILIES) {
+    if (family.id === "neutral" || family.id === "zinc" || family.id === "slate") continue;
     const baseRgb = hexToRgb(family.baseHex);
     if (!baseRgb) continue;
-    const dist = Math.sqrt(
-      Math.pow(targetRgb.r - baseRgb.r, 2) +
-      Math.pow(targetRgb.g - baseRgb.g, 2) +
-      Math.pow(targetRgb.b - baseRgb.b, 2)
-    );
-    if (dist < minDistance) {
-      minDistance = dist;
+    const baseHsl = rgbToHsl(baseRgb.r, baseRgb.g, baseRgb.b);
+    const baseHueDeg = baseHsl.h * 360;
+
+    let diff = Math.abs(targetHueDeg - baseHueDeg);
+    if (diff > 180) diff = 360 - diff;
+
+    if (diff < minHueDiff) {
+      minHueDiff = diff;
       closestFamily = family;
     }
   }
@@ -414,7 +435,42 @@ export function findMatchingColorFamily(hex: string): ColorFamily {
 }
 
 /**
- * Generates an 11-step tint & shade scale dynamically for any arbitrary custom HEX color
+ * Maps any arbitrary color to the closest standard tonal shade step (50 - 950) by lightness
+ */
+export function getBestMatchingShadeStep(hex: string): ColorShade["step"] {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 500;
+  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+  const targetLightness: Record<ColorShade["step"], number> = {
+    50: 0.96,
+    100: 0.92,
+    200: 0.84,
+    300: 0.74,
+    400: 0.62,
+    500: 0.50,
+    600: 0.40,
+    700: 0.30,
+    800: 0.20,
+    900: 0.13,
+    950: 0.07,
+  };
+
+  let bestStep: ColorShade["step"] = 500;
+  let minDiff = Infinity;
+  for (const step of SHADE_STEPS) {
+    const diff = Math.abs(hsl.l - targetLightness[step]);
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestStep = step;
+    }
+  }
+  return bestStep;
+}
+
+/**
+ * Generates an 11-step tint & shade scale dynamically for any arbitrary custom HEX color.
+ * Maintains strict monotonic lightness to avoid duplicate shades or duplicate indicator dots.
  */
 export function generateDynamicShades(hex: string): Record<ColorShade["step"], string> {
   const rgb = hexToRgb(hex);
@@ -423,29 +479,35 @@ export function generateDynamicShades(hex: string): Record<ColorShade["step"], s
   }
 
   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const cleanHex = hex.toLowerCase().trim();
+  const bestStep = getBestMatchingShadeStep(cleanHex);
 
-  const lightnessMap: Record<ColorShade["step"], number> = {
+  const targetLightness: Record<ColorShade["step"], number> = {
     50: 0.96,
     100: 0.92,
     200: 0.84,
     300: 0.74,
     400: 0.62,
-    500: hsl.l, // Keep custom base lightness
-    600: Math.max(0.08, hsl.l * 0.85),
-    700: Math.max(0.06, hsl.l * 0.70),
-    800: Math.max(0.04, hsl.l * 0.55),
-    900: Math.max(0.03, hsl.l * 0.40),
-    950: Math.max(0.02, hsl.l * 0.25),
+    500: 0.50,
+    600: 0.40,
+    700: 0.30,
+    800: 0.20,
+    900: 0.13,
+    950: 0.07,
   };
 
   const result = {} as Record<ColorShade["step"], string>;
 
   for (const step of SHADE_STEPS) {
-    if (step === 500) {
-      result[step] = hex.toLowerCase();
+    if (step === bestStep) {
+      result[step] = cleanHex;
     } else {
-      const newL = lightnessMap[step];
-      const newRgb = hslToRgb(hsl.h, hsl.s, newL);
+      const l = targetLightness[step];
+      let s = hsl.s;
+      if (step <= 100) s = Math.min(s, 0.85);
+      if (step >= 900) s = Math.min(s, 0.75);
+
+      const newRgb = hslToRgb(hsl.h, s, l);
       result[step] = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
     }
   }
