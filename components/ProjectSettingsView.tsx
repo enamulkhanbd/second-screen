@@ -187,7 +187,7 @@ export const ProjectSettingsView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans select-none p-6 md:p-10">
-      <div className="max-w-4xl w-full mx-auto space-y-6">
+      <div className="max-w-[960px] w-full mx-auto space-y-6">
         {/* Header (Matching Video Frame 007) */}
         <div>
           <h1 className="text-xl font-bold text-foreground tracking-tight">Project details</h1>

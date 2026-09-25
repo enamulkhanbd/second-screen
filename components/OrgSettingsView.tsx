@@ -226,8 +226,8 @@ export const OrgSettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Form - Sized to max-w-4xl based on setting page size */}
-      <main className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
+      {/* Main Content Form - Sized to 960px */}
+      <main className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
         <form onSubmit={handleSaveOrgProfile} className="space-y-6">
           {/* Card 1: General Details */}
           <section className="rounded-2xl border border-border/80 bg-card p-6 sm:p-7 shadow-xs space-y-6">

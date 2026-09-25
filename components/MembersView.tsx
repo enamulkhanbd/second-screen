@@ -380,8 +380,8 @@ export const MembersView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Area - Sized to max-w-4xl based on setting page size */}
-      <div className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
+      {/* Main Content Area - Sized to 960px */}
+      <div className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
         {/* Section 1: Invite New Member */}
         {canInvite && (
           <form onSubmit={handleSendInvite} className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-4">
