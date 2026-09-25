@@ -146,20 +146,6 @@ export const DashboardView: React.FC = () => {
       <div className="max-w-7xl w-full mx-auto flex flex-col xl:flex-row min-h-full">
         {/* Main Left Content Area */}
         <div className="flex-1 p-6 md:p-8 xl:p-10 space-y-6 min-w-0">
-          {/* Breadcrumbs matching Screenshot 2 */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground select-none">
-            <button
-              onClick={() => setSidebarTab("workspaces")}
-              className="hover:text-foreground hover:underline transition-colors font-medium cursor-pointer"
-            >
-              Workspaces
-            </button>
-            <span className="text-muted-foreground/40">/</span>
-            <span className="text-foreground font-medium">{orgName}</span>
-            <span className="text-muted-foreground/40">/</span>
-            <span className="text-muted-foreground">Overview</span>
-          </div>
-
           {/* Top Workspace Header Matching Video */}
           <div className="flex items-center justify-between pb-4 border-b border-border/60">
             <div className="flex items-center gap-3.5">

@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   );
 
   // Token versioning, commit, and branch controls belong strictly to token editing/design workflows.
-  // They are hidden on administrative and settings pages (Workspace Settings, Project Settings, Members, Dashboard/Overview).
+  // They are hidden on administrative, workspace-level, and settings pages (Workspace Settings, Project Settings, Members, Dashboard/Overview, Projects list).
   const hideVersionControls = useMemo(() => {
     return [
       "org-settings",
@@ -147,8 +147,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       "members",
       "dashboard",
       "workspaces",
-    ].includes(sidebarTab);
-  }, [sidebarTab]);
+      "projects",
+      "system-docs",
+      "changelog",
+    ].includes(sidebarTab) || !currentProject;
+  }, [sidebarTab, currentProject]);
 
   // Global Breadcrumb computation
   const breadcrumbItems = useMemo(() => {

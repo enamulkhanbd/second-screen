@@ -490,100 +490,43 @@ export const WorkspacesProjectsView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-y-auto select-none">
-      {/* Top Banner Header */}
-      <header className="border-b border-border bg-card/60 backdrop-blur-md px-8 py-4 flex flex-col gap-3 flex-shrink-0">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground select-none">
-          <button
-            onClick={() => setSidebarTab("workspaces")}
-            className="hover:text-foreground hover:underline transition-colors font-medium cursor-pointer"
-          >
-            Workspaces
-          </button>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="text-foreground font-medium">{currentOrg?.name || "Workspace"}</span>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="text-muted-foreground">Projects</span>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-          {/* Active Org Avatar with Custom Color / Icon */}
+      {/* Top Workspace Header - on most left */}
+      <div className="px-6 md:px-8 pt-6 pb-4 border-b border-border/60 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Active Org Avatar */}
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-md flex-shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-2xs shrink-0 overflow-hidden"
             style={{ backgroundColor: currentOrg?.color || "#171717" }}
           >
             {currentOrg?.logoUrl ? (
               <img
                 src={currentOrg.logoUrl}
                 alt={currentOrg.name}
-                className="w-full h-full object-cover rounded-2xl"
+                className="w-full h-full object-cover rounded-xl"
               />
             ) : (
               <span>{currentOrg?.icon || currentOrg?.name?.[0]?.toUpperCase() || "🏢"}</span>
             )}
           </div>
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl font-bold text-foreground tracking-tight">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-foreground tracking-tight">
                 {currentOrg?.name || "Workspace Hub"}
               </h1>
-
-
-
-              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5">
+              <Badge variant="outline" className="text-[10px] font-mono capitalize px-1.5 py-0 h-4 leading-none text-muted-foreground border-border/80">
                 {userRole}
               </Badge>
             </div>
-
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Users className="w-3.5 h-3.5" />
-                {currentOrg?.members?.length || 1} members
-              </span>
-              <span>•</span>
-              <span>{orgProjects.length} projects</span>
-            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {orgProjects.length} {orgProjects.length === 1 ? "project" : "projects"} • {currentOrg?.members?.length || 1} members
+            </p>
           </div>
         </div>
-
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowManageTeamModal(true)}
-            className="gap-1.5 text-xs font-medium"
-          >
-            <Users className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>Manage Team</span>
-          </Button>
-
-          {activeTab === "projects" ? (
-            <Button
-              size="sm"
-              onClick={handleOpenCreateProject}
-              className="gap-1.5 text-xs font-semibold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Project</span>
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={handleOpenCreateWorkspace}
-              className="gap-1.5 text-xs font-semibold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Workspace</span>
-            </Button>
-          )}
-        </div>
       </div>
-    </header>
 
-      {/* Main Container */}
-      <div className="flex-1 p-8 space-y-6 max-w-7xl w-full mx-auto">
+      {/* Main Container - Restored to original max-w-7xl size */}
+      <div className="flex-1 p-6 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
         {/* Navigation Tabs (In-Page) & Search Toolbar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-4">
           <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
