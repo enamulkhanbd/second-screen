@@ -190,12 +190,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer"
-                  style={{ backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" }}
-                  title={`${currentOrg?.name || "Workspace"} · ${currentProject?.name || "Project"}`}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer overflow-hidden"
+                  style={
+                    currentProject
+                      ? (currentProject.logoUrl
+                          ? undefined
+                          : currentProject.color
+                          ? { backgroundColor: currentProject.color, color: "#fff" }
+                          : isCustomOrgColor
+                          ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
+                          : { backgroundColor: "#ecfdf5", color: "#15803d" })
+                      : (currentOrg?.logoUrl
+                          ? undefined
+                          : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
+                  }
+                  title={currentProject ? `${currentProject.name} · ${currentOrg?.name || "Workspace"}` : (currentOrg?.name || "Workspace")}
                 >
-                  {currentOrg?.logoUrl ? (
-                    <img src={currentOrg.logoUrl} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+                  {currentProject ? (
+                    currentProject.logoUrl ? (
+                      <img src={currentProject.logoUrl} alt={currentProject.name} className="w-full h-full object-cover rounded-xl" />
+                    ) : (
+                      <span>{currentProject.icon || currentProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
+                    )
+                  ) : currentOrg?.logoUrl ? (
+                    <img src={currentOrg.logoUrl} alt={currentOrg.name} className="w-full h-full object-cover rounded-xl" />
                   ) : (
                     <span>{currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "🏢"}</span>
                   )}
@@ -350,16 +368,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent transition-all text-left flex-1 min-w-0 group cursor-pointer">
                   {/* Organization/Project Avatar */}
                   <div
-                    className="flex size-7 items-center justify-center rounded-lg font-bold text-xs flex-shrink-0"
-                    style={currentProject
-                      ? { backgroundColor: '#ecfdf5', color: '#15803d' }
-                      : { backgroundColor: currentOrg?.color || 'hsl(var(--primary))', color: currentOrg?.color ? '#fff' : 'hsl(var(--primary-foreground))' }
+                    className="flex size-7 items-center justify-center rounded-lg font-bold text-xs flex-shrink-0 overflow-hidden bg-muted/40"
+                    style={
+                      currentProject
+                        ? (currentProject.logoUrl
+                            ? undefined
+                            : currentProject.color
+                            ? { backgroundColor: currentProject.color, color: "#fff" }
+                            : isCustomOrgColor
+                            ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
+                            : { backgroundColor: "#ecfdf5", color: "#15803d" })
+                        : (currentOrg?.logoUrl
+                            ? undefined
+                            : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
                     }
                   >
-                    {currentProject
-                      ? currentProject.name?.charAt(0)?.toUpperCase() || "P"
-                      : currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "W"
-                    }
+                    {currentProject ? (
+                      currentProject.logoUrl ? (
+                        <img src={currentProject.logoUrl} alt={currentProject.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{currentProject.icon || currentProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
+                      )
+                    ) : currentOrg?.logoUrl ? (
+                      <img src={currentOrg.logoUrl} alt={currentOrg.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "W"}</span>
+                    )}
                   </div>
 
                   {/* Project and Workspace Info */}
