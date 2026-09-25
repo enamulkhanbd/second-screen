@@ -198,58 +198,12 @@ export const OrgSettingsView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans select-none">
-      {/* Sticky Top Header */}
-      <header className="px-6 sm:px-10 py-4 border-b border-border/70 bg-background/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-4 transition-colors">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 select-none">
-            <button
-              onClick={() => setSidebarTab("dashboard")}
-              className="hover:text-foreground transition-colors cursor-pointer flex items-center gap-1 font-medium"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Overview</span>
-            </button>
-            <span className="text-muted-foreground/40">/</span>
-            <span className="text-foreground font-semibold truncate max-w-[240px]">
-              {currentOrg.name}
-            </span>
-            <span className="text-muted-foreground/40">/</span>
-            <span className="text-muted-foreground">Settings</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 min-w-[32px] min-h-[32px] max-w-[32px] max-h-[32px] rounded-xl flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-border/80 shadow-2xs"
-              style={{
-                width: 32,
-                height: 32,
-                minWidth: 32,
-                minHeight: 32,
-                backgroundColor: orgLogoUrl ? undefined : (orgColor || "hsl(var(--primary))"),
-                color: orgColor ? "#fff" : "hsl(var(--primary-foreground))",
-              }}
-            >
-              {orgLogoUrl ? (
-                <img src={orgLogoUrl} alt={orgName} className="w-full h-full object-cover block" />
-              ) : (
-                <span>{orgName?.charAt(0)?.toUpperCase() || "W"}</span>
-              )}
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground tracking-tight leading-tight">
-                Workspace Settings
-              </h1>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content Form */}
-      <main className="max-w-4xl w-full mx-auto p-6 sm:p-10 space-y-6">
-        <form onSubmit={handleSaveOrgProfile} className="space-y-6">
+      <main className="max-w-4xl w-full mx-auto p-6 md:p-10 space-y-8">
+        <form onSubmit={handleSaveOrgProfile} className="space-y-8">
           {/* Card 1: General Details */}
-          <section className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
-            <div className="border-b border-border/70 pb-3">
+          <section className="rounded-2xl border border-border/80 bg-card p-6 sm:p-7 shadow-xs space-y-6">
+            <div className="border-b border-border/70 pb-3.5">
               <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-primary" />
                 <span>General Details</span>
@@ -325,9 +279,8 @@ export const OrgSettingsView: React.FC = () => {
                   {/* Strict Fixed-Size Interactive Avatar Preview */}
                   <div
                     onClick={() => isOwner && fileInputRef.current?.click()}
-                    className={`w-16 h-16 min-w-[64px] min-h-[64px] max-w-[64px] max-h-[64px] rounded-2xl flex items-center justify-center font-bold text-base shrink-0 overflow-hidden border border-border bg-card shadow-xs transition-all relative group ${
-                      isOwner ? "cursor-pointer hover:border-primary/50 hover:shadow-sm" : ""
-                    }`}
+                    className={`w-16 h-16 min-w-[64px] min-h-[64px] max-w-[64px] max-h-[64px] rounded-2xl flex items-center justify-center font-bold text-base shrink-0 overflow-hidden border border-border bg-card shadow-xs transition-all relative group ${isOwner ? "cursor-pointer hover:border-primary/50 hover:shadow-sm" : ""
+                      }`}
                     style={{
                       width: 64,
                       height: 64,

@@ -27,6 +27,7 @@ import {
   Plus,
   GitMerge,
   GitCommit,
+  ArrowLeft,
 } from "lucide-react";
 import { CreateBranchModal } from "@/components/CreateBranchModal";
 import { AuthModal } from "@/components/AuthModal";
@@ -137,12 +138,47 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     credentials.provider && credentials.repo && credentials.owner
   );
 
+  // Token versioning, commit, and branch controls belong strictly to token editing/design workflows.
+  // They are hidden on administrative and settings pages (Workspace Settings, Project Settings, Members, Dashboard/Overview).
+  const hideVersionControls = useMemo(() => {
+    return [
+      "org-settings",
+      "project-settings",
+      "members",
+      "dashboard",
+      "workspaces",
+    ].includes(sidebarTab);
+  }, [sidebarTab]);
+
   // Global Breadcrumb computation
   const breadcrumbItems = useMemo(() => {
     const orgName = currentOrg?.name || "Planet Design System";
     const currentBranchName = credentials.branch || activeBranch || "main";
 
-    const items: Array<{ label: string; onClick?: () => void; isLast?: boolean; isBranch?: boolean }> = [];
+    const items: Array<{
+      label: string;
+      onClick?: () => void;
+      isLast?: boolean;
+      isBranch?: boolean;
+      hasBackButton?: boolean;
+    }> = [];
+
+    if (sidebarTab === "org-settings") {
+      items.push({
+        label: "Overview",
+        hasBackButton: true,
+        onClick: () => setSidebarTab("dashboard"),
+      });
+      items.push({
+        label: orgName,
+        onClick: () => setSidebarTab("dashboard"),
+      });
+      items.push({
+        label: "Settings",
+        isLast: true,
+      });
+      return items;
+    }
 
     if (currentProject) {
       items.push({
@@ -604,10 +640,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                   <span
                     onClick={item.onClick}
                     className={cn(
-                      "truncate transition-colors inline-flex items-center",
+                      "truncate transition-colors inline-flex items-center group",
                       item.onClick ? "hover:text-foreground cursor-pointer" : ""
                     )}
                   >
+                    {item.hasBackButton && (
+                      <ArrowLeft className="w-3.5 h-3.5 mr-1 text-muted-foreground/80 group-hover:text-foreground transition-transform group-hover:-translate-x-0.5 shrink-0 inline" />
+                    )}
                     {item.isBranch && <GitBranch className="w-3 h-3 mr-1 text-primary shrink-0 inline" />}
                     <span>{item.label}</span>
                   </span>
@@ -618,7 +657,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         </div>
 
         {/* Right: Conditional Controls */}
-        <div className="flex items-center gap-2">
+        {!hideVersionControls && (
+          <div className="flex items-center gap-2">
 
 
 
@@ -901,6 +941,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
           </div>
 
         </div>
+        )}
       </header>
 
       {/* User Activity Log Right Drawer */}
