@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Lock,
@@ -8,6 +8,8 @@ import {
   ArchiveRestore,
   Trash2,
   AlertTriangle,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,8 +48,38 @@ export const ProjectSettingsView: React.FC = () => {
   const [projectName, setProjectName] = useState(currentProject?.name || "Planet-JustGo");
   const [projectSlug, setProjectSlug] = useState(currentProject?.slug || "planet-justgo");
   const [projectDescription, setProjectDescription] = useState(currentProject?.description || "");
+  const [projectLogoUrl, setProjectLogoUrl] = useState(currentProject?.logoUrl || "");
   const [basePermission, setBasePermission] = useState("write");
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isCustomOrgColor = useMemo(() => {
+    if (!currentOrg?.color) return false;
+    const trimmed = currentOrg.color.trim().toLowerCase();
+    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+  }, [currentOrg?.color]);
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      addToast({
+        type: "error",
+        title: "File Too Large",
+        message: "Please select an image smaller than 2MB.",
+      });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === "string") {
+        setProjectLogoUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   const isDuplicateName = Boolean(
     projectName.trim() &&
@@ -64,6 +96,7 @@ export const ProjectSettingsView: React.FC = () => {
       setProjectName(currentProject.name);
       setProjectSlug(currentProject.slug || currentProject.name.toLowerCase().replace(/\s+/g, "-"));
       setProjectDescription(currentProject.description || "");
+      setProjectLogoUrl(currentProject.logoUrl || "");
     }
   }, [currentProject]);
 
@@ -76,6 +109,7 @@ export const ProjectSettingsView: React.FC = () => {
       await updateProjectAction(currentOrg.id, currentProject.id, {
         name: projectName.trim(),
         description: projectDescription.trim(),
+        logoUrl: projectLogoUrl.trim(),
       });
       addToast({
         type: "success",
@@ -169,8 +203,17 @@ export const ProjectSettingsView: React.FC = () => {
               Name <span className="text-destructive">*</span>
             </Label>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-[#ecfdf5] dark:bg-[#064e3b]/40 border border-[#a7f3d0] dark:border-[#065f46] text-[#059669] flex items-center justify-center font-bold text-xs shrink-0">
-                {projectName?.[0]?.toUpperCase() || "P"}
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden shadow-2xs ${
+                  isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                }`}
+                style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+              >
+                {projectLogoUrl ? (
+                  <img src={projectLogoUrl} alt={projectName} className="w-full h-full object-cover" />
+                ) : (
+                  projectName?.[0]?.toUpperCase() || "P"
+                )}
               </div>
               <Input
                 type="text"
@@ -219,6 +262,57 @@ export const ProjectSettingsView: React.FC = () => {
               placeholder="Add project description..."
               className="w-full text-xs p-3 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
+          </div>
+
+          {/* Custom Logo URL or Upload Logo (Optional) */}
+          <div className="space-y-2 pt-2 border-t border-border/60">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Custom Logo URL or Upload Logo <span className="text-muted-foreground font-normal">(Optional)</span></span>
+              </Label>
+              {projectLogoUrl && canEditSettings && (
+                <button
+                  type="button"
+                  onClick={() => setProjectLogoUrl("")}
+                  className="text-[11px] text-destructive hover:underline cursor-pointer font-medium"
+                >
+                  Remove Logo
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Input
+                type="text"
+                value={projectLogoUrl}
+                onChange={(e) => setProjectLogoUrl(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                disabled={!canEditSettings}
+                className="h-9 text-xs font-mono flex-1 bg-background"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                onChange={handleLogoFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canEditSettings}
+                onClick={() => fileInputRef.current?.click()}
+                className="h-9 px-3 text-xs gap-1.5 shrink-0"
+              >
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Upload</span>
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Provide an image URL or upload from your device. Colors inherit from the workspace branding.
+            </p>
           </div>
 
           {/* Base Permission */}

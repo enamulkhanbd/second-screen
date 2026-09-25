@@ -183,7 +183,13 @@ export const DashboardView: React.FC = () => {
   // Active Organization Info
   const orgName = currentOrg?.name || "Planet Design System";
   const orgInitial = orgName[0]?.toUpperCase() || "P";
-  const orgColor = currentOrg?.color || "#8b5cf6";
+  const orgColor = currentOrg?.color || "#171717";
+
+  const isCustomOrgColor = useMemo(() => {
+    if (!currentOrg?.color) return false;
+    const trimmed = currentOrg.color.trim().toLowerCase();
+    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+  }, [currentOrg?.color]);
 
   // Only display real projects for this active organization
   const displayProjects: Project[] = useMemo(() => {
@@ -265,8 +271,10 @@ export const DashboardView: React.FC = () => {
           <div className="flex items-center justify-between pb-4 border-b border-border/60">
             <div className="flex items-center gap-3.5">
               <div
-                className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-lg text-white shadow-xs shrink-0"
-                style={{ backgroundColor: orgColor }}
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-lg shadow-xs shrink-0 overflow-hidden ${
+                  isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                }`}
+                style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
               >
                 {currentOrg?.logoUrl ? (
                   <img
@@ -370,13 +378,15 @@ export const DashboardView: React.FC = () => {
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
-                          style={{ backgroundColor: proj.color || "#171717" }}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
+                            isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                          }`}
+                          style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
                         >
                           {proj.logoUrl ? (
-                            <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-xl" />
+                            <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
+                            <span>{proj.name?.[0]?.toUpperCase() || "P"}</span>
                           )}
                         </div>
                         <div className="min-w-0">

@@ -39,6 +39,7 @@ import {
   ArchiveRestore,
   LayoutGrid,
   List,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
 import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -141,10 +150,37 @@ export const WorkspacesProjectsView: React.FC = () => {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [projectFormName, setProjectFormName] = useState("");
   const [projectFormDescription, setProjectFormDescription] = useState("");
-  const [projectFormIcon, setProjectFormIcon] = useState("🎯");
-  const [projectFormColor, setProjectFormColor] = useState("#171717");
   const [projectFormLogoUrl, setProjectFormLogoUrl] = useState("");
   const [isSavingProject, setIsSavingProject] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const isCustomOrgColor = useMemo(() => {
+    if (!currentOrg?.color) return false;
+    const trimmed = currentOrg.color.trim().toLowerCase();
+    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+  }, [currentOrg?.color]);
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      addToast({
+        type: "error",
+        title: "File Too Large",
+        message: "Please select an image smaller than 2MB.",
+      });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === "string") {
+        setProjectFormLogoUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   // Delete Confirmations
   const [deletingOrgId, setDeletingOrgId] = useState<string | null>(null);
@@ -306,8 +342,6 @@ export const WorkspacesProjectsView: React.FC = () => {
     setEditingProjectId(null);
     setProjectFormName("");
     setProjectFormDescription("");
-    setProjectFormIcon("🎯");
-    setProjectFormColor("#171717");
     setProjectFormLogoUrl("");
     setIsProjectFormOpen(true);
   };
@@ -316,8 +350,6 @@ export const WorkspacesProjectsView: React.FC = () => {
     setEditingProjectId(proj.id);
     setProjectFormName(proj.name);
     setProjectFormDescription(proj.description || "");
-    setProjectFormIcon(proj.icon || "🎯");
-    setProjectFormColor(proj.color || "#171717");
     setProjectFormLogoUrl(proj.logoUrl || "");
     setIsProjectFormOpen(true);
   };
@@ -333,8 +365,6 @@ export const WorkspacesProjectsView: React.FC = () => {
         await updateProjectAction(currentOrg.id, editingProjectId, {
           name: projectFormName.trim(),
           description: projectFormDescription.trim(),
-          icon: projectFormIcon,
-          color: projectFormColor,
           logoUrl: projectFormLogoUrl.trim(),
         });
         addToast({
@@ -347,8 +377,8 @@ export const WorkspacesProjectsView: React.FC = () => {
         const newProj = await createProjectAction(
           projectFormName.trim(),
           projectFormDescription.trim(),
-          projectFormIcon,
-          projectFormColor,
+          undefined,
+          undefined,
           projectFormLogoUrl.trim()
         );
         if (newProj) {
@@ -641,121 +671,131 @@ export const WorkspacesProjectsView: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         {activeTab === "projects" && (
           <div className="space-y-6">
-            {/* Right Drawer for Create / Edit Project */}
-            <Sheet
+            {/* Modal for Create / Edit Project */}
+            <Dialog
               open={isProjectFormOpen}
               onOpenChange={(open) => {
                 setIsProjectFormOpen(open);
                 if (!open) setEditingProjectId(null);
               }}
             >
-              <SheetContent side="right" className="flex flex-col h-full bg-background border-l border-border sm:max-w-md md:max-w-lg p-0">
-                <form onSubmit={handleSaveProject} className="flex flex-col h-full overflow-hidden">
-                  <SheetHeader className="px-6 py-5 border-b border-border/80 bg-card/50 flex-shrink-0">
-                    <div className="flex items-center gap-3">
+              <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+                <form onSubmit={handleSaveProject} className="flex flex-col">
+                  <DialogHeader className="px-6 py-5 border-b border-border/80 bg-card/40 flex-shrink-0">
+                    <div className="flex items-center gap-3.5">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-xs flex-shrink-0 transition-colors"
-                        style={{ backgroundColor: projectFormColor }}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 overflow-hidden border border-border/80 ${
+                          isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                        }`}
+                        style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
                       >
                         {projectFormLogoUrl ? (
-                          <img src={projectFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+                          <img
+                            src={projectFormLogoUrl}
+                            alt="Logo preview"
+                            className="w-full h-full object-cover"
+                            onError={() => setProjectFormLogoUrl("")}
+                          />
                         ) : (
-                          <span>{projectFormIcon}</span>
+                          <span>{projectFormName.trim() ? projectFormName.trim()[0].toUpperCase() : "P"}</span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 pr-6">
-                        <SheetTitle className="text-base font-bold text-foreground">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <DialogTitle className="text-base font-bold text-foreground">
                           {editingProjectId ? "Edit Project" : "New Project"}
-                        </SheetTitle>
-                        <SheetDescription className="text-xs text-muted-foreground truncate">
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground truncate mt-0.5">
                           Workspace: <span className="font-semibold text-foreground">{currentOrg?.name}</span>
-                        </SheetDescription>
+                        </DialogDescription>
                       </div>
                     </div>
-                  </SheetHeader>
+                  </DialogHeader>
 
-                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-                    {/* Basic Info */}
-                    <div className="space-y-3.5">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-foreground">Project Name *</Label>
-                        <Input
-                          value={projectFormName}
-                          onChange={(e) => setProjectFormName(e.target.value)}
-                          placeholder="e.g. Web Tokens, Mobile Palette, Core"
-                          required
-                          autoFocus
-                          className="h-9 text-xs"
-                        />
-                        {isProjectNameDuplicate && (
-                          <p className="text-[11px] text-destructive font-medium">
-                            A project with this name already exists in {currentOrg?.name}.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-foreground">Description (Optional)</Label>
-                        <Input
-                          value={projectFormDescription}
-                          onChange={(e) => setProjectFormDescription(e.target.value)}
-                          placeholder="Short summary of this project..."
-                          className="h-9 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Icon Selection */}
-                    <div className="space-y-2 pt-1 border-t border-border/60">
-                      <div className="flex items-center justify-between text-xs font-medium text-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <Smile className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>Icon / Emoji</span>
-                        </span>
-                        <span className="text-[11px] text-muted-foreground font-mono">{projectFormIcon}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1 p-1.5 rounded-xl bg-muted/30 border border-border/70">
-                        {ICON_PRESETS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => setProjectFormIcon(emoji)}
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all cursor-pointer ${
-                              projectFormIcon === emoji
-                                ? "bg-primary/20 ring-2 ring-primary scale-110 shadow-xs"
-                                : "hover:bg-muted/80 opacity-80 hover:opacity-100 hover:scale-105"
-                            }`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Color Accent Selection */}
-                    <div className="pt-1 border-t border-border/60">
-                      <ColorPickerWithShades
-                        value={projectFormColor}
-                        onChange={setProjectFormColor}
-                      />
-                    </div>
-
-                    {/* Custom Logo URL */}
-                    <div className="space-y-1.5 pt-1 border-t border-border/60">
-                      <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>Custom Logo URL (Optional)</span>
+                  <div className="p-6 space-y-4">
+                    {/* Project Name * */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-foreground">
+                        Project Name <span className="text-destructive">*</span>
                       </Label>
                       <Input
-                        value={projectFormLogoUrl}
-                        onChange={(e) => setProjectFormLogoUrl(e.target.value)}
-                        placeholder="https://example.com/logo.png"
-                        className="h-9 text-xs font-mono"
+                        value={projectFormName}
+                        onChange={(e) => setProjectFormName(e.target.value)}
+                        placeholder="e.g. Web, Mobile App, Core Tokens"
+                        required
+                        autoFocus
+                        className="h-9 text-xs"
                       />
+                      {isProjectNameDuplicate && (
+                        <p className="text-[11px] text-destructive font-medium">
+                          A project with this name already exists in {currentOrg?.name}.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Description (Optional) */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-foreground">
+                        Description <span className="text-muted-foreground font-normal">(Optional)</span>
+                      </Label>
+                      <textarea
+                        rows={3}
+                        value={projectFormDescription}
+                        onChange={(e) => setProjectFormDescription(e.target.value)}
+                        placeholder="Short summary of this project..."
+                        className="w-full text-xs p-3 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none transition-colors"
+                      />
+                    </div>
+
+                    {/* Custom Logo URL or Upload Logo (Optional) */}
+                    <div className="space-y-2 pt-2 border-t border-border/60">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Custom Logo URL or Upload Logo <span className="text-muted-foreground font-normal">(Optional)</span></span>
+                        </Label>
+                        {projectFormLogoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setProjectFormLogoUrl("")}
+                            className="text-[11px] text-destructive hover:underline cursor-pointer font-medium"
+                          >
+                            Remove Logo
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={projectFormLogoUrl}
+                          onChange={(e) => setProjectFormLogoUrl(e.target.value)}
+                          placeholder="https://example.com/logo.png"
+                          className="h-9 text-xs font-mono flex-1"
+                        />
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                          onChange={handleLogoFileUpload}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="h-9 px-3 text-xs gap-1.5 shrink-0"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Upload</span>
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Provide a logo URL or upload from your device. Colors inherit from the workspace branding.
+                      </p>
                     </div>
                   </div>
 
-                  <SheetFooter className="px-6 py-3.5 border-t border-border/80 bg-muted/20 flex-shrink-0 flex items-center justify-end gap-2">
+                  <DialogFooter className="px-6 py-3.5 border-t border-border/80 bg-muted/20 flex items-center justify-end gap-2">
                     <Button
                       type="button"
                       variant="ghost"
@@ -776,10 +816,10 @@ export const WorkspacesProjectsView: React.FC = () => {
                       <Save className="w-3.5 h-3.5" />
                       <span>{isSavingProject ? "Saving..." : editingProjectId ? "Save Changes" : "Create Project"}</span>
                     </Button>
-                  </SheetFooter>
+                  </DialogFooter>
                 </form>
-              </SheetContent>
-            </Sheet>
+              </DialogContent>
+            </Dialog>
 
             {/* Filter Toolbar: Active / Archived Tabs & Grid/List View Toggle */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card/40 p-2.5 rounded-xl border border-border">
@@ -973,7 +1013,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                     : 0;
                   const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
-                  const projColor = proj.color || "#171717";
 
                   return (
                     <div
@@ -985,17 +1024,19 @@ export const WorkspacesProjectsView: React.FC = () => {
                       {/* Col 1: Project Identity */}
                       <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
                         <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform"
-                          style={{ backgroundColor: projColor }}
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
+                            isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                          }`}
+                          style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
                         >
                           {proj.logoUrl ? (
                             <img
                               src={proj.logoUrl}
                               alt={proj.name || "Project Logo"}
-                              className="w-full h-full object-cover rounded-xl"
+                              className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
+                            <span>{proj.name?.[0]?.toUpperCase() || "P"}</span>
                           )}
                         </div>
 
@@ -1176,8 +1217,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                     : 0;
                   const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
-                  const projColor = proj.color || "#171717";
-
                   return (
                     <div
                       key={proj.id}
@@ -1192,13 +1231,15 @@ export const WorkspacesProjectsView: React.FC = () => {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform"
-                              style={{ backgroundColor: projColor }}
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
+                                isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                              }`}
+                              style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
                             >
                               {proj.logoUrl ? (
-                                <img src={proj.logoUrl} alt={proj.name || "Project Logo"} className="w-full h-full object-cover rounded-xl" />
+                                <img src={proj.logoUrl} alt={proj.name || "Project Logo"} className="w-full h-full object-cover" />
                               ) : (
-                                <span>{proj.icon || proj.name?.[0]?.toUpperCase() || "🎯"}</span>
+                                <span>{proj.name?.[0]?.toUpperCase() || "P"}</span>
                               )}
                             </div>
 

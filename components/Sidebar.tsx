@@ -132,6 +132,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     credentials.provider && credentials.owner && credentials.repo
   );
 
+  const isCustomOrgColor = useMemo(() => {
+    if (!currentOrg?.color) return false;
+    const trimmed = currentOrg.color.trim().toLowerCase();
+    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+  }, [currentOrg?.color]);
+
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrgName.trim()) return;
@@ -234,13 +240,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
                         <div
-                          className="size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
-                          style={proj.color ? { backgroundColor: `${proj.color}20`, color: proj.color } : undefined}
+                          className={`size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden ${
+                            isCustomOrgColor ? "" : "bg-muted text-foreground"
+                          }`}
+                          style={isCustomOrgColor ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color } : undefined}
                         >
                           {proj.logoUrl ? (
                             <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-md" />
                           ) : (
-                            <span className="text-[11px] font-semibold">{proj.name?.[0]?.toLowerCase() || "w"}</span>
+                            <span className="text-[11px] font-semibold">{proj.name?.[0]?.toUpperCase() || "P"}</span>
                           )}
                         </div>
                         <span className="truncate flex-1 font-medium">{proj.name}</span>
@@ -407,13 +415,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
                         <div
-                          className="size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
-                          style={proj.color ? { backgroundColor: `${proj.color}20`, color: proj.color } : undefined}
+                          className={`size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden ${
+                            isCustomOrgColor ? "" : "bg-muted text-foreground"
+                          }`}
+                          style={isCustomOrgColor ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color } : undefined}
                         >
                           {proj.logoUrl ? (
                             <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-md" />
                           ) : (
-                            <span className="text-[11px] font-semibold">{proj.name?.[0]?.toLowerCase() || "w"}</span>
+                            <span className="text-[11px] font-semibold">{proj.name?.[0]?.toUpperCase() || "P"}</span>
                           )}
                         </div>
                         <span className="truncate flex-1 font-medium">{proj.name}</span>
