@@ -26,7 +26,6 @@ import {
   Palette,
   Sliders,
   Check,
-  ChevronDown,
   RefreshCw,
   Save,
   X,
@@ -530,56 +529,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                 {currentOrg?.name || "Workspace Hub"}
               </h1>
 
-              {/* Fast Workspace Switcher */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                    title="Switch Workspace"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-60">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Switch Workspace
-                  </div>
-                  {userOrgs.map((org) => {
-                    const isSelected = org.id === currentOrg?.id;
-                    return (
-                      <DropdownMenuItem
-                        key={org.id}
-                        onClick={() => setCurrentOrg(org)}
-                        className="flex items-center justify-between text-xs py-2 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <div
-                            className="w-5 h-5 rounded-md text-white flex items-center justify-center font-bold text-[10px]"
-                            style={{ backgroundColor: org.color || "#171717" }}
-                          >
-                            {org.icon || org.name?.[0]?.toUpperCase() || "🏢"}
-                          </div>
-                          <span className="font-medium truncate">{org.name || "Untitled"}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setCurrentProject(null);
-                      setSidebarTab("workspaces");
-                    }}
-                    className="flex items-center gap-2 text-xs py-2 cursor-pointer font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <Building2 className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                    <span>All Workspaces ({userOrgs.length})</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+
 
               <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5">
                 {userRole}

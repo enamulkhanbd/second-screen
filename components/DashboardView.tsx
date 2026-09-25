@@ -180,20 +180,9 @@ export const DashboardView: React.FC = () => {
                 )}
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold text-foreground tracking-tight">
-                    <span>{orgName}</span>
-                  </h1>
-                  {canManageOrg && (
-                    <button
-                      onClick={handleOpenWorkspaceSettings}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-                      title="Workspace Settings"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">
+                  <span>{orgName}</span>
+                </h1>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                   <span className="font-medium">Workspace</span>
                 </div>
