@@ -113,6 +113,7 @@ export const WorkspacesProjectsView: React.FC = () => {
   );
   const [projectStatusFilter, setProjectStatusFilter] = useState<"active" | "archived">("active");
   const [projectLayoutMode, setProjectLayoutMode] = useState<"grid" | "list">("list");
+  const [workspaceLayoutMode, setWorkspaceLayoutMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [showManageTeamModal, setShowManageTeamModal] = useState(false);
 
@@ -490,43 +491,52 @@ export const WorkspacesProjectsView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-y-auto select-none">
-      {/* Top Workspace Header - on most left */}
-      <div className="px-6 md:px-8 pt-6 pb-4 border-b border-border/60 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          {/* Active Org Avatar */}
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-2xs shrink-0 overflow-hidden"
-            style={{ backgroundColor: currentOrg?.color || "#171717" }}
-          >
-            {currentOrg?.logoUrl ? (
-              <img
-                src={currentOrg.logoUrl}
-                alt={currentOrg.name}
-                className="w-full h-full object-cover rounded-xl"
-              />
-            ) : (
-              <span>{currentOrg?.icon || currentOrg?.name?.[0]?.toUpperCase() || "🏢"}</span>
-            )}
+      {/* Top Workspace Header - Spans full width from far left to far right */}
+      <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {/* Active Org Avatar */}
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-2xs shrink-0 overflow-hidden"
+              style={{ backgroundColor: currentOrg?.color || "#171717" }}
+            >
+              {currentOrg?.logoUrl ? (
+                <img
+                  src={currentOrg.logoUrl}
+                  alt={currentOrg.name}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <span>{currentOrg?.icon || currentOrg?.name?.[0]?.toUpperCase() || "🏢"}</span>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-bold tracking-tight text-foreground">
+                  Projects &amp; Workspaces
+                </h1>
+                <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
+                  {currentOrg?.name || "Workspace Hub"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Manage design token projects, repositories, and workspace releases.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-foreground tracking-tight">
-                {currentOrg?.name || "Workspace Hub"}
-              </h1>
-              <Badge variant="outline" className="text-[10px] font-mono capitalize px-1.5 py-0 h-4 leading-none text-muted-foreground border-border/80">
-                {userRole}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {orgProjects.length} {orgProjects.length === 1 ? "project" : "projects"} • {currentOrg?.members?.length || 1} members
-            </p>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs px-2.5 py-1 gap-1.5 font-medium">
+              <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{orgProjects.length} {orgProjects.length === 1 ? "project" : "projects"}</span>
+            </Badge>
           </div>
         </div>
       </div>
 
-      {/* Main Container - Restored to original max-w-7xl size */}
-      <div className="flex-1 p-6 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
+      {/* Main Container - Sized to max-w-4xl based on setting page size */}
+      <div className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
         {/* Navigation Tabs (In-Page) & Search Toolbar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-4">
           <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
@@ -845,7 +855,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="border border-border rounded-2xl p-5 bg-card space-y-4 animate-pulse">
                       <div className="flex items-center justify-between">
@@ -1113,7 +1123,7 @@ export const WorkspacesProjectsView: React.FC = () => {
               /* ======================================================= */
               /* GRID / CARD VIEW                                        */
               /* ======================================================= */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredProjects.map((proj) => {
                   const hasGit = Boolean(proj.gitConfig?.repo);
                   const hasFigma = Boolean(
@@ -1495,61 +1505,213 @@ export const WorkspacesProjectsView: React.FC = () => {
               </SheetContent>
             </Sheet>
 
-            {/* Workspaces Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredWorkspaces.map((org) => {
-                const isActive = currentOrg?.id === org.id;
-                const isOwner = org.ownerUid === currentUser?.uid;
-                const orgColor = org.color || "#171717";
+            {/* Filter Toolbar: Workspaces Count & Grid/List View Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card/40 p-2.5 rounded-xl border border-border">
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground shadow-2xs">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Workspaces</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-primary-foreground/20 text-primary-foreground">
+                    {filteredWorkspaces.length}
+                  </span>
+                </div>
+              </div>
 
-                return (
-                  <div
-                    key={org.id}
-                    className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
-                      isActive
-                        ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
-                        : "border-border hover:border-border/80"
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border">
+                  <button
+                    onClick={() => setWorkspaceLayoutMode("list")}
+                    title="List View"
+                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                      workspaceLayoutMode === "list"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    <div className="space-y-4">
-                      {/* Card Top: Brand Icon & Switcher */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden"
-                            style={{ backgroundColor: orgColor }}
-                          >
-                            {org.logoUrl ? (
-                              <img src={org.logoUrl} alt={org.name || "Organization Logo"} className="w-full h-full object-cover rounded-xl" />
-                            ) : (
-                              <span>{org.icon || org.name?.[0]?.toUpperCase() || "🏢"}</span>
-                            )}
-                          </div>
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setWorkspaceLayoutMode("grid")}
+                    title="Grid View"
+                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                      workspaceLayoutMode === "grid"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="font-bold text-sm text-foreground truncate group-hover:text-violet-500 transition-colors">
-                                {org.name || "Untitled Organization"}
-                              </h3>
-                              {isActive && (
-                                <Badge variant="secondary" className="text-[9px] py-0 px-1 font-semibold text-violet-600 dark:text-violet-400">
-                                  Active
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="text-[10px] font-mono text-muted-foreground block truncate">
-                              {org.slug || org.id}
-                            </span>
-                          </div>
+                <Button
+                  onClick={handleOpenCreateWorkspace}
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Workspace</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Workspaces Container: Empty State vs List vs Grid */}
+            {filteredWorkspaces.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border bg-card/40 space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Building2 className="w-7 h-7" />
+                </div>
+                <div className="space-y-1 max-w-sm">
+                  <h3 className="text-base font-bold text-foreground">
+                    {searchQuery ? "No matching workspaces found" : "No workspaces"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {searchQuery
+                      ? "Try searching for a different workspace name or slug."
+                      : "Create your first workspace to start collaborating on design tokens."}
+                  </p>
+                </div>
+                {!searchQuery && (
+                  <Button onClick={handleOpenCreateWorkspace} size="sm" className="gap-1.5 mt-2">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Workspace</span>
+                  </Button>
+                )}
+              </div>
+            ) : workspaceLayoutMode === "list" ? (
+              /* ======================================================= */
+              /* WORKSPACES LIST / ROW VIEW                               */
+              /* ======================================================= */
+              <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border shadow-2xs">
+                {/* List Header */}
+                <div className="grid grid-cols-12 items-center px-5 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
+                  <div className="col-span-5 sm:col-span-4">Workspace</div>
+                  <div className="col-span-3 sm:col-span-3">Members</div>
+                  <div className="hidden sm:block sm:col-span-3">Role &amp; Details</div>
+                  <div className="col-span-4 sm:col-span-2 text-right">Actions</div>
+                </div>
+
+                {/* List Rows */}
+                {filteredWorkspaces.map((org) => {
+                  const isActive = currentOrg?.id === org.id;
+                  const isOwner = org.ownerUid === currentUser?.uid;
+                  const orgColor = org.color || "#171717";
+                  const membersCount = org.members?.length || 1;
+
+                  return (
+                    <div
+                      key={org.id}
+                      className={`relative grid grid-cols-12 items-center px-5 py-3.5 hover:bg-muted/40 transition-colors gap-3 group ${
+                        isActive ? "bg-primary/5" : ""
+                      }`}
+                    >
+                      {/* Col 1: Workspace Identity */}
+                      <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden text-white"
+                          style={{ backgroundColor: orgColor }}
+                        >
+                          {org.logoUrl ? (
+                            <img
+                              src={org.logoUrl}
+                              alt={org.name || "Workspace Logo"}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span>{org.icon || org.name?.[0]?.toUpperCase() || "🏢"}</span>
+                          )}
                         </div>
 
-                        {/* Options Menu */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <h3
+                              onClick={() => {
+                                setCurrentOrg(org);
+                                if (!isActive) {
+                                  addToast({
+                                    type: "success",
+                                    title: "Workspace Switched",
+                                    message: `Active workspace: ${org.name}`,
+                                  });
+                                }
+                              }}
+                              className="font-bold text-xs text-foreground truncate hover:text-primary transition-colors cursor-pointer"
+                            >
+                              {org.name || "Untitled Workspace"}
+                            </h3>
+                            {isActive && (
+                              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-primary border-primary/40">
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-mono text-muted-foreground block truncate">
+                            {org.slug || org.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Col 2: Members Count */}
+                      <div className="col-span-3 sm:col-span-3 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[11px] font-mono text-foreground">
+                          <Users className="w-3 h-3 text-muted-foreground" />
+                          <span>{membersCount} {membersCount === 1 ? "member" : "members"}</span>
+                        </span>
+                      </div>
+
+                      {/* Col 3: Role & Details */}
+                      <div className="hidden sm:flex sm:col-span-3 items-center gap-2 flex-wrap">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono ${
+                            isOwner
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {isOwner && <Crown className="w-3 h-3 text-amber-500" />}
+                          <span>{isOwner ? "Owner" : "Member"}</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          Created {new Date(org.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {/* Col 4: Actions */}
+                      <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-1.5">
+                        {isActive ? (
+                          <Button
+                            onClick={() => handleOpenEditWorkspace(org)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2.5 text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            <Settings className="w-3 h-3" />
+                            <span>Settings</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => {
+                              setCurrentOrg(org);
+                              addToast({
+                                type: "success",
+                                title: "Workspace Switched",
+                                message: `Active workspace: ${org.name}`,
+                              });
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2.5 text-xs font-semibold gap-1 hover:bg-primary/10 hover:text-primary cursor-pointer"
+                          >
+                            <span>Switch</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Button>
+                        )}
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
                             >
                               <MoreVertical className="w-3.5 h-3.5" />
                             </Button>
@@ -1590,104 +1752,234 @@ export const WorkspacesProjectsView: React.FC = () => {
                         </DropdownMenu>
                       </div>
 
-                      {/* Metadata Metrics */}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
-                          <span className="text-[10px] text-muted-foreground block">Members</span>
-                          <span className="font-bold text-foreground mt-0.5 block">
-                            {org.members?.length || 1} team {org.members?.length === 1 ? "member" : "members"}
-                          </span>
-                        </div>
-
-                        <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
-                          <span className="text-[10px] text-muted-foreground block">Your Role</span>
-                          <span className="font-bold text-foreground mt-0.5 capitalize block flex items-center gap-1">
-                            {isOwner && <Crown className="w-3 h-3 text-amber-500" />}
-                            <span>{isOwner ? "Owner" : "Member"}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bottom Action */}
-                    <div className="pt-4 border-t border-border mt-4 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        Created {new Date(org.createdAt).toLocaleDateString()}
-                      </span>
-
-                      {isActive ? (
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs text-violet-600 border-violet-500/40">
-                            Current Workspace
-                          </Badge>
-                          <Button
-                            onClick={() => handleOpenEditWorkspace(org)}
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1 text-xs h-7 px-2 cursor-pointer text-muted-foreground hover:text-foreground"
-                            title="Open Workspace Settings"
-                          >
-                            <Settings className="w-3 h-3" />
-                            <span>Settings</span>
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => {
-                            setCurrentOrg(org);
-                            addToast({
-                              type: "success",
-                              title: "Workspace Switched",
-                              message: `Active workspace: ${org.name}`,
-                            });
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 text-xs h-7 px-3 cursor-pointer hover:border-violet-500 hover:text-violet-600"
-                        >
-                          <span>Switch To</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* In-Card Delete Confirmation */}
-                    {deletingOrgId === org.id && (
-                      <div className="absolute inset-0 bg-background/95 rounded-2xl p-5 flex flex-col justify-between z-20 border border-destructive/50 animate-in fade-in">
-                        <div className="space-y-2">
+                      {/* In-Row Delete Confirmation */}
+                      {deletingOrgId === org.id && (
+                        <div className="absolute inset-0 bg-background/95 rounded-xl px-5 py-2 flex items-center justify-between z-20 border border-destructive/50 animate-in fade-in">
                           <div className="flex items-center gap-2 text-destructive font-bold text-xs">
-                            <AlertTriangle className="w-4 h-4" />
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
                             <span>Delete &ldquo;{org.name}&rdquo;?</span>
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            This will permanently delete the workspace and all projects contained within it.
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeletingOrgId(null)}
+                              className="text-xs h-7"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteWorkspace(org.id)}
+                              className="text-xs h-7"
+                            >
+                              Confirm
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* ======================================================= */
+              /* WORKSPACES GRID / CARD VIEW                             */
+              /* ======================================================= */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredWorkspaces.map((org) => {
+                  const isActive = currentOrg?.id === org.id;
+                  const isOwner = org.ownerUid === currentUser?.uid;
+                  const orgColor = org.color || "#171717";
+
+                  return (
+                    <div
+                      key={org.id}
+                      className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
+                        isActive
+                          ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
+                          : "border-border hover:border-border/80"
+                      }`}
+                    >
+                      <div className="space-y-4">
+                        {/* Card Top: Brand Icon & Switcher */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden"
+                              style={{ backgroundColor: orgColor }}
+                            >
+                              {org.logoUrl ? (
+                                <img src={org.logoUrl} alt={org.name || "Organization Logo"} className="w-full h-full object-cover rounded-xl" />
+                              ) : (
+                                <span>{org.icon || org.name?.[0]?.toUpperCase() || "🏢"}</span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="font-bold text-sm text-foreground truncate group-hover:text-violet-500 transition-colors">
+                                  {org.name || "Untitled Organization"}
+                                </h3>
+                                {isActive && (
+                                  <Badge variant="secondary" className="text-[9px] py-0 px-1 font-semibold text-violet-600 dark:text-violet-400">
+                                    Active
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-mono text-muted-foreground block truncate">
+                                {org.slug || org.id}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Options Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenEditWorkspace(org)}
+                                className="gap-2 text-xs cursor-pointer"
+                              >
+                                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>Workspace Settings</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setCurrentOrg(org);
+                                  setShowManageTeamModal(true);
+                                }}
+                                className="gap-2 text-xs cursor-pointer"
+                              >
+                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>Manage Members</span>
+                              </DropdownMenuItem>
+
+                              {isOwner && userOrgs.length > 1 && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => setDeletingOrgId(org.id)}
+                                    className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Delete Workspace</span>
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
 
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeletingOrgId(null)}
-                            className="text-xs h-7"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteWorkspace(org.id)}
-                            className="text-xs h-7"
-                          >
-                            Confirm Delete
-                          </Button>
+                        {/* Metadata Metrics */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
+                            <span className="text-[10px] text-muted-foreground block">Members</span>
+                            <span className="font-bold text-foreground mt-0.5 block">
+                              {org.members?.length || 1} team {org.members?.length === 1 ? "member" : "members"}
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
+                            <span className="text-[10px] text-muted-foreground block">Your Role</span>
+                            <span className="font-bold text-foreground mt-0.5 capitalize block flex items-center gap-1">
+                              {isOwner && <Crown className="w-3 h-3 text-amber-500" />}
+                              <span>{isOwner ? "Owner" : "Member"}</span>
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+
+                      {/* Bottom Action */}
+                      <div className="pt-4 border-t border-border mt-4 flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          Created {new Date(org.createdAt).toLocaleDateString()}
+                        </span>
+
+                        {isActive ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs text-violet-600 border-violet-500/40">
+                              Current Workspace
+                            </Badge>
+                            <Button
+                              onClick={() => handleOpenEditWorkspace(org)}
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 text-xs h-7 px-2 cursor-pointer text-muted-foreground hover:text-foreground"
+                              title="Open Workspace Settings"
+                            >
+                              <Settings className="w-3 h-3" />
+                              <span>Settings</span>
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => {
+                              setCurrentOrg(org);
+                              addToast({
+                                type: "success",
+                                title: "Workspace Switched",
+                                message: `Active workspace: ${org.name}`,
+                              });
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs h-7 px-3 cursor-pointer hover:border-violet-500 hover:text-violet-600"
+                          >
+                            <span>Switch To</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* In-Card Delete Confirmation */}
+                      {deletingOrgId === org.id && (
+                        <div className="absolute inset-0 bg-background/95 rounded-2xl p-5 flex flex-col justify-between z-20 border border-destructive/50 animate-in fade-in">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-destructive font-bold text-xs">
+                              <AlertTriangle className="w-4 h-4" />
+                              <span>Delete &ldquo;{org.name}&rdquo;?</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              This will permanently delete the workspace and all projects contained within it.
+                            </p>
+                          </div>
+
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeletingOrgId(null)}
+                              className="text-xs h-7"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteWorkspace(org.id)}
+                              className="text-xs h-7"
+                            >
+                              Confirm Delete
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

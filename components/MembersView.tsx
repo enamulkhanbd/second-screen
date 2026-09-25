@@ -353,37 +353,38 @@ export const MembersView: React.FC = () => {
   const selectedRoleDef = ROLE_DEFINITIONS[inviteRole];
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans">
-      {/* Top Header */}
-      <div className="px-8 py-6 border-b border-border/80 bg-card/40 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans select-none">
+      {/* Top Page Header - Spans full width from far left to far right */}
+      <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <span>{currentOrg.name}</span>
-              <span>/</span>
-              <span className="text-foreground font-semibold">Members</span>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Members &amp; Access
+              </h1>
+              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
+                {currentOrg.name}
+              </Badge>
             </div>
-            <h1 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              <span>Team &amp; Access Management</span>
-            </h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manage team members, roles, and pending invitations for this workspace.
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs px-2.5 py-1 gap-1.5 font-medium">
               <Users className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{members.length} {members.length === 1 ? "Member" : "Members"}</span>
+              <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
             </Badge>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="max-w-5xl w-full mx-auto p-8 space-y-8">
-        <div className="space-y-8">
-            {/* Section 1: Invite New Member */}
-            {canInvite && (
-              <form onSubmit={handleSendInvite} className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
+      {/* Main Content Area - Sized to max-w-4xl based on setting page size */}
+      <div className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
+        {/* Section 1: Invite New Member */}
+        {canInvite && (
+          <form onSubmit={handleSendInvite} className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-border/70 pb-3">
                   <div>
                     <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -458,7 +459,7 @@ export const MembersView: React.FC = () => {
             )}
 
             {/* Section 2: Active Members Roster */}
-            <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
               <div className="p-6 border-b border-border/70 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -556,7 +557,6 @@ export const MembersView: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
 
         {/* Invite Email Preview Modal */}
         {previewInvitation && (

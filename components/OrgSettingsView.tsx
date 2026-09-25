@@ -15,10 +15,12 @@ import {
   Palette,
   X,
   Terminal,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
 import {
   Dialog,
@@ -198,9 +200,35 @@ export const OrgSettingsView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans select-none">
-      {/* Main Content Form */}
-      <main className="max-w-4xl w-full mx-auto p-6 md:p-10 space-y-8">
-        <form onSubmit={handleSaveOrgProfile} className="space-y-8">
+      {/* Top Page Header - Spans full width from far left to far right */}
+      <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Workspace Settings
+              </h1>
+              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
+                {currentOrg.name}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure workspace profile, custom branding, public identifiers, and developer configuration.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs px-2.5 py-1 gap-1.5 font-medium capitalize">
+              <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{isOwner ? "Owner" : userRole}</span>
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Form - Sized to max-w-4xl based on setting page size */}
+      <main className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
+        <form onSubmit={handleSaveOrgProfile} className="space-y-6">
           {/* Card 1: General Details */}
           <section className="rounded-2xl border border-border/80 bg-card p-6 sm:p-7 shadow-xs space-y-6">
             <div className="border-b border-border/70 pb-3.5">

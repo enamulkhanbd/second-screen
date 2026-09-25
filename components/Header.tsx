@@ -166,7 +166,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       hasBackButton?: boolean;
     }> = [];
 
-    if (sidebarTab === "org-settings") {
+    // Workspace-level management views: Projects, Members, and Workspace Settings
+    if (sidebarTab === "org-settings" || sidebarTab === "projects" || sidebarTab === "members") {
+      const pageLabel =
+        sidebarTab === "org-settings"
+          ? "Settings"
+          : sidebarTab === "projects"
+          ? "Projects"
+          : "Members";
+
       items.push({
         label: "Overview",
         hasBackButton: true,
@@ -177,7 +185,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         onClick: () => setSidebarTab("dashboard"),
       });
       items.push({
-        label: "Settings",
+        label: pageLabel,
+        isLast: true,
+      });
+      return items;
+    }
+
+    // Workspace Overview / Dashboard
+    if (sidebarTab === "dashboard") {
+      items.push({
+        label: "Workspaces",
+        hasBackButton: true,
+        onClick: () => setSidebarTab("workspaces"),
+      });
+      items.push({
+        label: orgName,
+        onClick: () => setSidebarTab("dashboard"),
+      });
+      items.push({
+        label: "Overview",
         isLast: true,
       });
       return items;
