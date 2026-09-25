@@ -51,7 +51,7 @@ export const OrgSettingsView: React.FC = () => {
   const isOwner = currentOrg?.ownerUid === currentUser?.uid || userRole === "owner";
 
   const [orgName, setOrgName] = useState(currentOrg?.name || "");
-  const [orgColor, setOrgColor] = useState(currentOrg?.color || "#6366f1");
+  const [orgColor, setOrgColor] = useState(currentOrg?.color || "#171717");
   const [orgIcon, setOrgIcon] = useState(currentOrg?.icon || "🏢");
   const [orgLogoUrl, setOrgLogoUrl] = useState(currentOrg?.logoUrl || "");
   const [copiedId, setCopiedId] = useState(false);
@@ -62,7 +62,7 @@ export const OrgSettingsView: React.FC = () => {
   React.useEffect(() => {
     if (currentOrg) {
       setOrgName(currentOrg.name);
-      setOrgColor(currentOrg.color || "#6366f1");
+      setOrgColor(currentOrg.color || "#171717");
       setOrgIcon(currentOrg.icon || "🏢");
       setOrgLogoUrl(currentOrg.logoUrl || "");
     }
@@ -392,7 +392,7 @@ export const OrgSettingsView: React.FC = () => {
                   isSaving ||
                   !orgName.trim() ||
                   (orgName === currentOrg.name &&
-                    orgColor === (currentOrg.color || "#6366f1") &&
+                    orgColor === (currentOrg.color || "#171717") &&
                     orgIcon === (currentOrg.icon || "🏢") &&
                     orgLogoUrl === (currentOrg.logoUrl || ""))
                 }

@@ -92,6 +92,7 @@ type PluginView = "CONNECT" | "SELECT_ORG" | "SELECT_PROJECT" | "MAIN";
 
 // Preset brand colors for dynamic theme accent
 const BRAND_PRESETS = [
+  { name: "Neutral", hex: "#171717" },
   { name: "Indigo", hex: "#6366f1" },
   { name: "Violet", hex: "#8b5cf6" },
   { name: "Blue", hex: "#3b82f6" },
@@ -108,7 +109,7 @@ const BRAND_PRESETS = [
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   let c = hex.replace(/^#/, "");
   if (c.length === 3) c = c.split("").map((x) => x + x).join("");
-  if (c.length !== 6) return { h: 263.4, s: 70, l: 50.4 };
+  if (c.length !== 6) return { h: 0, s: 0, l: 9 };
   const num = parseInt(c, 16);
   const r = (num >> 16) / 255;
   const g = ((num >> 8) & 255) / 255;
@@ -143,9 +144,9 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
 export const App: React.FC = () => {
   // Theme & Brand Color State
   const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
-  const [brandColor, setBrandColor] = useState<string>("#6366f1");
+  const [brandColor, setBrandColor] = useState<string>("#171717");
   const [isBrandModalOpen, setIsBrandModalOpen] = useState<boolean>(false);
-  const [customHexInput, setCustomHexInput] = useState<string>("#6366f1");
+  const [customHexInput, setCustomHexInput] = useState<string>("#171717");
 
   // Navigation & View State
   const [view, setView] = useState<PluginView>("CONNECT");
@@ -215,7 +216,7 @@ export const App: React.FC = () => {
     return {
       "--primary": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
       "--ring": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
-      "--primary-foreground": isLightText ? "210 20% 98%" : "224 71.4% 4.1%",
+      "--primary-foreground": isLightText ? "0 0% 98%" : "0 0% 9%",
     } as React.CSSProperties;
   }, [brandColor]);
 
@@ -962,7 +963,7 @@ export const App: React.FC = () => {
             <div
               className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white shadow-xl shadow-primary/20 transition-transform hover:scale-105"
               style={{
-                background: `linear-gradient(135deg, ${brandColor}, #4338ca)`,
+                background: `linear-gradient(135deg, ${brandColor}, #262626)`,
               }}
             >
               <Layers className="w-7 h-7" />
@@ -1754,7 +1755,7 @@ export const App: React.FC = () => {
                       saveThemePreferences(themeMode, e.target.value.trim());
                     }
                   }}
-                  placeholder="#6366f1"
+                  placeholder="#171717"
                   className="h-8 text-xs bg-background border-border text-foreground font-mono focus-visible:ring-primary rounded-lg"
                 />
               </div>

@@ -72,6 +72,7 @@ const ICON_PRESETS = [
 
 // Preset color choices
 const COLOR_PRESETS = [
+  { name: "Neutral", value: "#171717", bgClass: "bg-neutral-900" },
   { name: "Indigo", value: "#6366f1", bgClass: "bg-indigo-500" },
   { name: "Violet", value: "#8b5cf6", bgClass: "bg-violet-500" },
   { name: "Pink", value: "#ec4899", bgClass: "bg-pink-500" },
@@ -129,7 +130,7 @@ export const WorkspacesProjectsView: React.FC = () => {
   const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
   const [orgFormName, setOrgFormName] = useState("");
   const [orgFormIcon, setOrgFormIcon] = useState("🏢");
-  const [orgFormColor, setOrgFormColor] = useState("#6366f1");
+  const [orgFormColor, setOrgFormColor] = useState("#171717");
   const [orgFormLogoUrl, setOrgFormLogoUrl] = useState("");
   const [isSavingOrg, setIsSavingOrg] = useState(false);
 
@@ -141,7 +142,7 @@ export const WorkspacesProjectsView: React.FC = () => {
   const [projectFormName, setProjectFormName] = useState("");
   const [projectFormDescription, setProjectFormDescription] = useState("");
   const [projectFormIcon, setProjectFormIcon] = useState("🎯");
-  const [projectFormColor, setProjectFormColor] = useState("#6366f1");
+  const [projectFormColor, setProjectFormColor] = useState("#171717");
   const [projectFormLogoUrl, setProjectFormLogoUrl] = useState("");
   const [isSavingProject, setIsSavingProject] = useState(false);
 
@@ -218,7 +219,7 @@ export const WorkspacesProjectsView: React.FC = () => {
     setEditingOrgId(null);
     setOrgFormName("");
     setOrgFormIcon("🏢");
-    setOrgFormColor("#6366f1");
+    setOrgFormColor("#171717");
     setOrgFormLogoUrl("");
     setIsWorkspaceFormOpen(true);
   };
@@ -227,7 +228,7 @@ export const WorkspacesProjectsView: React.FC = () => {
     setEditingOrgId(org.id);
     setOrgFormName(org.name);
     setOrgFormIcon(org.icon || "🏢");
-    setOrgFormColor(org.color || "#6366f1");
+    setOrgFormColor(org.color || "#171717");
     setOrgFormLogoUrl(org.logoUrl || "");
     setIsWorkspaceFormOpen(true);
   };
@@ -306,7 +307,7 @@ export const WorkspacesProjectsView: React.FC = () => {
     setProjectFormName("");
     setProjectFormDescription("");
     setProjectFormIcon("🎯");
-    setProjectFormColor("#6366f1");
+    setProjectFormColor("#171717");
     setProjectFormLogoUrl("");
     setIsProjectFormOpen(true);
   };
@@ -316,7 +317,7 @@ export const WorkspacesProjectsView: React.FC = () => {
     setProjectFormName(proj.name);
     setProjectFormDescription(proj.description || "");
     setProjectFormIcon(proj.icon || "🎯");
-    setProjectFormColor(proj.color || "#6366f1");
+    setProjectFormColor(proj.color || "#171717");
     setProjectFormLogoUrl(proj.logoUrl || "");
     setIsProjectFormOpen(true);
   };
@@ -466,7 +467,7 @@ export const WorkspacesProjectsView: React.FC = () => {
           {/* Active Org Avatar with Custom Color / Icon */}
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-md flex-shrink-0"
-            style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
+            style={{ backgroundColor: currentOrg?.color || "#171717" }}
           >
             {currentOrg?.logoUrl ? (
               <img
@@ -512,7 +513,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                         <div className="flex items-center gap-2 truncate">
                           <div
                             className="w-5 h-5 rounded-md text-white flex items-center justify-center font-bold text-[10px]"
-                            style={{ backgroundColor: org.color || "#6366f1" }}
+                            style={{ backgroundColor: org.color || "#171717" }}
                           >
                             {org.icon || org.name?.[0]?.toUpperCase() || "🏢"}
                           </div>
@@ -972,7 +973,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                     : 0;
                   const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
-                  const projColor = proj.color || "#6366f1";
+                  const projColor = proj.color || "#171717";
 
                   return (
                     <div
@@ -1175,7 +1176,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                     : 0;
                   const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
-                  const projColor = proj.color || "#6366f1";
+                  const projColor = proj.color || "#171717";
 
                   return (
                     <div
@@ -1543,14 +1544,14 @@ export const WorkspacesProjectsView: React.FC = () => {
               {filteredWorkspaces.map((org) => {
                 const isActive = currentOrg?.id === org.id;
                 const isOwner = org.ownerUid === currentUser?.uid;
-                const orgColor = org.color || "#6366f1";
+                const orgColor = org.color || "#171717";
 
                 return (
                   <div
                     key={org.id}
                     className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
                       isActive
-                        ? "border-violet-500/60 ring-1 ring-violet-500/40 shadow-xs"
+                        ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
                         : "border-border hover:border-border/80"
                     }`}
                   >

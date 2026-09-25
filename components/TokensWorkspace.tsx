@@ -771,7 +771,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
           {selectedTokenIds.size > 0 && (
             <button
               onClick={() => setIsCommandPaletteOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#ede9fe] dark:bg-[#312e81]/40 text-[#6366f1] dark:text-[#a5b4fc] border border-[#c4b5fd]/60 dark:border-[#4338ca]/60 hover:bg-[#ddd6fe] dark:hover:bg-[#312e81]/70 transition-colors cursor-pointer shadow-2xs animate-in fade-in"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15 transition-colors cursor-pointer shadow-2xs animate-in fade-in"
               title="Open Bulk Actions Command Palette (Ctrl+K)"
             >
               <span>Edit {selectedTokenIds.size}</span>
@@ -977,7 +977,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </button>
           </div>
 
-          {/* Primary + New token Button (Matching video #6366f1) */}
+          {/* Primary + New token Button */}
           <Button
             size="sm"
             onClick={() => {
@@ -1025,7 +1025,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 table[data-resizing-col="resolved"] [data-resizer="resolved"] > div,
                 table[data-resizing-col="description"] [data-resizer="description"] > div,
                 table[data-resizing-col="set"] [data-resizer="set"] > div {
-                  background-color: #6366f1 !important;
+                  background-color: hsl(var(--primary)) !important;
                   opacity: 1 !important;
                 }
               `}</style>
@@ -1060,7 +1060,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         type="checkbox"
                         checked={allSelected}
                         onChange={toggleSelectAll}
-                        className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#6366f1]"
+                        className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
                         title="Select all"
                       />
                     </th>
@@ -1481,7 +1481,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
       return (
         <span
           onClick={onEdit}
-          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-[#c4b5fd]/60 dark:border-[#4338ca]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] cursor-pointer hover:border-[#a5b4fc] transition-colors"
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground cursor-pointer hover:border-foreground/30 transition-colors"
         >
           {rawValueStr}
         </span>
@@ -1498,7 +1498,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
               return (
                 <span
                   key={i}
-                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-mono border border-[#c4b5fd]/60 dark:border-[#4338ca]/60 bg-[#f5f3ff] text-[#6366f1] dark:bg-[#312e81]/30 dark:text-[#a5b4fc] mx-0.5"
+                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground mx-0.5"
                 >
                   {part}
                 </span>
@@ -1569,7 +1569,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
-          className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-[#6366f1] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#6366f1]"
+          className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
         />
       </td>
 

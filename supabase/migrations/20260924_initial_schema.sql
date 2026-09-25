@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
     slug TEXT NOT NULL,
     owner_uid TEXT NOT NULL,
     icon TEXT DEFAULT '🪐',
-    color TEXT DEFAULT '#2E9401',
+    color TEXT DEFAULT '#171717',
     logo_url TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL

@@ -184,8 +184,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer"
-                  style={{ backgroundColor: currentOrg?.color || "#6366f1" }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer"
+                  style={{ backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" }}
                   title={`${currentOrg?.name || "Workspace"} · ${currentProject?.name || "Project"}`}
                 >
                   {currentOrg?.logoUrl ? (
@@ -302,8 +302,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                           }`}
                       >
                         <div
-                          className="size-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-2xs"
-                          style={{ backgroundColor: org.color || "#6366f1" }}
+                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
+                          style={{ backgroundColor: org.color || "hsl(var(--primary))", color: org.color ? "#fff" : "hsl(var(--primary-foreground))" }}
                         >
                           {org.logoUrl ? (
                             <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-full" />
@@ -345,7 +345,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                     className="flex size-7 items-center justify-center rounded-lg font-bold text-xs flex-shrink-0"
                     style={currentProject
                       ? { backgroundColor: '#ecfdf5', color: '#15803d' }
-                      : { backgroundColor: currentOrg?.color || '#6366f1', color: '#fff' }
+                      : { backgroundColor: currentOrg?.color || 'hsl(var(--primary))', color: currentOrg?.color ? '#fff' : 'hsl(var(--primary-foreground))' }
                     }
                   >
                     {currentProject
@@ -475,8 +475,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                           }`}
                       >
                         <div
-                          className="size-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-2xs"
-                          style={{ backgroundColor: org.color || "#6366f1" }}
+                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
+                          style={{ backgroundColor: org.color || "hsl(var(--primary))", color: org.color ? "#fff" : "hsl(var(--primary-foreground))" }}
                         >
                           {org.logoUrl ? (
                             <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-full" />

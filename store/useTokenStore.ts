@@ -1521,7 +1521,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               "Core Tokens",
               "Primary design token system",
               "🎨",
-              "#6366f1"
+              "#171717"
             );
             if (defaultProj) {
               get().setRawTokens({});

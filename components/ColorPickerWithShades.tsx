@@ -20,7 +20,7 @@ interface ColorPickerWithShadesProps {
 }
 
 export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
-  value = "#6366f1",
+  value = "#171717",
   onChange,
 }) => {
   const [selectedHex, setSelectedHex] = useState(value);
@@ -179,7 +179,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
         >
           <input
             type="color"
-            value={selectedHex.startsWith("#") ? selectedHex : "#6366f1"}
+            value={selectedHex.startsWith("#") ? selectedHex : "#171717"}
             onChange={(e) => handleHexInputChange(e.target.value)}
             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
           />
@@ -195,7 +195,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
           <Input
             value={hexInput}
             onChange={(e) => handleHexInputChange(e.target.value)}
-            placeholder="#6366F1"
+            placeholder="#171717"
             className="h-8 pl-7 text-xs font-mono uppercase bg-background"
             maxLength={7}
           />
@@ -207,7 +207,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
           <span className="text-[11px]">Pick</span>
           <input
             type="color"
-            value={selectedHex.startsWith("#") ? selectedHex : "#6366f1"}
+            value={selectedHex.startsWith("#") ? selectedHex : "#171717"}
             onChange={(e) => handleHexInputChange(e.target.value)}
             className="sr-only"
           />

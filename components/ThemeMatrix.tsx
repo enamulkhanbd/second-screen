@@ -282,7 +282,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
               <span
                 key={opt.id}
                 className="size-2 rounded-full border border-border"
-                style={{ backgroundColor: opt.color || activeGroup.color || "#6366f1" }}
+                style={{ backgroundColor: opt.color || activeGroup.color || "hsl(var(--primary))" }}
               />
             ))}
           </div>

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 
 const COLOR_PRESETS = [
+  "#171717", // Neutral
   "#6366f1", // Indigo
   "#8b5cf6", // Violet
   "#d946ef", // Fuchsia / Magenta
@@ -41,7 +42,7 @@ export const WorkspacesListView: React.FC = () => {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
-  const [newOrgColor, setNewOrgColor] = useState("#6366f1");
+  const [newOrgColor, setNewOrgColor] = useState("#171717");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Helper to get project count for a given org
@@ -114,7 +115,7 @@ export const WorkspacesListView: React.FC = () => {
           <Button
             onClick={() => setIsCreateOpen(true)}
             size="sm"
-            className="bg-violet-600 hover:bg-violet-700 text-white font-medium text-xs px-3.5 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
+            className="font-medium text-xs px-3.5 py-1.5 rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create workspace</span>
@@ -126,14 +127,14 @@ export const WorkspacesListView: React.FC = () => {
           {userOrgs.map((org, index) => {
             const projectCount = getProjectCount(org.id);
             const memberCount = org.members?.length || 1;
-            const orgColor = org.color || (index % 2 === 0 ? "#6366f1" : "#d946ef");
+            const orgColor = org.color || (index % 2 === 0 ? "#171717" : "#525252");
             const initialLetter = org.name ? org.name.charAt(0).toUpperCase() : "W";
 
             return (
               <div
                 key={org.id}
                 onClick={() => handleSelectWorkspace(org)}
-                className="group p-4 sm:p-5 rounded-2xl border border-border/80 hover:border-violet-500/50 bg-card hover:bg-muted/30 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
+                className="group p-4 sm:p-5 rounded-2xl border border-border/80 hover:border-primary/40 bg-card hover:bg-muted/30 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
               >
                 {/* Left side: Avatar + Name + Subtitle */}
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -188,7 +189,7 @@ export const WorkspacesListView: React.FC = () => {
               <Button
                 onClick={() => setIsCreateOpen(true)}
                 size="sm"
-                className="mt-2 bg-violet-600 hover:bg-violet-700 text-white text-xs"
+                className="mt-2 text-xs"
               >
                 Create workspace
               </Button>
@@ -202,7 +203,7 @@ export const WorkspacesListView: React.FC = () => {
         <DialogContent className="sm:max-w-md font-sans">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
@@ -237,7 +238,7 @@ export const WorkspacesListView: React.FC = () => {
                     type="button"
                     onClick={() => setNewOrgColor(color)}
                     className={`w-7 h-7 rounded-lg transition-transform cursor-pointer ${
-                      newOrgColor === color ? "ring-2 ring-violet-500 ring-offset-2 scale-110" : "hover:scale-105"
+                      newOrgColor === color ? "ring-2 ring-primary ring-offset-2 scale-110" : "hover:scale-105"
                     }`}
                     style={{ backgroundColor: color }}
                   />
@@ -259,7 +260,7 @@ export const WorkspacesListView: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={isSubmitting || !newOrgName.trim()}
-                className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold"
+                className="text-xs font-semibold"
               >
                 {isSubmitting ? "Creating..." : "Create Workspace"}
               </Button>

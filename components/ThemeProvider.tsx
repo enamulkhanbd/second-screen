@@ -41,12 +41,30 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    const color = normalizeHexColor(currentOrg?.color || "#6366f1");
+    const rawColor = currentOrg?.color?.trim().toLowerCase();
+    // If color is default brand (#171717, legacy #6366f1, or legacy #2e9401/#2d9401) or not customized, remove inline override so globals.css controls both light & dark mode!
+    const isDefaultBrand =
+      !rawColor ||
+      rawColor === "#171717" ||
+      rawColor === "#6366f1" ||
+      rawColor === "#2e9401" ||
+      rawColor === "#2d9401" ||
+      rawColor === "#0a0a0a" ||
+      rawColor === "neutral";
+
+    if (isDefaultBrand) {
+      root.style.removeProperty("--primary");
+      root.style.removeProperty("--primary-foreground");
+      root.style.removeProperty("--ring");
+      return;
+    }
+
+    const color = normalizeHexColor(rawColor, "#171717");
     const rgb = hexToRgb(color);
     if (!rgb) return;
     const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
     root.style.setProperty("--primary", `${hsl.h * 360} ${hsl.s * 100}% ${hsl.l * 100}%`);
-    root.style.setProperty("--primary-foreground", getContrastTextColor(color) === "#ffffff" ? "0 0% 100%" : "224 71.4% 4.1%");
+    root.style.setProperty("--primary-foreground", getContrastTextColor(color) === "#ffffff" ? "0 0% 100%" : "0 0% 9%");
     root.style.setProperty("--ring", `${hsl.h * 360} ${hsl.s * 100}% ${hsl.l * 100}%`);
   }, [currentOrg?.id, currentOrg?.color]);
 

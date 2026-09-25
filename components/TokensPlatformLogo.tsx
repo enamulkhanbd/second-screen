@@ -91,7 +91,7 @@ export const TokensPlatformLogo: React.FC<TokensPlatformLogoProps> = ({
       <div
         onClick={onClick}
         className={cn(
-          "rounded-xl bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm flex-shrink-0 transition-transform select-none",
+          "rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-xs flex-shrink-0 transition-transform select-none",
           onClick && "cursor-pointer hover:scale-105 active:scale-95",
           className
         )}
@@ -100,7 +100,7 @@ export const TokensPlatformLogo: React.FC<TokensPlatformLogoProps> = ({
         <TokensPlatformMark
           size={innerIconSize}
           strokeWidth={strokeWidth}
-          className={cn("text-white", iconClassName)}
+          className={cn("text-primary-foreground", iconClassName)}
         />
       </div>
     );
@@ -116,11 +116,11 @@ export const TokensPlatformLogo: React.FC<TokensPlatformLogoProps> = ({
         className
       )}
     >
-      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary via-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+      <div className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-xs flex-shrink-0">
         <TokensPlatformMark
           size={18}
           strokeWidth={strokeWidth}
-          className={cn("text-white", iconClassName)}
+          className={cn("text-primary-foreground", iconClassName)}
         />
       </div>
 

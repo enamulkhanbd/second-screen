@@ -12,6 +12,24 @@ export interface ColorFamily {
 
 export const COLOR_FAMILIES: ColorFamily[] = [
   {
+    id: "neutral",
+    name: "Neutral",
+    baseHex: "#171717",
+    shades: {
+      50: "#fafafa",
+      100: "#f5f5f5",
+      200: "#e5e5e5",
+      300: "#d4d4d4",
+      400: "#a3a3a3",
+      500: "#737373",
+      600: "#525252",
+      700: "#404040",
+      800: "#262626",
+      900: "#171717",
+      950: "#0a0a0a",
+    },
+  },
+  {
     id: "indigo",
     name: "Indigo",
     baseHex: "#6366f1",
@@ -458,7 +476,7 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
   return null;
 }
 
-export function normalizeHexColor(hex: string, fallback = "#6366f1"): string {
+export function normalizeHexColor(hex: string, fallback = "#171717"): string {
   const clean = hex.trim().replace(/^#/, "");
   if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(clean)) return fallback;
   const expanded = clean.length === 3 ? clean.split("").map((char) => char + char).join("") : clean;
@@ -536,5 +554,5 @@ export function getContrastTextColor(hex: string): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return "#ffffff";
   const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
-  return yiq >= 140 ? "#0f172a" : "#ffffff";
+  return yiq >= 140 ? "#0a0a0a" : "#ffffff";
 }

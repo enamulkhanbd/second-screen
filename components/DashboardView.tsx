@@ -53,6 +53,7 @@ import { countTokensInDocument } from "@/utils/transformTokens";
 
 const ICON_PRESETS = ["🏢", "🪐", "🚀", "🎨", "💻", "🎯", "⚡", "💎", "🌟", "🛡️"];
 const COLOR_PRESETS = [
+  "#171717",
   "#6366f1",
   "#8b5cf6",
   "#ec4899",
@@ -92,7 +93,7 @@ export const DashboardView: React.FC = () => {
   const [showOrgSettingsModal, setShowOrgSettingsModal] = useState(false);
   const [orgFormName, setOrgFormName] = useState("");
   const [orgFormIcon, setOrgFormIcon] = useState("🏢");
-  const [orgFormColor, setOrgFormColor] = useState("#6366f1");
+  const [orgFormColor, setOrgFormColor] = useState("#171717");
   const [orgFormLogoUrl, setOrgFormLogoUrl] = useState("");
   const [isSavingOrg, setIsSavingOrg] = useState(false);
   const [copiedOrgId, setCopiedOrgId] = useState(false);
@@ -108,7 +109,7 @@ export const DashboardView: React.FC = () => {
     if (!currentOrg) return;
     setOrgFormName(currentOrg.name);
     setOrgFormIcon(currentOrg.icon || "🏢");
-    setOrgFormColor(currentOrg.color || "#6366f1");
+    setOrgFormColor(currentOrg.color || "#171717");
     setOrgFormLogoUrl(currentOrg.logoUrl || "");
     setShowDeleteOrgConfirm(false);
     setDeleteConfirmText("");
@@ -370,7 +371,7 @@ export const DashboardView: React.FC = () => {
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
-                          style={{ backgroundColor: proj.color || "#6366f1" }}
+                          style={{ backgroundColor: proj.color || "#171717" }}
                         >
                           {proj.logoUrl ? (
                             <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-xl" />
@@ -689,7 +690,7 @@ export const DashboardView: React.FC = () => {
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-lg shadow-xs shrink-0"
-                style={{ backgroundColor: orgFormColor || "#6366f1" }}
+                style={{ backgroundColor: orgFormColor || "#171717" }}
               >
                 <span>{orgFormIcon || "🏢"}</span>
               </div>
@@ -797,7 +798,7 @@ export const DashboardView: React.FC = () => {
                         value={orgFormColor}
                         onChange={(e) => setOrgFormColor(e.target.value)}
                         disabled={!canManageOrg}
-                        placeholder="#6366f1"
+                        placeholder="#171717"
                         className="w-24 h-8 text-xs font-mono bg-background"
                       />
                     </div>

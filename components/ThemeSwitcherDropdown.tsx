@@ -85,7 +85,7 @@ export const ThemeSwitcherDropdown: React.FC<ThemeSwitcherDropdownProps> = ({
                   <span>{group.name}</span>
                   <span
                     className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: group.color || "#6366f1" }}
+                    style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
                   />
                 </div>
 
@@ -113,7 +113,7 @@ export const ThemeSwitcherDropdown: React.FC<ThemeSwitcherDropdownProps> = ({
                           className={cn(
                             "size-4 rounded-[4px] flex items-center justify-center shrink-0 transition-colors",
                             isSelected
-                              ? "bg-[#6366f1] text-white shadow-2xs"
+                              ? "bg-primary text-primary-foreground shadow-2xs"
                               : "border border-muted-foreground/40 bg-transparent hover:border-muted-foreground/70"
                           )}
                         >

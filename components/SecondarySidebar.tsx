@@ -611,7 +611,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                           <span
                             key={opt.id}
                             className="size-1.5 rounded-full"
-                            style={{ backgroundColor: opt.color || grp.color || "#6366f1" }}
+                            style={{ backgroundColor: opt.color || grp.color || "hsl(var(--primary))" }}
                           />
                         ))}
                       </div>

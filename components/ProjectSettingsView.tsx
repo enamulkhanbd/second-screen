@@ -292,7 +292,7 @@ export const ProjectSettingsView: React.FC = () => {
               type="submit"
               size="sm"
               disabled={isSaving || !canEditSettings || isDuplicateName || !projectName.trim()}
-              className="h-8 text-xs font-medium bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-pointer shadow-2xs"
+              className="h-8 text-xs font-medium cursor-pointer shadow-2xs"
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
