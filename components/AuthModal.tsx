@@ -4,10 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
-  ShieldCheck,
-  Mail,
-  Lock,
-  User,
   Sparkles,
   ArrowRight,
   LogOut,

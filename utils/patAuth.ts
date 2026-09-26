@@ -17,8 +17,6 @@ export interface ApiKeyRecord {
   projectName?: string;
 }
 
-const STORAGE_FILE_PATH = "ts_cloud_api_keys";
-
 /**
  * Generates a secure random Personal Access Token
  */

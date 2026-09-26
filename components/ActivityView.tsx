@@ -6,7 +6,6 @@ import { GitCommitHistoryItem } from "@/app/api/git/history/route";
 import { CommitDetailsResponse } from "@/app/api/git/commit-details/route";
 import { SideBySideDiffViewer } from "@/components/SideBySideDiffViewer";
 import {
-  Clock,
   GitBranch,
   GitCommit,
   FolderGit2,
@@ -15,16 +14,8 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Calendar,
-  User,
-  ChevronRight,
   FileCode,
   FileText,
-  Layers,
-  Sparkles,
-  ArrowRight,
-  Plus,
-  Minus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

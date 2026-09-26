@@ -1,6 +1,5 @@
 import {
   RawTokensDocument,
-  ThemeGroup,
   ThemeOption,
   TokenType,
 } from "@/types/tokens";

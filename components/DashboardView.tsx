@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
 import {
-  Edit2,
   Figma,
-  Code2,
-  ArrowRight,
   HelpCircle,
   Palette,
   GitBranch,
@@ -16,18 +13,12 @@ import {
   Users,
   Package,
   Terminal,
-  CheckCircle2,
   Plus,
   FolderGit2,
-  Clock,
-  Sparkles,
-  ExternalLink,
   ChevronRight,
   UserPlus,
-  Compass,
   Settings,
   Building2,
-  Copy,
   Check,
   Trash2,
   AlertTriangle,

@@ -6,12 +6,7 @@ import { ROLE_DEFINITIONS } from "@/types/tenant";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   Sparkles,
-  Check,
-  Building2,
-  Shield,
-  ArrowRight,
   UserCheck,
-  X,
   AlertCircle,
   Github,
   Loader2,

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   COLOR_FAMILIES,
   SHADE_STEPS,
-  findMatchingColorFamily,
   findExactColorFamily,
   getBestMatchingShadeStep,
   generateDynamicShades,

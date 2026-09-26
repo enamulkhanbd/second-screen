@@ -647,37 +647,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   };
 
   /**
-   * Updates asset metadata in R2 without re-uploading files.
-   * Falls back to full persist if R2 metadata update fails.
-   */
-  const updateAssetMetadataInStorage = async (
-    orgId: string,
-    projectId: string,
-    updates: Array<{ id: string; title?: string; type?: string; tag?: string; category?: string; name?: string }>
-  ): Promise<boolean> => {
-    try {
-      const res = await fetch("/api/assets/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orgId,
-          projectId,
-          action: "update-metadata",
-          updates,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        return data.success === true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
-  };
-
-  /**
    * Loads asset configuration (Git sync & Figma sync settings) from Cloudflare R2.
    */
   const loadAssetConfigFromStorage = async (

@@ -4,8 +4,6 @@ import {
   uploadAsset,
   uploadMetadataIndex,
   loadMetadataIndex,
-  getPublicUrl,
-  buildAssetKey,
   detectContentType,
   extensionFromContentType,
   deriveAssetType,

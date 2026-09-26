@@ -20,10 +20,6 @@ import {
   Lock,
   Search,
   ExternalLink,
-  ChevronRight,
-  ChevronDown,
-  Layers,
-  Sparkles,
   ArrowLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

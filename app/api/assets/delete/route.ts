@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   isR2Configured,
-  deleteAsset as r2DeleteAsset,
   deleteAssets as r2DeleteAssets,
   loadMetadataIndex,
   uploadMetadataIndex,

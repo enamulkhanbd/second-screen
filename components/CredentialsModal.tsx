@@ -6,16 +6,12 @@ import { GitCredentials, GitProvider } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import { saveProjectGitConfig, saveProjectTokens } from "@/services/organizationService";
 import {
-  Server,
   Key,
-  GitBranch,
   FolderGit2,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
   Globe,
-  Layers,
-  Unlink,
 } from "lucide-react";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
 import { PluginDistributionModal } from "@/components/PluginDistributionModal";
@@ -26,7 +22,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

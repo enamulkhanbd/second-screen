@@ -455,9 +455,7 @@ export function resolveTokenAlias(
   // Match {path.to.token}
   const aliasRegex = /\{([^}]+)\}/g;
 
-  let hasAliases = false;
   const replaced = aliasString.replace(aliasRegex, (match, pathString) => {
-    hasAliases = true;
     const cleanPath = pathString.trim().replace(/^[./\s]+|[./\s]+$/g, "");
 
     if (visited.has(cleanPath)) {

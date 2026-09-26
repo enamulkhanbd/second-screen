@@ -5,19 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Layers,
-  Sparkles,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  ArrowRight,
   RefreshCw,
-  FolderGit2,
-  ExternalLink,
-  Lock,
-  Globe,
-  Key,
   LogIn,
-  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,11 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
-  CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Select,

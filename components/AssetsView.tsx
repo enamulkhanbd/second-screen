@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
-import { ProjectAsset, AssetFolder, AssetType, AssetGitConfig, AssetFigmaConfig, FigmaSourceLink } from "@/types/tenant";
+import { ProjectAsset, AssetFolder, AssetType, AssetGitConfig, FigmaSourceLink } from "@/types/tenant";
 import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
 
 import JSZip from "jszip";
@@ -39,16 +39,13 @@ import {
   Shirt,
   Navigation,
   FileText,
-  File,
   Film,
-  Video,
   Sparkles,
   Settings,
   Shield,
   Heart,
   Globe,
   Grid,
-  GitBranch,
   ShieldCheck,
   FolderUp,
   ChevronDown,
@@ -62,7 +59,6 @@ import {
   EyeOff,
   SlidersHorizontal,
   Save,
-  Maximize2,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
