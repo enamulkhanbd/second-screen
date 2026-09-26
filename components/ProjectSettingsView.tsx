@@ -30,6 +30,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { getAccessibleForeground, isCustomBrandColor } from "@/utils/colorPalettes";
 
 export const ProjectSettingsView: React.FC = () => {
   const {
@@ -55,9 +56,7 @@ export const ProjectSettingsView: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isCustomOrgColor = useMemo(() => {
-    if (!currentOrg?.color) return false;
-    const trimmed = currentOrg.color.trim().toLowerCase();
-    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+    return isCustomBrandColor(currentOrg?.color);
   }, [currentOrg?.color]);
 
   const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,10 +204,17 @@ export const ProjectSettingsView: React.FC = () => {
             </Label>
             <div className="flex items-center gap-2">
               <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden shadow-2xs ${
-                  isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden shadow-2xs border border-border/60 ${
+                  isCustomOrgColor ? "" : "bg-primary text-primary-foreground"
                 }`}
-                style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                style={
+                  isCustomOrgColor
+                    ? {
+                        backgroundColor: currentOrg?.color,
+                        color: getAccessibleForeground(currentOrg?.color || "#171717"),
+                      }
+                    : undefined
+                }
               >
                 {projectLogoUrl ? (
                   <img src={projectLogoUrl} alt={projectName} className="w-full h-full object-cover" />
@@ -291,7 +297,11 @@ export const ProjectSettingsView: React.FC = () => {
                     : isCustomOrgColor
                     ? currentOrg?.color
                     : "#ecfdf5",
-                  color: projectLogoUrl ? undefined : isCustomOrgColor ? "#fff" : "#15803d",
+                  color: projectLogoUrl
+                    ? undefined
+                    : isCustomOrgColor
+                    ? getAccessibleForeground(currentOrg?.color || "#171717")
+                    : "#15803d",
                 }}
                 title={canEditSettings ? "Click to upload project logo" : undefined}
               >

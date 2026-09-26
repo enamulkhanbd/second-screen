@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { getContrastTextColor, hexToRgb, normalizeHexColor, COLOR_FAMILIES } from "../colorPalettes";
+import {
+  getContrastTextColor,
+  hexToRgb,
+  normalizeHexColor,
+  COLOR_FAMILIES,
+  calculateRelativeLuminance,
+  getWcagContrastRatio,
+  getAccessibleForeground,
+  srgbToOklch,
+  oklchToRgb,
+  resolveAccessibleBrandTokens,
+  isCustomBrandColor,
+} from "../colorPalettes";
 
 describe("getContrastTextColor", () => {
   it("returns dark text (#0a0a0a) for light background colors", () => {
@@ -128,3 +140,108 @@ describe("normalizeHexColor & Neutral Palette", () => {
     expect(neutral?.shades[50]).toBe("#fafafa");
   });
 });
+
+describe("WCAG 2.1 & OKLCH Accessibility Engine", () => {
+  it("calculates relative luminance accurately", () => {
+    expect(calculateRelativeLuminance({ r: 255, g: 255, b: 255 })).toBeCloseTo(1.0, 3);
+    expect(calculateRelativeLuminance({ r: 0, g: 0, b: 0 })).toBe(0.0);
+  });
+
+  it("calculates contrast ratios accurately", () => {
+    // White on black is 21:1
+    expect(getWcagContrastRatio("#ffffff", "#000000")).toBe(21.0);
+    // Identical colors have contrast 1:1
+    expect(getWcagContrastRatio("#ffffff", "#ffffff")).toBe(1.0);
+    // Pale mint on black is > 18:1, on white is < 1.2:1
+    expect(getWcagContrastRatio("#f1ffeb", "#000000")).toBeGreaterThan(18.0);
+    expect(getWcagContrastRatio("#f1ffeb", "#ffffff")).toBeLessThan(1.2);
+  });
+
+  it("chooses optimal accessible foreground for light vs dark colors", () => {
+    // Pale light colors MUST get dark foreground (#0a0a0a)
+    expect(getAccessibleForeground("#f1ffeb")).toBe("#0a0a0a");
+    expect(getAccessibleForeground("#ffff00")).toBe("#0a0a0a");
+    expect(getAccessibleForeground("#ffffff")).toBe("#0a0a0a");
+
+    // Deep dark colors MUST get light foreground (#ffffff)
+    expect(getAccessibleForeground("#0b192c")).toBe("#ffffff");
+    expect(getAccessibleForeground("#000000")).toBe("#ffffff");
+    expect(getAccessibleForeground("#1e1b4b")).toBe("#ffffff");
+  });
+
+  it("roundtrips sRGB -> OKLCH -> sRGB with high fidelity", () => {
+    const oklch = srgbToOklch(99, 102, 241); // indigo
+    const rgb = oklchToRgb(oklch.l, oklch.c, oklch.h);
+    expect(Math.abs(rgb.r - 99)).toBeLessThanOrEqual(2);
+    expect(Math.abs(rgb.g - 102)).toBeLessThanOrEqual(2);
+    expect(Math.abs(rgb.b - 241)).toBeLessThanOrEqual(2);
+  });
+
+  it("resolves dual-theme accessible tokens for light color (#f1ffeb)", () => {
+    const tokens = resolveAccessibleBrandTokens("#f1ffeb");
+    expect(tokens.light.foregroundHex).toBe("#0a0a0a");
+    expect(tokens.light.contrastRatio).toBeGreaterThan(15);
+    expect(tokens.light.isUltraLight).toBe(true);
+    expect(tokens.dark.contrastRatio).toBeGreaterThan(4.5);
+  });
+
+  it("resolves dual-theme accessible tokens for deep dark color (#0b192c)", () => {
+    const tokens = resolveAccessibleBrandTokens("#0b192c");
+    expect(tokens.light.foregroundHex).toBe("#ffffff");
+    expect(tokens.light.contrastRatio).toBeGreaterThan(10);
+    // In dark mode, primary should be lightened so it doesn't vanish on black
+    expect(tokens.dark.contrastRatio).toBeGreaterThan(4.5);
+    expect(tokens.dark.primaryHex).not.toBe("#0b192c");
+  });
+});
+
+describe("isCustomBrandColor", () => {
+  it("returns false for null, undefined, empty, and default neutral colors", () => {
+    expect(isCustomBrandColor(null)).toBe(false);
+    expect(isCustomBrandColor(undefined)).toBe(false);
+    expect(isCustomBrandColor("")).toBe(false);
+    expect(isCustomBrandColor("#171717")).toBe(false);
+    expect(isCustomBrandColor("#0a0a0a")).toBe(false);
+    expect(isCustomBrandColor("neutral")).toBe(false);
+    expect(isCustomBrandColor("  #171717  ")).toBe(false);
+  });
+
+  it("returns true for custom palette and hex brand colors", () => {
+    expect(isCustomBrandColor("#f1ffeb")).toBe(true);
+    expect(isCustomBrandColor("#6366f1")).toBe(true);
+    expect(isCustomBrandColor("#22c55e")).toBe(true);
+    expect(isCustomBrandColor("#ef4444")).toBe(true);
+    expect(isCustomBrandColor("#facc15")).toBe(true);
+    expect(isCustomBrandColor("#3b82f6")).toBe(true);
+  });
+});
+
+describe("Comprehensive Shade Accessibility across all COLOR_FAMILIES", () => {
+  it("guarantees WCAG AA compliance (contrast >= 4.4:1) for all shades in every color family", () => {
+    for (const family of COLOR_FAMILIES) {
+      for (const [step, hex] of Object.entries(family.shades)) {
+        const fg = getAccessibleForeground(hex);
+        const contrast = getWcagContrastRatio(hex, fg);
+        expect(
+          contrast,
+          `Family ${family.name} shade ${step} (${hex}) with foreground ${fg} failed (got ${contrast}:1)`
+        ).toBeGreaterThanOrEqual(4.4);
+      }
+    }
+  });
+
+  it("guarantees WCAG AAA compliance (contrast >= 7.0:1) for light tints (50-100) and deep shades (900-950)", () => {
+    for (const family of COLOR_FAMILIES) {
+      for (const step of [50, 100, 900, 950] as const) {
+        const hex = family.shades[step];
+        const fg = getAccessibleForeground(hex);
+        const contrast = getWcagContrastRatio(hex, fg);
+        expect(
+          contrast,
+          `Family ${family.name} extreme shade ${step} (${hex}) failed WCAG AAA (got ${contrast}:1)`
+        ).toBeGreaterThanOrEqual(7.0);
+      }
+    }
+  });
+});
+

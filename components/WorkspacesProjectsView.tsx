@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
 import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
+import { getAccessibleForeground, isCustomBrandColor } from "@/utils/colorPalettes";
 import {
   Dialog,
   DialogContent,
@@ -150,9 +151,7 @@ export const WorkspacesProjectsView: React.FC = () => {
   const orgFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const isCustomOrgColor = useMemo(() => {
-    if (!currentOrg?.color) return false;
-    const trimmed = currentOrg.color.trim().toLowerCase();
-    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+    return isCustomBrandColor(currentOrg?.color);
   }, [currentOrg?.color]);
 
   const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -497,8 +496,11 @@ export const WorkspacesProjectsView: React.FC = () => {
           <div className="flex items-center gap-3">
             {/* Active Org Avatar */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-2xs shrink-0 overflow-hidden"
-              style={{ backgroundColor: currentOrg?.color || "#171717" }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-2xs shrink-0 overflow-hidden border border-border/70"
+              style={{
+                backgroundColor: currentOrg?.color || "#171717",
+                color: getAccessibleForeground(currentOrg?.color || "#171717"),
+              }}
             >
               {currentOrg?.logoUrl ? (
                 <img
@@ -602,9 +604,16 @@ export const WorkspacesProjectsView: React.FC = () => {
                     <div className="flex items-center gap-3.5">
                       <div
                         className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 overflow-hidden border border-border/80 ${
-                          isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                          isCustomOrgColor ? "" : "bg-primary text-primary-foreground"
                         }`}
-                        style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                        style={
+                          isCustomOrgColor
+                            ? {
+                                backgroundColor: currentOrg?.color,
+                                color: getAccessibleForeground(currentOrg?.color || "#171717"),
+                              }
+                            : undefined
+                        }
                       >
                         {projectFormLogoUrl ? (
                           <img
@@ -941,10 +950,17 @@ export const WorkspacesProjectsView: React.FC = () => {
                       {/* Col 1: Project Identity */}
                       <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
-                            isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-border/60 ${
+                            isCustomOrgColor ? "" : "bg-primary text-primary-foreground"
                           }`}
-                          style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                          style={
+                            isCustomOrgColor
+                              ? {
+                                  backgroundColor: currentOrg?.color,
+                                  color: getAccessibleForeground(currentOrg?.color || "#171717"),
+                                }
+                              : undefined
+                          }
                         >
                           {proj.logoUrl ? (
                             <img
@@ -1148,10 +1164,17 @@ export const WorkspacesProjectsView: React.FC = () => {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
-                                isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-border/60 ${
+                                isCustomOrgColor ? "" : "bg-primary text-primary-foreground"
                               }`}
-                              style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                              style={
+                                isCustomOrgColor
+                                  ? {
+                                      backgroundColor: currentOrg?.color,
+                                      color: getAccessibleForeground(currentOrg?.color || "#171717"),
+                                    }
+                                  : undefined
+                              }
                             >
                               {proj.logoUrl ? (
                                 <img src={proj.logoUrl} alt={proj.name || "Project Logo"} className="w-full h-full object-cover" />
@@ -1382,8 +1405,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                   <SheetHeader className="px-6 py-5 border-b border-border/80 bg-card/50 flex-shrink-0">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-xs flex-shrink-0 transition-colors overflow-hidden"
-                        style={{ backgroundColor: orgFormColor }}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg shadow-xs flex-shrink-0 transition-colors overflow-hidden border border-border/60"
+                        style={{
+                          backgroundColor: orgFormColor,
+                          color: getAccessibleForeground(orgFormColor || "#171717"),
+                        }}
                       >
                         {orgFormLogoUrl ? (
                           <img src={orgFormLogoUrl} alt="Logo" className="w-full h-full object-cover rounded-xl" />
@@ -1607,8 +1633,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                       {/* Col 1: Workspace Identity */}
                       <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
                         <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden text-white"
-                          style={{ backgroundColor: orgColor }}
+                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-border/60"
+                          style={{
+                            backgroundColor: orgColor,
+                            color: getAccessibleForeground(orgColor),
+                          }}
                         >
                           {org.logoUrl ? (
                             <img
@@ -1807,8 +1836,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden"
-                              style={{ backgroundColor: orgColor }}
+                              className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-border/60"
+                              style={{
+                                backgroundColor: orgColor,
+                                color: getAccessibleForeground(orgColor),
+                              }}
                             >
                               {org.logoUrl ? (
                                 <img src={org.logoUrl} alt={org.name || "Organization Logo"} className="w-full h-full object-cover rounded-xl" />

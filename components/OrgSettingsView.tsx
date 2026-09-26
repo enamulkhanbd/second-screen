@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
+import { getAccessibleForeground } from "@/utils/colorPalettes";
 import {
   Dialog,
   DialogContent,
@@ -317,7 +318,7 @@ export const OrgSettingsView: React.FC = () => {
                       maxWidth: 64,
                       maxHeight: 64,
                       backgroundColor: orgLogoUrl ? undefined : (orgColor || "hsl(var(--primary))"),
-                      color: orgColor ? "#fff" : "hsl(var(--primary-foreground))",
+                      color: orgLogoUrl ? undefined : getAccessibleForeground(orgColor || "#171717"),
                     }}
                     title={isOwner ? "Click to upload workspace logo" : undefined}
                   >

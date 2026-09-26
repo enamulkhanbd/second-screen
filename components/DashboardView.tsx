@@ -41,6 +41,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { countTokensInDocument } from "@/utils/transformTokens";
+import { getAccessibleForeground, isCustomBrandColor } from "@/utils/colorPalettes";
 
 export const DashboardView: React.FC = () => {
   const {
@@ -79,9 +80,7 @@ export const DashboardView: React.FC = () => {
   const orgColor = currentOrg?.color || "#171717";
 
   const isCustomOrgColor = useMemo(() => {
-    if (!currentOrg?.color) return false;
-    const trimmed = currentOrg.color.trim().toLowerCase();
-    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+    return isCustomBrandColor(currentOrg?.color);
   }, [currentOrg?.color]);
 
   // Only display real projects for this active organization
@@ -150,10 +149,17 @@ export const DashboardView: React.FC = () => {
           <div className="flex items-center justify-between pb-4 border-b border-border/60">
             <div className="flex items-center gap-3.5">
               <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-lg shadow-xs shrink-0 overflow-hidden ${
-                  isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-lg shadow-xs shrink-0 overflow-hidden border border-border/60 ${
+                  isCustomOrgColor ? "" : "bg-primary text-primary-foreground"
                 }`}
-                style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                style={
+                  isCustomOrgColor
+                    ? {
+                        backgroundColor: currentOrg?.color,
+                        color: getAccessibleForeground(currentOrg?.color || "#171717"),
+                      }
+                    : undefined
+                }
               >
                 {currentOrg?.logoUrl ? (
                   <img
@@ -246,10 +252,17 @@ export const DashboardView: React.FC = () => {
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
-                            isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-border/60 ${
+                            isCustomOrgColor ? "" : "bg-primary text-primary-foreground"
                           }`}
-                          style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                          style={
+                            isCustomOrgColor
+                              ? {
+                                  backgroundColor: currentOrg?.color,
+                                  color: getAccessibleForeground(currentOrg?.color || "#171717"),
+                                }
+                              : undefined
+                          }
                         >
                           {proj.logoUrl ? (
                             <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover" />

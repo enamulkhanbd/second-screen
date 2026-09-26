@@ -618,3 +618,233 @@ export function getContrastTextColor(hex: string): string {
   const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
   return yiq >= 140 ? "#0a0a0a" : "#ffffff";
 }
+
+// -------------------------------------------------------------
+// WCAG 2.1 & OKLCH Perceptual Accessibility Engine
+// -------------------------------------------------------------
+
+/**
+ * Calculates WCAG 2.1 Relative Luminance (0.0 to 1.0)
+ * Uses precise sRGB inverse gamma expansion.
+ */
+export function calculateRelativeLuminance(rgb: { r: number; g: number; b: number }): number {
+  const toLinear = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const rLin = toLinear(rgb.r);
+  const gLin = toLinear(rgb.g);
+  const bLin = toLinear(rgb.b);
+  return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
+}
+
+/**
+ * Calculates WCAG 2.1 Contrast Ratio from two relative luminances (1.0 to 21.0)
+ */
+export function getContrastRatioFromLuminance(l1: number, l2: number): number {
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  const ratio = (lighter + 0.05) / (darker + 0.05);
+  return Math.round(ratio * 100) / 100;
+}
+
+/**
+ * Calculates WCAG 2.1 Contrast Ratio between two hex colors.
+ */
+export function getWcagContrastRatio(hex1: string, hex2: string): number {
+  const rgb1 = hexToRgb(hex1);
+  const rgb2 = hexToRgb(hex2);
+  if (!rgb1 || !rgb2) return 1.0;
+  const l1 = calculateRelativeLuminance(rgb1);
+  const l2 = calculateRelativeLuminance(rgb2);
+  return getContrastRatioFromLuminance(l1, l2);
+}
+
+/**
+ * Determines the accessible text color (#ffffff or #0a0a0a) for any background color
+ * strictly following WCAG 2.1 AA/AAA contrast guidelines.
+ */
+export function getAccessibleForeground(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return "#ffffff";
+  const bgL = calculateRelativeLuminance(rgb);
+  const ratioWhite = getContrastRatioFromLuminance(bgL, 1.0);
+  const darkL = calculateRelativeLuminance({ r: 10, g: 10, b: 10 });
+  const ratioDark = getContrastRatioFromLuminance(bgL, darkL);
+
+  return ratioWhite >= ratioDark ? "#ffffff" : "#0a0a0a";
+}
+
+/**
+ * Converts sRGB [0..255] to OKLCH perceptual color space:
+ * L: Perceptual Lightness [0..1]
+ * C: Chroma [0..~0.37]
+ * H: Hue angle [0..360)
+ */
+export function srgbToOklch(r: number, g: number, b: number): { l: number; c: number; h: number } {
+  const toLinear = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const rLin = toLinear(r);
+  const gLin = toLinear(g);
+  const bLin = toLinear(b);
+
+  const l = Math.cbrt(0.4122214708 * rLin + 0.5363325363 * gLin + 0.0514459929 * bLin);
+  const m = Math.cbrt(0.2119034982 * rLin + 0.6806995451 * gLin + 0.1073969566 * bLin);
+  const s = Math.cbrt(0.0883024619 * rLin + 0.2817188376 * gLin + 0.6299787005 * bLin);
+
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const oklabB = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+
+  const c = Math.sqrt(a * a + oklabB * oklabB);
+  let h = (Math.atan2(oklabB, a) * 180) / Math.PI;
+  if (h < 0) h += 360;
+
+  return { l: Math.max(0, Math.min(1, L)), c, h };
+}
+
+/**
+ * Converts OKLCH perceptual color space back to standard sRGB [0..255]
+ */
+export function oklchToRgb(l: number, c: number, h: number): { r: number; g: number; b: number } {
+  const hRad = (h * Math.PI) / 180;
+  const a = c * Math.cos(hRad);
+  const b = c * Math.sin(hRad);
+
+  const l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = l - 0.0894841775 * a - 1.291485548 * b;
+
+  const lLin = l_ * l_ * l_;
+  const mLin = m_ * m_ * m_;
+  const sLin = s_ * s_ * s_;
+
+  const rLin = +4.0767416621 * lLin - 3.3077115913 * mLin + 0.2309699292 * sLin;
+  const gLin = -1.2684380046 * lLin + 2.6097574011 * mLin - 0.3413193965 * sLin;
+  const bLin = -0.0041960863 * lLin - 0.7034186147 * mLin + 1.707614701 * sLin;
+
+  const toSrgb = (v: number) => {
+    const clamped = Math.max(0, Math.min(1, v));
+    return clamped <= 0.0031308
+      ? 12.92 * clamped
+      : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+  };
+
+  return {
+    r: Math.round(toSrgb(rLin) * 255),
+    g: Math.round(toSrgb(gLin) * 255),
+    b: Math.round(toSrgb(bLin) * 255),
+  };
+}
+
+export interface AccessibleBrandTokens {
+  rawHex: string;
+  normalizedHex: string;
+  light: {
+    primaryHex: string;
+    primaryHsl: string;
+    foregroundHex: string;
+    foregroundHsl: string;
+    contrastRatio: number;
+    isUltraLight: boolean;
+    borderHex: string;
+    subtleHex: string;
+  };
+  dark: {
+    primaryHex: string;
+    primaryHsl: string;
+    foregroundHex: string;
+    foregroundHsl: string;
+    contrastRatio: number;
+    subtleHex: string;
+  };
+  shades: Record<ColorShade["step"], string>;
+  oklch: { l: number; c: number; h: number };
+}
+
+/**
+ * Resolves full dual-theme accessible tokens for any user-selected brand color.
+ * Automatically computes optimal foreground colors and adapts dark mode
+ * lightness/chroma to guarantee WCAG compliance and visual comfort.
+ */
+export function resolveAccessibleBrandTokens(rawHex: string): AccessibleBrandTokens {
+  const normalizedHex = normalizeHexColor(rawHex, "#171717");
+  const rgb = hexToRgb(normalizedHex) || { r: 23, g: 23, b: 23 };
+  const oklch = srgbToOklch(rgb.r, rgb.g, rgb.b);
+  const shades = generateDynamicShades(normalizedHex);
+
+  // --- Light Mode ---
+  const lightPrimaryHex = normalizedHex;
+  const lightForegroundHex = getAccessibleForeground(lightPrimaryHex);
+  const lightRgb = hexToRgb(lightPrimaryHex) || rgb;
+  const lightHsl = rgbToHsl(lightRgb.r, lightRgb.g, lightRgb.b);
+  const lightFgRgb = hexToRgb(lightForegroundHex) || { r: 255, g: 255, b: 255 };
+  const lightFgHsl = rgbToHsl(lightFgRgb.r, lightFgRgb.g, lightFgRgb.b);
+  const lightContrast = getWcagContrastRatio(lightPrimaryHex, lightForegroundHex);
+
+  // Ultra-light check: Relative luminance > 0.70 means on pure white cards it needs a perimeter border
+  const relLum = calculateRelativeLuminance(lightRgb);
+  const isUltraLight = relLum > 0.70;
+  const borderHex = shades[300] || shades[200] || "#d4d4d4";
+  const lightSubtleHex = shades[100] || "#f5f5f5";
+
+  // --- Dark Mode ---
+  // If the color is deep/dark in OKLCH (L < 0.55), shift lightness to 0.70 so it pops on dark surfaces
+  let darkPrimaryHex: string;
+  if (oklch.l < 0.55) {
+    const targetL = Math.max(0.68, Math.min(0.76, oklch.l + 0.38));
+    const targetC = Math.min(oklch.c, 0.16);
+    const shiftedRgb = oklchToRgb(targetL, targetC, oklch.h);
+    darkPrimaryHex = rgbToHex(shiftedRgb.r, shiftedRgb.g, shiftedRgb.b);
+  } else if (oklch.c > 0.20) {
+    // Clamp extreme neon saturation to avoid halation on dark surfaces
+    const clampedRgb = oklchToRgb(Math.min(oklch.l, 0.85), 0.17, oklch.h);
+    darkPrimaryHex = rgbToHex(clampedRgb.r, clampedRgb.g, clampedRgb.b);
+  } else {
+    darkPrimaryHex = normalizedHex;
+  }
+
+  const darkForegroundHex = getAccessibleForeground(darkPrimaryHex);
+  const darkRgb = hexToRgb(darkPrimaryHex) || rgb;
+  const darkHsl = rgbToHsl(darkRgb.r, darkRgb.g, darkRgb.b);
+  const darkFgRgb = hexToRgb(darkForegroundHex) || { r: 10, g: 10, b: 10 };
+  const darkFgHsl = rgbToHsl(darkFgRgb.r, darkFgRgb.g, darkFgRgb.b);
+  const darkContrast = getWcagContrastRatio(darkPrimaryHex, darkForegroundHex);
+  const darkSubtleHex = shades[900] || "#262626";
+
+  return {
+    rawHex,
+    normalizedHex,
+    light: {
+      primaryHex: lightPrimaryHex,
+      primaryHsl: `${Math.round(lightHsl.h * 360)} ${Math.round(lightHsl.s * 100)}% ${Math.round(lightHsl.l * 100)}%`,
+      foregroundHex: lightForegroundHex,
+      foregroundHsl: `${Math.round(lightFgHsl.h * 360)} ${Math.round(lightFgHsl.s * 100)}% ${Math.round(lightFgHsl.l * 100)}%`,
+      contrastRatio: lightContrast,
+      isUltraLight,
+      borderHex,
+      subtleHex: lightSubtleHex,
+    },
+    dark: {
+      primaryHex: darkPrimaryHex,
+      primaryHsl: `${Math.round(darkHsl.h * 360)} ${Math.round(darkHsl.s * 100)}% ${Math.round(darkHsl.l * 100)}%`,
+      foregroundHex: darkForegroundHex,
+      foregroundHsl: `${Math.round(darkFgHsl.h * 360)} ${Math.round(darkFgHsl.s * 100)}% ${Math.round(darkFgHsl.l * 100)}%`,
+      contrastRatio: darkContrast,
+      subtleHex: darkSubtleHex,
+    },
+    shades,
+    oklch,
+  };
+}
+
+/**
+ * Determines whether a color is a custom brand color (not the neutral dark/light default)
+ */
+export function isCustomBrandColor(rawHex?: string | null): rawHex is string {
+  if (!rawHex) return false;
+  const clean = rawHex.trim().toLowerCase();
+  return !["#171717", "#0a0a0a", "neutral", ""].includes(clean);
+}

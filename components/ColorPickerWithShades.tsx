@@ -9,11 +9,13 @@ import {
   getBestMatchingShadeStep,
   generateDynamicShades,
   getContrastTextColor,
+  resolveAccessibleBrandTokens,
   ColorShade,
   ColorFamily,
 } from "@/utils/colorPalettes";
-import { Check, Pipette, Hash } from "lucide-react";
+import { Check, Pipette, Hash, ShieldCheck, Sun, Moon } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface ColorPickerWithShadesProps {
   value: string;
@@ -53,6 +55,8 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
     }
     return getBestMatchingShadeStep(selectedHex);
   }, [currentShades, selectedHex]);
+
+  const brandTokens = useMemo(() => resolveAccessibleBrandTokens(selectedHex), [selectedHex]);
 
   const handleSelectFamily = (family: ColorFamily) => {
     const targetStep = currentStep || 500;
@@ -224,6 +228,74 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
             className="sr-only"
           />
         </label>
+      </div>
+
+      {/* 4. Live Accessibility & Dual-Theme Contrast Indicator */}
+      <div className="pt-2.5 border-t border-border/70 space-y-2">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+            <span>Dual-Theme Accessibility</span>
+          </span>
+          <Badge
+            variant="outline"
+            className={`text-[9px] font-mono px-1.5 py-0 h-4 border ${
+              brandTokens.light.contrastRatio >= 4.5 && brandTokens.dark.contrastRatio >= 4.5
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+            }`}
+          >
+            {brandTokens.light.contrastRatio >= 7.0 && brandTokens.dark.contrastRatio >= 7.0
+              ? "WCAG AAA Pass"
+              : "WCAG AA Pass"}
+          </Badge>
+        </div>
+
+        {/* Dual Mode Preview Cards */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* Light Theme Preview */}
+          <div className="p-2 rounded-lg bg-white text-zinc-900 border border-zinc-200/90 shadow-2xs space-y-1.5">
+            <div className="flex items-center justify-between text-[9px] text-zinc-500">
+              <span className="font-semibold flex items-center gap-1">
+                <Sun className="w-2.5 h-2.5 text-amber-500" />
+                <span>Light</span>
+              </span>
+              <span className="font-mono font-bold text-zinc-700">{brandTokens.light.contrastRatio}:1</span>
+            </div>
+            <div
+              className={`h-6 rounded-md flex items-center justify-center text-[10px] font-semibold transition-all shadow-2xs ${
+                brandTokens.light.isUltraLight ? "border" : ""
+              }`}
+              style={{
+                backgroundColor: brandTokens.light.primaryHex,
+                color: brandTokens.light.foregroundHex,
+                borderColor: brandTokens.light.borderHex,
+              }}
+            >
+              Primary Action
+            </div>
+          </div>
+
+          {/* Dark Theme Preview */}
+          <div className="p-2 rounded-lg bg-zinc-950 text-zinc-100 border border-zinc-800 shadow-2xs space-y-1.5">
+            <div className="flex items-center justify-between text-[9px] text-zinc-400">
+              <span className="font-semibold flex items-center gap-1">
+                <Moon className="w-2.5 h-2.5 text-indigo-400" />
+                <span>Dark</span>
+              </span>
+              <span className="font-mono font-bold text-zinc-200">{brandTokens.dark.contrastRatio}:1</span>
+            </div>
+            <div
+              className="h-6 rounded-md flex items-center justify-center text-[10px] font-semibold transition-all shadow-2xs"
+              style={{
+                backgroundColor: brandTokens.dark.primaryHex,
+                color: brandTokens.dark.foregroundHex,
+              }}
+            >
+              Primary Action
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

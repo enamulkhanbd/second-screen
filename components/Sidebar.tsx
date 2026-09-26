@@ -56,6 +56,7 @@ import { Input } from "@/components/ui/input";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { cn } from "@/lib/utils";
 import { TokensPlatformMark } from "@/components/TokensPlatformLogo";
+import { getAccessibleForeground, isCustomBrandColor } from "@/utils/colorPalettes";
 
 function FigmaVariableIcon({ className }: { className?: string }) {
   return (
@@ -133,9 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   );
 
   const isCustomOrgColor = useMemo(() => {
-    if (!currentOrg?.color) return false;
-    const trimmed = currentOrg.color.trim().toLowerCase();
-    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+    return isCustomBrandColor(currentOrg?.color);
   }, [currentOrg?.color]);
 
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -196,13 +195,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                       ? (currentProject.logoUrl
                           ? undefined
                           : currentProject.color
-                          ? { backgroundColor: currentProject.color, color: "#fff" }
+                          ? { backgroundColor: currentProject.color, color: getAccessibleForeground(currentProject.color) }
                           : isCustomOrgColor
-                          ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
+                          ? { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: getAccessibleForeground(currentOrg?.color || "#171717") }
                           : { backgroundColor: "#ecfdf5", color: "#15803d" })
                       : (currentOrg?.logoUrl
                           ? undefined
-                          : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
+                          : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: getAccessibleForeground(currentOrg?.color || "#171717") })
                   }
                   title={currentProject ? `${currentProject.name} · ${currentOrg?.name || "Workspace"}` : (currentOrg?.name || "Workspace")}
                 >
@@ -258,10 +257,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
                         <div
-                          className={`size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden ${
+                          className={`size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden border border-border/50 ${
                             isCustomOrgColor ? "" : "bg-muted text-foreground"
                           }`}
-                          style={isCustomOrgColor ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color } : undefined}
+                          style={
+                            isCustomOrgColor
+                              ? {
+                                  backgroundColor: proj.color || currentOrg?.color,
+                                  color: getAccessibleForeground(proj.color || currentOrg?.color || "#171717"),
+                                }
+                              : undefined
+                          }
                         >
                           {proj.logoUrl ? (
                             <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-md" />
@@ -328,8 +334,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                           }`}
                       >
                         <div
-                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
-                          style={{ backgroundColor: org.color || "hsl(var(--primary))", color: org.color ? "#fff" : "hsl(var(--primary-foreground))" }}
+                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs overflow-hidden border border-border/60"
+                          style={{
+                            backgroundColor: org.color || "hsl(var(--primary))",
+                            color: getAccessibleForeground(org.color || "#171717"),
+                          }}
                         >
                           {org.logoUrl ? (
                             <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-full" />
@@ -389,13 +398,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         ? (currentProject.logoUrl
                             ? undefined
                             : currentProject.color
-                            ? { backgroundColor: currentProject.color, color: "#fff" }
+                            ? { backgroundColor: currentProject.color, color: getAccessibleForeground(currentProject.color) }
                             : isCustomOrgColor
-                            ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
+                            ? { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: getAccessibleForeground(currentOrg?.color || "#171717") }
                             : { backgroundColor: "#ecfdf5", color: "#15803d" })
                         : (currentOrg?.logoUrl
                             ? undefined
-                            : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
+                            : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: getAccessibleForeground(currentOrg?.color || "#171717") })
                     }
                   >
                     {currentProject ? (
@@ -464,10 +473,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
                         <div
-                          className={`size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden ${
+                          className={`size-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden border border-border/50 ${
                             isCustomOrgColor ? "" : "bg-muted text-foreground"
                           }`}
-                          style={isCustomOrgColor ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color } : undefined}
+                          style={
+                            isCustomOrgColor
+                              ? {
+                                  backgroundColor: proj.color || currentOrg?.color,
+                                  color: getAccessibleForeground(proj.color || currentOrg?.color || "#171717"),
+                                }
+                              : undefined
+                          }
                         >
                           {proj.logoUrl ? (
                             <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover rounded-md" />
@@ -534,8 +550,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                           }`}
                       >
                         <div
-                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
-                          style={{ backgroundColor: org.color || "hsl(var(--primary))", color: org.color ? "#fff" : "hsl(var(--primary-foreground))" }}
+                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs overflow-hidden border border-border/60"
+                          style={{
+                            backgroundColor: org.color || "hsl(var(--primary))",
+                            color: getAccessibleForeground(org.color || "#171717"),
+                          }}
                         >
                           {org.logoUrl ? (
                             <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover rounded-full" />

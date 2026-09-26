@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getAccessibleForeground } from "@/utils/colorPalettes";
 
 export const PRODUCTION_APP_URL = "https://tokensplatform.enamulkhan.com";
 
@@ -907,8 +908,11 @@ export const App: React.FC = () => {
         <div className="h-11 px-4 border-b border-border/80 flex items-center justify-between bg-card/60 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div
-              className="w-5 h-5 rounded-md shadow-xs flex items-center justify-center text-white"
-              style={{ backgroundColor: brandColor }}
+              className="w-5 h-5 rounded-md shadow-xs flex items-center justify-center border border-border/50"
+              style={{
+                backgroundColor: brandColor,
+                color: getAccessibleForeground(brandColor),
+              }}
             >
               <Layers className="w-3 h-3" />
             </div>
@@ -1141,8 +1145,11 @@ export const App: React.FC = () => {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold uppercase shadow-xs transition-transform group-hover:scale-105"
-                      style={{ backgroundColor: orgColor }}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold uppercase shadow-xs transition-transform group-hover:scale-105 border border-border/60"
+                      style={{
+                        backgroundColor: orgColor,
+                        color: getAccessibleForeground(orgColor),
+                      }}
                     >
                       {org.name.charAt(0) || "O"}
                     </div>
@@ -1232,8 +1239,11 @@ export const App: React.FC = () => {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold uppercase shadow-xs transition-transform group-hover:scale-105"
-                      style={{ backgroundColor: projColor }}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold uppercase shadow-xs transition-transform group-hover:scale-105 border border-border/60"
+                      style={{
+                        backgroundColor: projColor,
+                        color: getAccessibleForeground(projColor),
+                      }}
                     >
                       {proj.name.charAt(0) || "P"}
                     </div>
@@ -1301,8 +1311,11 @@ export const App: React.FC = () => {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary px-2 py-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer">
               <div
-                className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold uppercase shadow-xs flex-shrink-0"
-                style={{ backgroundColor: selectedProject?.color || brandColor }}
+                className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold uppercase shadow-xs flex-shrink-0 border border-border/50"
+                style={{
+                  backgroundColor: selectedProject?.color || brandColor,
+                  color: getAccessibleForeground(selectedProject?.color || brandColor),
+                }}
               >
                 {(selectedProject?.name || config.projectName || "W").charAt(0)}
               </div>

@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { getAccessibleForeground } from "@/utils/colorPalettes";
 
 const COLOR_PRESETS = [
   "#171717", // Neutral
@@ -139,8 +140,11 @@ export const WorkspacesListView: React.FC = () => {
                 {/* Left side: Avatar + Name + Subtitle */}
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-xs shrink-0 group-hover:scale-105 transition-transform"
-                    style={{ backgroundColor: orgColor }}
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-border/60"
+                    style={{
+                      backgroundColor: orgColor,
+                      color: getAccessibleForeground(orgColor),
+                    }}
                   >
                     {org.logoUrl ? (
                       <img
