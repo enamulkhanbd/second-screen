@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExtensionDetailModal } from "@/components/ExtensionDetailModal";
+import { PageHeader } from "@/components/ui/page-header";
 
 type FilterTab = "all" | "enabled" | "disabled" | SchemaCategory;
 
@@ -84,12 +85,10 @@ export const ExtensionsView: React.FC = () => {
       <div className="w-full max-w-[960px] mx-auto px-6 py-8 flex flex-col gap-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Extension Marketplace
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Browse and add color spaces, functions, and utilities to your project.
-          </p>
+          <PageHeader
+            title="Extension Marketplace"
+            description="Browse and add color spaces, functions, and utilities to your project."
+          />
 
           {/* Search Bar */}
           <div className="mt-4 relative w-full">

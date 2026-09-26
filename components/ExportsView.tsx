@@ -10,11 +10,9 @@ import { TypeScriptExportView } from "./exports/TypeScriptExportView";
 import { JsonExportView } from "./exports/JsonExportView";
 import { FigmaVariablesExportView } from "./exports/FigmaVariablesExportView";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import {
-  Download,
   Package,
-  ChevronRight,
-  Sparkles,
   Save,
   Check,
   FileCode,
@@ -132,34 +130,12 @@ export const ExportsView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none">
-      {/* Top Header Bar with Breadcrumb Navigation */}
-      <header className="h-14 border-b border-border/70 px-6 flex items-center justify-between bg-card flex-shrink-0 z-10">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="font-semibold text-muted-foreground">
-            {currentProject?.name || "tokens"}
-          </span>
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
-
-          {activeView === "hub" ? (
-            <span className="font-bold text-foreground">Exports</span>
-          ) : (
+      {activeView !== "hub" && (
+        <PageHeader
+          title={getViewTitle()}
+          className="sticky top-0 z-10 flex-shrink-0 border-b border-border/70 bg-card px-6 py-3"
+          actions={
             <>
-              <button
-                type="button"
-                onClick={() => setActiveView("hub")}
-                className="font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                Exports
-              </button>
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
-              <span className="font-bold text-foreground">{getViewTitle()}</span>
-            </>
-          )}
-        </div>
-
-        {/* Action Controls for Sub-views */}
-        {activeView !== "hub" && (
-          <div className="flex items-center gap-2">
             {/* Realtime updating indicator */}
             {isUpdating && (
               <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mr-1">
@@ -222,9 +198,10 @@ export const ExportsView: React.FC = () => {
               <Package className="w-3.5 h-3.5" />
               <span>Download All</span>
             </Button>
-          </div>
-        )}
-      </header>
+            </>
+          }
+        />
+      )}
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex overflow-hidden">

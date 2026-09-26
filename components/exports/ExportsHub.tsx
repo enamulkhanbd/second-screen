@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ExportViewType } from "@/types/exports";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface ExportsHubProps {
   onSelectExport: (type: ExportViewType) => void;
@@ -96,13 +97,10 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
   return (
     <div className="flex-1 flex flex-col items-center h-full bg-background overflow-y-auto select-none p-6 md:py-10 md:px-8">
       <div className="w-full max-w-[960px] space-y-8">
-        {/* Title & Description */}
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Exports</h1>
-          <p className="text-xs text-muted-foreground">
-            Configure how your design tokens are exported to code.
-          </p>
-        </div>
+        <PageHeader
+          title="Exports"
+          description="Configure how your design tokens are exported to code."
+        />
 
         {/* CREATE NEW Section */}
         <div className="space-y-3 mb-8">
