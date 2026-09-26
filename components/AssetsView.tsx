@@ -25,9 +25,9 @@ import {
   Folder,
   FolderPlus,
   FolderInput,
-  FolderCheck,
-  Layers,
-  Sparkles,
+  const enabledFigmaSourcesCount = (assetFigmaConfig?.sources || []).filter(
+    (s) => s.enabled !== false && !s.isPaused
+  ).length;
   PlusCircle,
   Bot,
   AlertTriangle,
@@ -597,9 +597,6 @@ export const AssetsView: React.FC = () => {
     assetFigmaConfig?.pat && assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0
   );
   const hasGitConfigured = Boolean(assetGitConfig?.repo && assetGitConfig?.pat);
-  const enabledFigmaSourcesCount = (assetFigmaConfig?.sources || []).filter(
-    (s) => s.enabled !== false && !s.isPaused
-  ).length;
 
   // Independent Git Config Form
   const [gitProvider, setGitProvider] = useState<"github" | "gitlab" | "azure" | "bitbucket">(
@@ -2173,33 +2170,6 @@ export const AssetsView: React.FC = () => {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-
-          {/* Figma Global Sync Button (ONLY VISIBLE WHEN FIGMA IS CONFIGURED) */}
-          {hasFigmaConfigured && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isSyncingFigmaAssets || assetFigmaConfig?.isPaused}
-              onClick={() => syncAllFigmaSources()}
-              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer border-violet-500/30 text-violet-600 dark:text-violet-400 ${
-                assetFigmaConfig?.isPaused ? "opacity-60" : ""
-              }`}
-              title={
-                assetFigmaConfig?.isPaused
-                  ? "Figma sync is paused."
-                  : `Sync all active Figma sources (${enabledFigmaSourcesCount})`
-              }
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-violet-500 ${isSyncingFigmaAssets ? "animate-spin" : ""}`} />
-              <span>
-                {isSyncingFigmaAssets
-                  ? "Syncing Figma..."
-                  : assetFigmaConfig?.isPaused
-                  ? "Figma Paused"
-                  : `Sync Figma (${enabledFigmaSourcesCount})`}
-              </span>
-            </Button>
           )}
 
           {/* Quick Sync Button if Git is already configured */}

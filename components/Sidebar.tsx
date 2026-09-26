@@ -731,24 +731,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               )}
             </button>
 
-            {/* Documentation */}
+            {/* Variables */}
             <button
-              onClick={() => setSidebarTab("documentation")}
-              title="Documentation"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "documentation"
+              onClick={() => setSidebarTab("variables")}
+              title="Variables"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "variables"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
             >
               <div className="flex items-center gap-2.5 truncate">
-                <FileText className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Documentation</span>}
+                <FigmaVariableIcon className="size-4 flex-shrink-0" />
+                {!isCollapsed && <span>Variables</span>}
               </div>
-              {!isCollapsed && (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
-                  Beta
-                </Badge>
-              )}
             </button>
 
             {/* Assets */}
@@ -771,19 +766,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               )}
             </button>
 
-            {/* Variables */}
+            {/* Documentation */}
             <button
-              onClick={() => setSidebarTab("variables")}
-              title="Variables"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "variables"
+              onClick={() => setSidebarTab("documentation")}
+              title="Documentation"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "documentation"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
             >
               <div className="flex items-center gap-2.5 truncate">
-                <FigmaVariableIcon className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Variables</span>}
+                <FileText className="size-4 flex-shrink-0" />
+                {!isCollapsed && <span>Documentation</span>}
               </div>
+              {!isCollapsed && (
+                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
+                  Beta
+                </Badge>
+              )}
             </button>
 
             {/* Schema Marketplace */}
@@ -854,17 +854,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               )}
             </button>
 
-            {/* Activity */}
+            {/* Git Log (Activity) */}
             <button
               onClick={() => setSidebarTab("activity")}
-              title="Activity"
+              title="Git Log"
               className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "activity"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
             >
               <Clock className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Activity</span>}
+              {!isCollapsed && <span>Git Log</span>}
             </button>
           </div>
         )}

@@ -310,14 +310,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     return getDiffSummary();
   }, [getDiffSummary, rawTokens, isDirty]);
 
-  // 2. Figma Plugin is connected -> show Sync Figma button
-  const isFigmaConnected = Boolean(
-    currentUser &&
-    (figmaUpdatedAt ||
-      (figmaVariables && Object.keys(figmaVariables).length > 0) ||
-      (figmaResolvedVariables && figmaResolvedVariables.length > 0))
-  );
-
   // Auto-generate commit message when opening push modal
   useEffect(() => {
     if (showPushModal && !commitMessage) {
@@ -534,53 +526,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }
   };
 
-  const handleCloudSync = async () => {
-    setIsPulling(true);
-    try {
-      const currentOrg = useTokenStore.getState().currentOrg;
-      const currentProj = useTokenStore.getState().currentProject;
-      const orgId = currentOrg?.id;
-      const projectId = currentProj?.id;
-      const query = orgId && projectId ? `?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}` : "";
-      const res = await fetch(`/api/v1/tokens${query}`, {
-        headers: { "x-internal-client": "tokens-platform" },
-      });
-      const data = await res.json();
-      if (data.success && data.rawTokens) {
-        setRawTokens(data.rawTokens);
-        if (data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
-          setFigmaVariables(data.figmaVariables, data.metadata);
-        }
-        logUserActivity({
-          type: "figma",
-          title: "Synced Tokens from Cloud",
-          description: `Synced ${data.resolvedTokens?.length || 0} tokens (${currentProj?.name || "Project"}) from Cloud Workspace.`,
-          actor: {
-            name: currentUser?.displayName || "User",
-            email: currentUser?.email || "user@example.com",
-            avatarUrl: currentUser?.avatarUrl,
-          },
-          metadata: { orgId, projectId, tokenCount: data.resolvedTokens?.length || 0 },
-        });
-        addToast({
-          type: "success",
-          title: "Figma Cloud Synced",
-          message: `Loaded ${data.resolvedTokens?.length || 0} tokens from cloud.`,
-        });
-      } else {
-        throw new Error(data.error || "No tokens found in cloud");
-      }
-    } catch (err: any) {
-      addToast({
-        type: "error",
-        title: "Cloud Sync Failed",
-        message: err.message,
-      });
-    } finally {
-      setIsPulling(false);
-    }
-  };
-
   const handleDirectPush = async () => {
     setIsPushing(true);
     const userCommitMsg =
@@ -688,24 +633,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         {/* Right: Conditional Controls */}
         {!hideVersionControls && (
           <div className="flex items-center gap-2">
-
-
-
-
-          {/* 1. Sync from Figma Cloud Button - ONLY if Figma Plugin is connected */}
-          {isFigmaConnected && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCloudSync}
-              disabled={isPulling}
-              className="h-8 gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer shadow-2xs"
-              title="Pull changes pushed from Figma Plugin"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isPulling ? "animate-spin" : ""}`} />
-              <span>Sync Figma</span>
-            </Button>
-          )}
 
           {/* Git Pull Button with Remote Changes Indicator - ONLY if Git Sync is configured */}
           {isGitConfigured && (
