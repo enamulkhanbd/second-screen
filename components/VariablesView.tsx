@@ -71,6 +71,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
     figmaResolvedVariables,
     figmaUpdatedAt,
     setFigmaVariables,
+    setRawTokens,
     desyncFigmaVariablesAction,
     deleteFigmaVariableAction,
     deleteFigmaCollectionAction,
@@ -110,7 +111,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
 
   // Auto-fetch fresh Figma variables on mount or project switch
-  const fetchVariables = async () => {
+  const fetchVariables = async (showToast = false) => {
     if (!currentOrg?.id || !currentProject?.id) return;
     setIsRefreshing(true);
     try {
@@ -119,18 +120,37 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
         { headers: { "x-internal-client": "tokens-platform" } }
       );
       const data = await res.json();
-      if (data.success && data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
-        setFigmaVariables(data.figmaVariables, data.metadata);
+      if (data.success) {
+        if (data.rawTokens) {
+          setRawTokens(data.rawTokens);
+        }
+        if (data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {
+          setFigmaVariables(data.figmaVariables, data.metadata);
+        }
+        if (showToast) {
+          addToast({
+            type: "success",
+            title: "Variables Refreshed",
+            message: "Loaded latest Figma variables and tokens from cloud.",
+          });
+        }
       }
     } catch (e) {
       console.warn("Could not fetch fresh figma variables:", e);
+      if (showToast) {
+        addToast({
+          type: "error",
+          title: "Refresh Failed",
+          message: "Could not fetch fresh variables from server.",
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchVariables();
+    fetchVariables(false);
   }, [currentOrg?.id, currentProject?.id]);
 
   // Extract all Figma collection set names
@@ -333,9 +353,10 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchVariables}
+            onClick={() => fetchVariables(true)}
             disabled={isRefreshing}
-            className="h-8 text-xs gap-1.5"
+            className="h-8 text-xs gap-1.5 cursor-pointer shadow-2xs"
+            title="Refresh Figma variables and tokens from cloud"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             <span>Refresh</span>
