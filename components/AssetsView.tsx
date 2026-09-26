@@ -1766,227 +1766,202 @@ export const AssetsView: React.FC = () => {
       <div
         key={icon.id}
         onClick={handleCardClick}
-        className={`p-2.5 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center text-center relative ${
-          isSelected
-            ? "border-primary ring-2 ring-primary/20 bg-primary/[0.02]"
-            : "border-border/80 hover:border-primary/50 hover:bg-muted/20"
+        className={`w-[120px] flex-shrink-0 cursor-pointer group relative ${
+          isSelected ? "" : ""
         }`}
         title={icon.tag ? `Tags: ${icon.tag}` : undefined}
       >
-        {/* Selection Checkbox (Top Left) */}
+        {/* Preview Area */}
         <div
-          className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${
-            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          className={`relative w-full aspect-square rounded-2xl border overflow-hidden flex items-center justify-center transition-all duration-200 ${
+            isSelected
+              ? "border-primary ring-2 ring-primary/20 bg-muted/30"
+              : "border-border/60 bg-muted/20 hover:border-border"
           }`}
-          onClick={(e) => toggleAssetSelect(icon.id, e)}
         >
+          {/* Selection Checkbox */}
           <div
-            className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-colors ${
-              isSelected
-                ? "bg-primary text-primary-foreground"
-                : "bg-background border border-border hover:border-primary text-transparent"
+            className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${
+              isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             }`}
+            onClick={(e) => toggleAssetSelect(icon.id, e)}
           >
-            <Check className="w-2.5 h-2.5 stroke-[3]" />
+            <div
+              className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-colors ${
+                isSelected
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background/80 border border-border hover:border-primary text-transparent"
+              }`}
+            >
+              <Check className="w-2.5 h-2.5 stroke-[3]" />
+            </div>
           </div>
-        </div>
 
-        {/* Options Menu (Top Right) */}
-        <div
-          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-5 h-5 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer">
-                <MoreVertical className="w-3 h-3" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 text-xs">
-              {itemType !== "icon" && (
-                <DropdownMenuItem
-                  onClick={() => setPreviewMediaAsset(icon)}
-                  className="gap-2 cursor-pointer text-xs font-semibold"
-                >
-                  <Eye className="w-3.5 h-3.5 text-primary" />
-                  <span>Preview Asset</span>
-                </DropdownMenuItem>
-              )}
-              {canUserEdit() && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    setAssetToMoveId(icon.id);
-                    setIsMoveAssetsOpen(true);
-                  }}
-                  className="gap-2 cursor-pointer text-xs"
-                >
-                  <FolderInput className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Move to Folder...</span>
-                </DropdownMenuItem>
-              )}
-              {canUserEdit() && (
-                <>
+          {/* Options Menu */}
+          <div
+            className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-5 h-5 rounded-md bg-background/80 hover:bg-background flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer">
+                  <MoreVertical className="w-3 h-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 text-xs">
+                {itemType !== "icon" && (
+                  <DropdownMenuItem
+                    onClick={() => setPreviewMediaAsset(icon)}
+                    className="gap-2 cursor-pointer text-xs font-semibold"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-primary" />
+                    <span>Preview Asset</span>
+                  </DropdownMenuItem>
+                )}
+                {canUserEdit() && (
                   <DropdownMenuItem
                     onClick={() => {
-                      setReplacingAssetId(icon.id);
-                      replaceInputRef.current?.click();
+                      setAssetToMoveId(icon.id);
+                      setIsMoveAssetsOpen(true);
                     }}
                     className="gap-2 cursor-pointer text-xs"
                   >
-                    <UploadCloud className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>Replace File</span>
+                    <FolderInput className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Move to Folder...</span>
                   </DropdownMenuItem>
+                )}
+                {canUserEdit() && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setReplacingAssetId(icon.id);
+                        replaceInputRef.current?.click();
+                      }}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Replace File</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleOpenEdit(icon)}
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Edit Metadata</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isSvg && (
                   <DropdownMenuItem
-                    onClick={() => handleOpenEdit(icon)}
+                    onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle, icon.url)}
                     className="gap-2 cursor-pointer text-xs"
                   >
-                    <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>Edit Metadata</span>
+                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Copy SVG</span>
                   </DropdownMenuItem>
-                </>
-              )}
-              {isSvg && (
+                )}
                 <DropdownMenuItem
-                  onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle, icon.url)}
+                  onClick={() => handleDownloadSingleAsset(icon)}
                   className="gap-2 cursor-pointer text-xs"
                 >
-                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>Copy SVG</span>
+                  <Download className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Download File</span>
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={() => handleDownloadSingleAsset(icon)}
-                className="gap-2 cursor-pointer text-xs"
-              >
-                <Download className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Download File</span>
-              </DropdownMenuItem>
-              {icon.url && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    navigator.clipboard.writeText(icon.url || "");
-                    addToast({
-                      type: "success",
-                      title: "URL Copied",
-                      message: "Copied direct CDN URL to clipboard.",
-                    });
-                  }}
-                  className="gap-2 cursor-pointer text-xs"
-                >
-                  <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>Copy CDN URL</span>
-                </DropdownMenuItem>
-              )}
-              {icon.figmaUrl && (
-                <DropdownMenuItem
-                  onClick={() => window.open(icon.figmaUrl, "_blank")}
-                  className="gap-2 cursor-pointer text-xs"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-violet-500" />
-                  <span>Open in Figma</span>
-                </DropdownMenuItem>
-              )}
-              {icon.figmaSourceName && (
-                <div className="px-2 py-1 text-[10px] text-muted-foreground border-t border-border/50 truncate">
-                  Source: <span className="font-semibold text-foreground">{icon.figmaSourceName}</span>
-                </div>
-              )}
-              {canUserEdit() && (
-                <>
-                  <DropdownMenuSeparator />
+                {icon.url && (
                   <DropdownMenuItem
-                    onClick={() => setSingleDeleteAsset(icon)}
-                    className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
+                    onClick={() => {
+                      navigator.clipboard.writeText(icon.url || "");
+                      addToast({
+                        type: "success",
+                        title: "URL Copied",
+                        message: "Copied direct CDN URL to clipboard.",
+                      });
+                    }}
+                    className="gap-2 cursor-pointer text-xs"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Asset</span>
+                    <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Copy CDN URL</span>
                   </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                )}
+                {icon.figmaUrl && (
+                  <DropdownMenuItem
+                    onClick={() => window.open(icon.figmaUrl, "_blank")}
+                    className="gap-2 cursor-pointer text-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-violet-500" />
+                    <span>Open in Figma</span>
+                  </DropdownMenuItem>
+                )}
+                {icon.figmaSourceName && (
+                  <div className="px-2 py-1 text-[10px] text-muted-foreground border-t border-border/50 truncate">
+                    Source: <span className="font-semibold text-foreground">{icon.figmaSourceName}</span>
+                  </div>
+                )}
+                {canUserEdit() && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setSingleDeleteAsset(icon)}
+                      className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Asset</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-        {/* Polymorphic Asset Preview */}
-        <div className="relative w-full">
+          {/* Asset Content */}
           {itemType === "video" ? (
-            <div className="w-full h-20 rounded-lg bg-black/80 overflow-hidden flex items-center justify-center relative">
+            <div className="w-full h-full bg-black/80 flex items-center justify-center">
               <Film className="w-7 h-7 text-sky-400 opacity-80" />
               <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
-                <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shadow-xs group-hover:scale-110 transition-transform">
+                <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white">
                   <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
                 </div>
               </div>
             </div>
           ) : itemType === "document" ? (
-            <div className="w-full h-20 rounded-lg bg-rose-500/10 border border-rose-500/20 flex flex-col items-center justify-center relative text-rose-500">
-              <FileText className="w-7 h-7 text-rose-500 mb-0.5" />
-              <span className="text-[9px] font-mono uppercase font-bold text-rose-600 dark:text-rose-400">PDF</span>
+            <div className="flex flex-col items-center justify-center text-rose-500">
+              <FileText className="w-7 h-7 mb-0.5" />
+              <span className="text-[9px] font-mono uppercase font-bold">PDF</span>
             </div>
           ) : itemType === "image" ? (
-            <>
-              <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPreviewMediaAsset(icon);
-                }}
-                className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
-                title="Preview Image"
-              >
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </>
+            <img
+              src={icon.url}
+              alt={displayTitle}
+              className="max-h-full max-w-full object-contain"
+              loading="lazy"
+            />
           ) : (
-            <>
-              <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPreviewMediaAsset(icon);
-                }}
-                className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
-                title="Preview Asset"
-              >
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </>
+            <img
+              src={icon.url}
+              alt={displayTitle}
+              className="max-h-[60%] max-w-[60%] object-contain"
+              loading="lazy"
+            />
           )}
 
-          {/* Hover Action Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <span className="text-[10px] text-primary font-semibold flex items-center gap-1 bg-background/90 backdrop-blur-xs px-2 py-1 rounded-md shadow-sm border border-border/50">
+          {/* Hover Action Pill - bottom right */}
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-lg shadow-sm border border-border/50">
               {isSvg ? (
-                <>
-                  {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                  <span>{isCopied ? "Copied" : "Copy SVG"}</span>
-                </>
+                <>{isCopied ? "Copied!" : "Click to copy"}</>
               ) : itemType === "video" ? (
-                <>
-                  <Play className="w-3 h-3 fill-primary" />
-                  <span>Play Video</span>
-                </>
-              ) : itemType === "document" ? (
-                <>
-                  <Eye className="w-3 h-3" />
-                  <span>View PDF</span>
-                </>
+                <>Play</>                
               ) : (
-                <>
-                  <Eye className="w-3 h-3" />
-                  <span>Preview</span>
-                </>
+                <>Preview</>
               )}
             </span>
           </div>
         </div>
 
-        {/* Asset Title */}
-        <div className="w-full truncate mt-1.5 px-0.5">
-          <span className="font-medium text-[11px] text-foreground block truncate" title={displayTitle}>
-            {displayTitle}
-          </span>
-        </div>
+        {/* Asset Title - below the preview area */}
+        <p className="text-[11px] text-muted-foreground mt-1.5 truncate w-full" title={displayTitle}>
+          {displayTitle}
+        </p>
       </div>
     );
   };
@@ -1995,11 +1970,11 @@ export const AssetsView: React.FC = () => {
   const renderSkeletonCard = (index: number) => (
     <div
       key={`skeleton-${index}`}
-      className="p-2.5 rounded-xl border border-border/40 bg-card/40 shadow-2xs flex flex-col items-center text-center relative animate-pulse pointer-events-none select-none"
+      className="w-[120px] flex-shrink-0 animate-pulse pointer-events-none select-none"
       style={{ animationDelay: `${(index % 8) * 60}ms` }}
     >
-      <div className="w-full h-16 rounded-lg bg-muted/40" />
-      <div className="w-16 h-2.5 bg-muted/50 rounded-md mt-2" />
+      <div className="w-full aspect-square rounded-2xl bg-muted/30 border border-border/40" />
+      <div className="w-14 h-2.5 bg-muted/40 rounded-md mt-1.5" />
     </div>
   );
 
@@ -2675,7 +2650,7 @@ export const AssetsView: React.FC = () => {
                     <span className="text-xs font-medium text-muted-foreground">Loading assets...</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+                <div className="flex flex-wrap gap-4">
                   {Array.from({ length: 18 }).map((_, idx) => renderSkeletonCard(idx))}
                 </div>
               </div>
@@ -2954,7 +2929,7 @@ export const AssetsView: React.FC = () => {
                       )}
 
                       {/* Icon Cards Grid for this Type */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+                      <div className="flex flex-wrap gap-4">
                         {icons.map((icon) => renderIconCard(icon))}
                       </div>
                     </section>
@@ -2964,7 +2939,7 @@ export const AssetsView: React.FC = () => {
                 {/* Progressive Loading Skeleton Grid with Sentinel */}
                 {filteredAssets.length > visibleCount && (
                   <div ref={sentinelRef} className="pt-2 pb-8 space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+                    <div className="flex flex-wrap gap-4">
                       {Array.from({ length: Math.min(12, filteredAssets.length - visibleCount) }).map((_, idx) =>
                         renderSkeletonCard(idx)
                       )}
