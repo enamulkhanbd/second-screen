@@ -1931,7 +1931,9 @@ export const AssetsView: React.FC = () => {
             <img
               src={icon.url}
               alt={displayTitle}
-              className="max-h-[60%] max-w-[60%] object-contain"
+              className={`max-h-[60%] max-w-[60%] object-contain ${
+                isSvg ? "brightness-0 dark:invert" : ""
+              }`}
               loading="lazy"
             />
           )}
