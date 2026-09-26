@@ -149,7 +149,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
               className={`text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors ${
                 isEnabled
                   ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-400 dark:border-red-800/50"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-xs"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground border border-primary shadow-xs"
               }`}
             >
               {isEnabled ? "Disable Extension" : "Enable Extension"}

@@ -352,7 +352,7 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
                           className="flex items-center justify-between p-3 rounded-xl bg-card border border-border text-xs gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0 border border-primary/20">
                               <Mail className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">

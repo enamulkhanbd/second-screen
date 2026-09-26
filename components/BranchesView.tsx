@@ -326,7 +326,7 @@ export const BranchesView: React.FC = () => {
                 onClick={async () => {
                   await switchBranchAction(selectedBranch.name);
                 }}
-                className="h-8 gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer px-3 shadow-xs"
+                className="h-8 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer px-3 shadow-xs"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Switch to Branch</span>
@@ -370,7 +370,7 @@ export const BranchesView: React.FC = () => {
                   {selectedBranch.name}
                 </h1>
                 {isCurrent && (
-                  <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-sans">
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[11px] font-sans">
                     Current Active Branch
                   </Badge>
                 )}
@@ -740,18 +740,18 @@ export const BranchesView: React.FC = () => {
                   onClick={() => setSelectedBranchName(b.name)}
                   className={`bg-card border rounded-xl p-4 flex items-center justify-between transition-all cursor-pointer group shadow-xs ${
                     isCurrent
-                      ? "border-emerald-500/40 hover:border-emerald-500/60"
+                      ? "border-primary/40 hover:border-primary/60"
                       : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
                   }`}
                 >
                   <div className="min-w-0 flex-1 pr-4">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <GitBranch className={`w-4 h-4 ${isCurrent ? "text-emerald-500" : "text-muted-foreground"}`} />
+                      <GitBranch className={`w-4 h-4 ${isCurrent ? "text-primary" : "text-muted-foreground"}`} />
                       <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors font-mono">
                         {b.name}
                       </span>
                       {isCurrent && (
-                        <span className="text-[10px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-medium bg-primary/10 text-primary border border-primary/30 px-2 py-0.5 rounded-md">
                           Current Active
                         </span>
                       )}
@@ -807,7 +807,7 @@ export const BranchesView: React.FC = () => {
                         <span>Switch</span>
                       </Button>
                     ) : (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium px-2 py-1 flex items-center gap-1">
+                      <span className="text-xs text-primary font-medium px-2 py-1 flex items-center gap-1">
                         <Check className="w-3.5 h-3.5" />
                         Active
                       </span>

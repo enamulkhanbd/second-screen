@@ -568,7 +568,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Building2 className="w-3.5 h-3.5 text-violet-500" />
+              <Building2 className="w-3.5 h-3.5 text-primary" />
               <span>All Workspaces ({userOrgs.length})</span>
             </button>
           </div>
@@ -1521,7 +1521,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                       type="submit"
                       size="sm"
                       disabled={isSavingOrg || !orgFormName.trim() || isOrgNameDuplicate}
-                      className="gap-1.5 font-semibold bg-violet-600 hover:bg-violet-700 text-white shadow-xs"
+                      className="gap-1.5 font-semibold shadow-xs"
                     >
                       <Save className="w-3.5 h-3.5" />
                       <span>{isSavingOrg ? "Saving..." : editingOrgId ? "Save Changes" : "Create Workspace"}</span>
@@ -1851,11 +1851,11 @@ export const WorkspacesProjectsView: React.FC = () => {
 
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <h3 className="font-bold text-sm text-foreground truncate group-hover:text-violet-500 transition-colors">
+                                <h3 className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
                                   {org.name || "Untitled Organization"}
                                 </h3>
                                 {isActive && (
-                                  <Badge variant="secondary" className="text-[9px] py-0 px-1 font-semibold text-violet-600 dark:text-violet-400">
+                                  <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-primary border-primary/40">
                                     Active
                                   </Badge>
                                 )}
@@ -1940,7 +1940,7 @@ export const WorkspacesProjectsView: React.FC = () => {
 
                         {isActive ? (
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs text-violet-600 border-violet-500/40">
+                            <Badge variant="outline" className="text-xs text-primary border-primary/40">
                               Current Workspace
                             </Badge>
                             <Button
@@ -1966,7 +1966,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                             }}
                             variant="outline"
                             size="sm"
-                            className="gap-1 text-xs h-7 px-3 cursor-pointer hover:border-violet-500 hover:text-violet-600"
+                            className="gap-1 text-xs h-7 px-3 cursor-pointer hover:border-primary hover:text-primary"
                           >
                             <span>Switch To</span>
                             <ArrowRight className="w-3 h-3" />

@@ -109,7 +109,7 @@ export const ExtensionsView: React.FC = () => {
               onClick={() => setActiveTab("enabled")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                 activeTab === "enabled"
-                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shadow-xs"
+                  ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
               }`}
             >

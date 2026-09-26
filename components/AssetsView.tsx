@@ -3286,7 +3286,7 @@ export const AssetsView: React.FC = () => {
                       type="submit"
                       size="sm"
                       disabled={isSavingFigmaPat}
-                      className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1 font-semibold cursor-pointer"
+                      className="h-8 text-xs gap-1 font-semibold cursor-pointer"
                     >
                       {isSavingFigmaPat ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                       <span>Save</span>
@@ -3312,7 +3312,7 @@ export const AssetsView: React.FC = () => {
                 {/* Section 3: Add New Figma Link Form */}
                 <form onSubmit={handleAddNewFigmaSource} className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-2xs">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                    <PlusCircle className="w-3.5 h-3.5 text-violet-500" />
+                    <PlusCircle className="w-3.5 h-3.5 text-primary" />
                     <span>Add Figma Frame / Section Link</span>
                   </div>
 
@@ -3353,7 +3353,7 @@ export const AssetsView: React.FC = () => {
                       type="submit"
                       size="sm"
                       disabled={isAddingFigmaSource || isSyncingFigmaAssets}
-                      className="h-8 text-xs gap-1.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold cursor-pointer"
+                      className="h-8 text-xs gap-1.5 font-semibold cursor-pointer"
                     >
                       {isAddingFigmaSource ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />

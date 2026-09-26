@@ -240,12 +240,12 @@ export const DocumentationView: React.FC = () => {
           <Button
             size="sm"
             onClick={() => setPublishModalOpen(true)}
-            className="gap-1.5 h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer"
+            className="gap-1.5 h-8 text-xs font-semibold shadow-2xs cursor-pointer"
           >
             <Globe className="w-3.5 h-3.5" />
             <span>Publish</span>
             {activeDoc.isPublishedGlobally && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground animate-pulse" />
             )}
           </Button>
 

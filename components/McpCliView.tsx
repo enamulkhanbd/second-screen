@@ -75,7 +75,7 @@ export const McpCliView: React.FC = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                   <Bot className="w-4 h-4" />
                 </div>
                 <div>
@@ -86,7 +86,7 @@ export const McpCliView: React.FC = () => {
                 </div>
               </div>
 
-              <Badge variant="violet" className="text-[10px] font-mono">
+              <Badge variant="outline" className="text-[10px] font-mono text-primary border-primary/30 bg-primary/5">
                 MCP v1.0
               </Badge>
             </div>

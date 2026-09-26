@@ -1052,7 +1052,7 @@ export const SyncProvidersView: React.FC = () => {
                       type="submit"
                       size="sm"
                       disabled={isSavingFigmaPat}
-                      className="h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1.5 font-semibold"
+                      className="h-9 text-xs gap-1.5 font-semibold"
                     >
                       {isSavingFigmaPat ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                       <span>Save Token</span>
