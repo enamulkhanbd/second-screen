@@ -65,8 +65,6 @@ import {
   Save,
   Maximize2,
   Loader2,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -389,10 +387,9 @@ export const getCanvasPreviewStyle = (mode: CanvasBgMode = "subtle"): React.CSSP
 interface AssetPreviewThumbnailProps {
   icon: ProjectAsset;
   displayTitle: string;
-  canvasBgMode?: CanvasBgMode;
 }
 
-const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle, canvasBgMode = "subtle" }) => {
+const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -401,7 +398,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
     setHasError(false);
   }, [icon.url]);
 
-  const previewStyle = getCanvasPreviewStyle(canvasBgMode);
+  const previewStyle = getCanvasPreviewStyle("subtle");
 
   // In dark mode or on dark canvas, only invert standard monochrome git icons without explicit color/dark labels
   const shouldInvertInDarkMode =
@@ -437,7 +434,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           className={`max-h-14 max-w-[85%] object-contain transition-all duration-200 group-hover:scale-105 ${
             isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
           } ${
-            shouldInvertInDarkMode && canvasBgMode !== "light"
+            shouldInvertInDarkMode
               ? "dark:invert dark:opacity-90"
               : ""
           }`}
@@ -452,7 +449,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
 AssetPreviewThumbnail.displayName = "AssetPreviewThumbnail";
 
-const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle, canvasBgMode = "subtle" }) => {
+const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -461,7 +458,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
     setHasError(false);
   }, [icon.url]);
 
-  const previewStyle = getCanvasPreviewStyle(canvasBgMode);
+  const previewStyle = getCanvasPreviewStyle("subtle");
 
   return (
     <div
@@ -572,7 +569,7 @@ export const AssetsView: React.FC = () => {
 
   // Media preview modal / drawer state (for video / full image / doc preview)
   const [previewMediaAsset, setPreviewMediaAsset] = useState<ProjectAsset | null>(null);
-  const [canvasBgMode, setCanvasBgMode] = useState<CanvasBgMode>("subtle");
+  // Canvas background mode removed — always uses "subtle"
 
   // File Upload Refs
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1303,39 +1300,125 @@ export const AssetsView: React.FC = () => {
     return formatted;
   };
 
+  /**
+   * Safely fetches raw SVG content using same-origin proxy with fallback to direct CDN.
+   * Immune to CORS, opaque cache collisions, and browser ad-blockers.
+   */
+  const fetchSvgContentSafely = async (url: string, inlineSvg?: string): Promise<string> => {
+    if (inlineSvg && inlineSvg.trim().startsWith("<svg")) {
+      return inlineSvg;
+    }
+    if (!url) return "";
+
+    // 1. Try same-origin content proxy first (zero CORS issues, consistent)
+    try {
+      const proxyUrl = `/api/assets/content?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const text = await res.text();
+        if (text.includes("<svg")) return text;
+      }
+    } catch (err) {
+      console.warn("[AssetsView] Proxy fetch failed, attempting direct fetch:", err);
+    }
+
+    // 2. Fallback to direct fetch with cache buster to avoid poisoned opaque cache
+    try {
+      const separator = url.includes("?") ? "&" : "?";
+      const directUrl = `${url}${separator}_cb=${Date.now()}`;
+      const res = await fetch(directUrl);
+      if (res.ok) {
+        const text = await res.text();
+        if (text.includes("<svg")) return text;
+      }
+    } catch (err) {
+      console.error("[AssetsView] Direct fetch failed:", err);
+    }
+
+    throw new Error("Could not fetch SVG from CDN or server.");
+  };
+
+  /**
+   * Safely fetches asset as a Blob using same-origin proxy with fallback to direct CDN.
+   */
+  const fetchAssetBlobSafely = async (url: string): Promise<Blob> => {
+    // 1. Try same-origin content proxy first
+    try {
+      const proxyUrl = `/api/assets/content?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        return await res.blob();
+      }
+    } catch (err) {
+      console.warn("[AssetsView] Proxy blob fetch failed, attempting direct fetch:", err);
+    }
+
+    // 2. Direct fetch fallback
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.blob();
+  };
+
+  /**
+   * Safely fetches asset as ArrayBuffer using same-origin proxy with fallback to direct CDN.
+   */
+  const fetchAssetArrayBufferSafely = async (url: string): Promise<ArrayBuffer> => {
+    // 1. Try same-origin content proxy first
+    try {
+      const proxyUrl = `/api/assets/content?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        return await res.arrayBuffer();
+      }
+    } catch (err) {
+      console.warn("[AssetsView] Proxy arrayBuffer fetch failed, attempting direct fetch:", err);
+    }
+
+    // 2. Direct fetch fallback
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.arrayBuffer();
+  };
+
   // Copy SVG string enriched with icon name for Figma layer naming
   const handleCopySvg = async (svgOrUrl: string | undefined, id: string, name?: string, url?: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       const iconName = name || "icon";
 
-      // Resolve SVG content: use inline svg if available, otherwise fetch from R2 URL
-      let svgContent = svgOrUrl || "";
-      if (!svgContent && url) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) svgContent = await res.text();
-        } catch {
-          addToast({ type: "error", title: "Copy Failed", message: "Could not fetch SVG from CDN." });
-          return;
-        }
+      let svgContent = "";
+      try {
+        svgContent = await fetchSvgContentSafely(url || "", svgOrUrl);
+      } catch {
+        addToast({ type: "error", title: "Copy Failed", message: "Could not fetch SVG from CDN or server." });
+        return;
       }
-      if (!svgContent) return;
+      if (!svgContent) {
+        addToast({ type: "error", title: "Copy Failed", message: "SVG content is empty." });
+        return;
+      }
 
       const enriched = enrichSvgWithName(svgContent, iconName);
 
-      if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
-        const textBlob = new Blob([enriched], { type: "text/plain" });
-        const htmlBlob = new Blob([enriched], { type: "text/html" });
-        navigator.clipboard.write([
-          new ClipboardItem({
-            "text/plain": textBlob,
-            "text/html": htmlBlob,
-          }),
-        ]).catch(() => {
-          navigator.clipboard.writeText(enriched);
-        });
-      } else {
-        navigator.clipboard.writeText(enriched);
+      try {
+        if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+          const textBlob = new Blob([enriched], { type: "text/plain" });
+          const htmlBlob = new Blob([enriched], { type: "text/html" });
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/plain": textBlob,
+              "text/html": htmlBlob,
+            }),
+          ]);
+        } else {
+          await navigator.clipboard.writeText(enriched);
+        }
+      } catch {
+        try {
+          await navigator.clipboard.writeText(enriched);
+        } catch {
+          addToast({ type: "error", title: "Copy Failed", message: "Clipboard permission denied." });
+          return;
+        }
       }
 
       setCopiedId(id);
@@ -1352,14 +1435,15 @@ export const AssetsView: React.FC = () => {
   const handleDownloadSingleAsset = async (asset: ProjectAsset) => {
     const assetName = asset.name || asset.title || "asset";
     const itemType = getInferredAssetType(asset);
+    const isSvg = itemType === "icon" || !!asset.svg || asset.contentType?.includes("svg") || asset.name.toLowerCase().endsWith(".svg") || asset.url?.toLowerCase().includes(".svg");
 
-    if (itemType === "icon" || asset.svg) {
-      let svgContent = asset.svg || "";
-      if (!svgContent && asset.url) {
-        try {
-          const res = await fetch(asset.url);
-          if (res.ok) svgContent = await res.text();
-        } catch { return; }
+    if (isSvg) {
+      let svgContent = "";
+      try {
+        svgContent = await fetchSvgContentSafely(asset.url || "", asset.svg);
+      } catch {
+        addToast({ type: "error", title: "Download Failed", message: "Could not load SVG content." });
+        return;
       }
       if (!svgContent) return;
 
@@ -1368,7 +1452,7 @@ export const AssetsView: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${assetName}.svg`;
+      a.download = assetName.toLowerCase().endsWith(".svg") ? assetName : `${assetName}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1378,8 +1462,7 @@ export const AssetsView: React.FC = () => {
 
     if (asset.url) {
       try {
-        const res = await fetch(asset.url);
-        const blob = await res.blob();
+        const blob = await fetchAssetBlobSafely(asset.url);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -1413,28 +1496,23 @@ export const AssetsView: React.FC = () => {
         const catFolder = asset.category || "general";
         const assetName = asset.name || asset.title || "asset";
         const itemType = getInferredAssetType(asset);
+        const isSvg = itemType === "icon" || !!asset.svg || asset.contentType?.includes("svg") || asset.name.toLowerCase().endsWith(".svg") || asset.url?.toLowerCase().includes(".svg");
 
-        if (itemType === "icon" || asset.svg) {
-          let svgContent = asset.svg || "";
-          if (!svgContent && asset.url) {
-            try {
-              const res = await fetch(asset.url);
-              if (res.ok) svgContent = await res.text();
-            } catch { continue; }
-          }
+        if (isSvg) {
+          let svgContent = "";
+          try {
+            svgContent = await fetchSvgContentSafely(asset.url || "", asset.svg);
+          } catch { continue; }
           if (!svgContent) continue;
 
           const enriched = enrichSvgWithName(svgContent, assetName);
-          zip.file(`${typeFolder}/${catFolder}/${assetName}.svg`, enriched);
+          zip.file(`${typeFolder}/${catFolder}/${assetName.toLowerCase().endsWith(".svg") ? assetName : `${assetName}.svg`}`, enriched);
         } else if (asset.url) {
           try {
-            const res = await fetch(asset.url);
-            if (res.ok) {
-              const arrayBuffer = await res.arrayBuffer();
-              const ext = extensionFromContentType(asset.contentType || "") || asset.url.split(".").pop()?.split("?")[0] || "dat";
-              const fileName = assetName.includes(".") ? assetName : `${assetName}.${ext}`;
-              zip.file(`${typeFolder}/${catFolder}/${fileName}`, arrayBuffer);
-            }
+            const arrayBuffer = await fetchAssetArrayBufferSafely(asset.url);
+            const ext = extensionFromContentType(asset.contentType || "") || asset.url.split(".").pop()?.split("?")[0] || "dat";
+            const fileName = assetName.includes(".") ? assetName : `${assetName}.${ext}`;
+            zip.file(`${typeFolder}/${catFolder}/${fileName}`, arrayBuffer);
           } catch { continue; }
         }
       }
@@ -1673,10 +1751,11 @@ export const AssetsView: React.FC = () => {
     const isSelected = selectedAssetIds.has(icon.id);
     const displayTitle = icon.title || icon.name;
     const itemType = getInferredAssetType(icon);
+    const isSvg = itemType === "icon" || !!icon.svg || (icon.contentType || "").includes("svg") || (icon.name || "").toLowerCase().endsWith(".svg") || (icon.url || "").toLowerCase().includes(".svg");
     const folder = icon.folderId ? assetFolders.find((f) => f.id === icon.folderId) : null;
 
     const handleCardClick = () => {
-      if (itemType === "icon") {
+      if (isSvg) {
         handleCopySvg(icon.svg, icon.id, displayTitle, icon.url);
       } else {
         setPreviewMediaAsset(icon);
@@ -1766,6 +1845,15 @@ export const AssetsView: React.FC = () => {
                   </DropdownMenuItem>
                 </>
               )}
+              {isSvg && (
+                <DropdownMenuItem
+                  onClick={() => handleCopySvg(icon.svg, icon.id, displayTitle, icon.url)}
+                  className="gap-2 cursor-pointer text-xs"
+                >
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Copy SVG</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => handleDownloadSingleAsset(icon)}
                 className="gap-2 cursor-pointer text-xs"
@@ -1836,7 +1924,7 @@ export const AssetsView: React.FC = () => {
           </div>
         ) : itemType === "image" ? (
           <div className="relative w-full">
-            <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} canvasBgMode={canvasBgMode} />
+            <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} />
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1850,7 +1938,7 @@ export const AssetsView: React.FC = () => {
           </div>
         ) : (
           <div className="relative w-full">
-            <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} canvasBgMode={canvasBgMode} />
+            <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} />
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1918,7 +2006,7 @@ export const AssetsView: React.FC = () => {
 
         {/* Hover Action Pill */}
         <div className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity font-semibold flex items-center gap-1 mt-2">
-          {itemType === "icon" ? (
+          {isSvg ? (
             <>
               {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               <span>{isCopied ? "Copied" : "Copy SVG"}</span>
@@ -2619,51 +2707,6 @@ export const AssetsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Canvas Background Selector */}
-              <div className="flex items-center gap-1 bg-background border border-border/80 rounded-lg p-0.5 shadow-2xs ml-auto flex-shrink-0">
-                <span className="text-[10px] font-medium text-muted-foreground px-1.5 hidden sm:inline">
-                  Canvas:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setCanvasBgMode("subtle")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                    canvasBgMode === "subtle"
-                      ? "bg-foreground text-background font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                  title="Grid: subtle neutral canvas with micro-checkerboard (recommended for white and transparent assets)"
-                >
-                  <Grid className="w-3 h-3" />
-                  <span>Grid</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCanvasBgMode("light")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                    canvasBgMode === "light"
-                      ? "bg-foreground text-background font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                  title="Light: pure white preview canvas"
-                >
-                  <Sun className="w-3 h-3" />
-                  <span>Light</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCanvasBgMode("dark")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                    canvasBgMode === "dark"
-                      ? "bg-foreground text-background font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                  title="Dark: dark preview canvas"
-                >
-                  <Moon className="w-3 h-3" />
-                  <span>Dark</span>
-                </button>
-              </div>
             </div>
           )}
 
@@ -4374,53 +4417,11 @@ export const AssetsView: React.FC = () => {
                 </DialogDescription>
               </div>
 
-              {/* Canvas Background Selector in Preview Dialog */}
-              <div className="flex items-center gap-1 bg-muted/60 border border-border/80 rounded-lg p-0.5 shadow-2xs mr-6">
-                <button
-                  type="button"
-                  onClick={() => setCanvasBgMode("subtle")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                    canvasBgMode === "subtle"
-                      ? "bg-foreground text-background font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                  title="Grid: subtle neutral canvas with micro-checkerboard"
-                >
-                  <Grid className="w-3 h-3" />
-                  <span>Grid</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCanvasBgMode("light")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                    canvasBgMode === "light"
-                      ? "bg-foreground text-background font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                  title="Light: pure white preview canvas"
-                >
-                  <Sun className="w-3 h-3" />
-                  <span>Light</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCanvasBgMode("dark")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
-                    canvasBgMode === "dark"
-                      ? "bg-foreground text-background font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
-                  title="Dark: dark preview canvas"
-                >
-                  <Moon className="w-3 h-3" />
-                  <span>Dark</span>
-                </button>
-              </div>
             </DialogHeader>
 
             <div
               className="flex-1 min-h-[360px] max-h-[60vh] flex items-center justify-center p-6 overflow-auto border-b border-border/40 transition-colors"
-              style={getCanvasPreviewStyle(canvasBgMode)}
+              style={getCanvasPreviewStyle("subtle")}
             >
               {getInferredAssetType(previewMediaAsset) === "video" ? (
                 <video
@@ -4447,6 +4448,7 @@ export const AssetsView: React.FC = () => {
                 <img
                   src={previewMediaAsset.url}
                   alt={previewMediaAsset.title || previewMediaAsset.name}
+
                   className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-sm"
                 />
               )}

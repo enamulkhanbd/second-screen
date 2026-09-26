@@ -331,6 +331,37 @@ export async function loadAssetConfig(
 }
 
 /**
+ * Loads the raw binary content of an asset from R2 by key.
+ */
+export async function loadAssetRawContent(
+  key: string
+): Promise<{ data: Uint8Array; contentType: string } | null> {
+  const client = getClient();
+  try {
+    const response = await client.send(
+      new GetObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+      })
+    );
+    if (response.Body) {
+      const data = await response.Body.transformToByteArray();
+      return {
+        data,
+        contentType: response.ContentType || "application/octet-stream",
+      };
+    }
+    return null;
+  } catch (err: any) {
+    if (err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+
+/**
  * Deletes a project's asset configuration from R2.
  */
 export async function deleteAssetConfig(
