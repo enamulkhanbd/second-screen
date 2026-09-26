@@ -2304,18 +2304,18 @@ export const AssetsView: React.FC = () => {
                     e.preventDefault();
                     handleProcessIncomingFiles(e.dataTransfer.files, undefined);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer group ${
                     activeFolderId === null
-                      ? "bg-foreground text-background font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
                     <Grid
                       className={`w-3.5 h-3.5 flex-shrink-0 ${
                         activeFolderId === null
-                          ? "text-background"
-                          : "text-muted-foreground group-hover:text-foreground"
+                          ? "text-sidebar-accent-foreground"
+                          : "text-muted-foreground group-hover:text-sidebar-foreground"
                       }`}
                     />
                     <span className="truncate">All Assets</span>
@@ -2323,7 +2323,7 @@ export const AssetsView: React.FC = () => {
                   <span
                     className={`text-[10px] font-mono ml-2 ${
                       activeFolderId === null
-                        ? "text-background/90 font-bold"
+                        ? "text-sidebar-accent-foreground font-semibold"
                         : "text-muted-foreground/80"
                     }`}
                   >
@@ -2356,12 +2356,12 @@ export const AssetsView: React.FC = () => {
                         setDragTargetFolderId(null);
                         handleProcessIncomingFiles(e.dataTransfer.files, folder.id);
                       }}
-                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-foreground text-background font-semibold shadow-xs"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                           : isDropTarget
                           ? "bg-muted border border-border text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                          : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                       }`}
                       onClick={() => setActiveFolderId(folder.id)}
                     >
@@ -2369,8 +2369,8 @@ export const AssetsView: React.FC = () => {
                         <FolderIconComp
                           className={`w-3.5 h-3.5 flex-shrink-0 ${
                             isSelected
-                              ? "text-background"
-                              : "text-muted-foreground group-hover/folder:text-foreground"
+                              ? "text-sidebar-accent-foreground"
+                              : "text-muted-foreground group-hover/folder:text-sidebar-foreground"
                           }`}
                         />
                         <span className="truncate" title={folder.description || folder.name}>
@@ -2382,7 +2382,7 @@ export const AssetsView: React.FC = () => {
                         <span
                           className={`text-[10px] font-mono ${
                             isSelected
-                              ? "text-background/90 font-bold"
+                              ? "text-sidebar-accent-foreground font-semibold"
                               : "text-muted-foreground/80 group-hover/folder:opacity-0"
                           }`}
                         >
@@ -2399,7 +2399,7 @@ export const AssetsView: React.FC = () => {
                                 <button
                                   className={`w-5 h-5 rounded flex items-center justify-center cursor-pointer ${
                                     isSelected
-                                      ? "text-background hover:bg-white/20"
+                                      ? "text-sidebar-accent-foreground hover:bg-sidebar-accent/80"
                                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                   }`}
                                 >
@@ -2457,10 +2457,21 @@ export const AssetsView: React.FC = () => {
             {categories.length > 0 && (
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="p-3 pb-2 flex items-center justify-between border-b border-border/30">
-                  <h2 className="text-xs font-bold text-foreground tracking-tight">Categories</h2>
-                  <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5">
-                    {categories.length}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-xs font-bold text-foreground tracking-tight">Categories</h2>
+                    <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5">
+                      {categories.length}
+                    </Badge>
+                  </div>
+                  {selectedCategory !== "all" && (
+                    <button
+                      onClick={() => setSelectedCategory("all")}
+                      className="text-[10px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+                      title="Clear category filter"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
 
                 {categories.length > 8 && (
@@ -2479,35 +2490,6 @@ export const AssetsView: React.FC = () => {
                 )}
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                  <button
-                    onClick={() => setSelectedCategory("all")}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
-                      selectedCategory === "all"
-                        ? "bg-foreground text-background font-semibold shadow-xs"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Grid
-                        className={`w-3.5 h-3.5 flex-shrink-0 ${
-                          selectedCategory === "all"
-                            ? "text-background"
-                            : "text-muted-foreground group-hover:text-foreground"
-                        }`}
-                      />
-                      <span className="truncate">All Categories</span>
-                    </div>
-                    <span
-                      className={`text-[10px] font-mono ml-2 ${
-                        selectedCategory === "all"
-                          ? "text-background/90 font-bold"
-                          : "text-muted-foreground/80"
-                      }`}
-                    >
-                      {activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId).length : displayAssets.length}
-                    </span>
-                  </button>
-
                   {filteredCategoryList.map((cat) => {
                     const count = categoryCountMap.get(cat) || 0;
                     const isSelected = selectedCategory === cat;
@@ -2517,19 +2499,19 @@ export const AssetsView: React.FC = () => {
                     return (
                       <button
                         key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
+                        onClick={() => setSelectedCategory(isSelected ? "all" : cat)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer group ${
                           isSelected
-                            ? "bg-foreground text-background font-semibold shadow-xs"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                            : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <IconComponent
                             className={`w-3.5 h-3.5 flex-shrink-0 ${
                               isSelected
-                                ? "text-background"
-                                : "text-muted-foreground group-hover:text-foreground"
+                                ? "text-sidebar-accent-foreground"
+                                : "text-muted-foreground group-hover:text-sidebar-foreground"
                             }`}
                           />
                           <span className="truncate" title={formattedName}>
@@ -2538,7 +2520,7 @@ export const AssetsView: React.FC = () => {
                         </div>
                         <span
                           className={`text-[10px] font-mono ml-2 ${
-                            isSelected ? "text-primary-foreground/90 font-bold" : "text-muted-foreground/80"
+                            isSelected ? "text-sidebar-accent-foreground font-semibold" : "text-muted-foreground/80"
                           }`}
                         >
                           {count}
@@ -2602,10 +2584,10 @@ export const AssetsView: React.FC = () => {
                   </span>
                   <button
                     onClick={() => setSelectedType("all")}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
                       selectedType === "all"
-                        ? "bg-foreground text-background shadow-2xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                        : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                     }`}
                   >
                     All Types ({displayAssets.length})
@@ -2617,14 +2599,14 @@ export const AssetsView: React.FC = () => {
                       <button
                         key={t}
                         onClick={() => setSelectedType(t)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
                           isSelected
-                            ? "bg-foreground text-background shadow-2xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                            : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                         }`}
                       >
                         <span>{formatCategoryName(t) || t}</span>
-                        <span className={`text-[10px] ${isSelected ? "text-background/80" : "text-muted-foreground"}`}>
+                        <span className={`text-[10px] ${isSelected ? "text-sidebar-accent-foreground/80 font-semibold" : "text-muted-foreground"}`}>
                           ({count})
                         </span>
                       </button>
