@@ -328,7 +328,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
           {isEditable && (
             <Button
               size="sm"
-              className="h-8 text-xs gap-1.5 bg-foreground text-background hover:bg-foreground/90 font-medium"
+              className="h-8 text-xs gap-1.5 font-medium cursor-pointer shadow-xs"
               onClick={() => setOptionSheet({ mode: "add" })}
             >
               <Plus className="size-3.5" />
