@@ -9,13 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExtensionDetailModal } from "@/components/ExtensionDetailModal";
 
-type FilterTab = "all" | "enabled" | SchemaCategory;
+type FilterTab = "all" | "enabled" | "disabled" | SchemaCategory;
 
 export const ExtensionsView: React.FC = () => {
-  const { enabledSchemas, toggleSchemaAction, canUserEdit } = useTokenStore();
+  const { enabledSchemas, toggleSchemaAction, setSchemasEnabledAction, canUserEdit } = useTokenStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [inspectingItem, setInspectingItem] = useState<SchemaItem | null>(null);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const isEditable = canUserEdit();
 
@@ -24,6 +25,7 @@ export const ExtensionsView: React.FC = () => {
     return {
       all: SCHEMA_CATALOG.length,
       enabled: SCHEMA_CATALOG.filter((s) => enabledSchemas.includes(s.id)).length,
+      disabled: SCHEMA_CATALOG.filter((s) => !enabledSchemas.includes(s.id)).length,
       core: SCHEMA_CATALOG.filter((s) => s.category === "core").length,
       colorSpaces: SCHEMA_CATALOG.filter((s) => s.category === "color-spaces").length,
       functions: SCHEMA_CATALOG.filter((s) => s.category === "functions").length,
@@ -35,6 +37,8 @@ export const ExtensionsView: React.FC = () => {
     let list = SCHEMA_CATALOG;
     if (activeTab === "enabled") {
       list = list.filter((item) => enabledSchemas.includes(item.id));
+    } else if (activeTab === "disabled") {
+      list = list.filter((item) => !enabledSchemas.includes(item.id));
     } else if (activeTab !== "all") {
       list = list.filter((item) => item.category === activeTab);
     }
@@ -51,6 +55,18 @@ export const ExtensionsView: React.FC = () => {
     return list;
   }, [activeTab, searchQuery, enabledSchemas]);
 
+  const updateFilteredSchemas = async (enabled: boolean) => {
+    setIsBulkUpdating(true);
+    try {
+      await setSchemasEnabledAction(
+        filteredItems.map((item) => item.id),
+        enabled
+      );
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const getTagColor = (tag: string) => {
     switch (tag) {
       case "Color Space":
@@ -65,7 +81,7 @@ export const ExtensionsView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full bg-background text-foreground overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {/* Centered Main Container */}
-      <div className="w-full max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
+      <div className="w-full max-w-[960px] mx-auto px-6 py-8 flex flex-col gap-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -119,6 +135,19 @@ export const ExtensionsView: React.FC = () => {
 
             <button
               type="button"
+              onClick={() => setActiveTab("disabled")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                activeTab === "disabled"
+                  ? "border-muted-foreground/50 bg-muted text-foreground shadow-xs"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <span>Disabled</span>
+              <span className="text-[11px] opacity-70">{counts.disabled}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab("color-spaces")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                 activeTab === "color-spaces"
@@ -156,6 +185,31 @@ export const ExtensionsView: React.FC = () => {
               <span className="text-[11px] opacity-70">{counts.core}</span>
             </button>
           </div>
+
+          {isEditable && (
+            <div className="flex flex-wrap items-center justify-end gap-2 mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isBulkUpdating || !filteredItems.some((item) => !enabledSchemas.includes(item.id))}
+                onClick={() => void updateFilteredSchemas(true)}
+                className="h-8 text-xs"
+              >
+                Enable All
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isBulkUpdating || !filteredItems.some((item) => enabledSchemas.includes(item.id))}
+                onClick={() => void updateFilteredSchemas(false)}
+                className="h-8 text-xs"
+              >
+                Disable All
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Unified Items List */}

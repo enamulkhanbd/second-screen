@@ -25,9 +25,7 @@ import {
   Folder,
   FolderPlus,
   FolderInput,
-  const enabledFigmaSourcesCount = (assetFigmaConfig?.sources || []).filter(
-    (s) => s.enabled !== false && !s.isPaused
-  ).length;
+  Layers,
   PlusCircle,
   Bot,
   AlertTriangle,
@@ -44,6 +42,7 @@ import {
   File,
   Film,
   Video,
+  Sparkles,
   Settings,
   Shield,
   Heart,

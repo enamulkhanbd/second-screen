@@ -399,6 +399,7 @@ interface TokenStoreState {
   // Schema Marketplace & Extension State
   enabledSchemas: string[];
   toggleSchemaAction: (schemaId: string) => Promise<void>;
+  setSchemasEnabledAction: (schemaIds: string[], enabled: boolean) => Promise<void>;
   enableSchemaAction: (schemaId: string) => Promise<void>;
   disableSchemaAction: (schemaId: string) => Promise<void>;
   isSchemaEnabled: (schemaId: string) => boolean;
@@ -5959,6 +5960,36 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "success",
       title: isCurrentlyEnabled ? "Extension Disabled" : "Extension Enabled",
       message: `${isCurrentlyEnabled ? "Disabled" : "Enabled"} schema "${schemaId}".`,
+    });
+  },
+
+  setSchemasEnabledAction: async (schemaIds, enabled) => {
+    const { enabledSchemas, currentOrg, currentProject, orgProjects, addToast } = get();
+    const requestedIds = new Set(schemaIds);
+    const changedIds = enabled
+      ? schemaIds.filter((id) => !enabledSchemas.includes(id))
+      : enabledSchemas.filter((id) => requestedIds.has(id));
+
+    if (changedIds.length === 0) return;
+
+    const updated = enabled
+      ? [...enabledSchemas, ...changedIds]
+      : enabledSchemas.filter((id) => !requestedIds.has(id));
+    set({ enabledSchemas: updated });
+
+    if (currentOrg && currentProject) {
+      const updatedProj: Project = { ...currentProject, enabledSchemas: updated };
+      set({
+        currentProject: updatedProj,
+        orgProjects: orgProjects.map((project) => (project.id === currentProject.id ? updatedProj : project)),
+      });
+      await saveProjectSchemas(currentOrg.id, currentProject.id, updated);
+    }
+
+    addToast({
+      type: "success",
+      title: enabled ? "Extensions Enabled" : "Extensions Disabled",
+      message: `${enabled ? "Enabled" : "Disabled"} ${changedIds.length} extension${changedIds.length === 1 ? "" : "s"}.`,
     });
   },
 
