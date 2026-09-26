@@ -65,6 +65,8 @@ import {
   Save,
   Maximize2,
   Loader2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -115,13 +117,14 @@ const ASSET_BATCH_SIZE = 72;
  * e.g. "add-remove-delete" -> "Add Remove Delete", "two-tone" -> "Two Tone"
  */
 export function formatCategoryName(category?: string): string {
-  if (!category) return "All Icons";
+  if (!category) return "";
+  if (category.toLowerCase() === "general") return "";
   const formatted = category
     .split(/[-_]/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
-  return formatted.toLowerCase() === "general" ? "All Icons" : formatted;
+  return formatted || category;
 }
 
 /**
@@ -223,7 +226,7 @@ function parseMetadataJson(content: string): Map<string, RawMetadataItem> {
 /**
  * Intelligently decomposes a relative file path (e.g. "icons/Two Tone/add-remove-delete/icon-unavailable.svg")
  */
-function parseRawPathMeta(relativePath: string): { derivedType?: string; derivedCategory: string; stem: string } {
+function parseRawPathMeta(relativePath: string): { derivedType?: string; derivedCategory?: string; stem: string } {
   const clean = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
   let parts = clean.split("/").filter(Boolean);
   const fileName = parts.pop() || "";
@@ -235,7 +238,7 @@ function parseRawPathMeta(relativePath: string): { derivedType?: string; derived
   }
 
   let derivedType: string | undefined = undefined;
-  let derivedCategory = "general";
+  let derivedCategory: string | undefined = undefined;
 
   // Check if any path segment matches a known type
   let typeIndex = -1;
@@ -251,7 +254,7 @@ function parseRawPathMeta(relativePath: string): { derivedType?: string; derived
 
   if (typeIndex !== -1) {
     const catParts = parts.filter((_, idx) => idx !== typeIndex);
-    derivedCategory = catParts.length > 0 ? catParts.join("-") : "general";
+    derivedCategory = catParts.length > 0 ? catParts.join("-") : undefined;
   } else if (parts.length >= 2) {
     derivedType = parts[0];
     derivedCategory = parts.slice(1).join("-");
@@ -260,7 +263,7 @@ function parseRawPathMeta(relativePath: string): { derivedType?: string; derived
     const normSingle = normalizeKey(single);
     if (KNOWN_TYPE_NAMES.has(normSingle) || KNOWN_TYPE_NAMES.has(single.toLowerCase())) {
       derivedType = single;
-      derivedCategory = "general";
+      derivedCategory = undefined;
     } else {
       derivedCategory = single;
     }
@@ -354,12 +357,42 @@ export function getFolderIconComponent(iconName?: string) {
   }
 }
 
+export type CanvasBgMode = "subtle" | "light" | "dark";
+
+export const getCanvasPreviewStyle = (mode: CanvasBgMode = "subtle"): React.CSSProperties => {
+  if (mode === "dark") {
+    return {
+      backgroundColor: "#111215",
+      backgroundImage: "none",
+    };
+  }
+  if (mode === "light") {
+    return {
+      backgroundColor: "#ffffff",
+      backgroundImage: "none",
+    };
+  }
+  // "subtle" (default) - very subtle neutral background with micro-checkerboard
+  return {
+    backgroundColor: "hsl(var(--muted) / 0.65)",
+    backgroundImage: `
+      linear-gradient(45deg, hsl(var(--foreground) / 0.04) 25%, transparent 25%),
+      linear-gradient(-45deg, hsl(var(--foreground) / 0.04) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, hsl(var(--foreground) / 0.04) 75%),
+      linear-gradient(-45deg, transparent 75%, hsl(var(--foreground) / 0.04) 75%)
+    `,
+    backgroundSize: "12px 12px",
+    backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0px",
+  };
+};
+
 interface AssetPreviewThumbnailProps {
   icon: ProjectAsset;
   displayTitle: string;
+  canvasBgMode?: CanvasBgMode;
 }
 
-const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle }) => {
+const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle, canvasBgMode = "subtle" }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -368,58 +401,58 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
     setHasError(false);
   }, [icon.url]);
 
-  if (icon.svg) {
-    return (
-      <div
-        className="w-11 h-11 flex items-center justify-center text-foreground transition-transform duration-150 group-hover:scale-105 mt-1 [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-[44px] [&>svg]:max-h-[44px]"
-        dangerouslySetInnerHTML={{ __html: icon.svg }}
-      />
-    );
-  }
+  const previewStyle = getCanvasPreviewStyle(canvasBgMode);
 
-  if (icon.url) {
-    return (
-      <div className="w-11 h-11 relative flex items-center justify-center mt-1">
-        {!isLoaded && !hasError && (
-          <div className="absolute inset-0 rounded-lg bg-muted/60 animate-pulse flex items-center justify-center pointer-events-none">
-            <div className="w-4 h-4 rounded-full bg-muted/80" />
-          </div>
-        )}
-
-        {hasError ? (
-          <div className="w-11 h-11 rounded-lg bg-muted/30 border border-border/40 flex items-center justify-center text-muted-foreground/50">
-            <ImageIcon className="w-4 h-4" />
-          </div>
-        ) : (
-          <img
-            src={icon.url}
-            alt={displayTitle}
-            onLoad={() => setIsLoaded(true)}
-            onError={() => setHasError(true)}
-            className={`w-11 h-11 object-contain transition-all duration-200 group-hover:scale-105 ${
-              isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
-            } ${
-              icon.contentType === "image/svg+xml" || !icon.contentType || icon.url.endsWith(".svg")
-                ? "dark:invert dark:opacity-90"
-                : ""
-            }`}
-            loading="lazy"
-          />
-        )}
-      </div>
-    );
-  }
+  // In dark mode or on dark canvas, only invert standard monochrome git icons without explicit color/dark labels
+  const shouldInvertInDarkMode =
+    icon.source === "git" &&
+    !icon.name.toLowerCase().includes("dark") &&
+    !icon.name.toLowerCase().includes("color");
 
   return (
-    <div className="w-11 h-11 rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground/40 mt-1">
-      <ImageIcon className="w-4 h-4" />
+    <div
+      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-all duration-200 group-hover:border-border"
+      style={previewStyle}
+    >
+      {!isLoaded && !hasError && icon.url && (
+        <div className="absolute inset-0 bg-muted/40 animate-pulse pointer-events-none" />
+      )}
+
+      {hasError ? (
+        <div className="flex flex-col items-center justify-center text-muted-foreground/50 text-xs">
+          <ImageIcon className="w-5 h-5 mb-1" />
+          <span className="text-[10px]">Error</span>
+        </div>
+      ) : icon.svg ? (
+        <div
+          className="max-h-14 max-w-[85%] flex items-center justify-center transition-transform duration-150 group-hover:scale-105 [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14"
+          dangerouslySetInnerHTML={{ __html: icon.svg }}
+        />
+      ) : icon.url ? (
+        <img
+          src={icon.url}
+          alt={displayTitle}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          className={`max-h-14 max-w-[85%] object-contain transition-all duration-200 group-hover:scale-105 ${
+            isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          } ${
+            shouldInvertInDarkMode && canvasBgMode !== "light"
+              ? "dark:invert dark:opacity-90"
+              : ""
+          }`}
+          loading="lazy"
+        />
+      ) : (
+        <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
+      )}
     </div>
   );
 });
 
 AssetPreviewThumbnail.displayName = "AssetPreviewThumbnail";
 
-const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle }) => {
+const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo(({ icon, displayTitle, canvasBgMode = "subtle" }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -428,10 +461,15 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
     setHasError(false);
   }, [icon.url]);
 
+  const previewStyle = getCanvasPreviewStyle(canvasBgMode);
+
   return (
-    <div className="w-full h-20 rounded-lg bg-muted/40 overflow-hidden flex items-center justify-center relative mt-1 group-hover:bg-muted/60 transition-colors">
+    <div
+      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-all duration-200 group-hover:border-border p-2"
+      style={previewStyle}
+    >
       {!isLoaded && !hasError && (
-        <div className="absolute inset-0 bg-muted/50 animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 bg-muted/40 animate-pulse pointer-events-none" />
       )}
       {hasError ? (
         <div className="w-full h-full flex items-center justify-center text-muted-foreground/50 text-xs">
@@ -534,6 +572,7 @@ export const AssetsView: React.FC = () => {
 
   // Media preview modal / drawer state (for video / full image / doc preview)
   const [previewMediaAsset, setPreviewMediaAsset] = useState<ProjectAsset | null>(null);
+  const [canvasBgMode, setCanvasBgMode] = useState<CanvasBgMode>("subtle");
 
   // File Upload Refs
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -643,28 +682,35 @@ export const AssetsView: React.FC = () => {
     return Array.from(set).sort();
   }, [displayAssets, activeFolderId]);
 
-  // Precomputed category counts in a single O(N) pass
+  // Precomputed category counts in a single O(N) pass (strictly scoped to active folder)
   const categoryCountMap = useMemo(() => {
     const counts = new Map<string, number>();
     const pool = activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId) : displayAssets;
     pool.forEach((a) => {
-      if (a.category) {
-        const cat = a.category.toLowerCase();
+      if (a.category && a.category.trim() && a.category.toLowerCase() !== "general") {
+        const cat = a.category.trim().toLowerCase();
         counts.set(cat, (counts.get(cat) || 0) + 1);
       }
     });
     return counts;
   }, [displayAssets, activeFolderId]);
 
-  // Unique categories
+  // Unique categories (strictly scoped to active folder)
   const categories = useMemo(() => {
     const set = new Set<string>();
     const pool = activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId) : displayAssets;
     pool.forEach((a) => {
-      if (a.category) set.add(a.category.toLowerCase());
+      if (a.category && a.category.trim() && a.category.toLowerCase() !== "general") {
+        set.add(a.category.trim().toLowerCase());
+      }
     });
     return Array.from(set).sort((a, b) => ASSET_COLLATOR.compare(a, b));
   }, [displayAssets, activeFolderId]);
+
+  // Automatically reset category filter when active folder changes
+  useEffect(() => {
+    setSelectedCategory("all");
+  }, [activeFolderId]);
 
   // Filtered categories in left sidebar
   const filteredCategoryList = useMemo(() => {
@@ -746,21 +792,23 @@ export const AssetsView: React.FC = () => {
   // Precompute total counts per type for section headers
   const totalCountByType = useMemo(() => {
     const map = new Map<string, number>();
+    const fallbackName = currentActiveFolder ? currentActiveFolder.name : "All Assets";
     filteredAssets.forEach((asset) => {
-      let type = asset.type || "All Icons";
-      if (type.toLowerCase() === "general") type = "All Icons";
+      let type = asset.type || fallbackName;
+      if (type.toLowerCase() === "general") type = fallbackName;
       map.set(type, (map.get(type) || 0) + 1);
     });
     return map;
-  }, [filteredAssets]);
+  }, [filteredAssets, currentActiveFolder]);
 
   // Group filtered assets directly by Type, slicing to visibleCount for smooth DOM performance
   const groupedAssetsByType = useMemo(() => {
     const visibleSlice = filteredAssets.slice(0, visibleCount);
     const map = new Map<string, ProjectAsset[]>();
+    const fallbackName = currentActiveFolder ? currentActiveFolder.name : "All Assets";
     visibleSlice.forEach((asset) => {
-      let type = asset.type || "All Icons";
-      if (type.toLowerCase() === "general") type = "All Icons";
+      let type = asset.type || fallbackName;
+      if (type.toLowerCase() === "general") type = fallbackName;
       if (!map.has(type)) map.set(type, []);
       map.get(type)!.push(asset);
     });
@@ -770,7 +818,7 @@ export const AssetsView: React.FC = () => {
         typeName,
         icons,
       }));
-  }, [filteredAssets, visibleCount]);
+  }, [filteredAssets, visibleCount, currentActiveFolder]);
 
   // Toggle selection for an individual asset
   const toggleAssetSelect = (id: string, e?: React.MouseEvent) => {
@@ -854,7 +902,7 @@ export const AssetsView: React.FC = () => {
           metadataMap.get(stem.toLowerCase());
 
         const resolvedType = matchedMeta?.type || derivedType || undefined;
-        const resolvedCategory = matchedMeta?.category || derivedCategory || (selectedCategory !== "all" ? selectedCategory : "general");
+        const resolvedCategory = matchedMeta?.category || (derivedCategory && derivedCategory !== "general" ? derivedCategory : undefined) || (selectedCategory !== "all" ? selectedCategory : undefined);
 
         newAssets.push({
           name: matchedMeta?.name || stem,
@@ -879,7 +927,7 @@ export const AssetsView: React.FC = () => {
       const stem = fileName.replace(/\.[^/.]+$/, "");
       const mime = item.contentType || detectContentType(fileName);
       const derivedType = deriveAssetType(mime, fileName);
-      const resolvedCategory = parts.length > 0 ? parts.join("-") : (selectedCategory !== "all" ? selectedCategory : "general");
+      const resolvedCategory = parts.length > 0 ? parts.join("-") : (selectedCategory !== "all" ? selectedCategory : undefined);
 
       newAssets.push({
         name: stem,
@@ -1569,7 +1617,7 @@ export const AssetsView: React.FC = () => {
     setEditFormName(asset.name);
     setEditFormTitle(asset.title || asset.name);
     setEditFormType(asset.type || "");
-    setEditFormCategory(asset.category || "general");
+    setEditFormCategory(asset.category && asset.category !== "general" ? asset.category : "");
     setEditFormTag(asset.tag || "");
     setEditFormFolderId(asset.folderId);
   };
@@ -1582,7 +1630,7 @@ export const AssetsView: React.FC = () => {
       name: editFormName.trim(),
       title: editFormTitle.trim() || editFormName.trim(),
       type: editFormType.trim() || undefined,
-      category: editFormCategory.trim().toLowerCase() || "general",
+      category: editFormCategory.trim() ? editFormCategory.trim().toLowerCase() : undefined,
       tag: editFormTag.trim() || undefined,
       folderId: editFormFolderId !== undefined ? (editFormFolderId || undefined) : editingAsset.folderId,
     });
@@ -1601,7 +1649,7 @@ export const AssetsView: React.FC = () => {
     e.preventDefault();
     const title = bulkFormTitle.trim();
     const type = bulkFormType.trim();
-    const category = bulkFormCategory.trim().toLowerCase();
+    const category = bulkFormCategory.trim() ? bulkFormCategory.trim().toLowerCase() : undefined;
     const tag = bulkFormTag.trim();
     if (!title && !type && !category && !tag) return;
 
@@ -1788,7 +1836,7 @@ export const AssetsView: React.FC = () => {
           </div>
         ) : itemType === "image" ? (
           <div className="relative w-full">
-            <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} />
+            <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} canvasBgMode={canvasBgMode} />
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1801,7 +1849,19 @@ export const AssetsView: React.FC = () => {
             </button>
           </div>
         ) : (
-          <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} />
+          <div className="relative w-full">
+            <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} canvasBgMode={canvasBgMode} />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewMediaAsset(icon);
+              }}
+              className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
+              title="Preview Asset"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
+          </div>
         )}
 
         {/* Asset Metadata: Title as primary, badges below */}
@@ -1968,13 +2028,13 @@ export const AssetsView: React.FC = () => {
       {/* Top Header */}
       <header className="h-16 border-b border-border px-6 flex items-center justify-between bg-card/60 backdrop-blur-md flex-shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
+          <div className="w-8 h-8 rounded-lg bg-muted text-foreground flex items-center justify-center border border-border/70 shadow-2xs">
             <ImageIcon className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold text-foreground">Assets</h1>
-              <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 border-primary/30 text-primary">
+              <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 border-border/80 text-muted-foreground bg-muted/40">
                 {displayAssets.length} {displayAssets.length === 1 ? "asset" : "assets"}
               </Badge>
             </div>
@@ -2198,10 +2258,14 @@ export const AssetsView: React.FC = () => {
         {(displayAssets.length > 0 || assetFolders.length > 0 || canUserEdit()) && (
           <aside className="w-64 border-r border-border bg-card/30 flex flex-col flex-shrink-0 select-none overflow-hidden">
             {/* SECTION 1: FOLDERS */}
-            <div className="p-3 border-b border-border/40">
-              <div className="flex items-center justify-between mb-2">
+            <div
+              className={`p-3 ${
+                categories.length > 0 ? "border-b border-border/40 max-h-[50%]" : "flex-1"
+              } flex flex-col overflow-hidden`}
+            >
+              <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <Folder className="w-3.5 h-3.5 text-primary" />
+                  <Folder className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="text-xs font-bold text-foreground uppercase tracking-wider">Folders</span>
                   <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5 ml-0.5">
                     {assetFolders.length}
@@ -2209,7 +2273,7 @@ export const AssetsView: React.FC = () => {
                 </div>
                 {canUserEdit() && (
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => {
                       setFolderFormName("");
@@ -2218,7 +2282,7 @@ export const AssetsView: React.FC = () => {
                       setFolderFormColor("blue");
                       setIsCreateFolderOpen(true);
                     }}
-                    className="h-6 px-1.5 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                    className="h-6 px-2 text-[11px] gap-1 font-medium border-border/80 bg-background hover:bg-muted text-foreground shadow-2xs cursor-pointer rounded-md transition-colors"
                     title="Create New Folder"
                   >
                     <FolderPlus className="w-3.5 h-3.5" />
@@ -2228,7 +2292,7 @@ export const AssetsView: React.FC = () => {
               </div>
 
               {/* Folder list */}
-              <div className="space-y-1">
+              <div className="space-y-1 overflow-y-auto flex-1 pr-0.5">
                 {/* "All Assets" Item */}
                 <button
                   onClick={() => setActiveFolderId(null)}
@@ -2242,7 +2306,7 @@ export const AssetsView: React.FC = () => {
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
                     activeFolderId === null
-                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      ? "bg-foreground text-background font-semibold shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
                   }`}
                 >
@@ -2250,7 +2314,7 @@ export const AssetsView: React.FC = () => {
                     <Grid
                       className={`w-3.5 h-3.5 flex-shrink-0 ${
                         activeFolderId === null
-                          ? "text-primary-foreground"
+                          ? "text-background"
                           : "text-muted-foreground group-hover:text-foreground"
                       }`}
                     />
@@ -2259,7 +2323,7 @@ export const AssetsView: React.FC = () => {
                   <span
                     className={`text-[10px] font-mono ml-2 ${
                       activeFolderId === null
-                        ? "text-primary-foreground/90 font-bold"
+                        ? "text-background/90 font-bold"
                         : "text-muted-foreground/80"
                     }`}
                   >
@@ -2294,9 +2358,9 @@ export const AssetsView: React.FC = () => {
                       }}
                       className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                          ? "bg-foreground text-background font-semibold shadow-xs"
                           : isDropTarget
-                          ? "bg-primary/20 border border-primary/50 text-foreground"
+                          ? "bg-muted border border-border text-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
                       }`}
                       onClick={() => setActiveFolderId(folder.id)}
@@ -2305,8 +2369,8 @@ export const AssetsView: React.FC = () => {
                         <FolderIconComp
                           className={`w-3.5 h-3.5 flex-shrink-0 ${
                             isSelected
-                              ? "text-primary-foreground"
-                              : "text-primary/80 group-hover/folder:text-primary"
+                              ? "text-background"
+                              : "text-muted-foreground group-hover/folder:text-foreground"
                           }`}
                         />
                         <span className="truncate" title={folder.description || folder.name}>
@@ -2318,7 +2382,7 @@ export const AssetsView: React.FC = () => {
                         <span
                           className={`text-[10px] font-mono ${
                             isSelected
-                              ? "text-primary-foreground/90 font-bold"
+                              ? "text-background/90 font-bold"
                               : "text-muted-foreground/80 group-hover/folder:opacity-0"
                           }`}
                         >
@@ -2335,7 +2399,7 @@ export const AssetsView: React.FC = () => {
                                 <button
                                   className={`w-5 h-5 rounded flex items-center justify-center cursor-pointer ${
                                     isSelected
-                                      ? "text-primary-foreground hover:bg-white/20"
+                                      ? "text-background hover:bg-white/20"
                                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                   }`}
                                 >
@@ -2389,138 +2453,102 @@ export const AssetsView: React.FC = () => {
               </div>
             </div>
 
-            {/* SECTION 2: ASSET TYPES FILTER */}
-            <div className="p-3 border-b border-border/40">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Asset Types
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                {[
-                  { id: "all", label: "All", count: assetTypeCounts.all, icon: Grid },
-                  { id: "icon", label: "Icons", count: assetTypeCounts.icon, icon: Layers },
-                  { id: "image", label: "Images", count: assetTypeCounts.image, icon: ImageIcon },
-                  { id: "video", label: "Videos", count: assetTypeCounts.video, icon: Film },
-                  { id: "document", label: "Docs", count: assetTypeCounts.document, icon: FileText },
-                ].map((tab) => {
-                  const isSelected = selectedAssetType === tab.id;
-                  const TabIcon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setSelectedAssetType(tab.id as any)}
-                      className={`flex items-center justify-between px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                        isSelected
-                          ? "bg-primary/10 text-primary border border-primary/30 font-semibold"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <TabIcon className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{tab.label}</span>
-                      </div>
-                      <span className="text-[10px] font-mono opacity-80">{tab.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* SECTION 3: CATEGORIES */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-3 pb-2 flex items-center justify-between border-b border-border/30">
-                <h2 className="text-xs font-bold text-foreground tracking-tight">Categories</h2>
-                <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5">
-                  {categories.length}
-                </Badge>
-              </div>
-
-              {categories.length > 8 && (
-                <div className="p-2 border-b border-border/30">
-                  <div className="relative">
-                    <Search className="w-3 h-3 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
-                    <Input
-                      type="text"
-                      placeholder="Filter categories..."
-                      value={categorySearchQuery}
-                      onChange={(e) => setCategorySearchQuery(e.target.value)}
-                      className="h-7 pl-6 text-[11px] bg-background/80"
-                    />
-                  </div>
+            {/* SECTION 2: CATEGORIES (Dynamic: only visible if scoped assets have categories) */}
+            {categories.length > 0 && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-3 pb-2 flex items-center justify-between border-b border-border/30">
+                  <h2 className="text-xs font-bold text-foreground tracking-tight">Categories</h2>
+                  <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5">
+                    {categories.length}
+                  </Badge>
                 </div>
-              )}
 
-              <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                <button
-                  onClick={() => setSelectedCategory("all")}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
-                    selectedCategory === "all"
-                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Grid
-                      className={`w-3.5 h-3.5 flex-shrink-0 ${
-                        selectedCategory === "all"
-                          ? "text-primary-foreground"
-                          : "text-muted-foreground group-hover:text-foreground"
-                      }`}
-                    />
-                    <span className="truncate">All Categories</span>
+                {categories.length > 8 && (
+                  <div className="p-2 border-b border-border/30">
+                    <div className="relative">
+                      <Search className="w-3 h-3 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
+                      <Input
+                        type="text"
+                        placeholder="Filter categories..."
+                        value={categorySearchQuery}
+                        onChange={(e) => setCategorySearchQuery(e.target.value)}
+                        className="h-7 pl-6 text-[11px] bg-background/80"
+                      />
+                    </div>
                   </div>
-                  <span
-                    className={`text-[10px] font-mono ml-2 ${
+                )}
+
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                  <button
+                    onClick={() => setSelectedCategory("all")}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
                       selectedCategory === "all"
-                        ? "text-primary-foreground/90 font-bold"
-                        : "text-muted-foreground/80"
+                        ? "bg-foreground text-background font-semibold shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
                     }`}
                   >
-                    {activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId).length : displayAssets.length}
-                  </span>
-                </button>
-
-                {filteredCategoryList.map((cat) => {
-                  const count = categoryCountMap.get(cat) || 0;
-                  const isSelected = selectedCategory === cat;
-                  const IconComponent = getCategoryIcon(cat);
-                  const formattedName = formatCategoryName(cat);
-
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
-                        isSelected
-                          ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                    <div className="flex items-center gap-2 truncate">
+                      <Grid
+                        className={`w-3.5 h-3.5 flex-shrink-0 ${
+                          selectedCategory === "all"
+                            ? "text-background"
+                            : "text-muted-foreground group-hover:text-foreground"
+                        }`}
+                      />
+                      <span className="truncate">All Categories</span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-mono ml-2 ${
+                        selectedCategory === "all"
+                          ? "text-background/90 font-bold"
+                          : "text-muted-foreground/80"
                       }`}
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <IconComponent
-                          className={`w-3.5 h-3.5 flex-shrink-0 ${
-                            isSelected
-                              ? "text-primary-foreground"
-                              : "text-muted-foreground group-hover:text-foreground"
-                          }`}
-                        />
-                        <span className="truncate" title={formattedName}>
-                          {formattedName}
-                        </span>
-                      </div>
-                      <span
-                        className={`text-[10px] font-mono ml-2 ${
-                          isSelected ? "text-primary-foreground/90 font-bold" : "text-muted-foreground/80"
+                      {activeFolderId ? displayAssets.filter((a) => a.folderId === activeFolderId).length : displayAssets.length}
+                    </span>
+                  </button>
+
+                  {filteredCategoryList.map((cat) => {
+                    const count = categoryCountMap.get(cat) || 0;
+                    const isSelected = selectedCategory === cat;
+                    const IconComponent = getCategoryIcon(cat);
+                    const formattedName = formatCategoryName(cat) || cat;
+
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer group ${
+                          isSelected
+                            ? "bg-foreground text-background font-semibold shadow-xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
                         }`}
                       >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <div className="flex items-center gap-2 truncate">
+                          <IconComponent
+                            className={`w-3.5 h-3.5 flex-shrink-0 ${
+                              isSelected
+                                ? "text-background"
+                                : "text-muted-foreground group-hover:text-foreground"
+                            }`}
+                          />
+                          <span className="truncate" title={formattedName}>
+                            {formattedName}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-mono ml-2 ${
+                            isSelected ? "text-primary-foreground/90 font-bold" : "text-muted-foreground/80"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </aside>
         )}
 
@@ -2528,10 +2556,10 @@ export const AssetsView: React.FC = () => {
         <main className="flex-1 flex flex-col overflow-hidden bg-background">
           {/* Active Folder Header Banner (if folder is selected) */}
           {currentActiveFolder && (
-            <div className="px-6 py-2.5 border-b border-border bg-primary/5 flex items-center justify-between text-xs flex-shrink-0">
+            <div className="px-6 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between text-xs flex-shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                  {React.createElement(getFolderIconComponent(currentActiveFolder.icon), { className: "w-3.5 h-3.5" })}
+                <div className="w-6 h-6 rounded-md bg-muted text-foreground flex items-center justify-center border border-border/60">
+                  {React.createElement(getFolderIconComponent(currentActiveFolder.icon), { className: "w-3.5 h-3.5 text-muted-foreground" })}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -2545,8 +2573,8 @@ export const AssetsView: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {canUserEdit() && (
+              {canUserEdit() && (
+                <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -2556,58 +2584,104 @@ export const AssetsView: React.FC = () => {
                     }}
                     className="h-7 text-xs gap-1.5 cursor-pointer"
                   >
-                    <UploadCloud className="w-3 h-3 text-primary" />
+                    <UploadCloud className="w-3 h-3 text-muted-foreground" />
                     <span>Upload Files</span>
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveFolderId(null)}
-                  className="h-7 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  Exit Folder
-                </Button>
-              </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Top Subheader: Icon Type Filter Pills (from metadata.json or folder structure) */}
-          {iconTypes.length > 0 && displayAssets.length > 0 && (
-            <div className="px-6 py-2.5 border-b border-border bg-muted/15 flex items-center gap-2 overflow-x-auto text-xs flex-shrink-0">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1 flex items-center gap-1">
-                <span>Type:</span>
-              </span>
-              <button
-                onClick={() => setSelectedType("all")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                  selectedType === "all"
-                    ? "bg-primary text-primary-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                All Types ({displayAssets.length})
-              </button>
-              {iconTypes.map((t) => {
-                const count = displayAssets.filter((a) => a.type?.toLowerCase() === t).length;
-                const isSelected = selectedType === t;
-                return (
+          {/* Top Subheader: Filter Pills & Canvas Background Switcher */}
+          {displayAssets.length > 0 && (
+            <div className="px-6 py-2 border-b border-border bg-muted/15 flex items-center justify-between gap-3 text-xs flex-shrink-0">
+              {iconTypes.length > 0 ? (
+                <div className="flex items-center gap-2 overflow-x-auto">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1 flex items-center gap-1">
+                    <span>Type:</span>
+                  </span>
                   <button
-                    key={t}
-                    onClick={() => setSelectedType(t)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground shadow-2xs font-semibold"
+                    onClick={() => setSelectedType("all")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      selectedType === "all"
+                        ? "bg-foreground text-background shadow-2xs font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
-                    <span>{formatCategoryName(t)}</span>
-                    <span className={`text-[10px] ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                      ({count})
-                    </span>
+                    All Types ({displayAssets.length})
                   </button>
-                );
-              })}
+                  {iconTypes.map((t) => {
+                    const count = displayAssets.filter((a) => a.type?.toLowerCase() === t).length;
+                    const isSelected = selectedType === t;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => setSelectedType(t)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-foreground text-background shadow-2xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <span>{formatCategoryName(t) || t}</span>
+                        <span className={`text-[10px] ${isSelected ? "text-background/80" : "text-muted-foreground"}`}>
+                          ({count})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-[11px] text-muted-foreground font-medium">
+                  {currentActiveFolder ? `${currentActiveFolder.name} folder` : "Assets overview"}
+                </div>
+              )}
+
+              {/* Canvas Background Selector */}
+              <div className="flex items-center gap-1 bg-background border border-border/80 rounded-lg p-0.5 shadow-2xs ml-auto flex-shrink-0">
+                <span className="text-[10px] font-medium text-muted-foreground px-1.5 hidden sm:inline">
+                  Canvas:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCanvasBgMode("subtle")}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                    canvasBgMode === "subtle"
+                      ? "bg-foreground text-background font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Grid: subtle neutral canvas with micro-checkerboard (recommended for white and transparent assets)"
+                >
+                  <Grid className="w-3 h-3" />
+                  <span>Grid</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCanvasBgMode("light")}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                    canvasBgMode === "light"
+                      ? "bg-foreground text-background font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Light: pure white preview canvas"
+                >
+                  <Sun className="w-3 h-3" />
+                  <span>Light</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCanvasBgMode("dark")}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                    canvasBgMode === "dark"
+                      ? "bg-foreground text-background font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Dark: dark preview canvas"
+                >
+                  <Moon className="w-3 h-3" />
+                  <span>Dark</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -2882,7 +2956,7 @@ export const AssetsView: React.FC = () => {
                       {(groupedAssetsByType.length > 1 || selectedType === "all") && (
                         <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
                           <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/70" />
                             <h3 className="text-xs font-bold text-foreground tracking-tight">
                               {formattedType}
                             </h3>
@@ -4317,9 +4391,55 @@ export const AssetsView: React.FC = () => {
                   {previewMediaAsset.contentType} • {formatBytes(previewMediaAsset.size)}
                 </DialogDescription>
               </div>
+
+              {/* Canvas Background Selector in Preview Dialog */}
+              <div className="flex items-center gap-1 bg-muted/60 border border-border/80 rounded-lg p-0.5 shadow-2xs mr-6">
+                <button
+                  type="button"
+                  onClick={() => setCanvasBgMode("subtle")}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                    canvasBgMode === "subtle"
+                      ? "bg-foreground text-background font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Grid: subtle neutral canvas with micro-checkerboard"
+                >
+                  <Grid className="w-3 h-3" />
+                  <span>Grid</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCanvasBgMode("light")}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                    canvasBgMode === "light"
+                      ? "bg-foreground text-background font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Light: pure white preview canvas"
+                >
+                  <Sun className="w-3 h-3" />
+                  <span>Light</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCanvasBgMode("dark")}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                    canvasBgMode === "dark"
+                      ? "bg-foreground text-background font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Dark: dark preview canvas"
+                >
+                  <Moon className="w-3 h-3" />
+                  <span>Dark</span>
+                </button>
+              </div>
             </DialogHeader>
 
-            <div className="flex-1 min-h-[360px] max-h-[60vh] flex items-center justify-center p-6 bg-muted/20 overflow-auto">
+            <div
+              className="flex-1 min-h-[360px] max-h-[60vh] flex items-center justify-center p-6 overflow-auto border-b border-border/40 transition-colors"
+              style={getCanvasPreviewStyle(canvasBgMode)}
+            >
               {getInferredAssetType(previewMediaAsset) === "video" ? (
                 <video
                   src={previewMediaAsset.url}

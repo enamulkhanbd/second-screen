@@ -500,7 +500,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         title: a.title || a.name,
         type: a.type,
         tag: a.tag,
-        category: a.category || "general",
+        category: a.category && a.category !== "general" ? a.category : undefined,
         folderId: a.folderId,
         assetType: a.assetType,
         content: a.svg || "", // SVG content for upload
@@ -2316,7 +2316,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       title: a.title || a.name,
       type: a.type || undefined,
       tag: a.tag || undefined,
-      category: a.category || "general",
+      category: a.category && a.category !== "general" ? a.category : undefined,
       folderId: a.folderId !== undefined ? a.folderId : (activeFolderId || undefined),
       assetType: a.assetType,
       svg: a.svg,
