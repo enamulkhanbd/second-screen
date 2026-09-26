@@ -1766,7 +1766,7 @@ export const AssetsView: React.FC = () => {
       <div
         key={icon.id}
         onClick={handleCardClick}
-        className={`p-3.5 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[160px] ${
+        className={`p-2.5 rounded-xl border bg-card transition-all duration-200 cursor-pointer group shadow-2xs flex flex-col items-center text-center relative ${
           isSelected
             ? "border-primary ring-2 ring-primary/20 bg-primary/[0.02]"
             : "border-border/80 hover:border-primary/50 hover:bg-muted/20"
@@ -1775,31 +1775,31 @@ export const AssetsView: React.FC = () => {
       >
         {/* Selection Checkbox (Top Left) */}
         <div
-          className={`absolute top-2 left-2 z-10 transition-opacity ${
+          className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${
             isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
           onClick={(e) => toggleAssetSelect(icon.id, e)}
         >
           <div
-            className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+            className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-colors ${
               isSelected
                 ? "bg-primary text-primary-foreground"
                 : "bg-background border border-border hover:border-primary text-transparent"
             }`}
           >
-            <Check className="w-3 h-3 stroke-[3]" />
+            <Check className="w-2.5 h-2.5 stroke-[3]" />
           </div>
         </div>
 
         {/* Options Menu (Top Right) */}
         <div
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onClick={(e) => e.stopPropagation()}
         >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="w-6 h-6 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer">
-                <MoreVertical className="w-3.5 h-3.5" />
+              <button className="w-5 h-5 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer">
+                <MoreVertical className="w-3 h-3" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 text-xs">
@@ -1908,125 +1908,84 @@ export const AssetsView: React.FC = () => {
         </div>
 
         {/* Polymorphic Asset Preview */}
-        {itemType === "video" ? (
-          <div className="w-full h-20 rounded-lg bg-black/80 overflow-hidden flex items-center justify-center relative mt-1">
-            <Film className="w-7 h-7 text-sky-400 opacity-80" />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
-              <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shadow-xs group-hover:scale-110 transition-transform">
-                <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+        <div className="relative w-full">
+          {itemType === "video" ? (
+            <div className="w-full h-20 rounded-lg bg-black/80 overflow-hidden flex items-center justify-center relative">
+              <Film className="w-7 h-7 text-sky-400 opacity-80" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
+                <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shadow-xs group-hover:scale-110 transition-transform">
+                  <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                </div>
               </div>
             </div>
-          </div>
-        ) : itemType === "document" ? (
-          <div className="w-full h-20 rounded-lg bg-rose-500/10 border border-rose-500/20 flex flex-col items-center justify-center relative mt-1 text-rose-500">
-            <FileText className="w-7 h-7 text-rose-500 mb-0.5" />
-            <span className="text-[9px] font-mono uppercase font-bold text-rose-600 dark:text-rose-400">PDF</span>
-          </div>
-        ) : itemType === "image" ? (
-          <div className="relative w-full">
-            <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setPreviewMediaAsset(icon);
-              }}
-              className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
-              title="Preview Image"
-            >
-              <Maximize2 className="w-3 h-3" />
-            </button>
-          </div>
-        ) : (
-          <div className="relative w-full">
-            <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setPreviewMediaAsset(icon);
-              }}
-              className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
-              title="Preview Asset"
-            >
-              <Maximize2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* Asset Metadata: Title as primary, badges below */}
-        <div className="w-full truncate mt-2 px-1">
-          <span className="font-semibold text-xs text-foreground block truncate" title={displayTitle}>
-            {displayTitle}
-          </span>
-          <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
-            {folder && (
-              <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1 py-0.5 rounded flex items-center gap-0.5 truncate max-w-[80px]" title={`Folder: ${folder.name}`}>
-                <Folder className="w-2.5 h-2.5 flex-shrink-0" />
-                <span className="truncate">{folder.name}</span>
-              </span>
-            )}
-            {itemType !== "icon" && (
-              <span className="text-[9px] font-mono uppercase font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                {itemType}
-              </span>
-            )}
-            {icon.type && itemType === "icon" && (
-              <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                {icon.type}
-              </span>
-            )}
-            {icon.size && (
-              <span className="text-[8px] font-mono text-muted-foreground opacity-75">
-                {formatBytes(icon.size)}
-              </span>
-            )}
-            {icon.source === "git" && (
-              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">
-                git
-              </span>
-            )}
-            {icon.source === "figma" && (
-              <span
-                className="text-[9px] font-mono text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1 py-0.5 rounded flex items-center gap-0.5"
-                title="Figma source"
-                aria-label="Figma source"
-              >
-                <Figma className="w-2.5 h-2.5" />
-              </span>
-            )}
-            {showSourceBadges && icon.figmaSourceName && (
-              <span
-                className="text-[9px] font-medium text-violet-700 dark:text-violet-300 bg-violet-500/10 px-1 py-0.5 rounded truncate max-w-[90px]"
-                title={`Figma Source: ${icon.figmaSourceName}`}
-              >
-                {icon.figmaSourceName}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Hover Action Pill */}
-        <div className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity font-semibold flex items-center gap-1 mt-2">
-          {isSvg ? (
-            <>
-              {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-              <span>{isCopied ? "Copied" : "Copy SVG"}</span>
-            </>
-          ) : itemType === "video" ? (
-            <>
-              <Play className="w-3 h-3 fill-primary" />
-              <span>Play Video</span>
-            </>
           ) : itemType === "document" ? (
+            <div className="w-full h-20 rounded-lg bg-rose-500/10 border border-rose-500/20 flex flex-col items-center justify-center relative text-rose-500">
+              <FileText className="w-7 h-7 text-rose-500 mb-0.5" />
+              <span className="text-[9px] font-mono uppercase font-bold text-rose-600 dark:text-rose-400">PDF</span>
+            </div>
+          ) : itemType === "image" ? (
             <>
-              <Eye className="w-3 h-3" />
-              <span>View PDF</span>
+              <ImagePreviewThumbnail icon={icon} displayTitle={displayTitle} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewMediaAsset(icon);
+                }}
+                className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
+                title="Preview Image"
+              >
+                <Maximize2 className="w-3 h-3" />
+              </button>
             </>
           ) : (
             <>
-              <Eye className="w-3 h-3" />
-              <span>Preview</span>
+              <AssetPreviewThumbnail icon={icon} displayTitle={displayTitle} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewMediaAsset(icon);
+                }}
+                className="absolute bottom-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-2xs cursor-pointer z-10"
+                title="Preview Asset"
+              >
+                <Maximize2 className="w-3 h-3" />
+              </button>
             </>
           )}
+
+          {/* Hover Action Overlay */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <span className="text-[10px] text-primary font-semibold flex items-center gap-1 bg-background/90 backdrop-blur-xs px-2 py-1 rounded-md shadow-sm border border-border/50">
+              {isSvg ? (
+                <>
+                  {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  <span>{isCopied ? "Copied" : "Copy SVG"}</span>
+                </>
+              ) : itemType === "video" ? (
+                <>
+                  <Play className="w-3 h-3 fill-primary" />
+                  <span>Play Video</span>
+                </>
+              ) : itemType === "document" ? (
+                <>
+                  <Eye className="w-3 h-3" />
+                  <span>View PDF</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3 h-3" />
+                  <span>Preview</span>
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Asset Title */}
+        <div className="w-full truncate mt-1.5 px-0.5">
+          <span className="font-medium text-[11px] text-foreground block truncate" title={displayTitle}>
+            {displayTitle}
+          </span>
         </div>
       </div>
     );
@@ -2036,15 +1995,11 @@ export const AssetsView: React.FC = () => {
   const renderSkeletonCard = (index: number) => (
     <div
       key={`skeleton-${index}`}
-      className="p-4 rounded-xl border border-border/40 bg-card/40 shadow-2xs flex flex-col items-center justify-between text-center relative min-h-[148px] animate-pulse pointer-events-none select-none"
+      className="p-2.5 rounded-xl border border-border/40 bg-card/40 shadow-2xs flex flex-col items-center text-center relative animate-pulse pointer-events-none select-none"
       style={{ animationDelay: `${(index % 8) * 60}ms` }}
     >
-      <div className="w-11 h-11 rounded-xl bg-muted/50 flex items-center justify-center mt-1" />
-      <div className="w-full flex flex-col items-center gap-2 mt-3 px-1">
-        <div className="w-20 h-3 bg-muted/60 rounded-md" />
-        <div className="w-12 h-2.5 bg-muted/35 rounded-full" />
-      </div>
-      <div className="w-14 h-2 bg-muted/20 rounded-md mt-2" />
+      <div className="w-full h-16 rounded-lg bg-muted/40" />
+      <div className="w-16 h-2.5 bg-muted/50 rounded-md mt-2" />
     </div>
   );
 
