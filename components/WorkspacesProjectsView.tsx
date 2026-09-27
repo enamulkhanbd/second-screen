@@ -8,7 +8,6 @@ import {
   FolderGit2,
   Plus,
   Search,
-  Layers,
   Sparkles,
   ArrowRight,
   Settings,
@@ -17,13 +16,11 @@ import {
   ExternalLink,
   Trash2,
   GitBranch,
-  Zap,
   MoreVertical,
   Edit2,
   Share2,
   Clock,
   Shield,
-  Palette,
   Sliders,
   Check,
   RefreshCw,
@@ -42,7 +39,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -913,8 +909,7 @@ export const WorkspacesProjectsView: React.FC = () => {
               <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border shadow-2xs">
                 {/* List Header */}
                 <div className="grid grid-cols-12 items-center px-5 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
-                  <div className="col-span-5 sm:col-span-4">Project</div>
-                  <div className="col-span-3 sm:col-span-3">Content</div>
+                  <div className="col-span-8 sm:col-span-7">Project</div>
                   <div className="hidden sm:block sm:col-span-3">Sync &amp; Status</div>
                   <div className="col-span-4 sm:col-span-2 text-right">Actions</div>
                 </div>
@@ -922,13 +917,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                 {/* List Rows */}
                 {filteredProjects.map((proj) => {
                   const hasGit = Boolean(proj.gitConfig?.repo);
-                  const hasFigma = Boolean(
-                    proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0
-                  );
-                  const rawTokensCount = proj.rawTokens
-                    ? getValidTokenSetNames(proj.rawTokens).length
-                    : 0;
-                  const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
 
                   return (
@@ -939,7 +927,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                       }`}
                     >
                       {/* Col 1: Project Identity */}
-                      <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
+                      <div className="col-span-8 sm:col-span-7 flex items-center gap-3 min-w-0">
                         <div
                           className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
                             isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
@@ -977,18 +965,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Col 2: Content (Sets & Themes) */}
-                      <div className="col-span-3 sm:col-span-3 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[11px] font-mono text-foreground">
-                          <Layers className="w-3 h-3 text-muted-foreground" />
-                          <span>{rawTokensCount} sets</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[11px] font-mono text-foreground">
-                          <Palette className="w-3 h-3 text-muted-foreground" />
-                          <span>{themeGroupsCount} themes</span>
-                        </span>
-                      </div>
-
                       {/* Col 3: Sync & Status */}
                       <div className="hidden sm:flex sm:col-span-3 items-center gap-2 flex-wrap">
                         {hasGit ? (
@@ -1002,12 +978,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                           </span>
                         )}
 
-                        {hasFigma && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-mono">
-                            <Zap className="w-2.5 h-2.5 text-amber-500" />
-                            <span>Figma</span>
-                          </span>
-                        )}
                       </div>
 
                       {/* Col 4: Actions */}
@@ -1126,13 +1096,6 @@ export const WorkspacesProjectsView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredProjects.map((proj) => {
                   const hasGit = Boolean(proj.gitConfig?.repo);
-                  const hasFigma = Boolean(
-                    proj.figmaVariables && Object.keys(proj.figmaVariables).length > 0
-                  );
-                  const rawTokensCount = proj.rawTokens
-                    ? getValidTokenSetNames(proj.rawTokens).length
-                    : 0;
-                  const themeGroupsCount = proj.themeGroups?.length || 0;
                   const isActive = currentProject?.id === proj.id;
                   return (
                     <div
@@ -1271,45 +1234,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                             )}
                           </div>
 
-                          <div className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-muted/40 border border-border/50">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                              {hasFigma ? (
-                                <span className="font-mono truncate text-foreground font-medium">
-                                  Figma Synced
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">No Figma Variables</span>
-                              )}
-                            </div>
-
-                            {hasFigma ? (
-                              <span className="text-[10px] text-muted-foreground font-mono">
-                                {formatTimeAgo(proj.figmaUpdatedAt)}
-                              </span>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleConfigureSync(proj);
-                                }}
-                                className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
-                              >
-                                Pair Plugin
-                              </button>
-                            )}
-                          </div>
                         </div>
                       </div>
 
                       {/* Card Bottom: Stats & Open Studio Button */}
-                      <div className="pt-4 border-t border-border mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
-                          <span>{rawTokensCount} sets</span>
-                          <span>•</span>
-                          <span>{themeGroupsCount} themes</span>
-                        </div>
-
+                      <div className="pt-4 border-t border-border mt-4 flex items-center justify-end">
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();

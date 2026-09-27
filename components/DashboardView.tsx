@@ -30,8 +30,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateProjectModal } from "@/components/CreateProjectModal";
-import { getValidTokenSetNames } from "@/utils/themeHelpers";
-import { countTokensInDocument } from "@/utils/transformTokens";
 
 export const DashboardView: React.FC = () => {
   const {
@@ -223,11 +221,6 @@ export const DashboardView: React.FC = () => {
               <div className="space-y-2.5">
                 {displayProjects.map((proj) => {
                   const isCurrent = currentProject?.id === proj.id;
-                  const tokenCount = countTokensInDocument(proj.rawTokens);
-                  const setsCount = proj.rawTokens
-                    ? getValidTokenSetNames(proj.rawTokens).length
-                    : 0;
-                  const themesCount = proj.themeGroups?.length || 0;
 
                   return (
                     <div
@@ -265,20 +258,7 @@ export const DashboardView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Stats */}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono shrink-0">
-                        <div className="flex items-center gap-1.5" title="Total Tokens">
-                          <Layers className="w-3.5 h-3.5 text-muted-foreground/70" />
-                          <span>{tokenCount}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5" title="Token Sets">
-                          <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground/70" />
-                          <span>{setsCount}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5" title="Themes">
-                          <Palette className="w-3.5 h-3.5 text-muted-foreground/70" />
-                          <span>{themesCount}</span>
-                        </div>
+                      <div className="shrink-0">
                         <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
                       </div>
                     </div>

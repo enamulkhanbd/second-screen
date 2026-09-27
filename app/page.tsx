@@ -97,6 +97,7 @@ export default function Home() {
     rawTokens,
     currentUser,
     isLoadingTenant,
+    isLoadingProjectData,
     userOrgs,
     pendingInvitePrompt,
   } = useTokenStore();
@@ -212,7 +213,9 @@ export default function Home() {
         )}
 
         {/* 3. Main Workspace Page Views */}
-        {sidebarTab === "workspaces" ? (
+        {isLoadingProjectData ? (
+          <WorkspaceLoading />
+        ) : sidebarTab === "workspaces" ? (
           <WorkspacesListView />
         ) : sidebarTab === "dashboard" ? (
           <DashboardView />
