@@ -364,19 +364,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }
   }, [showPushModal, commitMessage, diffSummary, credentials.branch]);
 
-  // Periodically check for remote updates in Git repository
+  // Check for remote updates on load and when returning to the app
   useEffect(() => {
     if (!isGitConfigured || !credentials.pat) return;
 
-    // Initial check
     checkRemoteUpdates();
 
-    // Periodic poll every 45s
-    const interval = setInterval(() => {
-      checkRemoteUpdates();
-    }, 45000);
-
-    // Throttled check on tab focus (minimum 30s)
+    // Throttle focus checks so returning to the app does not cause repeated requests.
     let lastFocusCheck = 0;
     const handleFocus = () => {
       const now = Date.now();
@@ -388,7 +382,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
     window.addEventListener("focus", handleFocus);
     return () => {
-      clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
     };
   }, [isGitConfigured, credentials.owner, credentials.repo, credentials.branch, credentials.pat, checkRemoteUpdates]);
