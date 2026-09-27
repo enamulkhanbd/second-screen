@@ -339,7 +339,7 @@ export default function Home() {
         )}
 
         {/* 3. Main Workspace Page Views */}
-        {isLoadingProjectData ? (
+        {isLoadingProjectData && sidebarTab !== "project-settings" ? (
           <WorkspaceLoading />
         ) : sidebarTab === "workspaces" ? (
           <WorkspacesListView />

@@ -143,7 +143,6 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   // -------------------------------------------------------------
   // Figma Companion Plugin State
   // -------------------------------------------------------------
-  const [pairCode, setPairCode] = useState("");
   const [pairCodeInput, setPairCodeInput] = useState("");
   const [showPairInput, setShowPairInput] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
@@ -219,28 +218,6 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   const isGitConnected = Boolean(projectCredentials.owner && projectCredentials.repo);
 
   // Generate pair code
-  const handleGeneratePairCode = () => {
-    const code = `TK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    setPairCode(code);
-  };
-
-  useEffect(() => {
-    if (!pairCode) {
-      handleGeneratePairCode();
-    }
-  }, []);
-
-  const handleCopyPairCode = () => {
-    navigator.clipboard.writeText(pairCode);
-    setCopiedPairCode(true);
-    setTimeout(() => setCopiedPairCode(false), 2000);
-    addToast({
-      type: "success",
-      title: "Pair Code Copied",
-      message: `Code ${pairCode} copied. Paste into the Figma companion plugin.`,
-    });
-  };
-
   const handleApprovePairCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = pairCodeInput.trim().toUpperCase();
@@ -862,7 +839,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                {/* Left Box: Active Bridge Card or Quick 6-Digit Pair Widget */}
+                {/* Active Bridge Card or Plugin Pair Form */}
                 {activePluginKey && !showPairInput ? (
                   <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
                     <div className="flex items-center justify-between">
@@ -929,10 +906,12 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                   </div>
                 ) : (
                   <form onSubmit={handleApprovePairCode} className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
+                                            <span>Pair Figma Companion</span>
+                                          In the Figma plugin, click Connect to Tokens Platform, then paste its pairing code here:
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-primary" />
-                        <span>Quick 6-Digit Code Pairing</span>
+                        <span>Pair Figma Companion</span>
                       </span>
                       {activePluginKey && (
                         <button
@@ -946,23 +925,23 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     </div>
 
                     <p className="text-[11px] text-muted-foreground">
-                      Open the plugin in Figma, grab the 6-character code (e.g. <code>TK-8492</code>), and approve it below:
+                      In the Figma plugin, click Connect to Tokens Platform, then paste its pairing code here:
                     </p>
 
                     <div className="flex items-center gap-2">
                       <Input
                         value={pairCodeInput}
                         onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
-                        placeholder="TK-XXXX"
-                        maxLength={7}
+                        placeholder="XXXX-XXXX"
+                        maxLength={9}
                         className="h-9 text-xs font-mono uppercase tracking-wider"
                       />
                       <Button
                         type="submit"
-                        disabled={isPairing || pairCodeInput.length < 4}
+                        disabled={isPairing || pairCodeInput.trim().length !== 9}
                         className="h-9 text-xs font-bold gap-1.5 px-4"
                       >
-                        <span>{isPairing ? "Pairing..." : "Connect"}</span>
+                        <span>{isPairing ? "Pairing..." : "Pair"}</span>
                       </Button>
                     </div>
 
@@ -982,7 +961,8 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     <li>Download and extract <strong>tokens-platform-figma-plugin.zip</strong>.</li>
                     <li>In Figma Desktop, go to <strong>Plugins &gt; Development &gt; Import plugin from manifest...</strong></li>
                     <li>Select the <code>manifest.json</code> file inside the extracted folder.</li>
-                    <li>Click <strong>Run</strong> and enter the 6-digit code above!</li>
+                    <li>Click <strong>Run</strong>, then paste the pairing code shown by the plugin into the form.</li>
+                                      <li>Click <strong>Run</strong>, then paste the pairing code shown by the plugin into the form.</li>
                   </ol>
                 </div>
               </div>

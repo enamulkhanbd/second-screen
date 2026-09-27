@@ -201,7 +201,7 @@ export async function PUT(req: NextRequest) {
 
     const cleanCode = (code || "").trim().toUpperCase();
     if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(cleanCode)) {
-      return jsonWithCors({ error: "Pairing code is required." }, { status: 400 });
+      return jsonWithCors({ error: "Enter a valid pairing code in XXXX-XXXX format." }, { status: 400 });
     }
     if (!orgId || !projectId) {
       return jsonWithCors({ error: "Select an organization and project before approving." }, { status: 400 });
