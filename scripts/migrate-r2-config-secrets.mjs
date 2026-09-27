@@ -1,4 +1,4 @@
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import {
     GetObjectCommand,
     ListObjectsV2Command,
@@ -7,7 +7,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { createClient } from "@supabase/supabase-js";
 
-loadEnvConfig(process.cwd());
+nextEnv.loadEnvConfig(process.cwd());
 
 const applyChanges = process.argv.includes("--apply");
 const accountId = process.env.R2_ACCOUNT_ID;
