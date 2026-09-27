@@ -17,6 +17,7 @@ import {
   buildTokenLookupIndex,
   TokenLookupIndex,
 } from "@/utils/transformTokens";
+import { extractColorModifier, applyColorModifier, ColorModifier } from "@/utils/colorModifier";
 
 // Palette colors for theme groups
 export const GROUP_PALETTE = [
@@ -999,7 +1000,27 @@ export function buildThemeMatrix(
         const rawValue = getLeafValue(foundLeaf);
         // Alias resolution uses option-specific lookup index combining this option with active options from other groups
         const optionIndex = optionLookupIndices.get(option.name);
-        const resolvedValue = resolveTokenAlias(rawValue, rawDoc, foundSetName, new Set(), optionIndex);
+        let resolvedValue = resolveTokenAlias(rawValue, rawDoc, foundSetName, new Set(), optionIndex);
+        const modifier = extractColorModifier(foundLeaf);
+        if (modifier) {
+          const resolvedMixColor =
+            modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")
+              ? resolveTokenAlias(modifier.color, rawDoc, foundSetName, new Set(), optionIndex)
+              : undefined;
+          const resolvedModifierValue =
+            typeof modifier.value === "string" && modifier.value.includes("{")
+              ? resolveTokenAlias(modifier.value, rawDoc, foundSetName, new Set(), optionIndex)
+              : modifier.value;
+          const modifierToApply: ColorModifier = {
+            ...modifier,
+            value: resolvedModifierValue,
+          };
+          resolvedValue = applyColorModifier(
+            typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+            modifierToApply,
+            resolvedMixColor
+          ).resolvedValue;
+        }
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
 
         cells[option.name] = {
