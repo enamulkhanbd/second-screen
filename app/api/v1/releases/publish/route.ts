@@ -5,8 +5,11 @@ import {
   TargetPublishResult,
 } from "@/types/tokens";
 import { getPlatformArtifactContent } from "@/utils/releaseCompiler";
+import { authenticateRequest, authorizeProjectRequest } from "@/utils/auth";
 
 interface PublishRequestBody {
+  orgId: string;
+  projectId: string;
   targets: DistributionTarget[];
   release: ReleasePackage;
   defaultPat?: string;
@@ -14,8 +17,21 @@ interface PublishRequestBody {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await authenticateRequest(req, "manage:releases");
+    if (!auth.isValid) {
+      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    }
+
     const body: PublishRequestBody = await req.json();
-    const { targets, release, defaultPat } = body;
+    const { orgId, projectId, targets, release, defaultPat } = body;
+
+    if (!orgId || !projectId) {
+      return NextResponse.json({ error: "Organization and project are required." }, { status: 400 });
+    }
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    if (!access.authorized) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
 
     if (!targets || !Array.isArray(targets) || targets.length === 0) {
       return NextResponse.json(

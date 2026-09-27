@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient } from "@/lib/supabase/admin";
-import crypto from "crypto";
 import { ApiKeyRecord } from "./patAuth";
 
 // In-memory runtime store
@@ -40,6 +39,9 @@ export async function getStoredApiKeys(): Promise<ApiKeyRecord[]> {
             keyHash: row.key_hash,
             scopes: row.scopes || [],
             createdAt: row.created_at,
+            expiresAt: row.expires_at || undefined,
+            uid: row.user_id || undefined,
+            userEmail: row.user_email || undefined,
             orgId: row.org_id,
             projectId: row.project_id,
             orgName: row.org_name,
@@ -55,36 +57,6 @@ export async function getStoredApiKeys(): Promise<ApiKeyRecord[]> {
       console.warn("Supabase error fetching api keys:", e);
     }
 
-    // 3. Fallback: Fetch from 'pairing_sessions' for approved companion plugin PATs
-    try {
-      const { data: pairData, error: pairErr } = await client
-        .from("pairing_sessions")
-        .select("*");
-      if (!pairErr && pairData) {
-        pairData.forEach((session: any) => {
-          if (session && session.pat && session.pat.startsWith("sec_pat_")) {
-            const keyHash = crypto.createHash("sha256").update(session.pat).digest("hex");
-            const sessionKeyId = `pair-${session.code}`;
-            const record: ApiKeyRecord = {
-              id: sessionKeyId,
-              name: `Figma Companion (${session.org_name || session.project_name || "Plugin"})`,
-              keyPrefix: `${session.pat.slice(0, 16)}...${session.pat.slice(-4)}`,
-              keyHash,
-              scopes: ["read:tokens", "write:tokens", "manage:releases"],
-              createdAt: new Date(Number(session.created_at) || Date.now()).toISOString(),
-              orgId: session.org_id,
-              projectId: session.project_id,
-              orgName: session.org_name,
-              projectName: session.project_name,
-            };
-            keysMap.set(sessionKeyId, record);
-            inMemoryApiKeys.set(sessionKeyId, record);
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("Supabase error scanning pairing sessions for api keys:", e);
-    }
   }
 
   return Array.from(keysMap.values());
@@ -105,6 +77,9 @@ export async function saveApiKey(record: ApiKeyRecord): Promise<void> {
         key_hash: record.keyHash,
         scopes: record.scopes || [],
         created_at: record.createdAt || new Date().toISOString(),
+        expires_at: record.expiresAt || null,
+        user_id: record.uid || null,
+        user_email: record.userEmail || null,
         org_id: record.orgId || null,
         project_id: record.projectId || null,
         org_name: record.orgName || null,

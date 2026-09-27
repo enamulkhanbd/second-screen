@@ -4,6 +4,9 @@ import {
   loadAssetConfig,
   uploadAssetConfig,
 } from "@/lib/r2";
+import { authorizeProjectRequest } from "@/utils/auth";
+import { getProject } from "@/services/organizationService";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +34,32 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const access = await authorizeProjectRequest(req, orgId, projectId, "read");
+    if (!access.authorized) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    }
+
     const config = await loadAssetConfig(orgId, projectId);
+    const project = await getProject(orgId, projectId);
+    const configWithProtectedIntegrations = {
+      ...(config || {}),
+      assetGitConfig: project?.assetGitConfig || config?.assetGitConfig || null,
+      assetFigmaConfig: project?.assetFigmaConfig || config?.assetFigmaConfig || null,
+    };
+    const safeConfig = access.role === "viewer"
+      ? {
+          ...configWithProtectedIntegrations,
+          assetGitConfig: configWithProtectedIntegrations.assetGitConfig
+            ? { ...configWithProtectedIntegrations.assetGitConfig, pat: "" }
+            : null,
+          assetFigmaConfig: configWithProtectedIntegrations.assetFigmaConfig
+            ? { ...configWithProtectedIntegrations.assetFigmaConfig, pat: "" }
+            : null,
+        }
+      : configWithProtectedIntegrations;
     return NextResponse.json({
       success: true,
-      config: config || {
+      config: safeConfig || {
         assetGitConfig: null,
         assetFigmaConfig: null,
         folders: [],
@@ -73,17 +98,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    if (!access.authorized) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    }
+
     // Load existing config to merge partial updates
     const existing = await loadAssetConfig(orgId, projectId);
+    const project = await getProject(orgId, projectId);
 
     const merged = {
       ...(existing || {}),
-      ...(assetGitConfig !== undefined ? { assetGitConfig } : {}),
-      ...(assetFigmaConfig !== undefined ? { assetFigmaConfig } : {}),
       ...(assetsCount !== undefined ? { assetsCount } : {}),
       ...(folders !== undefined ? { folders } : {}),
       updatedAt: new Date().toISOString(),
     };
+
+    const integration = createAdminClient();
+    const { error: integrationError } = await integration.from("project_integrations").upsert(
+      {
+        project_id: projectId,
+        org_id: orgId,
+        asset_git_config: assetGitConfig !== undefined
+          ? assetGitConfig || {}
+          : project?.assetGitConfig || existing?.assetGitConfig || {},
+        asset_figma_config: assetFigmaConfig !== undefined
+          ? assetFigmaConfig || {}
+          : project?.assetFigmaConfig || existing?.assetFigmaConfig || {},
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "project_id" }
+    );
+    if (integrationError) throw integrationError;
 
     await uploadAssetConfig(orgId, projectId, merged);
 

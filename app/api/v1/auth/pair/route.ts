@@ -2,9 +2,10 @@ import { NextRequest } from "next/server";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
-import { getOrganization, getOrgProjectSummaries } from "@/services/organizationService";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { hasTrustedMutationOrigin } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,23 +30,11 @@ function getDbClient() {
 }
 
 function getRequestOrigin(req: NextRequest): string {
-  const forwardedProto = req.headers.get("x-forwarded-proto");
-  const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
-
-  if (forwardedProto && forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`;
-  }
-
-  const originHeader = req.headers.get("origin");
-  if (originHeader && originHeader !== "null") {
-    return originHeader;
-  }
-
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
   }
 
-  return req.nextUrl.origin || "http://localhost:3000";
+  return req.nextUrl.origin;
 }
 
 import { generatePairingCode } from "./generatePairingCode";
@@ -173,6 +162,16 @@ export async function GET(req: NextRequest) {
       serverUrl: session.serverUrl,
     };
 
+    session.pat = undefined;
+    pairingSessions.set(code, session);
+    if (isSupabaseConfigured) {
+      try {
+        await getDbClient().from("pairing_sessions").update({ pat: null }).eq("code", code);
+      } catch (e) {
+        console.warn("Supabase pairing secret cleanup error:", e);
+      }
+    }
+
     return jsonWithCors(responseData);
   }
 
@@ -187,12 +186,25 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
+    if (!hasTrustedMutationOrigin(req)) {
+      return jsonWithCors({ error: "Cross-origin session request rejected." }, { status: 403 });
+    }
+
+    const authClient = createServerSupabaseClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user || !user.email_confirmed_at) {
+      return jsonWithCors({ error: "Sign in before approving a pairing request." }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { code, orgId, projectId, orgName, projectName, uid, userEmail } = body;
+    const { code, orgId, projectId } = body;
 
     const cleanCode = (code || "").trim().toUpperCase();
-    if (!cleanCode) {
+    if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(cleanCode)) {
       return jsonWithCors({ error: "Pairing code is required." }, { status: 400 });
+    }
+    if (!orgId || !projectId) {
+      return jsonWithCors({ error: "Select an organization and project before approving." }, { status: 400 });
     }
 
     let session = pairingSessions.get(cleanCode);
@@ -224,46 +236,56 @@ export async function PUT(req: NextRequest) {
     }
 
     if (!session) {
-      session = {
-        code: cleanCode,
-        status: "pending",
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 10 * 60 * 1000,
-      };
+      return jsonWithCors({ error: "Pairing code not found. Generate a new code in the plugin." }, { status: 404 });
+    }
+    if (session.expiresAt < Date.now()) {
+      return jsonWithCors({ error: "Pairing code has expired. Generate a new code in the plugin." }, { status: 410 });
+    }
+    if (session.status !== "pending") {
+      return jsonWithCors({ error: "This pairing code has already been approved." }, { status: 409 });
+    }
+
+    const admin = getDbClient();
+    const [{ data: organization }, { data: project }] = await Promise.all([
+      admin.from("organizations").select("id, name, owner_uid").eq("id", orgId).maybeSingle(),
+      admin.from("projects").select("id, name").eq("id", projectId).eq("org_id", orgId).maybeSingle(),
+    ]);
+    if (!organization || !project) {
+      return jsonWithCors({ error: "The selected organization or project was not found." }, { status: 404 });
+    }
+
+    let role = organization.owner_uid === user.id ? "owner" : "";
+    if (!role) {
+      const { data: membership } = await admin
+        .from("organization_members")
+        .select("role")
+        .eq("org_id", orgId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      role = membership?.role || "";
+    }
+    if (!role) {
+      return jsonWithCors({ error: "You are not a member of the selected organization." }, { status: 403 });
     }
 
     const origin = getRequestOrigin(req);
+    const resolvedOrgName = organization.name;
+    const resolvedProjName = project.name;
+    const scopes: ("read:tokens" | "write:tokens" | "manage:releases")[] = ["read:tokens"];
+    if (["owner", "admin", "editor"].includes(role)) scopes.push("write:tokens");
+    if (["owner", "admin", "editor"].includes(role)) scopes.push("manage:releases");
 
-    let resolvedOrgName = (orgName || "").trim();
-    let resolvedProjName = (projectName || "").trim();
-
-    if (orgId && !resolvedOrgName) {
-      try {
-        const org = await getOrganization(orgId);
-        if (org?.name) resolvedOrgName = org.name;
-      } catch {}
-    }
-
-    if (orgId && projectId && !resolvedProjName) {
-      try {
-        const projs = await getOrgProjectSummaries(orgId);
-        const proj = projs.find((p) => p.id === projectId);
-        if (proj?.name) resolvedProjName = proj.name;
-      } catch {}
-    }
-
-    // Generate valid PAT record and persist it into cloud API keys store
     const { plaintextKey, record } = generateApiKey(
       `Figma Plugin (${resolvedOrgName || resolvedProjName || "Design Tokens"})`,
-      ["read:tokens", "write:tokens", "manage:releases"],
-      undefined,
+      scopes,
+      90,
       {
-        uid: uid || "usr_default",
-        userEmail: userEmail || undefined,
-        orgId: orgId || "",
-        projectId: projectId || "",
-        orgName: resolvedOrgName || "",
-        projectName: resolvedProjName || "",
+        uid: user.id,
+        userEmail: user.email || undefined,
+        orgId,
+        projectId,
+        orgName: resolvedOrgName,
+        projectName: resolvedProjName,
       }
     );
     await saveApiKey(record);
@@ -285,6 +307,8 @@ export async function PUT(req: NextRequest) {
           code: cleanCode,
           status: "approved",
           pat: plaintextKey,
+          user_id: user.id,
+          user_email: user.email || null,
           org_id: orgId || null,
           project_id: projectId || null,
           org_name: resolvedOrgName || null,

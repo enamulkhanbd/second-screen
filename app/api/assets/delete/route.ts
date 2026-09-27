@@ -7,6 +7,7 @@ import {
   buildAssetKey,
   extensionFromContentType,
 } from "@/lib/r2";
+import { authorizeProjectRequest } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,11 @@ export async function POST(req: NextRequest) {
         { success: false, error: "Missing orgId or projectId." },
         { status: 400 }
       );
+    }
+
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    if (!access.authorized) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
 
     if (!Array.isArray(assetIds) || assetIds.length === 0) {

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 
 export async function POST(req: NextRequest) {
+  const auth = await authenticateRequest(req, "read:tokens");
+  if (!auth.isValid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const rawCreds: GitCredentials = await req.json();
     const creds = sanitizeGitCredentials(rawCreds);

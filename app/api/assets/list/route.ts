@@ -8,6 +8,7 @@ import {
   deriveAssetType,
 } from "@/lib/r2";
 import { ProjectAsset } from "@/types/tenant";
+import { authorizeProjectRequest } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const access = await authorizeProjectRequest(req, orgId, projectId, "read");
+    if (!access.authorized) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    }
+
     const metadata = await fetchAssetMetadata(orgId, projectId);
 
     return NextResponse.json(
@@ -122,6 +128,11 @@ export async function POST(req: NextRequest) {
         { success: false, error: "Missing orgId or projectId." },
         { status: 400 }
       );
+    }
+
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    if (!access.authorized) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
 
     let metadata = await fetchAssetMetadata(orgId, projectId);

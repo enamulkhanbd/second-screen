@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,11 @@ function parseFigmaUrl(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await authenticateRequest(req, "read:tokens");
+    if (!auth.isValid) {
+      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { fileUrl, fileKey: rawFileKey, pat } = body;
 

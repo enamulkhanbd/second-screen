@@ -5,6 +5,7 @@ import {
   detectContentType,
   getUploadPresignedUrl,
 } from "@/lib/r2";
+import { authorizeProjectRequest } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,11 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields: orgId, projectId, assetId, filename" },
         { status: 400 }
       );
+    }
+
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    if (!access.authorized) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     const ext = filename.split(".").pop()?.toLowerCase() || "bin";

@@ -116,7 +116,6 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
     try {
       const res = await fetch(
         `/api/v1/tokens?orgId=${encodeURIComponent(currentOrg.id)}&projectId=${encodeURIComponent(currentProject.id)}`,
-        { headers: { "x-internal-client": "tokens-platform" } }
       );
       const data = await res.json();
       if (data.success && data.figmaVariables && Object.keys(data.figmaVariables).length > 0) {

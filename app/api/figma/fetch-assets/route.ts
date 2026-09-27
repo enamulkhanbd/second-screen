@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { ProjectAsset, FigmaSourceLink } from "@/types/tenant";
 
 export const dynamic = "force-dynamic";
@@ -339,6 +340,11 @@ async function processSingleFigmaSource(
  */
 export async function POST(req: NextRequest) {
   try {
+    const auth = await authenticateRequest(req, "read:tokens");
+    if (!auth.isValid) {
+      return NextResponse.json({ success: false, error: auth.error || "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { pat, sources, fileUrl, fileKey, nodeId, name: sourceName, sourceId } = body;
 

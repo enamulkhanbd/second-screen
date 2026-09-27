@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
-import { getUserOrganizations, getOrgProjectSummaries, getOrganization } from "@/services/organizationService";
+import { getUserOrganizations, getOrgProjectSummaries } from "@/services/organizationService";
 
 export const dynamic = "force-dynamic";
 
@@ -22,60 +22,28 @@ export async function GET(req: NextRequest) {
     }
 
     const record = auth.record;
-    const uid = record.uid || "usr_default";
+    const uid = record.uid;
+    if (!uid) {
+      return jsonWithCors({ success: false, error: "This credential is not bound to a verified user." }, { status: 403 });
+    }
     const userEmail = record.userEmail;
     let orgs = await getUserOrganizations(uid, userEmail);
-
-    // If PAT has bound org/project metadata and it's not yet in the list, ensure it's included
-    if (record.orgId && !orgs.some((o) => o.id === record.orgId)) {
-      let orgName = record.orgName;
-      if (!orgName) {
-        try {
-          const boundOrg = await getOrganization(record.orgId);
-          if (boundOrg?.name) orgName = boundOrg.name;
-        } catch {}
-      }
-      const resolvedOrgName = orgName || "Organization";
-      const boundOrgId = record.orgId;
-      orgs = [
-        {
-          id: boundOrgId,
-          name: resolvedOrgName,
-          slug: resolvedOrgName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-          ownerUid: uid,
-          members: [{ uid, email: userEmail || "", displayName: "Member", role: "owner", joinedAt: new Date().toISOString() }],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        ...orgs,
-      ];
+    if (record.orgId && !orgs.some((org) => org.id === record.orgId)) {
+      return jsonWithCors({ success: false, error: "This credential no longer has access to its organization." }, { status: 403 });
     }
 
     // Fetch projects for each org
     const orgsWithProjects = await Promise.all(
       orgs.map(async (org) => {
         let projects = await getOrgProjectSummaries(org.id);
-        if (projects.length === 0 && record.projectId && record.orgId === org.id) {
-          const projName = record.projectName || "Project";
-          projects = [
-            {
-              id: record.projectId,
-              orgId: org.id,
-              name: projName,
-              slug: projName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-              description: "Design tokens project",
-              rawTokens: {},
-              themeGroups: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ];
+        if (record.projectId && record.orgId === org.id) {
+          projects = projects.filter((project) => project.id === record.projectId);
         }
         return {
           id: org.id,
           name: org.name,
           slug: org.slug,
-          role: org.members?.find((m) => m.uid === uid)?.role || "owner",
+          role: org.ownerUid === uid ? "owner" : org.members?.find((m) => m.uid === uid)?.role || "viewer",
           projects: projects.map((p) => ({
             id: p.id,
             name: p.name,

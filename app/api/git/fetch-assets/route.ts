@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { AssetGitConfig, ProjectAsset } from "@/types/tenant";
 
 export const dynamic = "force-dynamic";
@@ -150,6 +151,11 @@ function parseIconMeta(
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await authenticateRequest(req, "read:tokens");
+  if (!auth.isValid) {
+    return NextResponse.json({ success: false, error: auth.error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body: AssetGitConfig = await req.json();
     const { provider, owner, project, repo, branch = "main", assetFolder, pat } = body;

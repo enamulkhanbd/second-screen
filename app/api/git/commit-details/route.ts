@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import { computeLineDiff } from "@/utils/tokenDiff";
@@ -105,6 +106,11 @@ async function fetchAzureRawContent(
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await authenticateRequest(req, "read:tokens");
+  if (!auth.isValid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const { commitSha, ...rawCreds } = body;

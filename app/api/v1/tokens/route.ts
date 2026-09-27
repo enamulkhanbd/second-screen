@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { authenticateRequest } from "@/utils/auth";
+import { authenticateRequest, authorizeProjectRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups, getThemesArray, getMetadataObject } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
@@ -68,6 +68,13 @@ export async function GET(req: NextRequest) {
 
     const orgId = requestedOrgId || tokenOrgId;
     const projectId = requestedProjId || tokenProjId;
+    if (!orgId || !projectId) {
+      return jsonWithCors({ success: false, error: "Both orgId and projectId are required." }, { status: 400 });
+    }
+    const access = await authorizeProjectRequest(req, orgId, projectId, "read");
+    if (!access.authorized) {
+      return jsonWithCors({ success: false, error: access.error }, { status: access.status });
+    }
 
     let targetDoc: Record<string, any> = {};
     let figmaVariables: Record<string, any> = {};
@@ -214,6 +221,11 @@ export async function POST(req: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    if (!access.authorized) {
+      return jsonWithCors({ success: false, error: access.error }, { status: access.status });
     }
 
     const body = await req.json().catch(() => null);

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { authenticateRequest } from "@/utils/auth";
+import { authorizeProjectRequest } from "@/utils/auth";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { getProject } from "@/services/organizationService";
 
@@ -11,17 +11,9 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authenticateRequest(req, "read:tokens");
-    if (!auth.isValid || !auth.record) {
-      return jsonWithCors(
-        { success: false, error: auth.error || "Unauthorized." },
-        { status: 401 }
-      );
-    }
-
     const params = req.nextUrl.searchParams;
-    const orgId = params.get("orgId") || auth.record.orgId;
-    const projectId = params.get("projectId") || auth.record.projectId;
+    const orgId = params.get("orgId");
+    const projectId = params.get("projectId");
     if (!orgId || !projectId) {
       return jsonWithCors(
         { success: false, error: "Both orgId and projectId are required." },
@@ -29,11 +21,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (auth.record.orgId && auth.record.orgId !== orgId) {
-      return jsonWithCors({ success: false, error: "Forbidden." }, { status: 403 });
-    }
-    if (auth.record.projectId && auth.record.projectId !== projectId) {
-      return jsonWithCors({ success: false, error: "Forbidden." }, { status: 403 });
+    const access = await authorizeProjectRequest(req, orgId, projectId, "read");
+    if (!access.authorized) {
+      return jsonWithCors({ success: false, error: access.error }, { status: access.status });
     }
 
     const project = await getProject(orgId, projectId);

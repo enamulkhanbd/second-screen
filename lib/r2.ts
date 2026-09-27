@@ -285,7 +285,14 @@ export async function uploadAssetConfig(
 ): Promise<void> {
   const client = getClient();
   const key = buildConfigKey(orgId, projectId);
-  const payload = JSON.stringify(config, null, 2);
+  const safeConfig = { ...config };
+  for (const field of ["assetGitConfig", "assetFigmaConfig"]) {
+    const value = safeConfig[field];
+    if (value && typeof value === "object") {
+      safeConfig[field] = { ...value, pat: "" };
+    }
+  }
+  const payload = JSON.stringify(safeConfig, null, 2);
 
   await client.send(
     new PutObjectCommand({

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { authenticateRequest } from "@/utils/auth";
+import { authenticateRequest, authorizeProjectRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { compileCssVariables, compileStyleDictionary } from "@/utils/releaseCompiler";
 import { extractThemeGroups } from "@/utils/themeHelpers";
@@ -27,6 +27,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const orgId = searchParams.get("orgId") || auth.record?.orgId;
     const projectId = searchParams.get("projectId") || auth.record?.projectId;
+    if (!orgId || !projectId) {
+      return jsonWithCors({ success: false, error: "Both orgId and projectId are required." }, { status: 400 });
+    }
+    const access = await authorizeProjectRequest(req, orgId, projectId, "read");
+    if (!access.authorized) {
+      return jsonWithCors({ success: false, error: access.error }, { status: access.status });
+    }
 
     let targetDoc: Record<string, any> = { global: {} };
 

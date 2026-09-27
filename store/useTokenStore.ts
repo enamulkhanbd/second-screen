@@ -3344,7 +3344,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }),
 
   publishReleaseToTargets: async (releaseId, targetIds) => {
-    const { releases, distributionTargets, credentials } = get();
+    const { releases, distributionTargets, credentials, currentOrg, currentProject } = get();
     const release = releases.find((r) => r.id === releaseId) || releases[0];
     if (!release) {
       throw new Error("Release not found");
@@ -3363,6 +3363,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          orgId: currentOrg?.id,
+          projectId: currentProject?.id,
           targets: selectedTargets,
           release,
           defaultPat: credentials.pat,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isR2Configured, loadAssetRawContent } from "@/lib/r2";
+import { getPublicUrl, isR2Configured, loadAssetRawContent } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +17,13 @@ export async function GET(req: NextRequest) {
   if (!key && urlParam) {
     try {
       const parsed = new URL(urlParam);
+      const expectedOrigin = new URL(getPublicUrl(parsed.pathname.replace(/^\/+/, ""))).origin;
+      if (parsed.origin !== expectedOrigin) {
+        return NextResponse.json({ success: false, error: "Unsupported asset URL." }, { status: 400 });
+      }
       key = parsed.pathname.replace(/^\/+/, "");
     } catch {
-      key = urlParam.replace(/^https?:\/\/[^\/]+\/+/, "");
+      return NextResponse.json({ success: false, error: "Invalid asset URL." }, { status: 400 });
     }
   }
 
@@ -34,21 +38,6 @@ export async function GET(req: NextRequest) {
         return new NextResponse(asset.data as any, {
           headers: {
             "Content-Type": asset.contentType,
-            "Cache-Control": "public, max-age=86400, immutable",
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
-      }
-    }
-
-    // Fallback if R2 direct read failed or not configured: server-side fetch from the public URL
-    if (urlParam) {
-      const res = await fetch(urlParam);
-      if (res.ok) {
-        const arrayBuf = await res.arrayBuffer();
-        return new NextResponse(arrayBuf, {
-          headers: {
-            "Content-Type": res.headers.get("content-type") || "image/svg+xml",
             "Cache-Control": "public, max-age=86400, immutable",
             "Access-Control-Allow-Origin": "*",
           },

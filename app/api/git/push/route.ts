@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials, RawTokensDocument, SyncMeta } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 
@@ -10,6 +11,11 @@ interface PushRequestBody {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await authenticateRequest(req, "write:tokens");
+  if (!auth.isValid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const rawTokens: RawTokensDocument = body.rawTokens || body.tokens;
