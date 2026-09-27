@@ -11,7 +11,6 @@ import {
   Moon,
   Sparkles,
   Copy,
-  Check,
   Search,
   ExternalLink,
   Server,
@@ -22,7 +21,6 @@ import {
   GitBranch,
   FolderGit2,
   LogOut,
-  Palette,
   CheckCircle2,
   Link2,
   Building2,
@@ -90,18 +88,6 @@ interface TokenItem {
 
 type PluginView = "CONNECT" | "SELECT_ORG" | "SELECT_PROJECT" | "MAIN";
 
-// Preset brand colors for dynamic theme accent
-const BRAND_PRESETS = [
-  { name: "Neutral", hex: "#171717" },
-  { name: "Indigo", hex: "#6366f1" },
-  { name: "Violet", hex: "#8b5cf6" },
-  { name: "Blue", hex: "#3b82f6" },
-  { name: "Cyan", hex: "#06b6d4" },
-  { name: "Emerald", hex: "#10b981" },
-  { name: "Amber", hex: "#f59e0b" },
-  { name: "Rose", hex: "#f43f5e" },
-  { name: "Fuchsia", hex: "#d946ef" },
-];
 
 /**
  * Convert Hex color string to HSL values for Tailwind CSS variable injection
@@ -142,11 +128,9 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
 }
 
 export const App: React.FC = () => {
-  // Theme & Brand Color State
+  // Theme & neutral accent
   const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
-  const [brandColor, setBrandColor] = useState<string>("#171717");
-  const [isBrandModalOpen, setIsBrandModalOpen] = useState<boolean>(false);
-  const [customHexInput, setCustomHexInput] = useState<string>("#171717");
+  const brandColor = "#171717";
 
   // Navigation & View State
   const [view, setView] = useState<PluginView>("CONNECT");
@@ -212,13 +196,13 @@ export const App: React.FC = () => {
   // Dynamic CSS variables computation for Brand Color
   const dynamicCssVars = useMemo(() => {
     const hsl = hexToHsl(brandColor);
-    const isLightText = hsl.l <= 65;
+    const accentLightness = themeMode === "dark" ? 98 : hsl.l;
     return {
-      "--primary": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
-      "--ring": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
-      "--primary-foreground": isLightText ? "0 0% 98%" : "0 0% 9%",
+      "--primary": `${hsl.h} ${hsl.s}% ${accentLightness}%`,
+      "--ring": `${hsl.h} ${hsl.s}% ${accentLightness}%`,
+      "--primary-foreground": accentLightness <= 65 ? "0 0% 98%" : "0 0% 9%",
     } as React.CSSProperties;
-  }, [brandColor]);
+  }, [brandColor, themeMode]);
 
   const getServerUrl = (cfgUrl?: string) => {
     let url = (cfgUrl || config.serverUrl || PRODUCTION_APP_URL).trim();
@@ -259,16 +243,12 @@ export const App: React.FC = () => {
         if (msg.payload) {
           const loadedServer = msg.payload.serverUrl || PRODUCTION_APP_URL;
           const updated = { ...config, ...msg.payload, serverUrl: loadedServer };
+          delete updated.brandColor;
           setConfig(updated);
 
           if (msg.payload.themeMode) {
             setThemeMode(msg.payload.themeMode);
           }
-          if (msg.payload.brandColor) {
-            setBrandColor(msg.payload.brandColor);
-            setCustomHexInput(msg.payload.brandColor);
-          }
-
           if (msg.payload.pat) {
             // Validate & restore session with saved server
             await fetchOrgs(loadedServer, msg.payload.pat, msg.payload.orgId, msg.payload.projectId);
@@ -352,7 +332,6 @@ export const App: React.FC = () => {
             pat,
             serverUrl,
             themeMode,
-            brandColor,
           };
           setConfig(updatedConfig);
           parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
@@ -369,7 +348,7 @@ export const App: React.FC = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [pairCode, view, config.serverUrl, themeMode, brandColor]);
+  }, [pairCode, view, config.serverUrl, themeMode]);
 
   // Handle "CONNECT TO STUDIO" button click
   const handleConnectToStudio = async (customUrl?: string) => {
@@ -378,7 +357,7 @@ export const App: React.FC = () => {
     const targetUrl = customUrl ? customUrl.trim() : getServerUrl();
 
     // Clear any stale PAT so new connection starts fresh
-    const updated = { ...config, pat: "", serverUrl: targetUrl, themeMode, brandColor };
+    const updated = { ...config, pat: "", serverUrl: targetUrl, themeMode };
     setConfig(updated);
     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
 
@@ -427,15 +406,9 @@ export const App: React.FC = () => {
       const matchedOrg = orgList.find((o) => o.id === (targetOrgId || config.orgId));
       if (matchedOrg) {
         setSelectedOrg(matchedOrg);
-        if (matchedOrg.color && !config.brandColor) {
-          setBrandColor(matchedOrg.color);
-        }
         const matchedProj = matchedOrg.projects?.find((p) => p.id === (targetProjId || config.projectId));
         if (matchedProj) {
           setSelectedProject(matchedProj);
-          if (matchedProj.color) {
-            setBrandColor(matchedProj.color);
-          }
           fetchTokens(sUrl, pat, matchedOrg.id, matchedProj.id);
           setView("MAIN");
           return;
@@ -693,11 +666,10 @@ export const App: React.FC = () => {
     return list;
   }, [tokens, selectedCollection, searchQuery]);
 
-  // Helper to persist theme & brand color changes
-  const saveThemePreferences = (newTheme: "light" | "dark", newBrand: string) => {
+  // Helper to persist theme changes
+  const saveThemePreferences = (newTheme: "light" | "dark") => {
     setThemeMode(newTheme);
-    setBrandColor(newBrand);
-    const updated = { ...config, themeMode: newTheme, brandColor: newBrand };
+    const updated = { ...config, themeMode: newTheme };
     setConfig(updated);
     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
   };
@@ -711,7 +683,7 @@ export const App: React.FC = () => {
       <button
         onClick={() => {
           const next = themeMode === "dark" ? "light" : "dark";
-          saveThemePreferences(next, brandColor);
+              saveThemePreferences(next);
         }}
         title={`Switch to ${themeMode === "dark" ? "Light" : "Dark"} mode`}
         className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -734,19 +706,6 @@ export const App: React.FC = () => {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52 bg-card border-border text-foreground shadow-xl p-1 font-sans">
-          <DropdownMenuItem
-            onClick={() => setIsBrandModalOpen(true)}
-            className="text-xs cursor-pointer flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-accent"
-          >
-            <div
-              className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/20 shadow-xs"
-              style={{ backgroundColor: brandColor }}
-            />
-            <span className="flex-1 font-medium">Brand Color Accent</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator className="bg-border my-1" />
-
           {showProjectActions && (
             <>
               <DropdownMenuItem
@@ -937,7 +896,7 @@ export const App: React.FC = () => {
             <button
               onClick={() => {
                 const next = themeMode === "dark" ? "light" : "dark";
-                saveThemePreferences(next, brandColor);
+                saveThemePreferences(next);
               }}
               title={`Switch to ${themeMode === "dark" ? "Light" : "Dark"} mode`}
               className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -949,14 +908,6 @@ export const App: React.FC = () => {
               )}
             </button>
 
-            {/* Brand Color Picker */}
-            <button
-              onClick={() => setIsBrandModalOpen(true)}
-              title="Customize Brand Color"
-              className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              <Palette className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
 
@@ -1100,8 +1051,6 @@ export const App: React.FC = () => {
         <div className="py-3 text-center text-[11px] text-muted-foreground border-t border-border/80">
           Tokens Platform &copy; 2026
         </div>
-
-        {renderBrandDialog()}
       </div>
     );
   }
@@ -1149,9 +1098,6 @@ export const App: React.FC = () => {
                   key={org.id}
                   onClick={() => {
                     setSelectedOrg(org);
-                    if (org.color) {
-                      setBrandColor(org.color);
-                    }
                     setView("SELECT_PROJECT");
                   }}
                   className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
@@ -1182,8 +1128,6 @@ export const App: React.FC = () => {
             })
           )}
         </div>
-
-        {renderBrandDialog()}
       </div>
     );
   }
@@ -1228,9 +1172,6 @@ export const App: React.FC = () => {
                   key={proj.id}
                   onClick={() => {
                     setSelectedProject(proj);
-                    if (proj.color) {
-                      setBrandColor(proj.color);
-                    }
                     const updated = {
                       ...config,
                       orgId: selectedOrg?.id || "",
@@ -1238,7 +1179,6 @@ export const App: React.FC = () => {
                       projectName: proj.name,
                       orgName: selectedOrg?.name,
                       themeMode,
-                      brandColor: proj.color || brandColor,
                     };
                     setConfig(updated);
                     parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updated } }, "*");
@@ -1273,8 +1213,6 @@ export const App: React.FC = () => {
             })
           )}
         </div>
-
-        {renderBrandDialog()}
       </div>
     );
   }
@@ -1533,11 +1471,6 @@ export const App: React.FC = () => {
       </footer>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* BRAND COLOR CUSTOMIZER DIALOG (Dynamic Theme Accent)                   */}
-      {/* ---------------------------------------------------------------------- */}
-      {renderBrandDialog()}
-
-      {/* ---------------------------------------------------------------------- */}
       {/* MODAL A: Select Themes and Modes to create                             */}
       {/* ---------------------------------------------------------------------- */}
       <Dialog open={isThemeModalOpen} onOpenChange={setIsThemeModalOpen}>
@@ -1707,89 +1640,4 @@ export const App: React.FC = () => {
 
   // --------------------------------------------------------------------------
   // BRAND COLOR CUSTOMIZATION MODAL HELPER
-  // --------------------------------------------------------------------------
-  function renderBrandDialog() {
-    return (
-      <Dialog open={isBrandModalOpen} onOpenChange={setIsBrandModalOpen}>
-        <DialogContent className="max-w-xs bg-card border-border text-foreground p-5 font-sans rounded-xl shadow-2xl">
-          <DialogHeader className="p-0 space-y-1">
-            <DialogTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Palette className="w-4 h-4 text-primary" />
-              <span>Customize Brand Color</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Adapt plugin accents, buttons, and badges to your brand color.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Color Presets */}
-          <div className="space-y-3 py-2">
-            <Label className="text-[11px] text-muted-foreground font-medium">Brand Presets</Label>
-            <div className="grid grid-cols-4 gap-2">
-              {BRAND_PRESETS.map((preset) => (
-                <button
-                  key={preset.name}
-                  onClick={() => {
-                    setBrandColor(preset.hex);
-                    setCustomHexInput(preset.hex);
-                    saveThemePreferences(themeMode, preset.hex);
-                  }}
-                  className={`h-8 rounded-lg border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    brandColor.toLowerCase() === preset.hex.toLowerCase()
-                      ? "border-primary ring-2 ring-primary/30 scale-105"
-                      : "border-border hover:scale-102"
-                  }`}
-                  style={{ backgroundColor: preset.hex }}
-                  title={preset.name}
-                >
-                  {brandColor.toLowerCase() === preset.hex.toLowerCase() && (
-                    <Check className="w-3.5 h-3.5 text-white drop-shadow" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom Hex Input */}
-            <div className="space-y-1.5 pt-1">
-              <Label className="text-[11px] text-muted-foreground font-medium">Custom Color (Hex)</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={brandColor}
-                  onChange={(e) => {
-                    setBrandColor(e.target.value);
-                    setCustomHexInput(e.target.value);
-                    saveThemePreferences(themeMode, e.target.value);
-                  }}
-                  className="w-8 h-8 rounded-lg border border-border cursor-pointer p-0 bg-transparent"
-                />
-                <Input
-                  value={customHexInput}
-                  onChange={(e) => {
-                    setCustomHexInput(e.target.value);
-                    if (/^#[0-9a-f]{6}$/i.test(e.target.value.trim())) {
-                      setBrandColor(e.target.value.trim());
-                      saveThemePreferences(themeMode, e.target.value.trim());
-                    }
-                  }}
-                  placeholder="#171717"
-                  className="h-8 text-xs bg-background border-border text-foreground font-mono focus-visible:ring-primary rounded-lg"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="pt-2 border-t border-border">
-            <Button
-              size="sm"
-              onClick={() => setIsBrandModalOpen(false)}
-              className="w-full h-8 text-xs font-semibold bg-primary hover:opacity-95 text-primary-foreground rounded-lg cursor-pointer"
-            >
-              Apply & Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 };
