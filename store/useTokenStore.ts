@@ -1132,6 +1132,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setCurrentProject: (proj) => {
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
+    const previousState = get();
+    const isSameProject = previousState.currentProject?.id === proj?.id;
+    const previousThemeGroupId = isSameProject ? previousState.activeThemeGroupId : "";
+    const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
     const needsProjectHydration = Boolean(proj && proj.rawTokens === undefined);
 
@@ -1248,6 +1252,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           : Object.keys(initialTokens).length > 0
           ? extractThemeGroups(initialTokens)
           : [];
+      const activeThemeOptionIds = buildDefaultActiveOptionIds(initialThemes, previousThemeOptionIds);
+      let savedThemeGroupId = "";
+      if (typeof window !== "undefined") {
+        try {
+          savedThemeGroupId = localStorage.getItem("ts_active_group_id") || "";
+        } catch {}
+      }
+      const preferredThemeGroupId = previousThemeGroupId || savedThemeGroupId;
+      const activeThemeGroup =
+        initialThemes.find((group) => group.id === preferredThemeGroupId) ||
+        initialThemes.find((group) => group.name.toLowerCase() === "theme") ||
+        initialThemes[0];
+      const activeThemeOptionId = activeThemeGroup
+        ? activeThemeOptionIds[activeThemeGroup.id] || activeThemeGroup.options[0]?.id || ""
+        : "";
 
       set({
         branches: projectBranches,
@@ -1302,9 +1321,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         get().setRawTokens(initialTokens);
         set({
           themeGroups: initialThemes,
-          activeThemeGroupId: initialThemes[0]?.id || "",
-          activeThemeOptionId: initialThemes[0]?.options?.[0]?.id || "",
-          activeThemeOptionIds: buildDefaultActiveOptionIds(initialThemes),
+          activeThemeGroupId: activeThemeGroup?.id || "",
+          activeThemeOptionId,
+          activeThemeOptionIds,
           originalTokens: JSON.parse(JSON.stringify(initialTokens)),
           isDirty: false,
         });
@@ -1314,9 +1333,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           originalTokens: {},
           resolvedTokens: [],
           themeGroups: initialThemes || [],
-          activeThemeGroupId: initialThemes?.[0]?.id || "",
-          activeThemeOptionId: initialThemes?.[0]?.options?.[0]?.id || "",
-          activeThemeOptionIds: buildDefaultActiveOptionIds(initialThemes || []),
+          activeThemeGroupId: activeThemeGroup?.id || "",
+          activeThemeOptionId,
+          activeThemeOptionIds,
           syncMeta: null,
           isDirty: false,
         });
