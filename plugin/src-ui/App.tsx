@@ -354,14 +354,27 @@ export const App: React.FC = () => {
             parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
           });
 
+          if (!configSaved) {
+            setIsConnecting(false);
+            setErrorBanner("Could not confirm saving the plugin session. Generate a new pairing code and try again.");
+            clearInterval(interval);
+            return;
+          }
+
+          const orgsLoaded = await fetchOrgs(serverUrl, pat, data.orgId, data.projectId);
           setIsConnecting(false);
-          await fetchOrgs(serverUrl, pat, data.orgId, data.projectId);
-          if (configSaved) {
-            await fetch(`${serverUrl}/api/v1/auth/pair`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ code: pairCode }),
-            });
+          if (!orgsLoaded) {
+            clearInterval(interval);
+            return;
+          }
+
+          const ackResponse = await fetch(`${serverUrl}/api/v1/auth/pair`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: pairCode }),
+          });
+          if (!ackResponse.ok) {
+            setErrorBanner("Connected, but could not confirm the pairing with the server. Please retry pairing.");
           }
           clearInterval(interval);
         } else if (data.status === "approved") {
@@ -404,7 +417,7 @@ export const App: React.FC = () => {
   };
 
   // Fetch user organizations from backend
-  const fetchOrgs = async (sUrl: string, pat: string, targetOrgId?: string, targetProjId?: string) => {
+  const fetchOrgs = async (sUrl: string, pat: string, targetOrgId?: string, targetProjId?: string): Promise<boolean> => {
     try {
       const res = await fetch(`${sUrl}/api/v1/user/orgs`, {
         headers: {
@@ -413,14 +426,15 @@ export const App: React.FC = () => {
         },
       });
 
+      const data = await res.json();
       if (!res.ok) {
+        const detail = data.error || "The server rejected the plugin credential.";
         if (res.status === 401 || res.status === 403) {
-          throw new Error("AUTH_EXPIRED");
+          throw new Error(`AUTH_EXPIRED:${detail}`);
         }
-        throw new Error(`SERVER_ERROR_${res.status}`);
+        throw new Error(`SERVER_ERROR_${res.status}:${detail}`);
       }
 
-      const data = await res.json();
       const orgList: Org[] = data.orgs || data.organizations || [];
       setOrgs(orgList);
       setIsOffline(false);
@@ -428,7 +442,7 @@ export const App: React.FC = () => {
 
       if (orgList.length === 0) {
         setView("SELECT_ORG");
-        return;
+        return true;
       }
 
       // Check if previously selected org & project still match
@@ -440,21 +454,24 @@ export const App: React.FC = () => {
           setSelectedProject(matchedProj);
           fetchTokens(sUrl, pat, matchedOrg.id, matchedProj.id);
           setView("MAIN");
-          return;
+          return true;
         }
       }
 
       // Default to Select Organization screen
       setView("SELECT_ORG");
+      return true;
     } catch (err: any) {
       console.warn("fetchOrgs error:", err);
-      if (err.message === "AUTH_EXPIRED") {
+      if (err.message.startsWith("AUTH_EXPIRED:")) {
+        const detail = err.message.slice("AUTH_EXPIRED:".length);
         // Genuine auth expiration -> clear token and go to connect
         const cleared = { ...config, pat: "", orgId: "", projectId: "", projectName: "", orgName: "" };
         setConfig(cleared);
         parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: cleared } }, "*");
-        setErrorBanner("Your session has expired. Please connect again.");
+        setErrorBanner(`Plugin authorization failed: ${detail} Please connect again.`);
         setView("CONNECT");
+        return false;
       } else {
         // Transient network failure or server restarting:
         // DO NOT log out! Keep the user connected and preserve their workspace!
@@ -467,6 +484,7 @@ export const App: React.FC = () => {
         } else {
           setView("SELECT_ORG");
         }
+        return false;
       }
     } finally {
       setIsRestoringSession(false);

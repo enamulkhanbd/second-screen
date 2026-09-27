@@ -66,11 +66,9 @@ export async function getStoredApiKeys(): Promise<ApiKeyRecord[]> {
  * Dynamically saves an API key to Supabase
  */
 export async function saveApiKey(record: ApiKeyRecord): Promise<void> {
-  inMemoryApiKeys.set(record.id, record);
   if (isSupabaseConfigured) {
-    try {
-      const client = getClient();
-      await client.from("api_keys").upsert({
+    const client = getClient();
+    const { error } = await client.from("api_keys").upsert({
         id: record.id,
         name: record.name,
         key_prefix: record.keyPrefix,
@@ -85,10 +83,12 @@ export async function saveApiKey(record: ApiKeyRecord): Promise<void> {
         org_name: record.orgName || null,
         project_name: record.projectName || null,
       });
-    } catch (e) {
-      console.warn("Supabase error saving api key:", e);
+    if (error) {
+      console.warn("Supabase error saving API key:", error);
+      throw new Error("Could not persist the API key. Please try again.");
     }
   }
+  inMemoryApiKeys.set(record.id, record);
 }
 
 /**
