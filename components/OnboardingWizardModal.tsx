@@ -45,6 +45,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
     createProjectAction,
     initializeBlankWorkspace,
     setSidebarTab,
+    setProjectSettingsTab,
     addToast,
   } = useTokenStore();
 
@@ -116,10 +117,12 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
     if (path === "tokens") {
       setSidebarTab("tokens");
     } else if (path === "git") {
+      setProjectSettingsTab("sync");
       setSidebarTab("project-settings");
       if (onOpenSettings) onOpenSettings();
     } else if (path === "figma") {
-      setSidebarTab("project-sync");
+      setProjectSettingsTab("sync");
+      setSidebarTab("project-settings");
       if (onOpenSettings) onOpenSettings();
     }
     if (onClose) onClose();

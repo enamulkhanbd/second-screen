@@ -87,7 +87,7 @@ const PROVIDERS: { id: GitProvider; label: string; icon: string; docsUrl: string
   },
 ];
 
-export const SyncProvidersView: React.FC = () => {
+export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const {
     currentOrg,
     currentProject,
@@ -524,7 +524,8 @@ export const SyncProvidersView: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background font-sans select-none">
+    <div className={embedded ? "w-full space-y-6" : "flex-1 flex flex-col h-full overflow-y-auto bg-background font-sans select-none"}>
+      {!embedded && (
       <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -549,8 +550,9 @@ export const SyncProvidersView: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
-      <main className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
+      <div className={embedded ? "space-y-6" : "max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1"}>
         {/* Navigation Tabs (In-Page) */}
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border w-fit">
           <button
@@ -1154,7 +1156,7 @@ export const SyncProvidersView: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Disconnect Git Confirmation Modal */}
       <Dialog open={showDisconnectGitModal} onOpenChange={setShowDisconnectGitModal}>

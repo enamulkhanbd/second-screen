@@ -77,6 +77,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     currentProject,
     syncTargetProject,
     setCurrentProject,
+    projectSettingsTab,
+    setProjectSettingsTab,
     themeGroups,
     activeThemeGroupId,
     setActiveThemeGroup,
@@ -167,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       hasBackButton?: boolean;
     }> = [];
 
-    if (sidebarTab === "project-sync") {
+    if (sidebarTab === "project-settings" && (syncTargetProject || currentProject)) {
       const project = syncTargetProject || currentProject;
       items.push({
         label: "Overview",
@@ -191,9 +193,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         });
       }
       items.push({
-        label: "Configure Sync",
-        isLast: true,
+        label: "Project Settings",
+        onClick: () => setProjectSettingsTab("details"),
       });
+      if (projectSettingsTab === "sync") {
+        items.push({ label: "Configure Sync", isLast: true });
+      } else {
+        items[items.length - 1].isLast = true;
+      }
       return items;
     }
 
@@ -318,7 +325,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         members: "Members",
         "project-settings": "Project Settings",
         "org-settings": "Workspace Settings",
-        "project-sync": "Configure Sync",
         mcp: "MCP & CLI",
         changelog: "Changelog",
         workspaces: "Projects",
@@ -333,7 +339,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }
 
     return items;
-  }, [currentProject, syncTargetProject, currentOrg, sidebarTab, activeGroup, activeSet, setSidebarTab, setCurrentProject, credentials.branch, activeBranch, isGitConfigured]);
+  }, [currentProject, syncTargetProject, currentOrg, sidebarTab, projectSettingsTab, activeGroup, activeSet, setSidebarTab, setCurrentProject, setProjectSettingsTab, credentials.branch, activeBranch, isGitConfigured]);
 
   // Compute live diff summary between baseline and current state
   const diffSummary = useMemo(() => {

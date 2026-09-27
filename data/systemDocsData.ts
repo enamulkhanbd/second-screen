@@ -251,7 +251,7 @@ export const SYSTEM_DOCS_SECTIONS: SystemDocSection[] = [
     ],
     quickLink: {
       label: "Open Git Sync",
-      tab: "project-sync",
+      tab: "project-settings",
     },
   },
   {

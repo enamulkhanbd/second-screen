@@ -41,7 +41,7 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
 };
 
 export const SystemDocsView: React.FC = () => {
-  const { setSidebarTab } = useTokenStore();
+  const { setSidebarTab, setProjectSettingsTab } = useTokenStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSectionId, setActiveSectionId] = useState<string>(
     SYSTEM_DOCS_SECTIONS[0]?.id || "tokens-studio"
@@ -185,7 +185,12 @@ export const SystemDocsView: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSidebarTab(currentSection.quickLink!.tab)}
+                      onClick={() => {
+                        if (currentSection.quickLink!.tab === "project-settings") {
+                          setProjectSettingsTab("sync");
+                        }
+                        setSidebarTab(currentSection.quickLink!.tab);
+                      }}
                       className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 cursor-pointer"
                     >
                       <span>{currentSection.quickLink.label}</span>

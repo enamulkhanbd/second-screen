@@ -30,7 +30,7 @@ export interface SystemDocSection {
       | "exports"
       | "releases"
       | "activity"
-      | "project-sync"
+      | "project-settings"
       | "mcp"
       | "project-settings"
       | "members"

@@ -94,12 +94,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
     orgProjects,
     isLoadingProjects,
     currentProject,
+    syncTargetProject,
     setCurrentProject,
     themeGroups,
     rawTokens,
     figmaResolvedVariables,
     sidebarTab,
     setSidebarTab,
+    setProjectSettingsTab,
     setMembersSubTab,
     credentials,
     releases,
@@ -121,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   const isCollapsed = mode === "docked" && isCollapsedState;
 
   const userRole = getCurrentUserRole();
-  const isWorkspaceNavigation = !currentProject || sidebarTab === "project-sync";
+  const isWorkspaceNavigation = !currentProject;
   const sidebarProject = isWorkspaceNavigation ? null : currentProject;
 
   // Extract all valid set names based on $metadata.json ($themes.json or valid token sets)
@@ -251,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             sidebarTab === "dashboard" ||
                             sidebarTab === "projects" ||
                             sidebarTab === "members" ||
-                            sidebarTab === "project-sync" ||
+                            sidebarTab === "project-settings" ||
                             (sidebarTab as string) === "workspaces"
                           ) {
                             setSidebarTab("tokens");
@@ -458,7 +460,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             sidebarTab === "dashboard" ||
                             sidebarTab === "projects" ||
                             sidebarTab === "members" ||
-                            sidebarTab === "project-sync" ||
+                            sidebarTab === "project-settings" ||
                             (sidebarTab as string) === "workspaces"
                           ) {
                             setSidebarTab("tokens");
@@ -680,6 +682,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
               <Settings className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Workspace Settings</span>}
             </button>
+
+            {syncTargetProject && (
+              <button
+                onClick={() => {
+                  setProjectSettingsTab("details");
+                  setSidebarTab("project-settings");
+                }}
+                title={`Project Settings: ${syncTargetProject.name}`}
+                className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "project-settings"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                  }`}
+              >
+                <Settings className="size-4 flex-shrink-0" />
+                {!isCollapsed && <span>Project Settings</span>}
+              </button>
+            )}
           </div>
         )}
 
@@ -885,7 +904,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
             {/* Project Settings */}
             <button
-              onClick={() => setSidebarTab("project-settings")}
+              onClick={() => {
+                setProjectSettingsTab("details");
+                setSidebarTab("project-settings");
+              }}
               title="Project Settings"
               className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "project-settings"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"

@@ -306,7 +306,7 @@ export const DashboardView: React.FC = () => {
                   title: "Figma Integration",
                   description: "Sync your tokens and variables with Figma files.",
                   icon: Figma,
-                  tab: "project-sync",
+                  tab: "project-settings",
                 },
                 {
                   id: "references",
@@ -346,6 +346,9 @@ export const DashboardView: React.FC = () => {
                         setSidebarTab("members");
                         setMembersSubTab("members");
                       } else {
+                        if (card.id === "figma") {
+                          useTokenStore.getState().setProjectSettingsTab("sync");
+                        }
                         setSidebarTab(card.tab as any);
                       }
                     }}
