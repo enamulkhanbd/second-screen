@@ -6,14 +6,7 @@ import { ApiKeyRecord } from "./patAuth";
 const inMemoryApiKeys = new Map<string, ApiKeyRecord>();
 
 function getClient() {
-  if (typeof window === "undefined") {
-    try {
-      return createAdminClient();
-    } catch {
-      return supabase;
-    }
-  }
-  return supabase;
+  return typeof window === "undefined" ? createAdminClient() : supabase;
 }
 
 /**
