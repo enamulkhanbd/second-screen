@@ -99,7 +99,9 @@ import {
 
 const KNOWN_TYPE_NAMES = new Set([
   "stroke", "twotone", "two-tone", "two tone", "solid", "filled", "outline", "bulk", "broken", "linear",
-  "bold", "curved", "light", "thin", "duotone", "duo-tone", "duo tone", "regular", "glyph", "sharp", "flat"
+  "bold", "curved", "light", "thin", "duotone", "duo-tone", "duo tone", "regular", "glyph", "sharp", "flat",
+  "color", "colour", "colored", "coloured", "fullcolor", "full-color", "multicolor", "multicolour",
+  "monochrome", "monochromic", "monochromatic", "mono", "brand"
 ]);
 
 const ASSET_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
@@ -225,8 +227,8 @@ function parseRawPathMeta(relativePath: string): { derivedType?: string; derived
   const fileName = parts.pop() || "";
   const stem = fileName.replace(/\.svg$/i, "");
 
-  // Strip generic root prefixes if present (e.g. "icons", "assets", "svg", "dist", "src")
-  if (parts.length > 0 && /^(icons?|assets?|svgs?|dist|src|build|exports?)$/i.test(parts[0])) {
+  // Strip generic root prefixes if present (e.g. "icons", "logos", "assets", "svg", "dist", "src")
+  while (parts.length > 0 && /^(icons?|logos?|assets?|svgs?|dist|src|build|exports?)$/i.test(parts[0])) {
     parts = parts.slice(1);
   }
 
@@ -295,6 +297,19 @@ export function getInferredAssetType(asset: ProjectAsset): AssetType {
   if (mime.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(name) || /\.(mp4|webm|mov)$/i.test(url)) return "video";
   if (mime.includes("pdf") || mime.includes("document") || /\.(pdf|docx?|pptx?|txt)$/i.test(name) || url.endsWith(".pdf")) return "document";
   return "icon";
+}
+
+function isSvgAsset(asset: ProjectAsset): boolean {
+  const name = asset.name.toLowerCase();
+  const url = (asset.url || "").split(/[?#]/, 1)[0].toLowerCase();
+  return !!asset.svg || (asset.contentType || "").toLowerCase().includes("svg") || name.endsWith(".svg") || url.endsWith(".svg");
+}
+
+function hasFixedSvgVariant(asset: ProjectAsset): boolean {
+  const fixedVariantPattern = /(^|[^a-z])(color(?:ed|ful)?|colour(?:ed|ful)?|full[-_ ]?color|multi[-_ ]?color|mono(?:chrome|chromic|chromatic)?|duo[-_ ]?tone|two[-_ ]?tone|twotone)(?=$|[^a-z])/i;
+  return [asset.type, asset.category, asset.tag, asset.name, asset.title].some(
+    (value) => !!value && fixedVariantPattern.test(value)
+  );
 }
 
 /**
@@ -395,8 +410,10 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   const previewStyle = getCanvasPreviewStyle("subtle");
 
-  // In dark mode or on dark canvas, only invert standard monochrome git icons without explicit color/dark labels
+  // Unclassified SVGs follow the active theme; named variants keep their authored colors.
+  const shouldThemeSvg = isSvgAsset(icon) && !hasFixedSvgVariant(icon);
   const shouldInvertInDarkMode =
+    !isSvgAsset(icon) &&
     icon.source === "git" &&
     !icon.name.toLowerCase().includes("dark") &&
     !icon.name.toLowerCase().includes("color");
@@ -417,7 +434,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
         </div>
       ) : icon.svg ? (
         <div
-          className="max-h-14 max-w-[85%] flex items-center justify-center transition-transform duration-150 group-hover:scale-105 [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14"
+          className={`max-h-14 max-w-[85%] flex items-center justify-center transition-transform duration-150 group-hover:scale-105 [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14 ${shouldThemeSvg ? "brightness-0 dark:invert" : ""}`}
           dangerouslySetInnerHTML={{ __html: icon.svg }}
         />
       ) : icon.url ? (
@@ -429,7 +446,9 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           className={`max-h-14 max-w-[85%] object-contain transition-all duration-200 group-hover:scale-105 ${
             isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
           } ${
-            shouldInvertInDarkMode
+            shouldThemeSvg
+              ? "brightness-0 dark:invert"
+              : shouldInvertInDarkMode
               ? "dark:invert dark:opacity-90"
               : ""
           }`}
@@ -1743,7 +1762,8 @@ export const AssetsView: React.FC = () => {
     const isSelected = selectedAssetIds.has(icon.id);
     const displayTitle = icon.title || icon.name;
     const itemType = getInferredAssetType(icon);
-    const isSvg = itemType === "icon" || !!icon.svg || (icon.contentType || "").includes("svg") || (icon.name || "").toLowerCase().endsWith(".svg") || (icon.url || "").toLowerCase().includes(".svg");
+    const isSvg = itemType === "icon" || isSvgAsset(icon);
+    const shouldThemeSvg = isSvgAsset(icon) && !hasFixedSvgVariant(icon);
     const folder = icon.folderId ? assetFolders.find((f) => f.id === icon.folderId) : null;
 
     const handleCardClick = () => {
@@ -1929,11 +1949,9 @@ export const AssetsView: React.FC = () => {
             />
           ) : (
             <img
-              src={icon.url}
+              src={icon.url || (icon.svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon.svg)}` : undefined)}
               alt={displayTitle}
-              className={`max-h-[60%] max-w-[60%] object-contain ${
-                isSvg ? "brightness-0 dark:invert" : ""
-              }`}
+              className={`max-h-[60%] max-w-[60%] object-contain ${shouldThemeSvg ? "brightness-0 dark:invert" : ""}`}
               loading="lazy"
             />
           )}
