@@ -17,7 +17,6 @@ import {
   Trash2,
   GitBranch,
   MoreVertical,
-  Edit2,
   Share2,
   Clock,
   Shield,
@@ -92,6 +91,8 @@ export const WorkspacesProjectsView: React.FC = () => {
     currentProject,
     setCurrentOrg,
     setCurrentProject,
+    setSyncTargetProject,
+    setProjectSettingsTab,
     createOrgAction,
     updateOrgAction,
     deleteOrgAction,
@@ -198,6 +199,8 @@ export const WorkspacesProjectsView: React.FC = () => {
   // Delete Confirmations
   const [deletingOrgId, setDeletingOrgId] = useState<string | null>(null);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const projectPendingDelete = orgProjects.find((project) => project.id === deletingProjectId) || null;
 
   // Duplicate name validation
   const isOrgNameDuplicate = useMemo(() => {
@@ -356,14 +359,6 @@ export const WorkspacesProjectsView: React.FC = () => {
     setIsProjectFormOpen(true);
   };
 
-  const handleOpenEditProject = (proj: Project) => {
-    setEditingProjectId(proj.id);
-    setProjectFormName(proj.name);
-    setProjectFormDescription(proj.description || "");
-    setProjectFormLogoUrl(proj.logoUrl || "");
-    setIsProjectFormOpen(true);
-  };
-
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentOrg || !projectFormName.trim() || isProjectNameDuplicate) return;
@@ -414,6 +409,7 @@ export const WorkspacesProjectsView: React.FC = () => {
 
   const handleDeleteProject = async (projectId: string) => {
     if (!currentOrg) return;
+    setIsDeletingProject(true);
     try {
       await deleteProjectAction(currentOrg.id, projectId);
       addToast({
@@ -428,6 +424,8 @@ export const WorkspacesProjectsView: React.FC = () => {
         title: "Delete Failed",
         message: err.message || "Could not delete project.",
       });
+    } finally {
+      setIsDeletingProject(false);
     }
   };
 
@@ -441,10 +439,14 @@ export const WorkspacesProjectsView: React.FC = () => {
     });
   };
 
-  const handleConfigureSync = (project: Project) => {
-    setCurrentProject(project);
-    setSidebarTab("integrations");
+  const handleOpenProjectSettings = (project: Project, tab: "details" | "sync" = "details") => {
+    setSyncTargetProject(project);
+    setCurrentProject(null);
+    setProjectSettingsTab(tab);
+    setSidebarTab("project-settings");
   };
+
+  const handleConfigureSync = (project: Project) => handleOpenProjectSettings(project, "sync");
 
   const handleToggleArchiveProject = async (project: Project) => {
     if (!currentOrg) return;
@@ -1004,27 +1006,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
-                              onClick={() => handleOpenProjectInStudio(proj)}
+                              onClick={() => handleOpenProjectSettings(proj)}
                               className="gap-2 text-xs cursor-pointer"
                             >
-                              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span>Open in Studio</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => handleOpenEditProject(proj)}
-                              className="gap-2 text-xs cursor-pointer"
-                            >
-                              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span>Edit Project Details</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => handleConfigureSync(proj)}
-                              className="gap-2 text-xs cursor-pointer"
-                            >
-                              <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span>Configure Sync</span>
+                              <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span>Project Settings</span>
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
@@ -1057,34 +1043,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                         </DropdownMenu>
                       </div>
 
-                      {/* In-Row Delete Confirmation */}
-                      {deletingProjectId === proj.id && (
-                        <div className="absolute inset-0 bg-background/95 px-5 py-2.5 flex items-center justify-between z-20 border border-destructive/50 animate-in fade-in rounded-xl">
-                          <div className="flex items-center gap-2 text-destructive font-bold text-xs">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span>Delete &ldquo;{proj.name}&rdquo; permanently?</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDeletingProjectId(null)}
-                              className="text-xs h-7"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteProject(proj.id)}
-                              className="text-xs h-7"
-                            >
-                              Confirm Delete
-                            </Button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -1146,27 +1104,11 @@ export const WorkspacesProjectsView: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem
-                                onClick={() => handleOpenProjectInStudio(proj)}
+                                onClick={() => handleOpenProjectSettings(proj)}
                                 className="gap-2 text-xs cursor-pointer"
                               >
-                                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span>Open in Studio</span>
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem
-                                onClick={() => handleOpenEditProject(proj)}
-                                className="gap-2 text-xs cursor-pointer"
-                              >
-                                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span>Edit Project Details</span>
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem
-                                onClick={() => handleConfigureSync(proj)}
-                                className="gap-2 text-xs cursor-pointer"
-                              >
-                                <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span>Configure Sync</span>
+                                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>Project Settings</span>
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator />
@@ -1252,39 +1194,6 @@ export const WorkspacesProjectsView: React.FC = () => {
                         </Button>
                       </div>
 
-                      {/* In-Card Delete Confirmation */}
-                      {deletingProjectId === proj.id && (
-                        <div className="absolute inset-0 bg-background/95 rounded-2xl p-5 flex flex-col justify-between z-20 border border-destructive/50 animate-in fade-in">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-destructive font-bold text-xs">
-                              <AlertTriangle className="w-4 h-4" />
-                              <span>Delete &ldquo;{proj.name}&rdquo;?</span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                              All tokens, variables, and sync credentials for this project will be permanently removed.
-                            </p>
-                          </div>
-
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDeletingProjectId(null)}
-                              className="text-xs h-7"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteProject(proj.id)}
-                              className="text-xs h-7"
-                            >
-                              Confirm Delete
-                            </Button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -1912,6 +1821,45 @@ export const WorkspacesProjectsView: React.FC = () => {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={Boolean(deletingProjectId)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingProject) setDeletingProjectId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive mb-1">
+              <AlertTriangle className="w-5 h-5" />
+              <DialogTitle>Delete Project</DialogTitle>
+            </div>
+            <DialogDescription>
+              Permanently delete <strong className="text-foreground">{projectPendingDelete?.name}</strong> and its tokens, variables, and sync settings? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeletingProjectId(null)}
+              disabled={isDeletingProject}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (deletingProjectId) void handleDeleteProject(deletingProjectId);
+              }}
+              disabled={!projectPendingDelete || isDeletingProject}
+            >
+              {isDeletingProject ? "Deleting..." : "Delete Project"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Team Management Modal */}
       <ManageOrgModal

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Lock,
@@ -31,10 +32,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+const SyncProvidersView = dynamic(
+  () => import("@/components/SyncProvidersView").then((module) => module.SyncProvidersView),
+  { ssr: false }
+);
+
 export const ProjectSettingsView: React.FC = () => {
   const {
     currentOrg,
     currentProject,
+    syncTargetProject,
+    setSyncTargetProject,
+    projectSettingsTab,
+    setProjectSettingsTab,
     orgProjects,
     updateProjectAction,
     deleteProjectAction,
@@ -42,14 +52,15 @@ export const ProjectSettingsView: React.FC = () => {
     getCurrentUserRole,
     setSidebarTab,
   } = useTokenStore();
+  const project = syncTargetProject || currentProject;
 
   const userRole = getCurrentUserRole();
   const canEditSettings = userRole === "owner" || userRole === "admin";
 
-  const [projectName, setProjectName] = useState(currentProject?.name || "Planet-JustGo");
-  const [projectSlug, setProjectSlug] = useState(currentProject?.slug || "planet-justgo");
-  const [projectDescription, setProjectDescription] = useState(currentProject?.description || "");
-  const [projectLogoUrl, setProjectLogoUrl] = useState(currentProject?.logoUrl || "");
+  const [projectName, setProjectName] = useState(project?.name || "");
+  const [projectSlug, setProjectSlug] = useState(project?.slug || "");
+  const [projectDescription, setProjectDescription] = useState(project?.description || "");
+  const [projectLogoUrl, setProjectLogoUrl] = useState(project?.logoUrl || "");
   const [basePermission, setBasePermission] = useState("write");
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,34 +95,38 @@ export const ProjectSettingsView: React.FC = () => {
 
   const isDuplicateName = Boolean(
     projectName.trim() &&
-    currentProject &&
+    project &&
     orgProjects.some(
       (p) =>
-        p.id !== currentProject.id &&
+        p.id !== project.id &&
         p.name.trim().toLowerCase() === projectName.trim().toLowerCase()
     )
   );
 
   useEffect(() => {
-    if (currentProject) {
-      setProjectName(currentProject.name);
-      setProjectSlug(currentProject.slug || currentProject.name.toLowerCase().replace(/\s+/g, "-"));
-      setProjectDescription(currentProject.description || "");
-      setProjectLogoUrl(currentProject.logoUrl || "");
+    if (project) {
+      setProjectName(project.name);
+      setProjectSlug(project.slug || project.name.toLowerCase().replace(/\s+/g, "-"));
+      setProjectDescription(project.description || "");
+      setProjectLogoUrl(project.logoUrl || "");
     }
-  }, [currentProject]);
+  }, [project?.id, project?.name, project?.slug, project?.description, project?.logoUrl]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrg || !currentProject || !projectName.trim() || isDuplicateName) return;
+    if (!currentOrg || !project || !projectName.trim() || isDuplicateName) return;
 
     setIsSaving(true);
     try {
-      await updateProjectAction(currentOrg.id, currentProject.id, {
+      const updates = {
         name: projectName.trim(),
         description: projectDescription.trim(),
         logoUrl: projectLogoUrl.trim(),
-      });
+      };
+      await updateProjectAction(currentOrg.id, project.id, updates);
+      if (syncTargetProject?.id === project.id) {
+        setSyncTargetProject({ ...project, ...updates });
+      }
       addToast({
         type: "success",
         title: "Project Updated",
@@ -133,23 +148,26 @@ export const ProjectSettingsView: React.FC = () => {
   const [confirmNameInput, setConfirmNameInput] = useState("");
 
   const handleArchive = async () => {
-    if (!currentOrg || !currentProject) return;
-    const willArchive = !currentProject.isArchived;
+    if (!currentOrg || !project) return;
+    const willArchive = !project.isArchived;
     const confirmMsg = willArchive
-      ? `Are you sure you want to archive "${currentProject.name}"? It will become read-only and move to the Archived projects tab.`
-      : `Are you sure you want to restore "${currentProject.name}" to active status?`;
+      ? `Are you sure you want to archive "${project.name}"? It will become read-only and move to the Archived projects tab.`
+      : `Are you sure you want to restore "${project.name}" to active status?`;
     if (!confirm(confirmMsg)) return;
 
     try {
-      await updateProjectAction(currentOrg.id, currentProject.id, {
+      await updateProjectAction(currentOrg.id, project.id, {
         isArchived: willArchive,
       });
+      if (syncTargetProject?.id === project.id) {
+        setSyncTargetProject({ ...project, isArchived: willArchive });
+      }
       addToast({
         type: "success",
         title: willArchive ? "Project Archived" : "Project Restored",
         message: willArchive
-          ? `"${currentProject.name}" has been moved to archived.`
-          : `"${currentProject.name}" has been restored to active status.`,
+          ? `"${project.name}" has been moved to archived.`
+          : `"${project.name}" has been restored to active status.`,
       });
     } catch (err: any) {
       addToast({
@@ -161,17 +179,18 @@ export const ProjectSettingsView: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!currentOrg || !currentProject) return;
+    if (!currentOrg || !project) return;
     setIsDeleting(true);
     try {
-      const projName = currentProject.name;
-      await deleteProjectAction(currentOrg.id, currentProject.id);
+      const projName = project.name;
+      await deleteProjectAction(currentOrg.id, project.id);
+      if (syncTargetProject?.id === project.id) setSyncTargetProject(null);
       addToast({
         type: "success",
         title: "Project Deleted",
         message: `Project "${projName}" has been permanently deleted.`,
       });
-      setSidebarTab("tokens");
+      setSidebarTab(currentProject ? "tokens" : "projects");
     } catch (err: any) {
       addToast({
         type: "error",
@@ -185,17 +204,52 @@ export const ProjectSettingsView: React.FC = () => {
     }
   };
 
+  if (!project) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background text-foreground font-sans">
+        <h2 className="text-base font-bold">No Project Selected</h2>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+          Select a project from Projects to view its settings.
+        </p>
+        <Button onClick={() => setSidebarTab("projects")} size="sm" className="mt-4 text-xs">
+          Go to Projects
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background text-foreground font-sans select-none p-6 md:p-10">
       <div className="max-w-[960px] w-full mx-auto space-y-6">
-        {/* Header (Matching Video Frame 007) */}
-        <div>
-          <h1 className="text-xl font-bold text-foreground tracking-tight">Project details</h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Manage your project profile and default settings.
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground tracking-tight">Project Settings</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manage {project.name} details and synchronization.
+            </p>
+          </div>
+          <div role="tablist" aria-label="Project settings" className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border w-fit">
+            <button
+              role="tab"
+              aria-selected={projectSettingsTab === "details"}
+              onClick={() => setProjectSettingsTab("details")}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${projectSettingsTab === "details" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Details
+            </button>
+            <button
+              role="tab"
+              aria-selected={projectSettingsTab === "sync"}
+              onClick={() => setProjectSettingsTab("sync")}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${projectSettingsTab === "sync" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Sync
+            </button>
+          </div>
         </div>
 
+        {projectSettingsTab === "details" ? (
+          <>
         {/* Main Settings Card */}
         <form onSubmit={handleSave} className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
           {/* Name * */}
@@ -407,13 +461,13 @@ export const ProjectSettingsView: React.FC = () => {
           </div>
 
           {/* Project ID */}
-          {currentProject?.id && (
+          {project.id && (
             <div className="space-y-1.5 pt-2 border-t border-border/60">
               <Label className="text-xs font-semibold text-foreground">Project ID</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="text"
-                  value={currentProject.id}
+                  value={project.id}
                   readOnly
                   className="h-9 text-xs font-mono bg-muted/40 text-muted-foreground select-all"
                 />
@@ -422,7 +476,7 @@ export const ProjectSettingsView: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    navigator.clipboard.writeText(currentProject.id);
+                    navigator.clipboard.writeText(project.id);
                     addToast({
                       type: "success",
                       title: "Copied",
@@ -443,7 +497,7 @@ export const ProjectSettingsView: React.FC = () => {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setSidebarTab("tokens")}
+              onClick={() => setSidebarTab(currentProject ? "tokens" : "projects")}
               className="h-8 text-xs font-medium cursor-pointer"
             >
               Cancel
@@ -462,17 +516,17 @@ export const ProjectSettingsView: React.FC = () => {
         {/* Danger Zone: Archive Project Card */}
         <div className="rounded-xl border border-border bg-card p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            {currentProject?.isArchived ? (
+            {project.isArchived ? (
               <ArchiveRestore className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
             ) : (
               <Archive className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
             )}
             <div>
               <div className="text-xs font-semibold text-foreground">
-                {currentProject?.isArchived ? "Restore project" : "Archive project"}
+                {project.isArchived ? "Restore project" : "Archive project"}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                {currentProject?.isArchived
+                {project.isArchived
                   ? "Restore this project to active status. Members will be able to edit tokens and publish changes again."
                   : "Archiving hides the project from active workspace views and makes it read-only. You can unarchive it anytime."}
               </p>
@@ -487,7 +541,7 @@ export const ProjectSettingsView: React.FC = () => {
             disabled={!canEditSettings}
             className="h-8 text-xs font-medium cursor-pointer shrink-0"
           >
-            {currentProject?.isArchived ? "Restore project" : "Archive project"}
+            {project.isArchived ? "Restore project" : "Archive project"}
           </Button>
         </div>
 
@@ -524,18 +578,18 @@ export const ProjectSettingsView: React.FC = () => {
                 <DialogTitle className="text-base font-bold">Delete Project</DialogTitle>
               </div>
               <DialogDescription className="text-xs text-muted-foreground">
-                Are you sure you want to permanently delete <strong className="text-foreground">{currentProject?.name}</strong>?
+                Are you sure you want to permanently delete <strong className="text-foreground">{project.name}</strong>?
                 This action is irreversible and all tokens, theme configurations, releases, and branches will be lost.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-2 py-3">
               <p className="text-xs text-muted-foreground">
-                Please type <span className="font-mono font-semibold text-foreground">{currentProject?.name}</span> to confirm:
+                Please type <span className="font-mono font-semibold text-foreground">{project.name}</span> to confirm:
               </p>
               <Input
                 type="text"
-                placeholder={currentProject?.name}
+                placeholder={project.name}
                 value={confirmNameInput}
                 onChange={(e) => setConfirmNameInput(e.target.value)}
                 className="h-9 text-xs"
@@ -560,7 +614,7 @@ export const ProjectSettingsView: React.FC = () => {
                 type="button"
                 variant="destructive"
                 size="sm"
-                disabled={confirmNameInput !== currentProject?.name || isDeleting}
+                disabled={confirmNameInput !== project.name || isDeleting}
                 onClick={handleDelete}
                 className="h-8 text-xs cursor-pointer"
               >
@@ -569,6 +623,10 @@ export const ProjectSettingsView: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </>
+        ) : (
+          <SyncProvidersView embedded />
+        )}
       </div>
     </div>
   );

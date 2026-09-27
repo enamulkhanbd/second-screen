@@ -27,10 +27,6 @@ function WorkspaceLoading() {
   );
 }
 
-const SyncProvidersView = dynamic(
-  () => import("@/components/SyncProvidersView").then((module) => module.SyncProvidersView),
-  { ssr: false, loading: WorkspaceLoading }
-);
 const ReleasesWorkspace = dynamic(
   () => import("@/components/ReleasesWorkspace").then((module) => module.ReleasesWorkspace),
   { ssr: false, loading: WorkspaceLoading }
@@ -237,8 +233,6 @@ export default function Home() {
           <BranchesView />
         ) : sidebarTab === "activity" ? (
           <ActivityView onOpenSettings={() => setIsSettingsOpen(true)} />
-        ) : sidebarTab === "integrations" || (sidebarTab as string) === "sync" ? (
-          <SyncProvidersView />
         ) : sidebarTab === "mcp" ? (
           <McpCliView />
         ) : sidebarTab === "project-settings" ? (

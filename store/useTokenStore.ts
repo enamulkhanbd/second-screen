@@ -102,6 +102,7 @@ interface TokenStoreState {
   currentOrg: Organization | null;
   orgProjects: Project[];
   currentProject: Project | null;
+  syncTargetProject: Project | null;
   pendingInvitations: OrganizationInvitation[];
   pendingInvitePrompt: OrganizationInvitation | null;
   activeInviteToken: string | null;
@@ -110,6 +111,7 @@ interface TokenStoreState {
   signOutUser: () => Promise<void>;
   setCurrentOrg: (org: Organization | null) => void;
   setCurrentProject: (project: Project | null) => void;
+  setSyncTargetProject: (project: Project | null) => void;
   setActiveInviteToken: (token: string | null) => void;
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
@@ -198,7 +200,7 @@ interface TokenStoreState {
   togglePauseAssetGit: () => Promise<void>;
   disconnectAssetGit: () => Promise<void>;
   setAssetFigmaConfig: (config: AssetFigmaConfig | null) => Promise<void>;
-  setFigmaPat: (pat: string) => Promise<void>;
+  setFigmaPat: (pat: string, project?: Project) => Promise<AssetFigmaConfig>;
   addFigmaSource: (source: { name: string; fileUrl: string }) => Promise<boolean>;
   updateFigmaSource: (id: string, updates: Partial<FigmaSourceLink>) => Promise<void>;
   removeFigmaSource: (id: string, removeAssets?: boolean) => Promise<void>;
@@ -246,7 +248,6 @@ interface TokenStoreState {
     | "exports"
     | "releases"
     | "activity"
-    | "integrations"
     | "mcp"
     | "project-settings"
     | "members"
@@ -268,7 +269,6 @@ interface TokenStoreState {
       | "exports"
       | "releases"
       | "activity"
-      | "integrations"
       | "mcp"
       | "project-settings"
       | "members"
@@ -277,6 +277,8 @@ interface TokenStoreState {
       | "extensions"
       | "system-docs"
   ) => void;
+  projectSettingsTab: "details" | "sync";
+  setProjectSettingsTab: (tab: "details" | "sync") => void;
   membersSubTab: "members" | "invites" | "activity";
   setMembersSubTab: (tab: "members" | "invites" | "activity") => void;
 
@@ -930,6 +932,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   currentOrg: null,
   orgProjects: [],
   currentProject: null,
+  syncTargetProject: null,
   pendingInvitations: [],
   pendingInvitePrompt: null,
   activeInviteToken: null,
@@ -1043,6 +1046,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setCurrentOrg: async (org) => {
     const switchVersion = ++scopeSwitchVersion;
+    const previousOrgId = get().currentOrg?.id;
 
     // 1. Synchronously inspect cache for target org to prevent UI flashing
     let cachedProjects: Project[] = [];
@@ -1062,6 +1066,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     set({
       currentOrg: org,
+      syncTargetProject: previousOrgId === org?.id ? get().syncTargetProject : null,
       orgProjects: cachedProjects,
       isLoadingProjects: org ? !hasCache : false,
       currentProject: null,
@@ -1088,6 +1093,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       compilerConfig: DEFAULT_COMPILER_CONFIG,
       userActivities: [],
     });
+    if (previousOrgId !== org?.id && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("ts_sync_target_project_id");
+      } catch {}
+    }
 
     if (org) {
       if (typeof window !== "undefined") {
@@ -1451,6 +1461,32 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
+  setSyncTargetProject: (project) => {
+    if (project && get().currentOrg && project.orgId !== get().currentOrg?.id) return;
+    set({ syncTargetProject: project });
+    if (typeof window !== "undefined") {
+      try {
+        if (project) {
+          localStorage.setItem("ts_sync_target_project_id", project.id);
+        } else {
+          localStorage.removeItem("ts_sync_target_project_id");
+        }
+      } catch {}
+    }
+    if (!project) return;
+
+    loadAssetConfigFromStorage(project.orgId, project.id).then((config) => {
+      const currentTarget = get().syncTargetProject;
+      if (currentTarget?.id !== project.id || config?.assetFigmaConfig === undefined) return;
+      set({
+        syncTargetProject: {
+          ...currentTarget,
+          assetFigmaConfig: config.assetFigmaConfig,
+        },
+      });
+    });
+  },
+
   loadTenantData: async (uid, email) => {
     // 1. Instant Cache Hydration: If cached tenant orgs and projects exist in localStorage, restore them immediately
     if (typeof window !== "undefined") {
@@ -1469,19 +1505,27 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
             const cachedProjectsStr = localStorage.getItem(`ts_cached_org_projects_${activeOrg.id}`);
             const savedProjId = localStorage.getItem("ts_active_project_id");
+            const isSyncSettings = get().sidebarTab === "project-settings" && get().projectSettingsTab === "sync";
             if (cachedProjectsStr) {
               const cachedProjects: Project[] = JSON.parse(cachedProjectsStr);
               if (Array.isArray(cachedProjects) && cachedProjects.length > 0) {
                 set({ orgProjects: cachedProjects, isLoadingProjects: false });
+                const savedSyncTargetId = localStorage.getItem("ts_sync_target_project_id") || (isSyncSettings ? savedProjId : null);
+                const cachedSyncTarget = cachedProjects.find((project) => project.id === savedSyncTargetId);
+                if (cachedSyncTarget) get().setSyncTargetProject(cachedSyncTarget);
                 let activeProj: Project | null = null;
-                if (savedProjId) {
+                if (savedProjId && !isSyncSettings) {
                   const found = cachedProjects.find((p) => p.id === savedProjId);
                   if (found) activeProj = found;
                 }
+                if (isSyncSettings) localStorage.removeItem("ts_active_project_id");
                 if (activeProj) {
                   get().setCurrentProject(activeProj);
                 } else {
-                  set({ currentProject: null, sidebarTab: "dashboard" });
+                  set({
+                    currentProject: null,
+                    sidebarTab: get().sidebarTab === "project-settings" ? "project-settings" : "dashboard",
+                  });
                 }
               } else {
                 set({ isLoadingProjects: true });
@@ -1566,9 +1610,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
 
         set({ orgProjects: projects, isLoadingProjects: false });
+        const isSyncSettings = get().sidebarTab === "project-settings" && get().projectSettingsTab === "sync";
+        const savedActiveProjectId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
+        const savedSyncTargetId = typeof window !== "undefined"
+          ? localStorage.getItem("ts_sync_target_project_id")
+          : null;
+        const syncTarget = projects.find((project) => project.id === (savedSyncTargetId || (isSyncSettings ? savedActiveProjectId : null)));
+        if (syncTarget) {
+          get().setSyncTargetProject(syncTarget);
+        } else if (savedSyncTargetId) {
+          get().setSyncTargetProject(null);
+        }
+        if (isSyncSettings && typeof window !== "undefined") {
+          localStorage.removeItem("ts_active_project_id");
+        }
 
         let activeProj: Project | null = null;
-        const savedProjId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
+        const savedProjId = isSyncSettings ? null : savedActiveProjectId;
         if (savedProjId) {
           const cachedCurrentProject = get().currentProject;
           const found = cachedCurrentProject?.id === savedProjId &&
@@ -1593,7 +1651,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             get().fetchLiveTokens(activeCreds);
           }
         } else {
-          set({ currentProject: null, isLoadingProjectData: false, sidebarTab: "dashboard" });
+          set({
+            currentProject: null,
+            isLoadingProjectData: false,
+            sidebarTab: get().sidebarTab === "project-settings" ? "project-settings" : "dashboard",
+          });
         }
         get().loadInvitations(activeOrg.id);
       } else {
@@ -2677,24 +2739,33 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  setFigmaPat: async (pat: string) => {
+  setFigmaPat: async (pat: string, project) => {
     const { currentOrg, currentProject, assetFigmaConfig, addToast } = get();
     const cleanPat = pat.trim();
+    const targetProject = project || currentProject;
+    let sourceConfig = project ? project.assetFigmaConfig : assetFigmaConfig;
+    if (project && currentOrg) {
+      const storedConfig = await loadAssetConfigFromStorage(currentOrg.id, project.id);
+      if (storedConfig?.assetFigmaConfig !== undefined) {
+        sourceConfig = storedConfig.assetFigmaConfig;
+      }
+    }
     const updated: AssetFigmaConfig = {
       pat: cleanPat,
-      sources: assetFigmaConfig?.sources || [],
-      lastSyncedAt: assetFigmaConfig?.lastSyncedAt,
-      isPaused: assetFigmaConfig?.isPaused || false,
+      sources: sourceConfig?.sources || [],
+      lastSyncedAt: sourceConfig?.lastSyncedAt,
+      isPaused: sourceConfig?.isPaused || false,
     };
     set({ assetFigmaConfig: updated });
-    if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updated });
+    if (currentOrg && targetProject) {
+      await saveAssetConfigToStorage(currentOrg.id, targetProject.id, { assetFigmaConfig: updated });
     }
     addToast({
       type: "success",
       title: cleanPat ? "Figma Token Saved" : "Figma Token Cleared",
       message: cleanPat ? "Personal Access Token securely saved for all Figma sources." : "Figma Personal Access Token removed.",
     });
+    return updated;
   },
 
   addFigmaSource: async (source: { name: string; fileUrl: string }) => {
@@ -3158,11 +3229,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   sidebarTab: "dashboard",
+  projectSettingsTab: "details",
   setSidebarTab: (tab) => {
-    set({ sidebarTab: tab });
+    set((state) => ({
+      sidebarTab: tab,
+      syncTargetProject: tab === "project-settings" ? state.syncTargetProject : null,
+    }));
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_sidebar_tab", tab);
+        if (tab !== "project-settings") {
+          localStorage.removeItem("ts_sync_target_project_id");
+        }
+      } catch { }
+    }
+  },
+  setProjectSettingsTab: (tab) => {
+    set({ projectSettingsTab: tab });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("ts_project_settings_tab", tab);
       } catch { }
     }
   },
@@ -3585,8 +3671,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "releases",
         "branches",
         "activity",
-        "integrations",
-        "sync",
         "mcp",
         "project-settings",
         "members",
@@ -3595,10 +3679,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "workspaces",
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
+      const isLegacySyncTab = ["integrations", "sync", "project-sync"].includes(savedTab || "");
       const initialTab: any =
-        savedTab && validTabs.includes(savedTab)
+        isLegacySyncTab
+          ? "project-settings"
+          : savedTab && validTabs.includes(savedTab)
           ? savedTab
           : "dashboard";
+      const savedProjectSettingsTab = localStorage.getItem("ts_project_settings_tab");
+      const initialProjectSettingsTab = isLegacySyncTab || savedProjectSettingsTab === "sync" ? "sync" : "details";
 
       const savedTokensViewMode =
         (localStorage.getItem("ts_tokens_view_mode") as "preview" | "json") ||
@@ -3642,6 +3731,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         viewMode: savedViewMode,
         themeMode: initialTheme,
         sidebarTab: initialTab,
+        projectSettingsTab: initialProjectSettingsTab,
         tokensViewMode: savedTokensViewMode,
         // Start with empty/default project-scoped data — will be populated by setCurrentProject
         releases: [],
