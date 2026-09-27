@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
@@ -80,7 +81,37 @@ const SystemDocsView = dynamic(
   { ssr: false, loading: WorkspaceLoading }
 );
 
+const ROUTABLE_TABS = new Set([
+  "dashboard",
+  "projects",
+  "variables",
+  "tokens",
+  "themes",
+  "branches",
+  "documentation",
+  "assets",
+  "exports",
+  "releases",
+  "activity",
+  "mcp",
+  "project-settings",
+  "members",
+  "org-settings",
+  "changelog",
+  "extensions",
+  "system-docs",
+]);
+
 export default function Home() {
+  const params = useParams<{ workspaceSlug?: string; projectSlug?: string; tab?: string }>();
+  const pathname = usePathname();
+  const router = useRouter();
+  const workspaceSlug = typeof params.workspaceSlug === "string" ? params.workspaceSlug : null;
+  const projectSlug = typeof params.projectSlug === "string" ? params.projectSlug : null;
+  const routeTab = typeof params.tab === "string" ? params.tab : null;
+  const hasProjectRoute = Boolean(workspaceSlug && projectSlug && routeTab);
+  const pendingRoutePath = useRef(hasProjectRoute ? pathname : null);
+  const previousPathname = useRef(pathname);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWizardDismissed, setIsWizardDismissed] = useState(false);
   const [isPrimaryNavOpen, setIsPrimaryNavOpen] = useState(false);
@@ -92,11 +123,110 @@ export default function Home() {
     credentials,
     rawTokens,
     currentUser,
+    currentOrg,
+    currentProject,
     isLoadingTenant,
+    isLoadingProjects,
     isLoadingProjectData,
     userOrgs,
+    orgProjects,
     pendingInvitePrompt,
+    setCurrentOrg,
+    setCurrentProject,
+    setSidebarTab,
   } = useTokenStore();
+
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      previousPathname.current = pathname;
+      pendingRoutePath.current = hasProjectRoute ? pathname : null;
+    }
+
+    if (!hasProjectRoute || !workspaceSlug || !projectSlug || !routeTab) return;
+    if (!currentUser || isLoadingTenant) return;
+
+    const matchingOrg = userOrgs.find((org) => org.slug === workspaceSlug);
+    if (!matchingOrg) {
+      router.replace("/");
+      return;
+    }
+
+    if (currentOrg?.id !== matchingOrg.id) {
+      void setCurrentOrg(matchingOrg);
+      return;
+    }
+
+    if (isLoadingProjects) return;
+
+    const matchingProject = orgProjects.find((project) => project.slug === projectSlug);
+    if (!matchingProject) {
+      router.replace("/");
+      return;
+    }
+
+    if (currentProject?.id !== matchingProject.id) {
+      setCurrentProject(matchingProject);
+      return;
+    }
+
+    if (!ROUTABLE_TABS.has(routeTab)) {
+      router.replace(`/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(projectSlug)}/dashboard`);
+      return;
+    }
+
+    if (sidebarTab !== routeTab) {
+      setSidebarTab(routeTab as typeof sidebarTab);
+      return;
+    }
+
+    pendingRoutePath.current = null;
+  }, [
+    currentProject?.id,
+    currentOrg?.id,
+    hasProjectRoute,
+    isLoadingProjects,
+    isLoadingTenant,
+    orgProjects,
+    pathname,
+    projectSlug,
+    routeTab,
+    router,
+    setCurrentOrg,
+    setCurrentProject,
+    setSidebarTab,
+    sidebarTab,
+    currentUser,
+    userOrgs,
+    workspaceSlug,
+  ]);
+
+  useEffect(() => {
+    if (!currentUser || isLoadingTenant || pendingRoutePath.current === pathname) return;
+
+    if (sidebarTab === "workspaces" || (sidebarTab === "projects" && !currentProject)) {
+      if (pathname !== "/") router.push("/");
+      return;
+    }
+
+    if (!currentOrg || !currentProject) return;
+
+    const targetPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${sidebarTab}`;
+    if (targetPath === pathname) return;
+
+    if (pathname === "/") {
+      router.replace(targetPath);
+    } else {
+      router.push(targetPath);
+    }
+  }, [
+    currentOrg,
+    currentProject,
+    currentUser,
+    isLoadingTenant,
+    pathname,
+    router,
+    sidebarTab,
+  ]);
 
   useEffect(() => {
     // Restore tokens, theme matrix, and credentials securely from client storage on reload

@@ -25,6 +25,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 
+const getOAuthCallbackUrl = () => {
+  if (typeof window === "undefined") return undefined;
+
+  const callbackUrl = new URL("/auth/callback", window.location.origin);
+  const nextPath = `${window.location.pathname}${window.location.search}`;
+  if (nextPath !== "/") callbackUrl.searchParams.set("next", nextPath);
+  return callbackUrl.toString();
+};
+
 export const AuthGatewayView: React.FC = () => {
   const { setCurrentUser, themeMode, setThemeMode, addToast } = useTokenStore();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -153,7 +162,7 @@ export const AuthGatewayView: React.FC = () => {
     setOauthLoading("google");
     setError(null);
     try {
-      const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+      const callbackUrl = getOAuthCallbackUrl();
       const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -176,7 +185,7 @@ export const AuthGatewayView: React.FC = () => {
     setOauthLoading("github");
     setError(null);
     try {
-      const callbackUrl = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+      const callbackUrl = getOAuthCallbackUrl();
       const { error: oAuthErr } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {

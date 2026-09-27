@@ -3676,6 +3676,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "members",
         "org-settings",
         "changelog",
+        "extensions",
+        "system-docs",
         "workspaces",
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
