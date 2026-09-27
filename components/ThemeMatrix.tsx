@@ -7,7 +7,7 @@ import {
   MatrixRowData,
   MatrixCellData,
 } from "@/utils/themeHelpers";
-import { formatTypographySummary } from "@/utils/transformTokens";
+import { formatTypographySummary, toHexFast } from "@/utils/transformTokens";
 import { ThemeOptionSheet } from "@/components/ThemeOptionSheet";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
 import { EditTokenDrawer } from "@/components/EditTokenDrawer";
@@ -56,8 +56,11 @@ function isColorValue(value: string): boolean {
     /^#([0-9a-f]{3,8})$/i.test(v) ||
     /^rgba?\(/i.test(v) ||
     /^hsla?\(/i.test(v) ||
+    /^lch\(/i.test(v) ||
+    /^lab\(/i.test(v) ||
     /^oklch\(/i.test(v) ||
-    /^oklab\(/i.test(v)
+    /^oklab\(/i.test(v) ||
+    /^color\(/i.test(v)
   );
 }
 
@@ -115,7 +118,7 @@ const MatrixValueCell = React.memo(function MatrixValueCell({
           style={{ backgroundColor: isColorValue(resolved) ? resolved : cell.rawValue }}
         />
       )}
-      {isAlias ? (
+      {isAlias && !colorish ? (
         <span className="font-mono text-[11px] text-violet-600 dark:text-violet-400 truncate">
           {cell.rawValue}
         </span>
@@ -124,7 +127,9 @@ const MatrixValueCell = React.memo(function MatrixValueCell({
           {formatTypographySummary(cell.rawValue)}
         </span>
       ) : (
-        <span className="font-mono text-[11px] truncate">{resolved || cell.rawValue}</span>
+        <span className="font-mono text-[11px] truncate">
+          {colorish ? toHexFast(resolved) || resolved : resolved || cell.rawValue}
+        </span>
       )}
     </button>
   );
