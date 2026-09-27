@@ -91,6 +91,9 @@ export const SyncProvidersView: React.FC = () => {
   const {
     currentOrg,
     currentProject,
+    setCurrentProject,
+    syncTargetProject,
+    setSyncTargetProject,
     credentials,
     setCredentials,
     clearCredentials,
@@ -108,6 +111,9 @@ export const SyncProvidersView: React.FC = () => {
     getCurrentUserRole,
     setSidebarTab,
   } = useTokenStore();
+  const syncProject = syncTargetProject || currentProject;
+  const projectCredentials = syncProject?.gitConfig ?? credentials;
+  const projectFigmaConfig = syncProject?.assetFigmaConfig ?? assetFigmaConfig;
 
   const [activeSyncTab, setActiveSyncTab] = useState<"git" | "figma" | "webhooks" | "history">("git");
 
@@ -117,13 +123,13 @@ export const SyncProvidersView: React.FC = () => {
   // -------------------------------------------------------------
   // Git State
   // -------------------------------------------------------------
-  const [provider, setProvider] = useState<GitProvider>(credentials.provider || "github");
-  const [owner, setOwner] = useState(credentials.owner || "");
-  const [gitProject, setGitProject] = useState(credentials.project || "");
-  const [repo, setRepo] = useState(credentials.repo || "");
-  const [branch, setBranch] = useState(credentials.branch || "");
-  const [filePath, setFilePath] = useState(credentials.filePath || credentials.path || "");
-  const [pat, setPat] = useState(credentials.pat || "");
+  const [provider, setProvider] = useState<GitProvider>(projectCredentials.provider || "github");
+  const [owner, setOwner] = useState(projectCredentials.owner || "");
+  const [gitProject, setGitProject] = useState(projectCredentials.project || "");
+  const [repo, setRepo] = useState(projectCredentials.repo || "");
+  const [branch, setBranch] = useState(projectCredentials.branch || "");
+  const [filePath, setFilePath] = useState(projectCredentials.filePath || projectCredentials.path || "");
+  const [pat, setPat] = useState(projectCredentials.pat || "");
   const [showPat, setShowPat] = useState(false);
   const [rememberPat, setRememberPat] = useState(true);
   const [isSavingGit, setIsSavingGit] = useState(false);
@@ -148,28 +154,33 @@ export const SyncProvidersView: React.FC = () => {
   const [isUnlinkingPlugin, setIsUnlinkingPlugin] = useState(false);
 
   // Unified Figma PAT State
-  const [figmaPatInput, setFigmaPatInput] = useState(assetFigmaConfig?.pat || "");
+  const [figmaPatInput, setFigmaPatInput] = useState(projectFigmaConfig?.pat || "");
   const [showFigmaPat, setShowFigmaPat] = useState(false);
   const [isSavingFigmaPat, setIsSavingFigmaPat] = useState(false);
 
   useEffect(() => {
-    if (assetFigmaConfig?.pat) {
-      setFigmaPatInput(assetFigmaConfig.pat);
-    }
-  }, [assetFigmaConfig?.pat]);
+    setFigmaPatInput(projectFigmaConfig?.pat || "");
+  }, [syncProject?.id, projectFigmaConfig?.pat]);
+
+  const saveTargetFigmaPat = async (value: string) => {
+    if (!syncProject) return;
+    const config = projectFigmaConfig || { pat: "", sources: [] };
+    const updatedConfig = await setFigmaPat(value, { ...syncProject, assetFigmaConfig: config });
+    setSyncTargetProject({ ...syncProject, assetFigmaConfig: updatedConfig });
+  };
 
   const handleSaveFigmaPat = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingFigmaPat(true);
     try {
-      await setFigmaPat(figmaPatInput);
+      await saveTargetFigmaPat(figmaPatInput);
     } finally {
       setIsSavingFigmaPat(false);
     }
   };
 
   const fetchPluginStatus = async () => {
-    if (!currentProject) return;
+    if (!syncProject) return;
     setIsLoadingPluginStatus(true);
     try {
       const res = await fetch("/api/v1/auth/pat");
@@ -178,7 +189,7 @@ export const SyncProvidersView: React.FC = () => {
         const keys = data.keys || [];
         const match = keys.find(
           (k: any) =>
-            k.projectId === currentProject.id ||
+            k.projectId === syncProject.id ||
             (k.name && k.name.toLowerCase().includes("figma"))
         );
         setActivePluginKey(match || null);
@@ -192,20 +203,20 @@ export const SyncProvidersView: React.FC = () => {
 
   useEffect(() => {
     fetchPluginStatus();
-  }, [currentProject?.id]);
+  }, [syncProject?.id]);
 
   useEffect(() => {
-    setProvider(credentials.provider || "github");
-    setOwner(credentials.owner || "");
-    setGitProject(credentials.project || "");
-    setRepo(credentials.repo || "");
-    setBranch(credentials.branch || "");
-    setFilePath(credentials.filePath || credentials.path || "");
-    setPat(credentials.pat || "");
-  }, [credentials]);
+    setProvider(projectCredentials.provider || "github");
+    setOwner(projectCredentials.owner || "");
+    setGitProject(projectCredentials.project || "");
+    setRepo(projectCredentials.repo || "");
+    setBranch(projectCredentials.branch || "");
+    setFilePath(projectCredentials.filePath || projectCredentials.path || "");
+    setPat(projectCredentials.pat || "");
+  }, [syncProject?.id, projectCredentials]);
 
   const activeProvider = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
-  const isGitConnected = Boolean(credentials.owner && credentials.repo);
+  const isGitConnected = Boolean(projectCredentials.owner && projectCredentials.repo);
 
   // Generate pair code
   const handleGeneratePairCode = () => {
@@ -235,7 +246,7 @@ export const SyncProvidersView: React.FC = () => {
     const cleanCode = pairCodeInput.trim().toUpperCase();
     if (!cleanCode) return;
 
-    if (!currentOrg || !currentProject) {
+    if (!currentOrg || !syncProject) {
       addToast({
         type: "error",
         title: "No Active Project",
@@ -252,9 +263,9 @@ export const SyncProvidersView: React.FC = () => {
         body: JSON.stringify({
           code: cleanCode,
           orgId: currentOrg.id,
-          projectId: currentProject.id,
+          projectId: syncProject.id,
           orgName: currentOrg.name,
-          projectName: currentProject.name,
+          projectName: syncProject.name,
         }),
       });
 
@@ -270,7 +281,7 @@ export const SyncProvidersView: React.FC = () => {
       addToast({
         type: "success",
         title: "Figma Plugin Paired Successfully!",
-        message: `Connected to ${currentProject.name}. You can now push tokens from Figma!`,
+        message: `Connected to ${syncProject.name}. You can now push tokens from Figma!`,
       });
       setTimeout(() => setIsPairSuccess(false), 5000);
     } catch (err: any) {
@@ -367,7 +378,7 @@ export const SyncProvidersView: React.FC = () => {
 
   const handleSaveGitConfig = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrg || !currentProject) return;
+    if (!currentOrg || !syncProject) return;
 
     setIsSavingGit(true);
     try {
@@ -384,7 +395,8 @@ export const SyncProvidersView: React.FC = () => {
       const updatedCreds = sanitizeGitCredentials(rawCreds);
 
       setCredentials(updatedCreds, rememberPat);
-      await saveProjectGitConfig(currentOrg.id, currentProject.id, updatedCreds);
+      await saveProjectGitConfig(currentOrg.id, syncProject.id, updatedCreds);
+      setSyncTargetProject({ ...syncProject, gitConfig: updatedCreds });
 
       addToast({
         type: "success",
@@ -403,10 +415,11 @@ export const SyncProvidersView: React.FC = () => {
   };
 
   const handleDisconnectGit = async () => {
-    if (!currentOrg || !currentProject) return;
+    if (!currentOrg || !syncProject) return;
     try {
       clearCredentials();
-      await saveProjectGitConfig(currentOrg.id, currentProject.id, null);
+      await saveProjectGitConfig(currentOrg.id, syncProject.id, null);
+      setSyncTargetProject({ ...syncProject, gitConfig: null });
       setShowDisconnectGitModal(false);
       addToast({
         type: "info",
@@ -491,7 +504,7 @@ export const SyncProvidersView: React.FC = () => {
     window.open("/api/v1/plugin/download", "_blank");
   };
 
-  if (!currentProject) {
+  if (!syncProject) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background select-none">
         <Link2 className="w-12 h-12 text-muted-foreground/40 mb-3" />
@@ -500,7 +513,7 @@ export const SyncProvidersView: React.FC = () => {
           Please select a project to configure Git synchronization and Figma Companion plugin.
         </p>
         <Button
-          onClick={() => setSidebarTab("dashboard")}
+          onClick={() => setSidebarTab("projects")}
           size="sm"
           className="mt-4 text-xs font-semibold"
         >
@@ -511,47 +524,33 @@ export const SyncProvidersView: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-y-auto select-none">
-      {/* Top Banner Header */}
-      <header className="border-b border-border bg-card/60 backdrop-blur-md px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md flex-shrink-0">
-            <Link2 className="w-6 h-6" />
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{currentOrg?.name || "Workspace"}</span>
-              <span>/</span>
-              <span className="text-foreground font-semibold flex items-center gap-1.5">
-                <span>{currentProject.icon || "🎯"}</span>
-                <span>{currentProject.name}</span>
-              </span>
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background font-sans select-none">
+      <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Configure Sync
+              </h1>
+              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
+                {syncProject.name}
+              </Badge>
             </div>
-            <h1 className="text-xl font-bold text-foreground tracking-tight">
-              Sync Providers &amp; Companion Connect
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Version control, Figma variable pipelines, and automated distribution targets.
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure repository access, Figma connections, and delivery targets for this project.
             </p>
           </div>
-        </div>
 
-        {/* Quick Studio Shortcut */}
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSidebarTab("tokens")}
-            className="text-xs h-8"
-          >
-            Back to Studio
-          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant={isGitConnected ? "success" : "outline"} className="text-xs px-2.5 py-1 gap-1.5 font-medium">
+              <FolderGit2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{isGitConnected ? "Git Connected" : "Git Not Connected"}</span>
+            </Badge>
+          </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Container */}
-      <div className="flex-1 p-8 space-y-6 max-w-5xl w-full mx-auto">
+      <main className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
         {/* Navigation Tabs (In-Page) */}
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border w-fit">
           <button
@@ -628,7 +627,7 @@ export const SyncProvidersView: React.FC = () => {
               </div>
 
               {/* Quick Git Operations */}
-              {isGitConnected && (
+              {isGitConnected && currentProject?.id === syncProject?.id && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button
                     onClick={handlePullTokensNow}
@@ -886,7 +885,7 @@ export const SyncProvidersView: React.FC = () => {
                     <div className="p-3 rounded-lg bg-background/80 border border-border/80 text-[11px] space-y-1.5">
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Target Project:</span>
-                        <span className="font-semibold text-foreground">{currentProject.name}</span>
+                        <span className="font-semibold text-foreground">{syncProject.name}</span>
                       </div>
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Connection Status:</span>
@@ -968,7 +967,7 @@ export const SyncProvidersView: React.FC = () => {
                     {isPairSuccess && (
                       <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>Plugin paired to {currentProject.name}!</span>
+                        <span>Plugin paired to {syncProject.name}!</span>
                       </div>
                     )}
                   </form>
@@ -998,7 +997,7 @@ export const SyncProvidersView: React.FC = () => {
                     <h2 className="text-sm font-bold text-foreground">
                       Unified Figma Personal Access Token (PAT Vault)
                     </h2>
-                    {assetFigmaConfig?.pat ? (
+                    {projectFigmaConfig?.pat ? (
                       <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono border-emerald-500/30">
                         Token Saved
                       </Badge>
@@ -1016,7 +1015,10 @@ export const SyncProvidersView: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSidebarTab("assets")}
+                  onClick={() => {
+                    if (syncProject && currentProject?.id !== syncProject.id) setCurrentProject(syncProject);
+                    setSidebarTab("assets");
+                  }}
                   className="h-8 text-xs gap-1.5 cursor-pointer"
                 >
                   <span>Go to Assets Manager</span>
@@ -1058,13 +1060,13 @@ export const SyncProvidersView: React.FC = () => {
                       <span>Save Token</span>
                     </Button>
 
-                    {assetFigmaConfig?.pat && (
+                    {projectFigmaConfig?.pat && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={async () => {
-                          await setFigmaPat("");
+                          await saveTargetFigmaPat("");
                           setFigmaPatInput("");
                         }}
                         className="h-9 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
@@ -1079,11 +1081,11 @@ export const SyncProvidersView: React.FC = () => {
                   </p>
                 </div>
 
-                {assetFigmaConfig?.sources && assetFigmaConfig.sources.length > 0 && (
+                {projectFigmaConfig?.sources && projectFigmaConfig.sources.length > 0 && (
                   <div className="p-3 rounded-lg bg-muted/40 border border-border text-xs flex items-center justify-between">
                     <div>
                       <span className="font-semibold text-foreground">
-                        {assetFigmaConfig.sources.length} Linked Figma Source{assetFigmaConfig.sources.length === 1 ? "" : "s"}
+                        {projectFigmaConfig.sources.length} Linked Figma Source{projectFigmaConfig.sources.length === 1 ? "" : "s"}
                       </span>
                       <span className="text-[11px] text-muted-foreground block">
                         Using this unified token for automatic asset updates.
@@ -1093,7 +1095,10 @@ export const SyncProvidersView: React.FC = () => {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setSidebarTab("assets")}
+                      onClick={() => {
+                        if (syncProject && currentProject?.id !== syncProject.id) setCurrentProject(syncProject);
+                        setSidebarTab("assets");
+                      }}
                       className="h-7 text-xs"
                     >
                       Manage Links
@@ -1149,7 +1154,7 @@ export const SyncProvidersView: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {/* Disconnect Git Confirmation Modal */}
       <Dialog open={showDisconnectGitModal} onOpenChange={setShowDisconnectGitModal}>

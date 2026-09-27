@@ -92,6 +92,7 @@ export const WorkspacesProjectsView: React.FC = () => {
     currentProject,
     setCurrentOrg,
     setCurrentProject,
+    setSyncTargetProject,
     createOrgAction,
     updateOrgAction,
     deleteOrgAction,
@@ -442,8 +443,9 @@ export const WorkspacesProjectsView: React.FC = () => {
   };
 
   const handleConfigureSync = (project: Project) => {
-    setCurrentProject(project);
-    setSidebarTab("integrations");
+    setSyncTargetProject(project);
+    setCurrentProject(null);
+    setSidebarTab("project-sync");
   };
 
   const handleToggleArchiveProject = async (project: Project) => {

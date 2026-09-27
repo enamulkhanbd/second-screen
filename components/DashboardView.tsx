@@ -306,7 +306,7 @@ export const DashboardView: React.FC = () => {
                   title: "Figma Integration",
                   description: "Sync your tokens and variables with Figma files.",
                   icon: Figma,
-                  tab: "integrations",
+                  tab: "project-sync",
                 },
                 {
                   id: "references",

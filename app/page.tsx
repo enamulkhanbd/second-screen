@@ -237,7 +237,7 @@ export default function Home() {
           <BranchesView />
         ) : sidebarTab === "activity" ? (
           <ActivityView onOpenSettings={() => setIsSettingsOpen(true)} />
-        ) : sidebarTab === "integrations" || (sidebarTab as string) === "sync" ? (
+        ) : sidebarTab === "project-sync" ? (
           <SyncProvidersView />
         ) : sidebarTab === "mcp" ? (
           <McpCliView />

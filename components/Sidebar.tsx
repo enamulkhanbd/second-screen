@@ -18,7 +18,6 @@ import {
   Users,
   Building2,
   FolderGit2,
-  Link2,
   Code2,
   ChevronsUpDown,
   Check,
@@ -122,6 +121,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
   const isCollapsed = mode === "docked" && isCollapsedState;
 
   const userRole = getCurrentUserRole();
+  const isWorkspaceNavigation = !currentProject || sidebarTab === "project-sync";
+  const sidebarProject = isWorkspaceNavigation ? null : currentProject;
 
   // Extract all valid set names based on $metadata.json ($themes.json or valid token sets)
   const allSetNames = useMemo(() => {
@@ -192,11 +193,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                 <button
                   className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer overflow-hidden"
                   style={
-                    currentProject
-                      ? (currentProject.logoUrl
+                    sidebarProject
+                      ? (sidebarProject.logoUrl
                           ? undefined
-                          : currentProject.color
-                          ? { backgroundColor: currentProject.color, color: "#fff" }
+                          : sidebarProject.color
+                          ? { backgroundColor: sidebarProject.color, color: "#fff" }
                           : isCustomOrgColor
                           ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
                           : { backgroundColor: "#ecfdf5", color: "#15803d" })
@@ -204,13 +205,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                           ? undefined
                           : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
                   }
-                  title={currentProject ? `${currentProject.name} · ${currentOrg?.name || "Workspace"}` : (currentOrg?.name || "Workspace")}
+                  title={sidebarProject ? `${sidebarProject.name} · ${currentOrg?.name || "Workspace"}` : (currentOrg?.name || "Workspace")}
                 >
-                  {currentProject ? (
-                    currentProject.logoUrl ? (
-                      <img src={currentProject.logoUrl} alt={currentProject.name} className="w-full h-full object-cover rounded-xl" />
+                  {sidebarProject ? (
+                    sidebarProject.logoUrl ? (
+                      <img src={sidebarProject.logoUrl} alt={sidebarProject.name} className="w-full h-full object-cover rounded-xl" />
                     ) : (
-                      <span>{currentProject.icon || currentProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
+                      <span>{sidebarProject.icon || sidebarProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
                     )
                   ) : currentOrg?.logoUrl ? (
                     <img src={currentOrg.logoUrl} alt={currentOrg.name} className="w-full h-full object-cover rounded-xl" />
@@ -240,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
                 <div className="space-y-0.5">
                   {orgProjects.map((proj) => {
-                    const isSelected = proj.id === currentProject?.id;
+                    const isSelected = proj.id === sidebarProject?.id;
                     return (
                       <DropdownMenuItem
                         key={proj.id}
@@ -250,6 +251,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             sidebarTab === "dashboard" ||
                             sidebarTab === "projects" ||
                             sidebarTab === "members" ||
+                            sidebarTab === "project-sync" ||
                             (sidebarTab as string) === "workspaces"
                           ) {
                             setSidebarTab("tokens");
@@ -385,11 +387,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                   <div
                     className="flex size-7 items-center justify-center rounded-lg font-bold text-xs flex-shrink-0 overflow-hidden bg-muted/40"
                     style={
-                      currentProject
-                        ? (currentProject.logoUrl
+                      sidebarProject
+                        ? (sidebarProject.logoUrl
                             ? undefined
-                            : currentProject.color
-                            ? { backgroundColor: currentProject.color, color: "#fff" }
+                            : sidebarProject.color
+                            ? { backgroundColor: sidebarProject.color, color: "#fff" }
                             : isCustomOrgColor
                             ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
                             : { backgroundColor: "#ecfdf5", color: "#15803d" })
@@ -398,11 +400,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
                     }
                   >
-                    {currentProject ? (
-                      currentProject.logoUrl ? (
-                        <img src={currentProject.logoUrl} alt={currentProject.name} className="w-full h-full object-cover" />
+                    {sidebarProject ? (
+                      sidebarProject.logoUrl ? (
+                        <img src={sidebarProject.logoUrl} alt={sidebarProject.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span>{currentProject.icon || currentProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
+                        <span>{sidebarProject.icon || sidebarProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
                       )
                     ) : currentOrg?.logoUrl ? (
                       <img src={currentOrg.logoUrl} alt={currentOrg.name} className="w-full h-full object-cover" />
@@ -414,10 +416,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                   {/* Project and Workspace Info */}
                   <div className="flex-1 min-w-0 leading-tight">
                     <div className="font-semibold text-xs truncate text-sidebar-foreground">
-                      {currentProject?.name || currentOrg?.name || "Workspace"}
+                      {sidebarProject?.name || currentOrg?.name || "Workspace"}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {currentProject ? currentOrg?.name || "Workspace" : "Workspace"}
+                      {sidebarProject ? currentOrg?.name || "Workspace" : "Workspace"}
                     </div>
                   </div>
 
@@ -446,7 +448,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
 
                 <div className="space-y-0.5">
                   {orgProjects.map((proj) => {
-                    const isSelected = proj.id === currentProject?.id;
+                    const isSelected = proj.id === sidebarProject?.id;
                     return (
                       <DropdownMenuItem
                         key={proj.id}
@@ -456,6 +458,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             sidebarTab === "dashboard" ||
                             sidebarTab === "projects" ||
                             sidebarTab === "members" ||
+                            sidebarTab === "project-sync" ||
                             (sidebarTab as string) === "workspaces"
                           ) {
                             setSidebarTab("tokens");
@@ -589,9 +592,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
       {/* 2. Main Navigation Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4 font-sans">
         {/* ============================================================= */}
-        {/* 1. WORKSPACE SECTION — Only visible when NO project is selected */}
+        {/* 1. WORKSPACE SECTION — Visible for workspace routes and sync setup */}
         {/* ============================================================= */}
-        {!currentProject && (
+        {isWorkspaceNavigation && (
           <div className="space-y-0.5">
             {!isCollapsed && (
               <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -681,9 +684,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
         )}
 
         {/* ============================================================= */}
-        {/* 2. STUDIO SECTION — Only visible when a project is selected */}
+        {/* 2. STUDIO SECTION — Hidden during workspace-level sync setup */}
         {/* ============================================================= */}
-        {currentProject && (
+        {!isWorkspaceNavigation && currentProject && (
           <div className="space-y-0.5">
             {!isCollapsed && (
               <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -872,7 +875,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
         {/* ============================================================= */}
         {/* 3. SETTINGS SECTION — Only visible when a project is selected */}
         {/* ============================================================= */}
-        {currentProject && (
+        {!isWorkspaceNavigation && currentProject && (
           <div className="space-y-0.5 pt-2 border-t border-sidebar-border">
             {!isCollapsed && (
               <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -891,19 +894,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
             >
               <Settings className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Project Settings</span>}
-            </button>
-
-            {/* Integrations */}
-            <button
-              onClick={() => setSidebarTab("integrations")}
-              title="Integrations"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "integrations" || (sidebarTab as string) === "sync"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Link2 className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Integrations</span>}
             </button>
 
             {/* MCP & CLI */}

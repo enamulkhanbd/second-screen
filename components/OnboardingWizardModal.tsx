@@ -119,7 +119,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
       setSidebarTab("project-settings");
       if (onOpenSettings) onOpenSettings();
     } else if (path === "figma") {
-      setSidebarTab("integrations");
+      setSidebarTab("project-sync");
       if (onOpenSettings) onOpenSettings();
     }
     if (onClose) onClose();

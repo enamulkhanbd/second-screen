@@ -102,6 +102,7 @@ interface TokenStoreState {
   currentOrg: Organization | null;
   orgProjects: Project[];
   currentProject: Project | null;
+  syncTargetProject: Project | null;
   pendingInvitations: OrganizationInvitation[];
   pendingInvitePrompt: OrganizationInvitation | null;
   activeInviteToken: string | null;
@@ -110,6 +111,7 @@ interface TokenStoreState {
   signOutUser: () => Promise<void>;
   setCurrentOrg: (org: Organization | null) => void;
   setCurrentProject: (project: Project | null) => void;
+  setSyncTargetProject: (project: Project | null) => void;
   setActiveInviteToken: (token: string | null) => void;
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
@@ -198,7 +200,7 @@ interface TokenStoreState {
   togglePauseAssetGit: () => Promise<void>;
   disconnectAssetGit: () => Promise<void>;
   setAssetFigmaConfig: (config: AssetFigmaConfig | null) => Promise<void>;
-  setFigmaPat: (pat: string) => Promise<void>;
+  setFigmaPat: (pat: string, project?: Project) => Promise<AssetFigmaConfig>;
   addFigmaSource: (source: { name: string; fileUrl: string }) => Promise<boolean>;
   updateFigmaSource: (id: string, updates: Partial<FigmaSourceLink>) => Promise<void>;
   removeFigmaSource: (id: string, removeAssets?: boolean) => Promise<void>;
@@ -246,7 +248,7 @@ interface TokenStoreState {
     | "exports"
     | "releases"
     | "activity"
-    | "integrations"
+    | "project-sync"
     | "mcp"
     | "project-settings"
     | "members"
@@ -268,7 +270,7 @@ interface TokenStoreState {
       | "exports"
       | "releases"
       | "activity"
-      | "integrations"
+      | "project-sync"
       | "mcp"
       | "project-settings"
       | "members"
@@ -930,6 +932,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   currentOrg: null,
   orgProjects: [],
   currentProject: null,
+  syncTargetProject: null,
   pendingInvitations: [],
   pendingInvitePrompt: null,
   activeInviteToken: null,
@@ -1449,6 +1452,23 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
     }
+  },
+
+  setSyncTargetProject: (project) => {
+    if (project && get().currentOrg && project.orgId !== get().currentOrg?.id) return;
+    set({ syncTargetProject: project });
+    if (!project) return;
+
+    loadAssetConfigFromStorage(project.orgId, project.id).then((config) => {
+      const currentTarget = get().syncTargetProject;
+      if (currentTarget?.id !== project.id || config?.assetFigmaConfig === undefined) return;
+      set({
+        syncTargetProject: {
+          ...currentTarget,
+          assetFigmaConfig: config.assetFigmaConfig,
+        },
+      });
+    });
   },
 
   loadTenantData: async (uid, email) => {
@@ -2677,24 +2697,33 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  setFigmaPat: async (pat: string) => {
+  setFigmaPat: async (pat: string, project) => {
     const { currentOrg, currentProject, assetFigmaConfig, addToast } = get();
     const cleanPat = pat.trim();
+    const targetProject = project || currentProject;
+    let sourceConfig = project ? project.assetFigmaConfig : assetFigmaConfig;
+    if (project && currentOrg) {
+      const storedConfig = await loadAssetConfigFromStorage(currentOrg.id, project.id);
+      if (storedConfig?.assetFigmaConfig !== undefined) {
+        sourceConfig = storedConfig.assetFigmaConfig;
+      }
+    }
     const updated: AssetFigmaConfig = {
       pat: cleanPat,
-      sources: assetFigmaConfig?.sources || [],
-      lastSyncedAt: assetFigmaConfig?.lastSyncedAt,
-      isPaused: assetFigmaConfig?.isPaused || false,
+      sources: sourceConfig?.sources || [],
+      lastSyncedAt: sourceConfig?.lastSyncedAt,
+      isPaused: sourceConfig?.isPaused || false,
     };
     set({ assetFigmaConfig: updated });
-    if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { assetFigmaConfig: updated });
+    if (currentOrg && targetProject) {
+      await saveAssetConfigToStorage(currentOrg.id, targetProject.id, { assetFigmaConfig: updated });
     }
     addToast({
       type: "success",
       title: cleanPat ? "Figma Token Saved" : "Figma Token Cleared",
       message: cleanPat ? "Personal Access Token securely saved for all Figma sources." : "Figma Personal Access Token removed.",
     });
+    return updated;
   },
 
   addFigmaSource: async (source: { name: string; fileUrl: string }) => {
@@ -3159,7 +3188,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   sidebarTab: "dashboard",
   setSidebarTab: (tab) => {
-    set({ sidebarTab: tab });
+    set((state) => ({
+      sidebarTab: tab,
+      syncTargetProject: tab === "project-sync" ? state.syncTargetProject : null,
+    }));
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ts_sidebar_tab", tab);
@@ -3585,8 +3617,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "releases",
         "branches",
         "activity",
-        "integrations",
-        "sync",
+        "project-sync",
         "mcp",
         "project-settings",
         "members",
@@ -3596,7 +3627,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const initialTab: any =
-        savedTab && validTabs.includes(savedTab)
+        savedTab === "integrations" || savedTab === "sync"
+          ? "project-sync"
+          : savedTab && validTabs.includes(savedTab)
           ? savedTab
           : "dashboard";
 
