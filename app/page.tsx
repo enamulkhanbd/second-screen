@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
@@ -10,27 +11,78 @@ import { CredentialsModal } from "@/components/CredentialsModal";
 import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
 import { WorkspacesListView } from "@/components/WorkspacesListView";
 import { DashboardView } from "@/components/DashboardView";
-import { SyncProvidersView } from "@/components/SyncProvidersView";
 import { VariablesView } from "@/components/VariablesView";
-import { ReleasesWorkspace } from "@/components/ReleasesWorkspace";
-import { DocumentationView } from "@/components/DocumentationView";
-import { AssetsView } from "@/components/AssetsView";
-import { ExportsView } from "@/components/ExportsView";
-import { ActivityView } from "@/components/ActivityView";
-import { BranchesView } from "@/components/BranchesView";
-import { McpCliView } from "@/components/McpCliView";
-import { ProjectSettingsView } from "@/components/ProjectSettingsView";
-import { MembersView } from "@/components/MembersView";
-import { OrgSettingsView } from "@/components/OrgSettingsView";
-import { ExtensionsView } from "@/components/ExtensionsView";
-import { SystemChangelogView } from "@/components/SystemChangelogView";
-import { SystemDocsView } from "@/components/SystemDocsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+
+function WorkspaceLoading() {
+  return (
+    <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+      Loading workspace...
+    </div>
+  );
+}
+
+const SyncProvidersView = dynamic(
+  () => import("@/components/SyncProvidersView").then((module) => module.SyncProvidersView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const ReleasesWorkspace = dynamic(
+  () => import("@/components/ReleasesWorkspace").then((module) => module.ReleasesWorkspace),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const DocumentationView = dynamic(
+  () => import("@/components/DocumentationView").then((module) => module.DocumentationView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const AssetsView = dynamic(
+  () => import("@/components/AssetsView").then((module) => module.AssetsView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const ExportsView = dynamic(
+  () => import("@/components/ExportsView").then((module) => module.ExportsView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const ActivityView = dynamic(
+  () => import("@/components/ActivityView").then((module) => module.ActivityView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const BranchesView = dynamic(
+  () => import("@/components/BranchesView").then((module) => module.BranchesView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const McpCliView = dynamic(
+  () => import("@/components/McpCliView").then((module) => module.McpCliView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const ProjectSettingsView = dynamic(
+  () => import("@/components/ProjectSettingsView").then((module) => module.ProjectSettingsView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const MembersView = dynamic(
+  () => import("@/components/MembersView").then((module) => module.MembersView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const OrgSettingsView = dynamic(
+  () => import("@/components/OrgSettingsView").then((module) => module.OrgSettingsView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const ExtensionsView = dynamic(
+  () => import("@/components/ExtensionsView").then((module) => module.ExtensionsView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const SystemChangelogView = dynamic(
+  () => import("@/components/SystemChangelogView").then((module) => module.SystemChangelogView),
+  { ssr: false, loading: WorkspaceLoading }
+);
+const SystemDocsView = dynamic(
+  () => import("@/components/SystemDocsView").then((module) => module.SystemDocsView),
+  { ssr: false, loading: WorkspaceLoading }
+);
 
 export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

@@ -4,7 +4,8 @@ import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups, getThemesArray, getMetadataObject } from "@/utils/themeHelpers";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import {
-  getOrgProjects,
+  getOrgProjectSummaries,
+  getProject,
   getUserOrganizations,
   saveProjectTokens,
   saveProjectFigmaVariables,
@@ -26,7 +27,7 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/tokens
- * Fetch design tokens & themes dynamically from Firestore
+ * Fetch design tokens & themes dynamically from Supabase
  */
 export async function GET(req: NextRequest) {
   try {
@@ -74,101 +75,14 @@ export async function GET(req: NextRequest) {
     let currentBranchName = requestedBranch || "main";
     let availableBranches: { name: string; title: string; isDefault?: boolean }[] = [];
 
-    // Fetch directly from the target project in Firestore
+    // Fetch only the target project to avoid loading every project and token set.
     if (orgId && projectId) {
       try {
-        const projects = await getOrgProjects(orgId);
-        const proj = projects.find((p) => p.id === projectId);
+        const proj = await getProject(orgId, projectId);
         if (proj) {
-          // 1. If Git is configured on this project, resolve branches from Git repository
-          if (proj.gitConfig && proj.gitConfig.pat && proj.gitConfig.owner && proj.gitConfig.repo) {
-            const gitBranch = proj.gitConfig.branch || "main";
-            currentBranchName = requestedBranch || gitBranch;
+          const gitBranch = proj.gitConfig?.branch || proj.activeBranch || "main";
+          currentBranchName = requestedBranch || gitBranch;
 
-            try {
-              const { provider, owner, repo, pat, project: azProject } = proj.gitConfig;
-
-              if (provider === "github") {
-                const res = await fetch(
-                  `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100`,
-                  {
-                    headers: {
-                      Authorization: `Bearer ${pat}`,
-                      Accept: "application/vnd.github.v3+json",
-                      "User-Agent": "TokensPlatform-Cloud/1.0",
-                    },
-                    signal: AbortSignal.timeout(6000),
-                  }
-                );
-                if (res.ok) {
-                  const data: Array<{ name: string }> = await res.json();
-                  if (Array.isArray(data) && data.length > 0) {
-                    availableBranches = data.map((b) => ({
-                      name: b.name,
-                      title: b.name,
-                      isDefault: b.name === gitBranch,
-                    }));
-                  }
-                }
-              } else if (provider === "azure") {
-                const azOrg = encodeURIComponent(owner);
-                const azProj = encodeURIComponent(azProject || owner);
-                const azRepo = encodeURIComponent(repo);
-                const basicAuth = Buffer.from(`:${pat}`).toString("base64");
-                const res = await fetch(
-                  `https://dev.azure.com/${azOrg}/${azProj}/_apis/git/repositories/${azRepo}/refs?filter=heads/&api-version=7.0`,
-                  {
-                    headers: {
-                      Authorization: `Basic ${basicAuth}`,
-                      Accept: "application/json",
-                    },
-                    signal: AbortSignal.timeout(6000),
-                  }
-                );
-                if (res.ok) {
-                  const data = await res.json();
-                  const allRefs: Array<{ name: string }> = Array.isArray(data.value) ? data.value : [];
-                  if (allRefs.length > 0) {
-                    availableBranches = allRefs.map((r) => {
-                      const name = r.name.replace(/^refs\/heads\//i, "");
-                      return {
-                        name,
-                        title: name,
-                        isDefault: name === gitBranch,
-                      };
-                    });
-                  }
-                }
-              } else if (provider === "gitlab") {
-                const projectIdEncoded = encodeURIComponent(`${owner}/${repo}`);
-                const res = await fetch(
-                  `https://gitlab.com/api/v4/projects/${projectIdEncoded}/repository/branches?per_page=100`,
-                  {
-                    headers: { "PRIVATE-TOKEN": pat },
-                    signal: AbortSignal.timeout(6000),
-                  }
-                );
-                if (res.ok) {
-                  const data: Array<{ name: string }> = await res.json();
-                  if (Array.isArray(data) && data.length > 0) {
-                    availableBranches = data.map((b) => ({
-                      name: b.name,
-                      title: b.name,
-                      isDefault: b.name === gitBranch,
-                    }));
-                  }
-                }
-              }
-            } catch (gitErr) {
-              console.warn("Could not fetch remote Git branches:", gitErr);
-            }
-
-            if (availableBranches.length === 0) {
-              availableBranches = [{ name: gitBranch, title: gitBranch, isDefault: true }];
-            }
-          }
-
-          // 2. Otherwise, fall back to System's internal project branches
           if (availableBranches.length === 0 && proj.branches && proj.branches.length > 0) {
             availableBranches = proj.branches.map((b) => ({
               name: b.name,
@@ -184,6 +98,10 @@ export async function GET(req: NextRequest) {
                 targetDoc = branchObj.rawTokens;
               }
             }
+          }
+
+          if (availableBranches.length === 0) {
+            availableBranches = [{ name: gitBranch, title: gitBranch, isDefault: true }];
           }
 
           if (Object.keys(targetDoc).length === 0 && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
@@ -277,7 +195,7 @@ export async function POST(req: NextRequest) {
         if (userOrgs.length > 0) {
           const firstOrg = userOrgs.find((o: any) => o.id === orgId) || userOrgs[0];
           orgId = firstOrg.id;
-          const projs = await getOrgProjects(firstOrg.id);
+          const projs = await getOrgProjectSummaries(firstOrg.id);
           if (projs.length > 0) {
             const firstProj = projs.find((p: any) => p.id === projectId) || projs[0];
             projectId = firstProj.id;
@@ -320,8 +238,7 @@ export async function POST(req: NextRequest) {
 
     if (orgId && projectId) {
       try {
-        const projects = await getOrgProjects(orgId);
-        targetProject = projects.find((p) => p.id === projectId);
+        targetProject = await getProject(orgId, projectId);
         if (targetProject) {
           projectBranches = ensureProjectDefaultBranch(targetProject);
           targetBranchName = requestedBranch || targetProject.activeBranch || "main";

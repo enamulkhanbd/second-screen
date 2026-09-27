@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
-import { getOrganization, getOrgProjects } from "@/services/organizationService";
+import { getOrganization, getOrgProjectSummaries } from "@/services/organizationService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -246,7 +246,7 @@ export async function PUT(req: NextRequest) {
 
     if (orgId && projectId && !resolvedProjName) {
       try {
-        const projs = await getOrgProjects(orgId);
+        const projs = await getOrgProjectSummaries(orgId);
         const proj = projs.find((p) => p.id === projectId);
         if (proj?.name) resolvedProjName = proj.name;
       } catch {}

@@ -66,13 +66,13 @@ POST /api/v1/auth/pair
 ## 4. Multi-Tenant Project & Workspace Life-Cycle
 
 * **Data Model:** [`types/tenant.ts`](file:///d:/GitHub/second-screen/types/tenant.ts)
-* **Firestore Service:** [`services/organizationService.ts`](file:///d:/GitHub/second-screen/services/organizationService.ts)
+* **Supabase Service:** [`services/organizationService.ts`](file:///d:/GitHub/second-screen/services/organizationService.ts)
 * **Validation Rules:**
   - Organization names and slugs must be globally unique across all tenants.
   - Project names and slugs must be unique within the current organization.
   - Fresh projects must initialize 100% clean (zero mock/dummy token injections).
-* **Document Safeguard:**
-  - Never write payloads > 950 KB to a single Firestore document (Firestore has a hard 1 MiB document limit). Large token sets must be chunked or stored in Git.
+* **Payload Safeguard:**
+  - Keep binary assets in R2 rather than embedding them in project JSON. Keep project reads scoped to the selected organization and project.
 
 ---
 

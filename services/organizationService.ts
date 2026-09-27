@@ -155,6 +155,10 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
         .catch(() => {});
     }
 
+    if (!uid && memberOrgIds.length === 0) {
+      return [];
+    }
+
     // 2. Fetch all organizations where user is owner OR user is a member
     let orgQuery = client.from("organizations").select(`
       *,
@@ -174,24 +178,23 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
     if (orgsErr) {
       console.warn("Supabase error fetching user organizations:", orgsErr.message);
       // Fallback query without joins if RLS limits nested select
-      const fallbackQuery = client.from("organizations").select("*");
-      const { data: fallbackOrgs } = await fallbackQuery;
-      if (fallbackOrgs && fallbackOrgs.length > 0) {
-        return fallbackOrgs.map((o: any) => mapDbOrgToOrganization(o, []));
+      let fallbackQuery = client.from("organizations").select("*");
+      if (memberOrgIds.length > 0 && uid) {
+        fallbackQuery = fallbackQuery.or(`owner_uid.eq.${uid},id.in.(${memberOrgIds.join(",")})`);
+      } else if (memberOrgIds.length > 0) {
+        fallbackQuery = fallbackQuery.in("id", memberOrgIds);
+      } else if (uid) {
+        fallbackQuery = fallbackQuery.eq("owner_uid", uid);
       }
-      return [];
+      const { data: fallbackOrgs, error: fallbackError } = await fallbackQuery.order("created_at", { ascending: true });
+      if (fallbackError) {
+        console.warn("Supabase fallback error fetching user organizations:", fallbackError.message);
+        return [];
+      }
+      return (fallbackOrgs || []).map((o: any) => mapDbOrgToOrganization(o, []));
     }
 
-    if (!orgsData || orgsData.length === 0) {
-      // In case user is viewing all available orgs in a self-hosted workspace
-      const { data: allOrgs } = await client.from("organizations").select("*, organization_members(*)");
-      if (allOrgs && allOrgs.length > 0) {
-        return allOrgs.map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
-      }
-      return [];
-    }
-
-    return orgsData.map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
+    return (orgsData || []).map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
   } catch (e) {
     console.warn("Supabase error fetching user organizations:", e);
     return [];
@@ -759,6 +762,68 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
     console.warn("Supabase error fetching single project:", e);
     return null;
   }
+}
+
+/**
+ * Fetches lightweight project metadata for lists without downloading token trees or assets.
+ */
+export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> {
+  if (!orgId) return [];
+
+  if (isSupabaseConfigured) {
+    try {
+      const client = getClient();
+      const { data, error } = await client
+        .from("projects")
+        .select("id, org_id, name, slug, description, icon, color, logo_url, active_branch, git_config, credentials, asset_git_config, asset_figma_config, enabled_schemas, created_at, updated_at")
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: true });
+
+      if (!error && data) {
+        return data.map((row: any) => ({
+          id: row.id,
+          orgId: row.org_id,
+          name: row.name,
+          slug: row.slug,
+          description: row.description || undefined,
+          icon: row.icon || "🎯",
+          color: row.color || "#171717",
+          logoUrl: row.logo_url || "",
+          activeBranch: row.active_branch || "main",
+          gitConfig: row.git_config && Object.keys(row.git_config).length > 0
+            ? row.git_config
+            : (row.credentials || null),
+          assetGitConfig: row.asset_git_config && Object.keys(row.asset_git_config).length > 0
+            ? row.asset_git_config
+            : null,
+          assetFigmaConfig: row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
+            ? row.asset_figma_config
+            : null,
+          enabledSchemas: row.enabled_schemas || [],
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }));
+      }
+
+      if (error) {
+        console.warn("Supabase error fetching project summaries:", error.message);
+      }
+    } catch (e) {
+      console.warn("Supabase error fetching project summaries:", e);
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+  }
+
+  return [];
 }
 
 /**

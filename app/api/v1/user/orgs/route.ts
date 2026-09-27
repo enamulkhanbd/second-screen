@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
-import { getUserOrganizations, getOrgProjects, getOrganization } from "@/services/organizationService";
+import { getUserOrganizations, getOrgProjectSummaries, getOrganization } from "@/services/organizationService";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     // Fetch projects for each org
     const orgsWithProjects = await Promise.all(
       orgs.map(async (org) => {
-        let projects = await getOrgProjects(org.id);
+        let projects = await getOrgProjectSummaries(org.id);
         if (projects.length === 0 && record.projectId && record.orgId === org.id) {
           const projName = record.projectName || "Project";
           projects = [

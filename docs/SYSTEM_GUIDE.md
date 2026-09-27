@@ -215,7 +215,7 @@ The **Schema Marketplace** (`components/ExtensionsView.tsx`) provides 182 self-h
 | :--- | :--- |
 | **Category Filter Pills** | Instant filtering by `All`, `Enabled`, `Color Spaces`, `Functions`, and `Core & Utilities`. |
 | **Search Filter** | Fast live search across schema IDs, names, descriptions, and tags. |
-| **Enable / Disable Button** | 1-click toggle on each card. Persists per-project activation state directly into Cloud Firestore (`enabledSchemas`). |
+| **Enable / Disable Button** | 1-click toggle on each card. Persists per-project activation state in Supabase (`enabled_schemas`). |
 | **Inspect Button / Card Click** | Opens the dark-themed **Extension Inspector Modal** (`components/ExtensionDetailModal.tsx`). |
 | **Inspector Modal Features** | Displays category pill, enabled status, copyable local schema URL, JSON schema tree viewer, and usage examples. |
 | **Zero External Links** | All schema URLs resolve to `/api/v1/schemas/{schemaId}` on the current application origin. |
@@ -288,6 +288,7 @@ Active when connected to GitHub, Azure DevOps, GitLab, or Bitbucket.
 - `GET /api/v1/schemas`: Returns the master JSON catalog of all 182 supported schemas.
 - `GET /api/v1/schemas/[...path]`: Returns the exact Draft 2020-12 JSON Schema definition for any registered schema ID.
 - `GET /api/v1/tokens`: Headless token retrieval endpoint for CI/CD pipelines.
+- `GET /api/v1/tokens/branches?orgId=...&projectId=...`: Loads remote Git branches separately from token retrieval; requires `read:tokens` access.
 
 ### MCP (Model Context Protocol) Server & CLI
 The platform includes an embedded MCP server (`components/MCPCliView.tsx`) allowing AI developer assistants (such as Antigravity, Claude, or Cursor) to programmatically interact with the design system:

@@ -1278,7 +1278,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                   : freshProj.rawTokens && Object.keys(freshProj.rawTokens).length > 0
                   ? freshProj.rawTokens
                   : {};
-
               if (Object.keys(freshTokens).length > 0) {
                 get().setRawTokens(freshTokens);
                 const freshThemes =

@@ -514,9 +514,6 @@ export const App: React.FC = () => {
         const resolved: TokenItem[] = data.resolvedTokens || [];
         setTokens(resolved);
         setThemeGroups(data.themeGroups || []);
-        if (data.availableBranches && data.availableBranches.length > 0) {
-          setAvailableBranches(data.availableBranches.map((b: any) => b.name));
-        }
 
         // Initialize theme modes for checkbox tree
         const modesMap: Record<string, boolean> = {};
@@ -547,6 +544,26 @@ export const App: React.FC = () => {
     } finally {
       setIsFetchingTokens(false);
     }
+  };
+
+  const fetchBranches = async () => {
+    const activeServer = getServerUrl(config.serverUrl);
+    const activeOrgId = selectedOrg?.id || config.orgId;
+    const activeProjectId = selectedProject?.id || config.projectId;
+    if (!activeOrgId || !activeProjectId || !config.pat) return;
+
+    try {
+      const query = `?orgId=${encodeURIComponent(activeOrgId)}&projectId=${encodeURIComponent(activeProjectId)}`;
+      const response = await fetch(`${activeServer}/api/v1/tokens/branches${query}`, {
+        headers: { Authorization: `Bearer ${config.pat}` },
+      });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (Array.isArray(data.branches) && data.branches.length > 0) {
+        setAvailableBranches(data.branches);
+      }
+    } catch {}
   };
 
   // Push local tokens to Studio API
@@ -1444,7 +1461,7 @@ export const App: React.FC = () => {
       <footer className="h-14 px-4 border-t border-border/80 bg-card/90 flex items-center justify-between flex-shrink-0 backdrop-blur-xs">
         {/* Left: Branch selector + Refresh button */}
         <div className="flex items-center gap-1.5">
-          <DropdownMenu>
+          <DropdownMenu onOpenChange={(open) => open && fetchBranches()}>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1.5 text-xs text-foreground font-medium px-2.5 py-1.5 rounded-lg bg-muted/60 hover:bg-muted border border-border transition-colors cursor-pointer">
                 <GitBranch className="w-3 h-3 text-primary" />

@@ -25,10 +25,10 @@ This document provides a comprehensive technical overview of the **Second Screen
            │                      │                             │
            ▼                      ▼                             ▼
 ┌──────────────────────┐ ┌──────────────────────┐ ┌────────────────────────────────┐
-│   Cloud Firestore    │ │   Git Providers      │ │      Local Schema Registry     │
-│   (Multi-Tenancy)    │ │ (GitHub & Azure DevOps)││     (/api/v1/schemas/*)       │
+│ Supabase / PostgreSQL│ │   Git Providers      │ │      Local Schema Registry     │
+│   (Multi-Tenancy)    │ │ (GitHub, Azure, GitLab)││     (/api/v1/schemas/*)      │
 │ - orgs / projects    │ │ - 2-Way Push / Pull  │ │ - 182 Draft 2020-12 Schemas    │
-│ - audit activity log │ │ - Branch & Git Tree  │ │ - Dynamic Origin Resolution    │
+│ - RLS and indexes    │ │ - Branch & Git Tree  │ │ - Dynamic Origin Resolution    │
 └──────────────────────┘ └──────────────────────┘ └────────────────────────────────┘
            ▲
            │ Ephemeral 6-digit pairing code (/api/v1/auth/pair)
@@ -51,6 +51,7 @@ d:\GitHub\second-screen/
 │   │   ├── figma/              # Figma variables & assets endpoints
 │   │   ├── git/                # GitHub / Azure DevOps 2-way sync
 │   │   ├── v1/auth/            # PAT token & ephemeral pairing APIs
+│   │   ├── v1/tokens/          # Token reads and on-demand branch discovery
 │   │   ├── v1/releases/        # Version releases & publish
 │   │   └── v1/schemas/         # Local Self-Hosted Schema Registry APIs
 │   ├── layout.tsx              # Root HTML layout, font loader, dark theme
@@ -71,7 +72,7 @@ d:\GitHub\second-screen/
 │   ├── src-ui/                 # React UI rendered inside Figma window
 │   └── vite.config.ts          # Vite configuration for plugin bundling
 ├── services/                   # Backend services
-│   ├── organizationService.ts  # Firestore tenancy, projects, schemas, and audit logs
+│   ├── organizationService.ts  # Supabase tenancy, projects, schemas, and audit logs
 │   ├── gitSyncService.ts       # GitHub & Azure DevOps Git API wrapper
 │   └── figmaSyncService.ts     # Figma REST API integration
 ├── store/                      # Zustand state store
@@ -96,6 +97,6 @@ d:\GitHub\second-screen/
 3. **Token Mutations & Performance**:
    Token additions and edits update the in-memory store and recompute the $O(1)$ alias index. Rows render progressively (100 tokens per batch) to prevent DOM bloat.
 4. **Cloud Persistence**:
-   Changes are saved asynchronously to Cloud Firestore with payload guards checking that document sizes do not exceed 950 KB.
+   Organizations, project data, and activity records are stored in Supabase PostgreSQL. Asset files are stored in R2, with metadata associated with projects.
 5. **Git Synchronization**:
    Pushing or pulling synchronizes raw JSON files against GitHub or Azure DevOps repositories via Git tree and commit APIs.
