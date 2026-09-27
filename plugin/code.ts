@@ -129,6 +129,7 @@ figma.ui.onmessage = async (msg: { type: string; payload?: any }) => {
   // 2. Save Config
   if (msg.type === "SAVE_CONFIG") {
     await figma.clientStorage.setAsync("second_screen_config", msg.payload);
+    figma.ui.postMessage({ type: "CONFIG_SAVED" });
     figma.notify("Configuration saved.");
   }
 

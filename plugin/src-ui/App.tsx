@@ -332,14 +332,42 @@ export const App: React.FC = () => {
             ...config,
             pat,
             serverUrl,
+            orgId: data.orgId || "",
+            projectId: data.projectId || "",
+            orgName: data.orgName || "",
+            projectName: data.projectName || "",
             themeMode,
           };
           setConfig(updatedConfig);
-          parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
+          const configSaved = await new Promise<boolean>((resolve) => {
+            const timeoutId = window.setTimeout(() => {
+              window.removeEventListener("message", onConfigSaved);
+              resolve(false);
+            }, 5000);
+            const onConfigSaved = (event: MessageEvent) => {
+              if (event.data?.pluginMessage?.type !== "CONFIG_SAVED") return;
+              window.clearTimeout(timeoutId);
+              window.removeEventListener("message", onConfigSaved);
+              resolve(true);
+            };
+            window.addEventListener("message", onConfigSaved);
+            parent.postMessage({ pluginMessage: { type: "SAVE_CONFIG", payload: updatedConfig } }, "*");
+          });
 
           setIsConnecting(false);
-          await fetchOrgs(serverUrl, pat);
+          await fetchOrgs(serverUrl, pat, data.orgId, data.projectId);
+          if (configSaved) {
+            await fetch(`${serverUrl}/api/v1/auth/pair`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: pairCode }),
+            });
+          }
           clearInterval(interval);
+        } else if (data.status === "approved") {
+          setIsConnecting(false);
+          setPairCode("");
+          setErrorBanner("This approval has expired. Generate a new pairing code and approve it again.");
         } else if (data.status === "expired") {
           requestPairingCode(sUrl);
         }

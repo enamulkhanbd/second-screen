@@ -187,9 +187,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         const data = await res.json();
         const keys = data.keys || [];
         const match = keys.find(
-          (k: any) =>
-            k.projectId === syncProject.id ||
-            (k.name && k.name.toLowerCase().includes("figma"))
+          (k: any) => k.projectId === syncProject.id
         );
         setActivePluginKey(match || null);
       }
@@ -809,16 +807,16 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                       <span>Figma Companion Plugin</span>
                     </h2>
 
-                    {/* Live Connection Status Badge */}
+                    {/* Saved project credential status */}
                     {activePluginKey ? (
                       <Badge variant="success" className="gap-1.5 text-[10px] px-2 py-0.5 font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Connected</span>
+                        <span>Credential Saved</span>
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 text-muted-foreground font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                        <span>Not Connected</span>
+                        <span>No Credential</span>
                       </Badge>
                     )}
                   </div>
@@ -849,7 +847,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                         </div>
                         <div>
                           <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                            <span>Active Companion Bridge</span>
+                            <span>Saved Companion Credential</span>
                           </div>
                           <p className="text-[10px] text-muted-foreground">
                             {activePluginKey.name || "Figma Desktop Companion"}
@@ -867,9 +865,9 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                         <span className="font-semibold text-foreground">{syncProject.name}</span>
                       </div>
                       <div className="flex items-center justify-between text-muted-foreground">
-                        <span>Connection Status:</span>
+                        <span>Credential Status:</span>
                         <span className="text-emerald-500 font-medium flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live &amp; Ready
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Available for this project
                         </span>
                       </div>
                       {activePluginKey.createdAt && (
@@ -906,8 +904,6 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                   </div>
                 ) : (
                   <form onSubmit={handleApprovePairCode} className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
-                                            <span>Pair Figma Companion</span>
-                                          In the Figma plugin, click Connect to Tokens Platform, then paste its pairing code here:
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-primary" />

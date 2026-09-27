@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
   let session = pairingSessions.get(code);
 
   // Fallback to Supabase to share state across localhost, production, and serverless edge
-  if ((!session || session.status !== "approved") && isSupabaseConfigured) {
+  if ((!session || session.status !== "approved" || !session.pat) && isSupabaseConfigured) {
     try {
       const client = getDbClient();
       const { data, error } = await client
@@ -162,16 +162,6 @@ export async function GET(req: NextRequest) {
       serverUrl: session.serverUrl,
     };
 
-    session.pat = undefined;
-    pairingSessions.set(code, session);
-    if (isSupabaseConfigured) {
-      try {
-        await getDbClient().from("pairing_sessions").update({ pat: null }).eq("code", code);
-      } catch (e) {
-        console.warn("Supabase pairing secret cleanup error:", e);
-      }
-    }
-
     return jsonWithCors(responseData);
   }
 
@@ -179,6 +169,52 @@ export async function GET(req: NextRequest) {
     status: "pending",
     expiresInSeconds: Math.max(0, Math.round((session.expiresAt - Date.now()) / 1000)),
   });
+}
+
+/**
+ * PATCH: Acknowledge that the plugin saved the approved session.
+ */
+export async function PATCH(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+  if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(code)) {
+    return jsonWithCors({ error: "A valid pairing code is required." }, { status: 400 });
+  }
+
+  let session = pairingSessions.get(code);
+  if (!session && isSupabaseConfigured) {
+    try {
+      const { data, error } = await getDbClient()
+        .from("pairing_sessions")
+        .select("status")
+        .eq("code", code)
+        .maybeSingle();
+      if (error) throw error;
+      if (data?.status === "approved") session = { code, status: "approved", createdAt: 0, expiresAt: 0 };
+    } catch (e) {
+      console.warn("Supabase pairing acknowledgement lookup error:", e);
+      return jsonWithCors({ error: "Could not confirm plugin connection." }, { status: 503 });
+    }
+  }
+
+  if (session?.status !== "approved") {
+    return jsonWithCors({ error: "Approved pairing session not found." }, { status: 404 });
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await getDbClient().from("pairing_sessions").update({ pat: null }).eq("code", code);
+      if (error) throw error;
+    } catch (e) {
+      console.warn("Supabase pairing secret cleanup error:", e);
+      return jsonWithCors({ error: "Could not confirm plugin connection." }, { status: 503 });
+    }
+  }
+
+  session.pat = undefined;
+  pairingSessions.set(code, session);
+
+  return jsonWithCors({ success: true });
 }
 
 /**
