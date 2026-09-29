@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
@@ -94,6 +94,7 @@ const WORKSPACE_TAB_TO_ROUTE = {
   members: "members",
   "org-settings": "settings",
 } as const;
+type WorkspaceNavigationTab = keyof typeof WORKSPACE_TAB_TO_ROUTE;
 
 const PROJECT_ROUTE_TABS = new Set([
   "variables",
@@ -113,11 +114,20 @@ const PROJECT_ROUTE_TABS = new Set([
 ]);
 
 export default function Home() {
-  const params = useParams<{ workspaceSlug?: string; path?: string[] }>();
   const pathname = usePathname();
   const router = useRouter();
-  const workspaceSlug = typeof params.workspaceSlug === "string" ? params.workspaceSlug : null;
-  const routeSegments = Array.isArray(params.path) ? params.path : [];
+  const pathSegments = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
+  const workspaceSlug = pathSegments[0] ?? null;
+  const routeSegments = pathSegments.slice(1);
   const routeSegmentCount = routeSegments.length;
   const routePartOne = routeSegments[0] ?? null;
   const routePartTwo = routeSegments[1] ?? null;
@@ -152,6 +162,22 @@ export default function Home() {
     setCurrentProject,
     setSidebarTab,
   } = useTokenStore();
+
+  const navigateToWorkspaceTab = (tab: WorkspaceNavigationTab) => {
+    const targetPath = currentOrg
+      ? `/${encodeURIComponent(currentOrg.slug)}/${WORKSPACE_TAB_TO_ROUTE[tab]}`
+      : null;
+
+    if (targetPath && targetPath !== pathname) {
+      pendingRoutePath.current = targetPath;
+    }
+    setCurrentProject(null);
+    setSidebarTab(tab);
+
+    if (targetPath && targetPath !== pathname) {
+      router.push(targetPath);
+    }
+  };
 
   useEffect(() => {
     if (previousPathname.current !== pathname) {
@@ -264,7 +290,7 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    if (!currentUser || isLoadingTenant || pendingRoutePath.current === pathname) return;
+    if (!currentUser || isLoadingTenant || pendingRoutePath.current !== null) return;
 
     if (sidebarTab === "workspaces") {
       if (pathname !== "/") router.push("/");
@@ -358,7 +384,10 @@ export default function Home() {
       {!isWorkspacesView && (
         <>
           <div className="hidden lg:flex h-full flex-shrink-0">
-            <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+            <Sidebar
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onNavigateWorkspaceTab={navigateToWorkspaceTab}
+            />
           </div>
 
           <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
@@ -371,6 +400,7 @@ export default function Home() {
                 mode="drawer"
                 className="border-r-0 pt-10"
                 onOpenSettings={() => setIsSettingsOpen(true)}
+                onNavigateWorkspaceTab={navigateToWorkspaceTab}
               />
             </SheetContent>
           </Sheet>
