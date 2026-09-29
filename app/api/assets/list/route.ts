@@ -12,6 +12,10 @@ import { authorizeProjectRequest } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
+function withoutInlineSvg(assets: ProjectAsset[]) {
+  return assets.map((asset) => ({ ...asset, svg: undefined }));
+}
+
 async function fetchAssetMetadata(orgId: string, projectId: string): Promise<ProjectAsset[]> {
   let metadata = await loadMetadataIndex(orgId, projectId);
 
@@ -90,7 +94,7 @@ export async function GET(req: NextRequest) {
         success: true,
         action: "list",
         totalAssets: metadata.length,
-        assets: metadata,
+        assets: withoutInlineSvg(metadata),
       },
       {
         headers: {
@@ -166,7 +170,7 @@ export async function POST(req: NextRequest) {
         action: "move-folder",
         movedCount: assetIds.length,
         totalAssets: updatedMetadata.length,
-        assets: updatedMetadata,
+        assets: withoutInlineSvg(updatedMetadata),
       });
     }
 
@@ -200,7 +204,7 @@ export async function POST(req: NextRequest) {
         action: "update-metadata",
         updatedCount: updates.length,
         totalAssets: updatedMetadata.length,
-        assets: updatedMetadata,
+        assets: withoutInlineSvg(updatedMetadata),
       });
     }
 
@@ -210,7 +214,7 @@ export async function POST(req: NextRequest) {
         success: true,
         action: "list",
         totalAssets: metadata.length,
-        assets: metadata,
+        assets: withoutInlineSvg(metadata),
       },
       {
         headers: {

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { shallow } from "zustand/shallow";
 import { ProjectAsset, AssetFolder, AssetType, AssetGitConfig, FigmaSourceLink } from "@/types/tenant";
 import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
 
@@ -545,7 +546,50 @@ export const AssetsView: React.FC = () => {
     refreshAssets,
     addToast,
     canUserEdit,
-  } = useTokenStore();
+  } = useTokenStore(
+    (state) => ({
+      currentOrg: state.currentOrg,
+      currentProject: state.currentProject,
+      assets: state.assets,
+      assetFolders: state.assetFolders,
+      activeFolderId: state.activeFolderId,
+      setActiveFolderId: state.setActiveFolderId,
+      createAssetFolder: state.createAssetFolder,
+      updateAssetFolder: state.updateAssetFolder,
+      deleteAssetFolder: state.deleteAssetFolder,
+      moveAssetsToFolder: state.moveAssetsToFolder,
+      uploadAssets: state.uploadAssets,
+      applyMetadataToAssets: state.applyMetadataToAssets,
+      updateAsset: state.updateAsset,
+      updateAssets: state.updateAssets,
+      deleteAsset: state.deleteAsset,
+      deleteAssets: state.deleteAssets,
+      assetGitConfig: state.assetGitConfig,
+      setAssetGitConfig: state.setAssetGitConfig,
+      syncAssetsFromGit: state.syncAssetsFromGit,
+      togglePauseAssetGit: state.togglePauseAssetGit,
+      disconnectAssetGit: state.disconnectAssetGit,
+      isSyncingAssets: state.isSyncingAssets,
+      assetFigmaConfig: state.assetFigmaConfig,
+      setAssetFigmaConfig: state.setAssetFigmaConfig,
+      setFigmaPat: state.setFigmaPat,
+      addFigmaSource: state.addFigmaSource,
+      updateFigmaSource: state.updateFigmaSource,
+      removeFigmaSource: state.removeFigmaSource,
+      togglePauseFigmaSource: state.togglePauseFigmaSource,
+      syncSingleFigmaSource: state.syncSingleFigmaSource,
+      syncAllFigmaSources: state.syncAllFigmaSources,
+      togglePauseFigmaSync: state.togglePauseFigmaSync,
+      syncAssetsFromFigma: state.syncAssetsFromFigma,
+      isSyncingFigmaAssets: state.isSyncingFigmaAssets,
+      isLoadingAssets: state.isLoadingAssets,
+      r2StorageError: state.r2StorageError,
+      refreshAssets: state.refreshAssets,
+      addToast: state.addToast,
+      canUserEdit: state.canUserEdit,
+    }),
+    shallow
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
