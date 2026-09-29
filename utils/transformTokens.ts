@@ -180,13 +180,30 @@ function isColorString(val: string): boolean {
   return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s) || /^(rgba?|hsla?|oklch|lch|color)\(/i.test(s);
 }
 
+const COLOR_LUMINANCE_CACHE = new Map<string, number | null>();
+const MAX_COLOR_LUMINANCE_CACHE_ENTRIES = 16_384;
+
 function getColorLuminance(val: string): number | null {
-  try {
-    const c = new Color(val.trim());
-    return c.to("oklch").l;
-  } catch {
-    return null;
+  const key = val.trim();
+  if (COLOR_LUMINANCE_CACHE.has(key)) {
+    return COLOR_LUMINANCE_CACHE.get(key) ?? null;
   }
+
+  let luminance: number | null = null;
+  try {
+    const color = new Color(key);
+    luminance = color.to("oklch").l;
+  } catch {
+    // Keep invalid color-like strings from being reparsed during sorting.
+  }
+
+  if (COLOR_LUMINANCE_CACHE.size >= MAX_COLOR_LUMINANCE_CACHE_ENTRIES) {
+    const oldestKey = COLOR_LUMINANCE_CACHE.keys().next().value;
+    if (oldestKey !== undefined) COLOR_LUMINANCE_CACHE.delete(oldestKey);
+  }
+  COLOR_LUMINANCE_CACHE.set(key, luminance);
+
+  return luminance;
 }
 
 /**

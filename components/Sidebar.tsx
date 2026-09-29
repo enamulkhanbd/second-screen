@@ -253,6 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             sidebarTab === "dashboard" ||
                             sidebarTab === "projects" ||
                             sidebarTab === "members" ||
+                            sidebarTab === "org-settings" ||
                             sidebarTab === "project-settings" ||
                             (sidebarTab as string) === "workspaces"
                           ) {
@@ -460,6 +461,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, mode = "docked
                             sidebarTab === "dashboard" ||
                             sidebarTab === "projects" ||
                             sidebarTab === "members" ||
+                            sidebarTab === "org-settings" ||
                             sidebarTab === "project-settings" ||
                             (sidebarTab as string) === "workspaces"
                           ) {

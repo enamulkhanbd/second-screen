@@ -81,9 +81,21 @@ const SystemDocsView = dynamic(
   { ssr: false, loading: WorkspaceLoading }
 );
 
-const ROUTABLE_TABS = new Set([
-  "dashboard",
-  "projects",
+const WORKSPACE_ROUTE_TO_TAB = {
+  overview: "dashboard",
+  projects: "projects",
+  members: "members",
+  settings: "org-settings",
+} as const;
+
+const WORKSPACE_TAB_TO_ROUTE = {
+  dashboard: "overview",
+  projects: "projects",
+  members: "members",
+  "org-settings": "settings",
+} as const;
+
+const PROJECT_ROUTE_TABS = new Set([
   "variables",
   "tokens",
   "themes",
@@ -95,22 +107,27 @@ const ROUTABLE_TABS = new Set([
   "activity",
   "mcp",
   "project-settings",
-  "members",
-  "org-settings",
   "changelog",
   "extensions",
   "system-docs",
 ]);
 
 export default function Home() {
-  const params = useParams<{ workspaceSlug?: string; projectSlug?: string; tab?: string }>();
+  const params = useParams<{ workspaceSlug?: string; path?: string[] }>();
   const pathname = usePathname();
   const router = useRouter();
   const workspaceSlug = typeof params.workspaceSlug === "string" ? params.workspaceSlug : null;
-  const projectSlug = typeof params.projectSlug === "string" ? params.projectSlug : null;
-  const routeTab = typeof params.tab === "string" ? params.tab : null;
-  const hasProjectRoute = Boolean(workspaceSlug && projectSlug && routeTab);
-  const pendingRoutePath = useRef(hasProjectRoute ? pathname : null);
+  const routeSegments = Array.isArray(params.path) ? params.path : [];
+  const routeSegmentCount = routeSegments.length;
+  const routePartOne = routeSegments[0] ?? null;
+  const routePartTwo = routeSegments[1] ?? null;
+  const workspaceRouteTab =
+    routeSegmentCount === 1 && routePartOne
+      ? WORKSPACE_ROUTE_TO_TAB[routePartOne as keyof typeof WORKSPACE_ROUTE_TO_TAB] ?? null
+      : null;
+  const projectSlug = routeSegmentCount === 2 ? routePartOne : null;
+  const routeTab = routeSegmentCount === 2 ? routePartTwo : null;
+  const pendingRoutePath = useRef(workspaceSlug ? pathname : null);
   const previousPathname = useRef(pathname);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWizardDismissed, setIsWizardDismissed] = useState(false);
@@ -139,11 +156,11 @@ export default function Home() {
   useEffect(() => {
     if (previousPathname.current !== pathname) {
       previousPathname.current = pathname;
-      pendingRoutePath.current = hasProjectRoute ? pathname : null;
+      pendingRoutePath.current = workspaceSlug ? pathname : null;
     }
 
     if (pendingRoutePath.current !== pathname) return;
-    if (!hasProjectRoute || !workspaceSlug || !projectSlug || !routeTab) return;
+    if (!workspaceSlug) return;
     if (!currentUser || isLoadingTenant) return;
 
     const matchingOrg = userOrgs.find((org) => org.slug === workspaceSlug);
@@ -152,8 +169,55 @@ export default function Home() {
       return;
     }
 
+    const workspacePath = `/${encodeURIComponent(matchingOrg.slug)}`;
+    const overviewPath = `${workspacePath}/overview`;
+
     if (currentOrg?.id !== matchingOrg.id) {
       void setCurrentOrg(matchingOrg);
+      return;
+    }
+
+    if (routeSegmentCount === 0) {
+      if (currentProject) setCurrentProject(null);
+      if (sidebarTab !== "dashboard") setSidebarTab("dashboard");
+      if (pathname !== overviewPath) {
+        router.replace(overviewPath);
+        return;
+      }
+      pendingRoutePath.current = null;
+      return;
+    }
+
+    if (routeSegmentCount === 1) {
+      if (!workspaceRouteTab) {
+        router.replace(overviewPath);
+        return;
+      }
+
+      if (currentProject) setCurrentProject(null);
+      if (sidebarTab !== workspaceRouteTab) {
+        setSidebarTab(workspaceRouteTab);
+        return;
+      }
+
+      pendingRoutePath.current = null;
+      return;
+    }
+
+    if (routeSegmentCount !== 2 || !projectSlug || !routeTab) {
+      router.replace(overviewPath);
+      return;
+    }
+
+    const legacyWorkspacePath =
+      WORKSPACE_TAB_TO_ROUTE[routeTab as keyof typeof WORKSPACE_TAB_TO_ROUTE];
+    if (legacyWorkspacePath) {
+      router.replace(`${workspacePath}/${legacyWorkspacePath}`);
+      return;
+    }
+
+    if (!PROJECT_ROUTE_TABS.has(routeTab)) {
+      router.replace(overviewPath);
       return;
     }
 
@@ -161,17 +225,12 @@ export default function Home() {
 
     const matchingProject = orgProjects.find((project) => project.slug === projectSlug);
     if (!matchingProject) {
-      router.replace("/");
+      router.replace(overviewPath);
       return;
     }
 
     if (currentProject?.id !== matchingProject.id) {
       setCurrentProject(matchingProject);
-      return;
-    }
-
-    if (!ROUTABLE_TABS.has(routeTab)) {
-      router.replace(`/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(projectSlug)}/dashboard`);
       return;
     }
 
@@ -184,13 +243,15 @@ export default function Home() {
   }, [
     currentProject?.id,
     currentOrg?.id,
-    hasProjectRoute,
     isLoadingProjects,
     isLoadingTenant,
     orgProjects,
     pathname,
     projectSlug,
     routeTab,
+    routePartOne,
+    routePartTwo,
+    routeSegmentCount,
     router,
     setCurrentOrg,
     setCurrentProject,
@@ -199,24 +260,32 @@ export default function Home() {
     currentUser,
     userOrgs,
     workspaceSlug,
+    workspaceRouteTab,
   ]);
 
   useEffect(() => {
     if (!currentUser || isLoadingTenant || pendingRoutePath.current === pathname) return;
 
-    if (sidebarTab === "workspaces" || (sidebarTab === "projects" && !currentProject)) {
-      if (pathname !== "/") router.push("/");
-      return;
-    }
-
-    if (!currentProject) {
+    if (sidebarTab === "workspaces") {
       if (pathname !== "/") router.push("/");
       return;
     }
 
     if (!currentOrg) return;
 
-    const targetPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${sidebarTab}`;
+    const workspaceRoute =
+      WORKSPACE_TAB_TO_ROUTE[sidebarTab as keyof typeof WORKSPACE_TAB_TO_ROUTE];
+    const targetPath = workspaceRoute
+      ? `/${encodeURIComponent(currentOrg.slug)}/${workspaceRoute}`
+      : currentProject
+      ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${sidebarTab}`
+      : null;
+
+    if (!targetPath) {
+      if (pathname !== "/") router.push("/");
+      return;
+    }
+
     if (targetPath === pathname) return;
 
     if (pathname === "/") {
