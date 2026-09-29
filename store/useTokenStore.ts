@@ -115,6 +115,8 @@ interface TokenStoreState {
   setActiveInviteToken: (token: string | null) => void;
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
   loadTenantData: (uid: string, email?: string) => Promise<void>;
+  /** @internal Do not call directly \u2014 use loadTenantData, which dedupes concurrent invocations. */
+  __runLoadTenantData: (uid: string, email?: string) => Promise<void>;
   createOrgAction: (name: string, icon?: string, color?: string, logoUrl?: string) => Promise<Organization | null>;
   updateOrgAction: (orgId: string, updates: { name?: string; slug?: string; icon?: string; color?: string; logoUrl?: string }) => Promise<Organization | null>;
   deleteOrgAction: (orgId: string) => Promise<void>;
@@ -447,6 +449,12 @@ function resolveTokensWithActiveThemes(
 // Client-side in-memory SWR cache for project assets & configuration (0ms reloads)
 const projectAssetsCache = new Map<string, ProjectAsset[]>();
 const projectConfigCache = new Map<string, any>();
+
+// Dedupes concurrent loadTenantData invocations for the same user (e.g. Supabase's
+// getSession() fast-path racing with its onAuthStateChange initial-session fire),
+// so the "restore active project from localStorage" step can't run twice and
+// clobber a project the user has since opened.
+let tenantDataLoadState: { uid: string; promise: Promise<void> } | null = null;
 
 function cacheHydratedProject(project: Project): void {
   if (typeof window === "undefined") return;
@@ -1522,6 +1530,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   loadTenantData: async (uid, email) => {
+    if (tenantDataLoadState && tenantDataLoadState.uid === uid) {
+      return tenantDataLoadState.promise;
+    }
+    const promise = get().__runLoadTenantData(uid, email);
+    tenantDataLoadState = { uid, promise };
+    try {
+      await promise;
+    } finally {
+      if (tenantDataLoadState?.promise === promise) {
+        tenantDataLoadState = null;
+      }
+    }
+  },
+
+  __runLoadTenantData: async (uid, email) => {
     // 1. Instant Cache Hydration: If cached tenant orgs and projects exist in localStorage, restore them immediately
     if (typeof window !== "undefined") {
       try {
@@ -3840,6 +3863,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         supabase.auth.onAuthStateChange(async (event: any, session: any) => {
           const sbUser = session?.user;
           if (sbUser) {
+            // Token refreshes fire for the same signed-in user (periodically, or on tab
+            // focus) and must not re-run the full tenant reload — that would re-apply
+            // the "restore active project from localStorage" step and can knock the
+            // user's current project/tab selection back to Overview mid-session.
+            const isSameUserRefresh = event === "TOKEN_REFRESHED" && get().currentUser?.uid === sbUser.id;
             const userObj = {
               uid: sbUser.id,
               email: sbUser.email || "",
@@ -3852,6 +3880,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               avatarUrl: sbUser.user_metadata?.avatar_url || undefined,
             };
             set({ currentUser: userObj });
+            if (isSameUserRefresh) return;
             await get().loadTenantData(userObj.uid, userObj.email);
             if (userObj.email) {
               const pendingInvs = await getPendingInvitationsForEmail(userObj.email);
