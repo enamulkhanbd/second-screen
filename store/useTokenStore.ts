@@ -3863,11 +3863,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         supabase.auth.onAuthStateChange(async (event: any, session: any) => {
           const sbUser = session?.user;
           if (sbUser) {
-            // Token refreshes fire for the same signed-in user (periodically, or on tab
-            // focus) and must not re-run the full tenant reload — that would re-apply
-            // the "restore active project from localStorage" step and can knock the
-            // user's current project/tab selection back to Overview mid-session.
-            const isSameUserRefresh = event === "TOKEN_REFRESHED" && get().currentUser?.uid === sbUser.id;
+            // Same-user auth events are already covered by getSession() or the first
+            // sign-in event. Re-running tenant hydration can overwrite the active project.
+            const isSameUserEvent = get().currentUser?.uid === sbUser.id;
             const userObj = {
               uid: sbUser.id,
               email: sbUser.email || "",
@@ -3880,7 +3878,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               avatarUrl: sbUser.user_metadata?.avatar_url || undefined,
             };
             set({ currentUser: userObj });
-            if (isSameUserRefresh) return;
+            if (isSameUserEvent) return;
             await get().loadTenantData(userObj.uid, userObj.email);
             if (userObj.email) {
               const pendingInvs = await getPendingInvitationsForEmail(userObj.email);

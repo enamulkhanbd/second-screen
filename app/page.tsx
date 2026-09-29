@@ -18,6 +18,7 @@ import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
+import { Project } from "@/types/tenant";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 function WorkspaceLoading() {
@@ -175,6 +176,25 @@ export default function Home() {
     setSidebarTab(tab);
 
     if (targetPath && targetPath !== pathname) {
+      router.push(targetPath);
+    }
+  };
+
+  const navigateToProject = (project: Project) => {
+    if (!currentOrg || project.orgId !== currentOrg.id) return;
+
+    const targetTab = sidebarTab !== "project-settings" && PROJECT_ROUTE_TABS.has(sidebarTab)
+      ? sidebarTab
+      : "tokens";
+    const targetPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(project.slug)}/${targetTab}`;
+    if (targetPath !== pathname) {
+      pendingRoutePath.current = targetPath;
+    }
+
+    setCurrentProject(project);
+    setSidebarTab(targetTab);
+
+    if (targetPath !== pathname) {
       router.push(targetPath);
     }
   };
@@ -387,6 +407,7 @@ export default function Home() {
             <Sidebar
               onOpenSettings={() => setIsSettingsOpen(true)}
               onNavigateWorkspaceTab={navigateToWorkspaceTab}
+              onSelectProject={navigateToProject}
             />
           </div>
 
@@ -401,6 +422,7 @@ export default function Home() {
                 className="border-r-0 pt-10"
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 onNavigateWorkspaceTab={navigateToWorkspaceTab}
+                onSelectProject={navigateToProject}
               />
             </SheetContent>
           </Sheet>

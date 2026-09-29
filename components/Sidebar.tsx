@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { Project } from "@/types/tenant";
 import {
   Home,
   Sparkles,
@@ -80,11 +81,12 @@ function FigmaVariableIcon({ className }: { className?: string }) {
 interface SidebarProps {
   onOpenSettings?: () => void;
   onNavigateWorkspaceTab: (tab: "dashboard" | "projects" | "members" | "org-settings") => void;
+  onSelectProject: (project: Project) => void;
   mode?: "docked" | "drawer";
   className?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWorkspaceTab, mode = "docked", className }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWorkspaceTab, onSelectProject, mode = "docked", className }) => {
   const {
     currentUser,
     setCurrentUser,
@@ -248,19 +250,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                     return (
                       <DropdownMenuItem
                         key={proj.id}
-                        onClick={() => {
-                          setCurrentProject(proj);
-                          if (
-                            sidebarTab === "dashboard" ||
-                            sidebarTab === "projects" ||
-                            sidebarTab === "members" ||
-                            sidebarTab === "org-settings" ||
-                            sidebarTab === "project-settings" ||
-                            (sidebarTab as string) === "workspaces"
-                          ) {
-                            setSidebarTab("tokens");
-                          }
-                        }}
+                        onClick={() => onSelectProject(proj)}
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
                         <div
@@ -456,19 +446,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                     return (
                       <DropdownMenuItem
                         key={proj.id}
-                        onClick={() => {
-                          setCurrentProject(proj);
-                          if (
-                            sidebarTab === "dashboard" ||
-                            sidebarTab === "projects" ||
-                            sidebarTab === "members" ||
-                            sidebarTab === "org-settings" ||
-                            sidebarTab === "project-settings" ||
-                            (sidebarTab as string) === "workspaces"
-                          ) {
-                            setSidebarTab("tokens");
-                          }
-                        }}
+                        onClick={() => onSelectProject(proj)}
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium"
                       >
                         <div
@@ -618,26 +596,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             >
               <Home className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Overview</span>}
-            </button>
-
-            {/* Projects */}
-            <button
-              onClick={() => onNavigateWorkspaceTab("projects")}
-              title="Projects"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "projects" && !currentProject
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <FolderGit2 className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Projects</span>}
-              </div>
-              {!isCollapsed && orgProjects.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {orgProjects.length}
-                </span>
-              )}
             </button>
 
             {/* Members */}
