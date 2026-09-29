@@ -923,6 +923,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     } catch {}
   };
 
+  const getSidebarTabWithoutProject = (): TokenStoreState["sidebarTab"] => {
+    const tab = get().sidebarTab;
+    switch (tab) {
+      case "dashboard":
+      case "projects":
+      case "members":
+      case "org-settings":
+      case "workspaces":
+      case "project-settings":
+        return tab;
+      default:
+        return "dashboard";
+    }
+  };
+
   return {
   currentUser: null,
   isLoadingTenant: true,
@@ -1543,7 +1558,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                 } else {
                   set({
                     currentProject: null,
-                    sidebarTab: get().sidebarTab === "project-settings" ? "project-settings" : "dashboard",
+                    sidebarTab: getSidebarTabWithoutProject(),
                   });
                 }
               } else {
@@ -1673,7 +1688,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           set({
             currentProject: null,
             isLoadingProjectData: false,
-            sidebarTab: get().sidebarTab === "project-settings" ? "project-settings" : "dashboard",
+            sidebarTab: getSidebarTabWithoutProject(),
           });
         }
         get().loadInvitations(activeOrg.id);
