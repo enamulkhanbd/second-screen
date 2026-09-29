@@ -844,7 +844,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 ) : groupDepth === 4 ? (
                   <FolderTree className="w-3.5 h-3.5 text-purple-500" />
                 ) : (
-                  <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
               </Button>
             </DropdownMenuTrigger>
