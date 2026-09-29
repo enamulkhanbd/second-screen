@@ -142,6 +142,7 @@ export default function Home() {
       pendingRoutePath.current = hasProjectRoute ? pathname : null;
     }
 
+    if (pendingRoutePath.current !== pathname) return;
     if (!hasProjectRoute || !workspaceSlug || !projectSlug || !routeTab) return;
     if (!currentUser || isLoadingTenant) return;
 
@@ -208,7 +209,12 @@ export default function Home() {
       return;
     }
 
-    if (!currentOrg || !currentProject) return;
+    if (!currentProject) {
+      if (pathname !== "/") router.push("/");
+      return;
+    }
+
+    if (!currentOrg) return;
 
     const targetPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${sidebarTab}`;
     if (targetPath === pathname) return;
