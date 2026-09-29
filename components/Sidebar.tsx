@@ -598,6 +598,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
               {!isCollapsed && <span>Overview</span>}
             </button>
 
+            {/* Projects */}
+            <button
+              onClick={() => onNavigateWorkspaceTab("projects")}
+              title="Projects"
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "projects" && !currentProject
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                }`}
+            >
+              <FolderGit2 className="size-4 flex-shrink-0" />
+              {!isCollapsed && <span>Projects</span>}
+            </button>
+
             {/* Members */}
             <button
               onClick={() => {
