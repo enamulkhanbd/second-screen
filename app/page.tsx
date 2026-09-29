@@ -473,7 +473,7 @@ export default function Home() {
         ) : sidebarTab === "dashboard" ? (
           <DashboardView />
         ) : sidebarTab === "projects" ? (
-          <WorkspacesProjectsView />
+          <WorkspacesProjectsView onSelectProject={navigateToProject} />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "documentation" ? (
