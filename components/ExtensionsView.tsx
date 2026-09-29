@@ -226,7 +226,7 @@ export const ExtensionsView: React.FC = () => {
                 <div
                   key={item.id}
                   onClick={() => setInspectingItem(item)}
-                  className="group p-4 rounded-xl border border-border bg-card/50 hover:bg-muted/40 hover:border-border/80 transition-all cursor-pointer flex flex-col gap-1.5"
+                  className="group p-4 rounded-xl border border-border bg-card/50 hover:bg-muted/40 transition-all cursor-pointer flex flex-col gap-1.5"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
@@ -272,7 +272,7 @@ export const ExtensionsView: React.FC = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 text-xs font-medium border-border hover:border-primary hover:bg-primary/10 hover:text-primary"
+                            className="h-7 text-xs font-medium border-border hover:bg-primary/10 hover:text-primary"
                           >
                             <Plus className="size-3 mr-1" />
                             Enable

@@ -496,7 +496,7 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Manifest Card */}
-            <div className="p-3.5 rounded-xl border border-border bg-card hover:border-border/80 transition-all flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl border border-border bg-card transition-all flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                   <Box className="w-4 h-4" />
@@ -524,7 +524,7 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
             </div>
 
             {/* Raw JSON Card */}
-            <div className="p-3.5 rounded-xl border border-border bg-card hover:border-border/80 transition-all flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl border border-border bg-card transition-all flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center flex-shrink-0">
                   <FileCode2 className="w-4 h-4" />

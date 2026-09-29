@@ -1481,7 +1481,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
       return (
         <span
           onClick={onEdit}
-          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground cursor-pointer hover:border-foreground/30 transition-colors"
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground cursor-pointer transition-colors"
         >
           {rawValueStr}
         </span>

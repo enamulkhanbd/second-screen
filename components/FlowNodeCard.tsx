@@ -74,7 +74,7 @@ export const FlowNodeCard: React.FC<FlowNodeCardProps> = ({
         transform: `translate3d(${posX}px, ${posY}px, 0)`,
         width: `${node.width}px`,
       }}
-      className="absolute top-0 left-0 bg-white/95 dark:bg-[#121218]/95 border border-zinc-200 dark:border-zinc-800/90 rounded-2xl shadow-xl dark:shadow-2xl backdrop-blur-md overflow-hidden select-none transition-shadow hover:border-zinc-300 dark:hover:border-zinc-700 z-10"
+      className="absolute top-0 left-0 bg-white/95 dark:bg-[#121218]/95 border border-zinc-200 dark:border-zinc-800/90 rounded-2xl shadow-xl dark:shadow-2xl backdrop-blur-md overflow-hidden select-none transition-shadow z-10"
     >
       {/* Node Header (Draggable Handle) */}
       <div
@@ -115,7 +115,7 @@ export const FlowNodeCard: React.FC<FlowNodeCardProps> = ({
             hasAnySelection && !isSelected && !isUpstream && !isDownstream;
 
           let itemHighlight =
-            "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200/80 dark:border-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-300";
+            "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200/80 dark:border-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300";
 
           if (isSelected) {
             itemHighlight =

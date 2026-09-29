@@ -349,7 +349,7 @@ export const DocCanvas: React.FC<DocCanvasProps> = ({
                         e.stopPropagation();
                         handleOpenSlashMenu(index + 1);
                       }}
-                      className="relative z-10 flex items-center gap-1 rounded-full border border-border/80 bg-background px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground shadow-xs hover:border-primary hover:text-primary transition-colors"
+                      className="relative z-10 flex items-center gap-1 rounded-full border border-border/80 bg-background px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground shadow-xs hover:text-primary transition-colors"
                     >
                       <Plus className="h-3 w-3" />
                       <span>Add block</span>
@@ -367,7 +367,7 @@ export const DocCanvas: React.FC<DocCanvasProps> = ({
             <button
               type="button"
               onClick={() => handleOpenSlashMenu(page.blocks.length)}
-              className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-card/40 px-4 py-2 text-xs font-medium text-muted-foreground hover:border-primary/60 hover:text-primary transition-all"
+              className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-card/40 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-primary transition-all"
             >
               <Plus className="h-4 w-4" />
               <span>Insert block (or type /)</span>

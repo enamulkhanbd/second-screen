@@ -144,7 +144,7 @@ export const ReleasesListView: React.FC<ReleasesListViewProps> = ({
                 <div
                   key={release.id}
                   onClick={() => onSelectRelease(release.id)}
-                  className="group w-full p-4 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-card/80 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
+                  className="group w-full p-4 rounded-xl border border-border bg-card hover:bg-card/80 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
                 >
                   <div className="min-w-0 space-y-1 flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">

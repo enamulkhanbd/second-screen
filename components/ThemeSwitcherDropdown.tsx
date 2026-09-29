@@ -114,7 +114,7 @@ export const ThemeSwitcherDropdown: React.FC<ThemeSwitcherDropdownProps> = ({
                             "size-4 rounded-[4px] flex items-center justify-center shrink-0 transition-colors",
                             isSelected
                               ? "bg-primary text-primary-foreground shadow-2xs"
-                              : "border border-muted-foreground/40 bg-transparent hover:border-muted-foreground/70"
+                              : "border border-muted-foreground/40 bg-transparent"
                           )}
                         >
                           {isSelected && <Check className="size-3 stroke-[3]" />}

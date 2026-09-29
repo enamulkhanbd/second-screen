@@ -146,7 +146,7 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
             return (
               <div
                 key={key}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/70 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40"
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/70 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 {/* Swatch Color Preview */}
                 <div

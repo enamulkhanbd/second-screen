@@ -214,7 +214,7 @@ export const SystemChangelogView: React.FC = () => {
                   className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer select-none space-y-2 ${
                     isSelected
                       ? "bg-card border-primary shadow-sm ring-1 ring-primary/30"
-                      : "bg-card/50 border-border/70 hover:bg-card hover:border-border text-muted-foreground"
+                      : "bg-card/50 border-border/70 hover:bg-card text-muted-foreground"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">

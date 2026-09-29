@@ -444,7 +444,7 @@ export const BranchesView: React.FC = () => {
                   {historyItems.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between py-2 px-3 hover:bg-muted/50 rounded-lg text-xs transition-colors border border-transparent hover:border-border"
+                      className="flex items-center justify-between py-2 px-3 hover:bg-muted/50 rounded-lg text-xs transition-colors border border-transparent"
                     >
                       <div className="flex items-center gap-2.5">
                         <span className="text-emerald-500 font-bold text-sm leading-none">+</span>
@@ -738,8 +738,8 @@ export const BranchesView: React.FC = () => {
                   onClick={() => setSelectedBranchName(b.name)}
                   className={`bg-card border rounded-xl p-4 flex items-center justify-between transition-all cursor-pointer group shadow-xs ${
                     isCurrent
-                      ? "border-emerald-500/40 hover:border-emerald-500/60"
-                      : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
+                      ? "border-emerald-500/40"
+                      : "border-border hover:bg-muted/30"
                   }`}
                 >
                   <div className="min-w-0 flex-1 pr-4">

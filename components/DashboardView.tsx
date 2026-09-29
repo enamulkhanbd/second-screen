@@ -226,7 +226,7 @@ export const DashboardView: React.FC = () => {
                     <div
                       key={proj.id}
                       onClick={() => handleOpenProject(proj)}
-                      className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-primary/40 transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-4 group"
+                      className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-4 group"
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div
@@ -352,7 +352,7 @@ export const DashboardView: React.FC = () => {
                         setSidebarTab(card.tab as any);
                       }
                     }}
-                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-primary/40 transition-all cursor-pointer shadow-2xs flex items-start gap-3 group"
+                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs flex items-start gap-3 group"
                   >
                     <div className="w-8 h-8 rounded-lg bg-muted/70 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5">
                       <Icon className="w-4 h-4" />

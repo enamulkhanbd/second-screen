@@ -448,7 +448,7 @@ const TokenRow: React.FC<TokenRowProps> = ({
         {isAlias ? (
           <span
             onClick={onEdit}
-            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 cursor-pointer hover:border-blue-300 transition-colors"
+            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 cursor-pointer transition-colors"
           >
             {token.rawValue}
           </span>

@@ -1147,7 +1147,7 @@ export const App: React.FC = () => {
                     setSelectedOrg(org);
                     setView("SELECT_PROJECT");
                   }}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -1232,7 +1232,7 @@ export const App: React.FC = () => {
                     fetchTokens(config.serverUrl, config.pat, selectedOrg?.id, proj.id);
                     setView("MAIN");
                   }}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl bg-card border border-border hover:bg-muted/40 transition-all group text-left shadow-xs cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div

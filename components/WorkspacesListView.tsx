@@ -134,7 +134,7 @@ export const WorkspacesListView: React.FC = () => {
               <div
                 key={org.id}
                 onClick={() => handleSelectWorkspace(org)}
-                className="group p-4 sm:p-5 rounded-2xl border border-border/80 hover:border-primary/40 bg-card hover:bg-muted/30 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
+                className="group p-4 sm:p-5 rounded-2xl border border-border/80 bg-card hover:bg-muted/30 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
               >
                 {/* Left side: Avatar + Name + Subtitle */}
                 <div className="flex items-center gap-3.5 min-w-0">

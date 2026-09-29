@@ -259,7 +259,7 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
                     return (
                       <div
                         key={member.uid || member.email}
-                        className="flex items-center justify-between p-3 rounded-xl bg-card border border-border text-xs gap-3 hover:border-border/80 transition-colors"
+                        className="flex items-center justify-between p-3 rounded-xl bg-card border border-border text-xs gap-3 transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0">

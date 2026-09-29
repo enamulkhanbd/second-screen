@@ -576,7 +576,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                   return (
                     <Card
                       key={item.id}
-                      className="border-border hover:border-primary/50 transition-all shadow-xs group flex flex-col justify-between"
+                      className="border-border transition-all shadow-xs group flex flex-col justify-between"
                     >
                       <CardHeader className="p-3.5 pb-2 space-y-1.5">
                         <div className="flex items-center justify-between">

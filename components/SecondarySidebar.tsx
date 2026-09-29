@@ -541,7 +541,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                   setAddSetInitialName("");
                   setIsAddSetOpen(true);
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border hover:border-primary/50 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 <span>Add Token Set</span>

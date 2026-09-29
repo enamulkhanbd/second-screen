@@ -421,7 +421,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   return (
     <div
-      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-all duration-200 group-hover:border-border"
+      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-all duration-200"
       style={previewStyle}
     >
       {!isLoaded && !hasError && icon.url && (
@@ -477,7 +477,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   return (
     <div
-      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-all duration-200 group-hover:border-border p-2"
+      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-all duration-200 p-2"
       style={previewStyle}
     >
       {!isLoaded && !hasError && (
@@ -1832,7 +1832,7 @@ export const AssetsView: React.FC = () => {
           className={`relative w-full aspect-square rounded-2xl border overflow-hidden flex items-center justify-center transition-all duration-200 ${
             isSelected
               ? "border-primary ring-2 ring-primary/20 bg-muted/30"
-              : "border-border/60 bg-muted/20 hover:border-border"
+              : "border-border/60 bg-muted/20"
           }`}
         >
           {/* Selection Checkbox */}
@@ -1846,7 +1846,7 @@ export const AssetsView: React.FC = () => {
               className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-colors ${
                 isSelected
                   ? "bg-primary text-primary-foreground"
-                  : "bg-background/80 border border-border hover:border-primary text-transparent"
+                  : "bg-background/80 border border-border text-transparent"
               }`}
             >
               <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -2738,7 +2738,7 @@ export const AssetsView: React.FC = () => {
                     className={`p-5 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col justify-between group text-center space-y-4 ${
                       isDragOver
                         ? "border-primary bg-primary/5 scale-[1.01]"
-                        : "border-border/80 bg-card hover:border-primary/50 hover:bg-card/80 shadow-xs"
+                        : "border-border/80 bg-card hover:bg-card/80 shadow-xs"
                     }`}
                   >
                     <div className="space-y-3 flex flex-col items-center">
@@ -2783,7 +2783,7 @@ export const AssetsView: React.FC = () => {
                       setDrawerActiveTab("figma");
                       setIsSettingsDrawerOpen(true);
                     }}
-                    className="p-5 rounded-2xl border border-border bg-card hover:border-violet-500/50 hover:bg-violet-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
+                    className="p-5 rounded-2xl border border-border bg-card hover:bg-violet-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
                     <div className="space-y-3">
                       <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -2827,7 +2827,7 @@ export const AssetsView: React.FC = () => {
                       setDrawerActiveTab("git");
                       setIsSettingsDrawerOpen(true);
                     }}
-                    className="p-5 rounded-2xl border border-border bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
+                    className="p-5 rounded-2xl border border-border bg-card hover:bg-emerald-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
                     <div className="space-y-3">
                       <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -3470,7 +3470,7 @@ export const AssetsView: React.FC = () => {
                             className={`p-3.5 rounded-2xl border text-xs transition-all ${
                               isSrcPaused
                                 ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
-                                : "border-border bg-card shadow-2xs hover:border-violet-500/30"
+                                : "border-border bg-card shadow-2xs"
                             }`}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -4307,7 +4307,7 @@ export const AssetsView: React.FC = () => {
             {/* All Assets (Root) option */}
             <button
               onClick={() => handleConfirmMoveAssets(null)}
-              className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors text-left text-xs cursor-pointer group"
+              className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:bg-muted/50 transition-colors text-left text-xs cursor-pointer group"
             >
               <div className="flex items-center gap-2.5">
                 <Grid className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
@@ -4325,7 +4325,7 @@ export const AssetsView: React.FC = () => {
                 <button
                   key={f.id}
                   onClick={() => handleConfirmMoveAssets(f.id)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors text-left text-xs cursor-pointer group"
+                  className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:bg-muted/50 transition-colors text-left text-xs cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
                     <IconComp className="w-4 h-4 text-primary" />

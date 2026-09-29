@@ -1061,7 +1061,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                       className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
                         isActive
                           ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
-                          : "border-border hover:border-border/80"
+                          : "border-border"
                       }`}
                     >
                       <div className="space-y-3">
@@ -1637,7 +1637,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                       className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
                         isActive
                           ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
-                          : "border-border hover:border-border/80"
+                          : "border-border"
                       }`}
                     >
                       <div className="space-y-4">
@@ -1772,7 +1772,7 @@ export const WorkspacesProjectsView: React.FC = () => {
                             }}
                             variant="outline"
                             size="sm"
-                            className="gap-1 text-xs h-7 px-3 cursor-pointer hover:border-violet-500 hover:text-violet-600"
+                            className="gap-1 text-xs h-7 px-3 cursor-pointer hover:text-violet-600"
                           >
                             <span>Switch To</span>
                             <ArrowRight className="w-3 h-3" />
