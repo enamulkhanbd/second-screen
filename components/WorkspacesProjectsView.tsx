@@ -81,7 +81,9 @@ const COLOR_PRESETS = [
   { name: "Slate", value: "#64748b", bgClass: "bg-slate-500" },
 ];
 
-export const WorkspacesProjectsView: React.FC = () => {
+export const WorkspacesProjectsView: React.FC<{
+  onSelectProject: (project: Project) => void;
+}> = ({ onSelectProject }) => {
   const {
     currentUser,
     userOrgs,
@@ -430,8 +432,7 @@ export const WorkspacesProjectsView: React.FC = () => {
   };
 
   const handleOpenProjectInStudio = (project: Project) => {
-    setCurrentProject(project);
-    setSidebarTab("tokens");
+    onSelectProject(project);
     addToast({
       type: "success",
       title: "Project Opened",

@@ -1073,7 +1073,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     // 1. Synchronously inspect cache for target org to prevent UI flashing
     let cachedProjects: Project[] = [];
-    let hasCache = false;
     if (org && typeof window !== "undefined") {
       try {
         const cachedStr = localStorage.getItem(`ts_cached_org_projects_${org.id}`);
@@ -1081,7 +1080,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           const parsed = JSON.parse(cachedStr);
           if (Array.isArray(parsed) && parsed.length > 0) {
             cachedProjects = parsed;
-            hasCache = true;
           }
         }
       } catch {}
@@ -1091,7 +1089,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       currentOrg: org,
       syncTargetProject: previousOrgId === org?.id ? get().syncTargetProject : null,
       orgProjects: cachedProjects,
-      isLoadingProjects: org ? !hasCache : false,
+      isLoadingProjects: Boolean(org),
       currentProject: null,
       isLoadingProjectData: false,
       rawTokens: {},
@@ -1566,7 +1564,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             if (cachedProjectsStr) {
               const cachedProjects: Project[] = JSON.parse(cachedProjectsStr);
               if (Array.isArray(cachedProjects) && cachedProjects.length > 0) {
-                set({ orgProjects: cachedProjects, isLoadingProjects: false });
+                set({ orgProjects: cachedProjects, isLoadingProjects: true });
                 const savedSyncTargetId = localStorage.getItem("ts_sync_target_project_id") || (isSyncSettings ? savedProjId : null);
                 const cachedSyncTarget = cachedProjects.find((project) => project.id === savedSyncTargetId);
                 if (cachedSyncTarget) get().setSyncTargetProject(cachedSyncTarget);
@@ -3719,6 +3717,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       // 5. Restore Active Sidebar Tab and Tokens View Mode
       const validTabs = [
         "dashboard",
+        "projects",
         "variables",
         "tokens",
         "themes",
@@ -3739,9 +3738,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const isLegacySyncTab = ["integrations", "sync", "project-sync"].includes(savedTab || "");
+      const currentTab = get().sidebarTab;
       const initialTab: any =
         isLegacySyncTab
           ? "project-settings"
+          : currentTab && validTabs.includes(currentTab)
+          ? currentTab
           : savedTab && validTabs.includes(savedTab)
           ? savedTab
           : "dashboard";
