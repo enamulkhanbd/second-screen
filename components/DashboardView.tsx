@@ -230,7 +230,7 @@ export const DashboardView: React.FC = () => {
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 overflow-hidden ${
                             isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
                           }`}
                           style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}

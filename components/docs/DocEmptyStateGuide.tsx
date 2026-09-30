@@ -54,7 +54,7 @@ export const DocEmptyStateGuide: React.FC<DocEmptyStateGuideProps> = ({
               <button
                 type="button"
                 onClick={onCreateFirstPage}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-md hover:bg-primary/90 transition-all hover:scale-102 cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>Create Your First Page</span>

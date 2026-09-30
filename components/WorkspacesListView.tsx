@@ -139,7 +139,7 @@ export const WorkspacesListView: React.FC = () => {
                 {/* Left side: Avatar + Name + Subtitle */}
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-xs shrink-0 group-hover:scale-105 transition-transform"
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-xs shrink-0 overflow-hidden"
                     style={{ backgroundColor: orgColor }}
                   >
                     {org.logoUrl ? (
@@ -237,8 +237,8 @@ export const WorkspacesListView: React.FC = () => {
                     key={color}
                     type="button"
                     onClick={() => setNewOrgColor(color)}
-                    className={`w-7 h-7 rounded-lg transition-transform cursor-pointer ${
-                      newOrgColor === color ? "ring-2 ring-primary ring-offset-2 scale-110" : "hover:scale-105"
+                    className={`w-7 h-7 rounded-lg transition-all cursor-pointer ${
+                      newOrgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-90"
                     }`}
                     style={{ backgroundColor: color }}
                   />

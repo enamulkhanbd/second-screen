@@ -932,7 +932,7 @@ export const WorkspacesProjectsView: React.FC<{
                       {/* Col 1: Project Identity */}
                       <div className="col-span-8 sm:col-span-7 flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 overflow-hidden ${
                             isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
                           }`}
                           style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
@@ -1070,7 +1070,7 @@ export const WorkspacesProjectsView: React.FC<{
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0 overflow-hidden ${
                                 isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
                               }`}
                               style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
@@ -1446,7 +1446,7 @@ export const WorkspacesProjectsView: React.FC<{
                       {/* Col 1: Workspace Identity */}
                       <div className="col-span-5 sm:col-span-4 flex items-center gap-3 min-w-0">
                         <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden text-white"
+                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-2xs flex-shrink-0 overflow-hidden text-white"
                           style={{ backgroundColor: orgColor }}
                         >
                           {org.logoUrl ? (
@@ -1646,7 +1646,7 @@ export const WorkspacesProjectsView: React.FC<{
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden"
+                              className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-xs flex-shrink-0 overflow-hidden"
                               style={{ backgroundColor: orgColor }}
                             >
                               {org.logoUrl ? (
