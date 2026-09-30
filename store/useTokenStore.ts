@@ -340,6 +340,9 @@ interface TokenStoreState {
   syncError: string | null;
   syncMeta: SyncMeta | null;
   toasts: ToastMessage[];
+  cloudSaveStatus: "synced" | "saving" | "error" | "offline";
+  lastCloudSaveTime: string | null;
+  setCloudSaveStatus: (status: "synced" | "saving" | "error" | "offline", time?: string) => void;
 
   // Actions
   initializeFromStorage: () => Promise<void> | void;
@@ -814,7 +817,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
     const { currentOrg, currentProject, branches, activeBranch } = get();
     if (currentOrg && currentProject) {
-      saveProjectTokens(currentOrg.id, currentProject.id, doc, groups).catch(() => {});
+      set({ cloudSaveStatus: "saving" });
+      saveProjectTokens(currentOrg.id, currentProject.id, doc, groups)
+        .then(() => {
+          set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
+        })
+        .catch(() => {
+          set({ cloudSaveStatus: "error" });
+        });
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const updatedBranches = projectBranches.map((b) =>
         b.name === activeBranch
@@ -1162,6 +1172,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     set({
       currentProject: proj,
+      cloudSaveStatus: "synced",
+      lastCloudSaveTime: proj?.updatedAt || new Date().toISOString(),
       isLoadingProjectData: needsProjectHydration,
       rawTokens: {},
       originalTokens: {},
@@ -3577,6 +3589,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   syncStatus: "idle",
   syncError: null,
   syncMeta: null,
+  cloudSaveStatus: "synced",
+  lastCloudSaveTime: null,
+  setCloudSaveStatus: (status, time) =>
+    set({
+      cloudSaveStatus: status,
+      ...(time !== undefined ? { lastCloudSaveTime: time } : {}),
+    }),
   toasts: [],
 
   checkRemoteUpdates: async () => {
@@ -3940,7 +3959,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     // Synchronize loaded tokens with active Project in Cloud Firestore and Active Branch
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
     if (currentOrg && currentProject) {
-      saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups).catch(() => {});
+      set({ cloudSaveStatus: "saving" });
+      saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups)
+        .then(() => {
+          set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
+        })
+        .catch(() => {
+          set({ cloudSaveStatus: "error" });
+        });
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const effectiveBranch = credentials.branch || activeBranch || "main";
       const hasBranch = projectBranches.some((b) => b.name === effectiveBranch);

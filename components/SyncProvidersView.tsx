@@ -35,6 +35,7 @@ import {
   ArrowUpFromLine,
   Send,
   Figma,
+  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +111,8 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
     addToast,
     getCurrentUserRole,
     setSidebarTab,
+    cloudSaveStatus,
+    activeBranch,
   } = useTokenStore();
   const syncProject = syncTargetProject || currentProject;
   const projectCredentials = syncProject?.gitConfig ?? credentials;
@@ -590,6 +593,91 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         {/* ------------------------------------------------------------- */}
         {activeSyncTab === "git" && (
           <div className="space-y-6">
+            {/* Storage & Architecture Overview */}
+            <div className="p-5 rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Storage &amp; Sync Architecture</span>
+                </div>
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  3-Tier Token Pipeline
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                {/* Tier 1: Supabase Cloud DB */}
+                <div className="p-3.5 rounded-xl border border-border/60 bg-background/60 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1.5 mb-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Database className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Supabase Cloud DB</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                        {cloudSaveStatus === "saving" ? "Saving..." : cloudSaveStatus === "error" ? "Error" : "Always Active"}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Tokens are persistently stored in your project&apos;s cloud database (<code className="text-[10px] bg-muted px-1 py-0.5 rounded font-mono">raw_tokens</code>). Changes auto-save in real-time.
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>No Git required</span>
+                    <span className="font-mono text-emerald-500">● Live Auto-Save</span>
+                  </div>
+                </div>
+
+                {/* Tier 2: App Native Branching */}
+                <div className="p-3.5 rounded-xl border border-border/60 bg-background/60 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1.5 mb-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <GitBranch className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Native Branching</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10">
+                        {currentProject?.branches && currentProject.branches.length > 0 ? `${currentProject.branches.length} branches` : "Built-in"}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Create, switch, and merge token branches natively within Second Screen without requiring a remote repository.
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Active: <span className="font-semibold text-foreground">{activeBranch || currentProject?.activeBranch || "main"}</span></span>
+                    <span className="font-mono text-blue-500">Cloud Stored</span>
+                  </div>
+                </div>
+
+                {/* Tier 3: Remote Git Provider */}
+                <div className="p-3.5 rounded-xl border border-border/60 bg-background/60 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1.5 mb-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <FolderGit2 className="w-3.5 h-3.5 text-primary" />
+                        <span>External Git Mirror</span>
+                      </div>
+                      <Badge variant={isGitConnected ? "success" : "outline"} className="text-[10px] px-1.5 py-0">
+                        {isGitConnected ? activeProvider.label : "Optional (Unlinked)"}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      {isGitConnected
+                        ? `Mirrors tokens to ${credentials.owner}/${credentials.repo} on branch ${credentials.branch || "main"}.`
+                        : "Connect GitHub, GitLab, Bitbucket, or Azure DevOps to sync tokens directly into your dev codebase & CI/CD."}
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Codebase bridge</span>
+                    <span className={isGitConnected ? "font-mono text-emerald-500" : "font-mono text-muted-foreground"}>
+                      {isGitConnected ? "● Linked" : "○ Cloud Only"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Git Status Card */}
             <div className="p-5 rounded-2xl border border-border bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">

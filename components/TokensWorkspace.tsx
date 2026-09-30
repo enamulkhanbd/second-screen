@@ -29,6 +29,7 @@ import {
   Trash2,
   FolderGit2,
   GitBranch,
+  Database,
   FolderTree,
   List,
   ChevronsUpDown,
@@ -91,7 +92,20 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     activeBranch,
     switchBranchAction,
     addNewToken,
+    cloudSaveStatus,
+    currentProject,
+    setProjectSettingsTab,
   } = useTokenStore();
+
+  const getProviderIcon = (prov?: string) => {
+    switch (prov) {
+      case "github": return "🐙";
+      case "gitlab": return "🦊";
+      case "azure": return "🔷";
+      case "bitbucket": return "🪣";
+      default: return "🔗";
+    }
+  };
 
   const isGitConfigured = Boolean(
     credentials.provider && credentials.owner && credentials.repo
@@ -678,22 +692,69 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </DropdownMenu>
           )}
 
-          {/* Active Branch Pill & Quick Switcher (Native branches when no Git; Git branch badge when Git configured) */}
+          {/* 1. Supabase Cloud Database Indicator */}
+          <div
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border border-border/80 bg-muted/30 text-foreground select-none"
+            title={`Database: Supabase Cloud (PostgreSQL) · Auto-saved to project "${currentProject?.name || "current"}"`}
+          >
+            <Database className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="font-semibold text-foreground/80 hidden sm:inline">Supabase</span>
+            <span
+              className={cn(
+                "w-1.5 h-1.5 rounded-full shrink-0",
+                cloudSaveStatus === "saving" && "bg-amber-500 animate-pulse",
+                cloudSaveStatus === "error" && "bg-red-500",
+                cloudSaveStatus === "synced" && "bg-emerald-500",
+                cloudSaveStatus === "offline" && "bg-zinc-400"
+              )}
+            />
+          </div>
+
+          {/* 2. Git Sync Provider Indicator */}
+          {isGitConfigured ? (
+            <button
+              onClick={() => {
+                setProjectSettingsTab("sync");
+                setSidebarTab("project-settings");
+              }}
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border/80 bg-muted/30 hover:bg-muted text-foreground transition-colors cursor-pointer"
+              title={`Connected Git repository: ${credentials.owner}/${credentials.repo} · Click to manage sync`}
+            >
+              <span>{getProviderIcon(credentials.provider)}</span>
+              <span className="max-w-[100px] truncate hidden sm:inline font-semibold">{credentials.repo}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setProjectSettingsTab("sync");
+                setSidebarTab("project-settings");
+              }}
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border border-dashed border-border/80 hover:border-primary/50 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Tokens are stored in Supabase. Click to optionally connect a Git repository."
+            >
+              <FolderGit2 className="w-3.5 h-3.5" />
+              <span className="text-[11px]">Cloud Only</span>
+            </button>
+          )}
+
+          {/* 3. Active Branch Pill & Quick Switcher */}
           {!isGitConfigured ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border/80 bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
-                  title={`Active branch: ${activeBranch || "main"}`}
+                  title={`Native branch: ${activeBranch || "main"} (Supabase Cloud)`}
                 >
                   <GitBranch className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:inline">Native:</span>
                   <span className="max-w-[120px] truncate">{activeBranch || "main"}</span>
                   <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-60 text-xs">
-                <div className="px-2 py-1.5 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Switch Branch
+                <div className="px-2 py-1.5 text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
+                  <Database className="w-3 h-3 text-emerald-500" />
+                  <span>Native Branches (Supabase)</span>
                 </div>
                 <DropdownMenuSeparator />
                 <div className="max-h-56 overflow-y-auto space-y-0.5">
@@ -734,6 +795,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               title={`Git branch: ${credentials.branch || "main"}`}
             >
               <GitBranch className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:inline">Git:</span>
               <span className="max-w-[120px] truncate">{credentials.branch || "main"}</span>
             </div>
           )}
