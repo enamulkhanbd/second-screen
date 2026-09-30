@@ -118,6 +118,7 @@ export const MembersView: React.FC = () => {
         });
         setInviteEmail("");
         setPreviewInvitation(inv);
+        setMembersSubTab("invites");
       }
     } catch (e: any) {
       addToast({
@@ -464,124 +465,149 @@ export const MembersView: React.FC = () => {
               </form>
             )}
 
-            {/* Section 2: Active Members Roster */}
+            {/* Section 2: Members & Invitations Roster Card */}
             <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
-              <div className="p-6 border-b border-border/70 flex items-center justify-between">
+              <div className="p-6 border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span>Active Members ({members.length})</span>
+                    {membersSubTab === "invites" ? (
+                      <>
+                        <Clock className="w-4 h-4 text-amber-500" />
+                        <span>Pending Invitations ({activePendingInvitations.length})</span>
+                      </>
+                    ) : (
+                      <>
+                        <Users className="w-4 h-4 text-primary" />
+                        <span>Active Members ({members.length})</span>
+                      </>
+                    )}
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Designers and engineers with access to this organization&apos;s design tokens and projects.
+                    {membersSubTab === "invites"
+                      ? "Colleagues who have been invited to this workspace but have not yet accepted."
+                      : "Designers and engineers with access to this organization's design tokens and projects."}
                   </p>
+                </div>
+
+                {/* Pill Tab Switcher matching Projects & Workspaces */}
+                <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMembersSubTab("members")}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      membersSubTab !== "invites"
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                    <span>Active ({members.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMembersSubTab("invites")}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      membersSubTab === "invites"
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Invitations ({activePendingInvitations.length})</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="divide-y divide-border/60">
-                {members.map((member) => {
-                  const isMemberOwner = member.role === "owner" || member.uid === currentOrg.ownerUid;
-                  const isCurrentUser = member.uid === currentUser?.uid || member.email === currentUser?.email;
-                  const roleDef = ROLE_DEFINITIONS[member.role] || ROLE_DEFINITIONS.editor;
+              {membersSubTab !== "invites" ? (
+                <div className="divide-y divide-border/60">
+                  {members.map((member) => {
+                    const isMemberOwner = member.role === "owner" || member.uid === currentOrg.ownerUid;
+                    const isCurrentUser = member.uid === currentUser?.uid || member.email === currentUser?.email;
+                    const roleDef = ROLE_DEFINITIONS[member.role] || ROLE_DEFINITIONS.editor;
 
-                  return (
-                    <div
-                      key={member.email}
-                      className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center border border-primary/20 flex-shrink-0">
-                          {member.displayName ? member.displayName.charAt(0).toUpperCase() : member.email.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-foreground">
-                              {member.displayName || member.email.split("@")[0]}
-                            </span>
-                            {isCurrentUser && (
-                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">You</Badge>
-                            )}
-                            {isMemberOwner && (
-                              <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                                <Crown className="size-2.5" />
-                                <span>Owner</span>
-                              </Badge>
-                            )}
+                    return (
+                      <div
+                        key={member.email}
+                        className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center border border-primary/20 flex-shrink-0">
+                            {member.displayName ? member.displayName.charAt(0).toUpperCase() : member.email.charAt(0).toUpperCase()}
                           </div>
-                          <p className="text-[11px] text-muted-foreground font-mono">{member.email}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                {member.displayName || member.email.split("@")[0]}
+                              </span>
+                              {isCurrentUser && (
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">You</Badge>
+                              )}
+                              {isMemberOwner && (
+                                <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                  <Crown className="size-2.5" />
+                                  <span>Owner</span>
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground font-mono">{member.email}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Role Selector or Badge */}
+                          {isMemberOwner ? (
+                            <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
+                              Owner
+                            </Badge>
+                          ) : canManageRoles ? (
+                            <Select
+                              value={member.role}
+                              onValueChange={(val: any) => handleRoleChange(member.email, val as UserRole)}
+                            >
+                              <SelectTrigger className="h-8 w-28 text-xs">
+                                <SelectValue placeholder="Role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">
+                                  <span className="font-semibold text-xs">Admin</span>
+                                </SelectItem>
+                                <SelectItem value="editor">
+                                  <span className="font-semibold text-xs">Editor</span>
+                                </SelectItem>
+                                <SelectItem value="viewer">
+                                  <span className="font-semibold text-xs">Viewer</span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
+                              {roleDef.title}
+                            </Badge>
+                          )}
+
+                          {/* Remove Action */}
+                          {canManageRoles && !isMemberOwner && !isCurrentUser && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeMemberAction(member.email)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Remove member"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        {/* Role Selector or Badge */}
-                        {isMemberOwner ? (
-                          <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
-                            Owner
-                          </Badge>
-                        ) : canManageRoles ? (
-                          <Select
-                            value={member.role}
-                            onValueChange={(val: any) => handleRoleChange(member.email, val as UserRole)}
-                          >
-                            <SelectTrigger className="h-8 w-28 text-xs">
-                              <SelectValue placeholder="Role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">
-                                <span className="font-semibold text-xs">Admin</span>
-                              </SelectItem>
-                              <SelectItem value="editor">
-                                <span className="font-semibold text-xs">Editor</span>
-                              </SelectItem>
-                              <SelectItem value="viewer">
-                                <span className="font-semibold text-xs">Viewer</span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
-                            {roleDef.title}
-                          </Badge>
-                        )}
-
-                        {/* Remove Action */}
-                        {canManageRoles && !isMemberOwner && !isCurrentUser && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeMemberAction(member.email)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
-                            title="Remove member"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Section 3: Pending Invitations */}
-            <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
-              <div className="p-6 border-b border-border/70 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-amber-500" />
-                    <span>Pending Invitations ({activePendingInvitations.length})</span>
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Colleagues who have been invited to this workspace but have not yet accepted.
-                  </p>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {activePendingInvitations.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-1.5">
-                  <Mail className="w-6 h-6 opacity-30 text-muted-foreground" />
+              ) : activePendingInvitations.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
+                  <Mail className="w-8 h-8 opacity-30 text-muted-foreground" />
                   <span className="text-xs font-semibold text-foreground">No pending invitations</span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground max-w-xs">
                     Invited teammates will appear here until they accept their invitation.
                   </span>
                 </div>
