@@ -206,7 +206,7 @@ export default function Home() {
     }
 
     setSyncTargetProject(project);
-    setCurrentProject(project);
+    setCurrentProject(project, { skipHydration: true });
     setProjectSettingsTab(tab);
     setSidebarTab("project-settings");
 
@@ -304,13 +304,22 @@ export default function Home() {
       return;
     }
 
-    if (currentProject?.id !== matchingProject.id) {
-      setCurrentProject(matchingProject);
-      return;
+    const isProjectChanging = currentProject?.id !== matchingProject.id;
+    const isTabChanging = sidebarTab !== routeTab;
+
+    if (routeTab === "project-settings") {
+      setSyncTargetProject(matchingProject);
     }
 
-    if (sidebarTab !== routeTab) {
+    if (isProjectChanging) {
+      setCurrentProject(matchingProject, { skipHydration: routeTab === "project-settings" });
+    }
+
+    if (isTabChanging) {
       setSidebarTab(routeTab as typeof sidebarTab);
+    }
+
+    if (isProjectChanging || isTabChanging) {
       return;
     }
 

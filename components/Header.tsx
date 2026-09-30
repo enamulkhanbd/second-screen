@@ -186,9 +186,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     if (sidebarTab === "project-settings" && (syncTargetProject || currentProject)) {
       const project = syncTargetProject || currentProject;
       items.push({
-        label: "Overview",
+        label: "Projects",
         hasBackButton: true,
-        onClick: () => setSidebarTab("dashboard"),
+        onClick: () => {
+          setCurrentProject(null);
+          setSidebarTab("projects");
+        },
       });
       items.push({
         label: orgName,

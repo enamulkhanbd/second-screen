@@ -110,7 +110,7 @@ interface TokenStoreState {
   setCurrentUser: (user: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null) => void;
   signOutUser: () => Promise<void>;
   setCurrentOrg: (org: Organization | null) => void;
-  setCurrentProject: (project: Project | null) => void;
+  setCurrentProject: (project: Project | null, options?: { skipHydration?: boolean }) => void;
   setSyncTargetProject: (project: Project | null) => void;
   setActiveInviteToken: (token: string | null) => void;
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
@@ -1159,14 +1159,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  setCurrentProject: (proj) => {
+  setCurrentProject: (proj, options) => {
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
     const previousState = get();
     const isSameProject = previousState.currentProject?.id === proj?.id;
     const previousThemeGroupId = isSameProject ? previousState.activeThemeGroupId : "";
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
-    const needsProjectHydration = Boolean(proj && proj.rawTokens === undefined);
+    const isProjectSettings = get().sidebarTab === "project-settings";
+    const needsProjectHydration = !options?.skipHydration && !isProjectSettings && Boolean(proj && proj.rawTokens === undefined);
 
     set({
       currentProject: proj,
@@ -3306,6 +3307,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   sidebarTab: "dashboard",
   projectSettingsTab: "details",
   setSidebarTab: (tab) => {
+    const currentProj = get().currentProject;
     set((state) => ({
       sidebarTab: tab,
       syncTargetProject: tab === "project-settings" ? state.syncTargetProject : null,
@@ -3317,6 +3319,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           localStorage.removeItem("ts_sync_target_project_id");
         }
       } catch { }
+    }
+    // If entering a token-bearing Studio tab and project tokens have not been hydrated yet, trigger hydration
+    if (
+      tab !== "project-settings" &&
+      currentProj &&
+      currentProj.rawTokens === undefined &&
+      !get().isLoadingProjectData
+    ) {
+      get().setCurrentProject(currentProj);
     }
   },
   setProjectSettingsTab: (tab) => {

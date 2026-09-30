@@ -124,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
   const isCollapsed = mode === "docked" && isCollapsedState;
 
   const userRole = getCurrentUserRole();
-  const isWorkspaceNavigation = !currentProject;
+  const isWorkspaceNavigation = !currentProject || sidebarTab === "project-settings";
   const sidebarProject = isWorkspaceNavigation ? null : currentProject;
 
   // Extract all valid set names based on $metadata.json ($themes.json or valid token sets)
@@ -587,7 +587,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             <button
               onClick={() => onNavigateWorkspaceTab("dashboard")}
               title="Overview"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "dashboard" && !currentProject
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "dashboard"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
@@ -600,7 +600,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             <button
               onClick={() => onNavigateWorkspaceTab("projects")}
               title="Projects"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "projects" && !currentProject
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${(sidebarTab === "projects" || sidebarTab === "project-settings")
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
@@ -623,7 +623,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 setMembersSubTab("members");
               }}
               title="Members"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "members" && !currentProject
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "members"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
@@ -643,7 +643,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             <button
               onClick={() => onNavigateWorkspaceTab("org-settings")}
               title="Workspace Settings"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "org-settings" && !currentProject
+              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "org-settings"
                   ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                   : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
                 }`}
