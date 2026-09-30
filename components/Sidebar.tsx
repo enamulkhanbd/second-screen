@@ -194,7 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:scale-105 transition-transform cursor-pointer overflow-hidden"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:opacity-90 transition-opacity cursor-pointer overflow-hidden"
                   style={
                     sidebarProject
                       ? (sidebarProject.logoUrl

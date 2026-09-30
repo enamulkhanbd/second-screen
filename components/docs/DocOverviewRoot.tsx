@@ -150,11 +150,11 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
                 <div
                   key={page.id}
                   onClick={() => onSelectPage(page.id)}
-                  className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs transition-colors hover:bg-accent/40 hover:border-foreground/20"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         {isColorPage ? (
                           <Palette className="h-4 w-4" />
                         ) : isTypePage ? (

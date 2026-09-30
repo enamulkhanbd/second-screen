@@ -326,9 +326,9 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
               {/* Option A: Git Sync */}
               <div
                 onClick={() => handleChoosePath("git")}
-                className="p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 transition-all cursor-pointer flex items-start gap-3 group"
+                className="p-3.5 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-foreground/20 transition-colors cursor-pointer flex items-start gap-3 group"
               >
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                   <GitBranch className="w-4 h-4" />
                 </div>
                 <div className="space-y-0.5 flex-1">
@@ -345,9 +345,9 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
               {/* Option B: Figma Plugin Sync */}
               <div
                 onClick={() => handleChoosePath("figma")}
-                className="p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 transition-all cursor-pointer flex items-start gap-3 group"
+                className="p-3.5 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-foreground/20 transition-colors cursor-pointer flex items-start gap-3 group"
               >
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Zap className="w-4 h-4" />
                 </div>
                 <div className="space-y-0.5 flex-1">
@@ -363,9 +363,9 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
               {/* Option C: Clean Canvas */}
               <div
                 onClick={() => handleChoosePath("tokens")}
-                className="p-3.5 rounded-xl border border-border bg-card hover:bg-primary/5 transition-all cursor-pointer flex items-start gap-3 group"
+                className="p-3.5 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-foreground/20 transition-colors cursor-pointer flex items-start gap-3 group"
               >
-                <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0 mt-0.5">
                   <FileCode className="w-4 h-4 text-foreground" />
                 </div>
                 <div className="space-y-0.5 flex-1">

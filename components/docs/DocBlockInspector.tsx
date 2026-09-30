@@ -120,7 +120,7 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                     key={bg}
                     type="button"
                     onClick={() => onUpdatePage({ headerBackground: bg })}
-                    className={`relative h-7 w-7 rounded-full border shadow-sm transition-all hover:scale-110 ${
+                    className={`relative h-7 w-7 rounded-full border shadow-xs transition-all hover:opacity-90 hover:ring-2 hover:ring-ring/30 ${
                       isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border/60"
                     }`}
                     style={{

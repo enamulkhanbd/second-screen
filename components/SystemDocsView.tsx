@@ -239,7 +239,7 @@ export const SystemDocsView: React.FC = () => {
                       <img
                         src={currentSection.screenshotUrl}
                         alt={currentSection.screenshotCaption || currentSection.title}
-                        className="max-h-[360px] w-auto rounded-lg object-contain border border-border/40 transition-transform duration-200 group-hover:scale-[1.01]"
+                        className="max-h-[360px] w-auto rounded-lg object-contain border border-border/40 transition-colors duration-200 group-hover:border-foreground/20"
                       />
                     </div>
                   </div>
