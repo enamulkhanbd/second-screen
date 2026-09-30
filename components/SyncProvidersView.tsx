@@ -371,7 +371,13 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
       setCredentials(updatedCreds, rememberPat);
       await saveProjectGitConfig(currentOrg.id, syncProject.id, updatedCreds);
-      setSyncTargetProject({ ...syncProject, gitConfig: updatedCreds });
+      const updatedProject = { ...syncProject, gitConfig: updatedCreds };
+      if (syncTargetProject) {
+        setSyncTargetProject(updatedProject);
+      }
+      if (currentProject && currentProject.id === syncProject.id) {
+        setCurrentProject(updatedProject);
+      }
 
       addToast({
         type: "success",
@@ -394,7 +400,13 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
     try {
       clearCredentials();
       await saveProjectGitConfig(currentOrg.id, syncProject.id, null);
-      setSyncTargetProject({ ...syncProject, gitConfig: null });
+      const updatedProject = { ...syncProject, gitConfig: null };
+      if (syncTargetProject) {
+        setSyncTargetProject(updatedProject);
+      }
+      if (currentProject && currentProject.id === syncProject.id) {
+        setCurrentProject(updatedProject);
+      }
       setShowDisconnectGitModal(false);
       addToast({
         type: "info",

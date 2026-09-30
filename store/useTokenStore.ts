@@ -2133,12 +2133,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setCredentials: (newCreds, rememberPat = true) =>
     set((state) => {
       const updated = { ...state.credentials, ...newCreds };
+      const targetProject = state.syncTargetProject || state.currentProject;
+
       if (typeof window !== "undefined") {
         try {
-          // No longer persist credentials globally — they live in Firestore per-project.
-          // Only persist the per-project branch override and PAT.
-          if (state.currentProject?.id && updated.branch) {
-            localStorage.setItem(`ts_project_branch_${state.currentProject.id}`, updated.branch);
+          if (targetProject?.id && updated.branch) {
+            localStorage.setItem(`ts_project_branch_${targetProject.id}`, updated.branch);
           }
 
           // Save PAT in sessionStorage (secure tab lifecycle) and localStorage if requested
@@ -2153,17 +2153,27 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
       }
 
-      // Persist to project in Firestore if available
-      if (state.currentOrg && state.currentProject) {
+      // Persist to project in Supabase if available
+      if (state.currentOrg && targetProject) {
         const updatedProject = {
-          ...state.currentProject,
+          ...targetProject,
           gitConfig: {
-            ...(state.currentProject.gitConfig || {}),
+            ...(targetProject.gitConfig || {}),
             ...updated,
           },
         };
-        saveProjectGitConfig(state.currentOrg.id, state.currentProject.id, updatedProject.gitConfig);
-        return { credentials: updated, currentProject: updatedProject };
+        saveProjectGitConfig(state.currentOrg.id, targetProject.id, updatedProject.gitConfig);
+
+        const updatedOrgProjects = state.orgProjects.map((p) =>
+          p.id === targetProject.id ? updatedProject : p
+        );
+
+        return {
+          credentials: updated,
+          currentProject: state.currentProject?.id === targetProject.id ? updatedProject : state.currentProject,
+          syncTargetProject: state.syncTargetProject?.id === targetProject.id ? updatedProject : state.syncTargetProject,
+          orgProjects: updatedOrgProjects,
+        };
       }
 
       return { credentials: updated };

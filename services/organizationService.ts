@@ -75,9 +75,26 @@ function mapDbProjectToProject(row: any, integration?: any): Project {
     rawTokens: row.raw_tokens || {},
     themeGroups: row.theme_groups || [],
     enabledSchemas: row.enabled_schemas || [],
-    gitConfig: integration?.git_config && Object.keys(integration.git_config).length > 0 ? integration.git_config : null,
-    assetGitConfig: integration?.asset_git_config && Object.keys(integration.asset_git_config).length > 0 ? integration.asset_git_config : null,
-    assetFigmaConfig: integration?.asset_figma_config && Object.keys(integration.asset_figma_config).length > 0 ? integration.asset_figma_config : null,
+    gitConfig:
+      integration?.git_config && Object.keys(integration.git_config).length > 0
+        ? integration.git_config
+        : row.git_config && Object.keys(row.git_config).length > 0
+        ? row.git_config
+        : row.credentials && Object.keys(row.credentials).length > 0
+        ? row.credentials
+        : null,
+    assetGitConfig:
+      integration?.asset_git_config && Object.keys(integration.asset_git_config).length > 0
+        ? integration.asset_git_config
+        : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
+        ? row.asset_git_config
+        : null,
+    assetFigmaConfig:
+      integration?.asset_figma_config && Object.keys(integration.asset_figma_config).length > 0
+        ? integration.asset_figma_config
+        : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
+        ? row.asset_figma_config
+        : null,
     figmaVariables: row.figma_variables || {},
     documentation: row.documentation || null,
     assets: extra.assets || [],
@@ -780,25 +797,58 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
       const client = getClient();
       const { data, error } = await client
         .from("projects")
-        .select("id, org_id, name, slug, description, icon, color, logo_url, active_branch, enabled_schemas, created_at, updated_at")
+        .select("id, org_id, name, slug, description, icon, color, logo_url, active_branch, git_config, credentials, asset_git_config, asset_figma_config, enabled_schemas, created_at, updated_at")
         .eq("org_id", orgId)
         .order("created_at", { ascending: true });
 
       if (!error && data) {
-        return data.map((row: any) => ({
-          id: row.id,
-          orgId: row.org_id,
-          name: row.name,
-          slug: row.slug,
-          description: row.description || undefined,
-          icon: row.icon || "🎯",
-          color: row.color || "#171717",
-          logoUrl: row.logo_url || "",
-          activeBranch: row.active_branch || "main",
-          enabledSchemas: row.enabled_schemas || [],
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        }));
+        const { data: integrations } = await client
+          .from("project_integrations")
+          .select("project_id, git_config, asset_git_config, asset_figma_config")
+          .eq("org_id", orgId);
+        const integrationByProject = new Map<string, any>((integrations || []).map((item: any) => [item.project_id, item]));
+
+        return data.map((row: any) => {
+          const integ = integrationByProject.get(row.id);
+          const gitConfig =
+            integ?.git_config && Object.keys(integ.git_config).length > 0
+              ? integ.git_config
+              : row.git_config && Object.keys(row.git_config).length > 0
+              ? row.git_config
+              : row.credentials && Object.keys(row.credentials).length > 0
+              ? row.credentials
+              : null;
+          const assetGitConfig =
+            integ?.asset_git_config && Object.keys(integ.asset_git_config).length > 0
+              ? integ.asset_git_config
+              : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
+              ? row.asset_git_config
+              : null;
+          const assetFigmaConfig =
+            integ?.asset_figma_config && Object.keys(integ.asset_figma_config).length > 0
+              ? integ.asset_figma_config
+              : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
+              ? row.asset_figma_config
+              : null;
+
+          return {
+            id: row.id,
+            orgId: row.org_id,
+            name: row.name,
+            slug: row.slug,
+            description: row.description || undefined,
+            icon: row.icon || "🎯",
+            color: row.color || "#171717",
+            logoUrl: row.logo_url || "",
+            activeBranch: row.active_branch || "main",
+            enabledSchemas: row.enabled_schemas || [],
+            gitConfig,
+            assetGitConfig,
+            assetFigmaConfig,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+          };
+        });
       }
 
       if (error) {
@@ -1247,18 +1297,59 @@ export async function saveProjectGitConfig(
   projectId: string,
   gitConfig: GitCredentials | null
 ): Promise<void> {
-  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  if (!orgId || !projectId) return;
+
+  // 1. Update localStorage project caches immediately
+  if (typeof window !== "undefined") {
+    try {
+      const key = `ts_cached_org_projects_${orgId}`;
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: Project[] = JSON.parse(existing);
+        const updated = list.map((p) =>
+          p.id === projectId ? { ...p, gitConfig, updatedAt: new Date().toISOString() } : p
+        );
+        safeSetCachedProjects(orgId, updated);
+      }
+      const projKey = `ts_cached_project_${orgId}_${projectId}`;
+      const existingSingle = localStorage.getItem(projKey);
+      if (existingSingle) {
+        const p: Project = JSON.parse(existingSingle);
+        localStorage.setItem(projKey, JSON.stringify({ ...p, gitConfig, updatedAt: new Date().toISOString() }));
+      }
+    } catch {}
+  }
+
+  if (!isSupabaseConfigured) return;
   const client = getClient();
   try {
-    await client.from("project_integrations").upsert(
+    const now = new Date().toISOString();
+    const integrationPromise = client.from("project_integrations").upsert(
       {
         project_id: projectId,
         org_id: orgId,
         git_config: gitConfig || {},
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       },
       { onConflict: "project_id" }
     );
+
+    const projectPromise = client
+      .from("projects")
+      .update({
+        git_config: gitConfig || {},
+        updated_at: now,
+      })
+      .eq("id", projectId)
+      .eq("org_id", orgId);
+
+    const [intResult, projResult] = await Promise.allSettled([integrationPromise, projectPromise]);
+    if (intResult.status === "fulfilled" && intResult.value.error) {
+      console.warn("Supabase notice saving to project_integrations:", intResult.value.error.message);
+    }
+    if (projResult.status === "fulfilled" && projResult.value.error) {
+      console.warn("Supabase notice saving to projects.git_config:", projResult.value.error.message);
+    }
   } catch (e) {
     console.warn("Supabase error saving project git config:", e);
   }
