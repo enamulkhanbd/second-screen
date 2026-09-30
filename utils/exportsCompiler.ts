@@ -256,8 +256,41 @@ export function generateCssExportFiles(
       if (config.descriptionComments && t.description) {
         comment += ` /* ${t.description.replace(/\*\//g, "* /")} */`;
       }
+      if (config.deprecationComments && t.deprecated) {
+        const parts = [
+          t.deprecatedMessage,
+          t.deprecatedReplacement ? `use ${t.deprecatedReplacement}` : "",
+          t.deprecatedRemoveAfter ? `remove after ${t.deprecatedRemoveAfter}` : "",
+        ]
+          .filter(Boolean)
+          .join(". ")
+          .replace(/\*\//g, "* /");
+        comment += ` /* @deprecated${parts ? `: ${parts}` : ""} */`;
+      }
     }
     return `${indent}${varName}:${space}${val};${comment}`;
+  };
+
+  // Declarations grouped by first name segment: bg, icon, text, border...
+  const buildGroupedDeclarations = (list: FlattenedToken[]): string => {
+    const byGroup = new Map<string, FlattenedToken[]>();
+    list.forEach((t) => {
+      const key = String(t.name || "").split(".")[0] || "other";
+      const arr = byGroup.get(key) || [];
+      arr.push(t);
+      byGroup.set(key, arr);
+    });
+    const groupNames = Array.from(byGroup.keys()).sort((a, b) => a.localeCompare(b));
+    const lines: string[] = [];
+    groupNames.forEach((g) => {
+      if (!config.minify) lines.push(`${indent}/* ${g} */`);
+      const items = byGroup
+        .get(g)!
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      items.forEach((t) => lines.push(formatDeclaration(t)));
+    });
+    return lines.join(nl);
   };
 
   const wrapInLayer = (content: string): string => {
@@ -272,7 +305,7 @@ export function generateCssExportFiles(
   // SINGLE FILE MODE
   if (config.fileLayout === "single") {
     let css = "";
-    const rootBlock = `${config.rootSelector}${space}{${nl}${tokens.map(formatDeclaration).join(nl)}${nl}}`;
+    const rootBlock = `${config.rootSelector}${space}{${nl}${buildGroupedDeclarations(tokens)}${nl}}`;
     css += rootBlock;
     const finalContent = wrapInLayer(css);
     const fname = config.baseFileName || "tokens.css";
@@ -303,7 +336,7 @@ export function generateCssExportFiles(
         : `[data-theme="${fileBase}"]`;
     }
 
-    const decls = setTokens.map(formatDeclaration).join(nl);
+    const decls = buildGroupedDeclarations(setTokens);
     const content = wrapInLayer(`${selector}${space}{${nl}${decls}${nl}}`);
 
     files.push({
