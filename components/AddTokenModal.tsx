@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { buildDeprecationNode } from "@/utils/tokenDeprecation";
 
 interface AddTokenModalProps {
   isOpen: boolean;
@@ -52,6 +54,11 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
   const [description, setDescription] = useState("");
   const [tokenSet, setTokenSet] = useState(initialSet);
   const [category, setCategory] = useState("colors");
+  const [deprecated, setDeprecated] = useState(false);
+  const [deprecatedSeverity, setDeprecatedSeverity] = useState("warning");
+  const [deprecatedMessage, setDeprecatedMessage] = useState("");
+  const [replacementToken, setReplacementToken] = useState("");
+  const [deprecatedRemoveAfter, setDeprecatedRemoveAfter] = useState("");
 
   // References / Functions popover state
   const [isRefPopoverOpen, setIsRefPopoverOpen] = useState(false);
@@ -66,6 +73,11 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
       setDescription("");
       setTokenSet(initialSet);
       setCategory("colors");
+      setDeprecated(false);
+      setDeprecatedSeverity("warning");
+      setDeprecatedMessage("");
+      setReplacementToken("");
+      setDeprecatedRemoveAfter("");
       setIsRefPopoverOpen(false);
     }
   }, [isOpen, initialSet]);
@@ -124,6 +136,16 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
       value: parsedValue,
       type: tokenType,
       description: description.trim() || undefined,
+      ...(deprecated
+        ? {
+            $deprecated: buildDeprecationNode({
+              severity: deprecatedSeverity,
+              message: deprecatedMessage,
+              replacementToken,
+              removeAfter: deprecatedRemoveAfter,
+            }),
+          }
+        : {}),
     });
 
     addToast({
@@ -357,6 +379,56 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
               placeholder="e.g. colors, spacing, typography"
             />
           </div>
+
+          {/* Mark as deprecated */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <Label className="text-xs font-semibold text-foreground">Mark as deprecated</Label>
+            <Switch checked={deprecated} onCheckedChange={setDeprecated} />
+          </div>
+
+          {deprecated && (
+            <div className="space-y-3 rounded-xl border border-border p-3 bg-muted/20">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold">Severity</Label>
+                <Select value={deprecatedSeverity} onValueChange={setDeprecatedSeverity}>
+                  <SelectTrigger className="h-8 text-xs bg-background border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs">
+                    <SelectItem value="warning">Warning</SelectItem>
+                    <SelectItem value="error">Error (blocks build)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold">Deprecation Message (optional)</Label>
+                <Input
+                  value={deprecatedMessage}
+                  onChange={(e) => setDeprecatedMessage(e.target.value)}
+                  className="h-8 text-xs bg-background border-border"
+                  placeholder="Explain why this token is deprecated."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold">Replacement Token (optional)</Label>
+                <Input
+                  value={replacementToken}
+                  onChange={(e) => setReplacementToken(e.target.value)}
+                  className="h-8 text-xs font-mono bg-background border-border"
+                  placeholder="{color.brand.primary}"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold">Remove After (optional)</Label>
+                <Input
+                  value={deprecatedRemoveAfter}
+                  onChange={(e) => setDeprecatedRemoveAfter(e.target.value)}
+                  className="h-8 text-xs font-mono bg-background border-border"
+                  placeholder="2026-10-01 or v2.0.11"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Hidden submit trigger */}
           <button type="submit" className="hidden" />

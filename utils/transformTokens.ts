@@ -1084,7 +1084,7 @@ export function setTokenAtKeyPath(
 export function createTokenAtKeyPath(
   doc: RawTokensDocument,
   fullPath: string[],
-  tokenLeaf: { value: any; type: string; description?: string }
+  tokenLeaf: { value: any; type: string; description?: string; $deprecated?: Record<string, string> }
 ): RawTokensDocument {
   if (fullPath.length === 0) return doc;
 
@@ -1104,6 +1104,7 @@ export function createTokenAtKeyPath(
     value: tokenLeaf.value,
     type: tokenLeaf.type,
     ...(tokenLeaf.description ? { description: tokenLeaf.description } : {}),
+    ...(tokenLeaf.$deprecated ? { $deprecated: tokenLeaf.$deprecated } : {}),
   };
 
   return clone;

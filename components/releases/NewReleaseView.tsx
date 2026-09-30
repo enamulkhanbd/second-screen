@@ -18,6 +18,7 @@ import { computeTokensDiff } from "@/utils/tokenDiff";
 import { computeThemeChanges, formatByteSize } from "@/utils/releaseNotesGenerator";
 import { compileCssVariables, compileStyleDictionary } from "@/utils/releaseCompiler";
 import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
+import { cn } from "@/lib/utils";
 
 interface NewReleaseViewProps {
   onCancel: () => void;
@@ -135,6 +136,18 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
     setIsPublishing(true);
 
     try {
+      const errorTokens = resolvedTokens.filter(
+        (t) => t.deprecated && t.deprecatedSeverity === "error"
+      );
+      if (errorTokens.length > 0) {
+        throw new Error(
+          `Build blocked: ${errorTokens.length} deprecated token${errorTokens.length === 1 ? "" : "s"} marked as error (${errorTokens
+            .slice(0, 3)
+            .map((t) => t.name)
+            .join(", ")}${errorTokens.length > 3 ? ", …" : ""}). Remove them or lower their severity first.`
+        );
+      }
+
       const releaseTag = tag.trim().startsWith("v") ? tag.trim() : `v${tag.trim()}`;
       const releaseTitle = title.trim() || `Release ${releaseTag}`;
 
@@ -478,13 +491,21 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
 
         {/* Deprecated tokens notice */}
         {deprecationSummary.total > 0 && (
-          <div className="p-4 rounded-xl border border-amber-300/60 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 space-y-1 w-full">
+          <div
+            className={cn(
+              "p-4 rounded-xl border space-y-1 w-full",
+              deprecationSummary.errors > 0
+                ? "border-rose-300/60 dark:border-rose-800/60 bg-rose-50/60 dark:bg-rose-950/20"
+                : "border-amber-300/60 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20"
+            )}
+          >
             <h3 className="text-xs font-bold text-foreground">
               {deprecationSummary.total} deprecated token{deprecationSummary.total === 1 ? "" : "s"} included
             </h3>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              They stay in this release with their deprecation details.
-              {deprecationSummary.errors > 0 && ` ${deprecationSummary.errors} marked as error.`}
+              {deprecationSummary.errors > 0
+                ? `${deprecationSummary.errors} marked as error ${deprecationSummary.errors === 1 ? "blocks" : "block"} this release. Remove them or lower their severity before publishing.`
+                : "They stay in this release with their deprecation details."}
               {deprecationSummary.overdue.length > 0 &&
                 ` ${deprecationSummary.overdue.length} past their removal deadline: ${deprecationSummary.overdue
                   .slice(0, 5)

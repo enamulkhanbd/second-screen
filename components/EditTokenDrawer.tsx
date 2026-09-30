@@ -537,7 +537,19 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
             {deprecated && (
               <div className="space-y-3 rounded-xl border border-border p-3 bg-muted/20">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px]">Deprecation Message</Label>
+                  <Label className="text-[11px]">Severity</Label>
+                  <Select value={deprecatedSeverity} onValueChange={setDeprecatedSeverity}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      <SelectItem value="warning">Warning</SelectItem>
+                      <SelectItem value="error">Error (blocks build)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Deprecation Message (optional)</Label>
                   <Input
                     value={deprecatedMessage}
                     onChange={(e) => setDeprecatedMessage(e.target.value)}
@@ -546,7 +558,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px]">Replacement Token</Label>
+                  <Label className="text-[11px]">Replacement Token (optional)</Label>
                   <Input
                     value={replacementToken}
                     onChange={(e) => setReplacementToken(e.target.value)}
@@ -554,28 +566,14 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                     placeholder="{color.brand.primary}"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">Severity</Label>
-                    <Select value={deprecatedSeverity} onValueChange={setDeprecatedSeverity}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="text-xs">
-                        <SelectItem value="warning">Warning</SelectItem>
-                        <SelectItem value="error">Error</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">Remove After</Label>
-                    <Input
-                      value={deprecatedRemoveAfter}
-                      onChange={(e) => setDeprecatedRemoveAfter(e.target.value)}
-                      className="h-8 text-xs font-mono"
-                      placeholder="2026-10-01 or v2.0.11"
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Remove After (optional)</Label>
+                  <Input
+                    value={deprecatedRemoveAfter}
+                    onChange={(e) => setDeprecatedRemoveAfter(e.target.value)}
+                    className="h-8 text-xs font-mono"
+                    placeholder="2026-10-01 or v2.0.11"
+                  />
                 </div>
               </div>
             )}
