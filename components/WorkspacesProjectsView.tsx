@@ -7,7 +7,6 @@ import {
   Building2,
   FolderGit2,
   Plus,
-  Search,
   Sparkles,
   ArrowRight,
   Settings,
@@ -32,8 +31,6 @@ import {
   AlertTriangle,
   Archive,
   ArchiveRestore,
-  LayoutGrid,
-  List,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,9 +78,15 @@ const COLOR_PRESETS = [
   { name: "Slate", value: "#64748b", bgClass: "bg-slate-500" },
 ];
 
-export const WorkspacesProjectsView: React.FC<{
+export interface WorkspacesProjectsViewProps {
   onSelectProject: (project: Project) => void;
-}> = ({ onSelectProject }) => {
+  onOpenProjectSettings?: (project: Project, tab?: "details" | "sync") => void;
+}
+
+export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
+  onSelectProject,
+  onOpenProjectSettings,
+}) => {
   const {
     currentUser,
     userOrgs,
@@ -112,7 +115,7 @@ export const WorkspacesProjectsView: React.FC<{
   );
   const [projectStatusFilter, setProjectStatusFilter] = useState<"active" | "archived">("active");
   const [projectLayoutMode, setProjectLayoutMode] = useState<"grid" | "list">("list");
-  const [workspaceLayoutMode, setWorkspaceLayoutMode] = useState<"grid" | "list">("grid");
+  const [workspaceLayoutMode, setWorkspaceLayoutMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [showManageTeamModal, setShowManageTeamModal] = useState(false);
 
@@ -442,9 +445,10 @@ export const WorkspacesProjectsView: React.FC<{
 
   const handleOpenProjectSettings = (project: Project, tab: "details" | "sync" = "details") => {
     setSyncTargetProject(project);
-    setCurrentProject(null);
+    setCurrentProject(project);
     setProjectSettingsTab(tab);
     setSidebarTab("project-settings");
+    onOpenProjectSettings?.(project, tab);
   };
 
   const handleConfigureSync = (project: Project) => handleOpenProjectSettings(project, "sync");
@@ -536,8 +540,8 @@ export const WorkspacesProjectsView: React.FC<{
 
       {/* Main Container - Sized to 960px */}
       <div className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
-        {/* Navigation Tabs (In-Page) & Search Toolbar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-4">
+        {/* Navigation Tabs (In-Page) */}
+        <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
             <button
               onClick={() => {
@@ -568,17 +572,6 @@ export const WorkspacesProjectsView: React.FC<{
               <Building2 className="w-3.5 h-3.5 text-violet-500" />
               <span>All Workspaces ({userOrgs.length})</span>
             </button>
-          </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder={activeTab === "projects" ? "Search projects..." : "Search workspaces..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs h-9 bg-card border-border"
-            />
           </div>
         </div>
 
@@ -785,31 +778,6 @@ export const WorkspacesProjectsView: React.FC<{
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border">
-                  <button
-                    onClick={() => setProjectLayoutMode("list")}
-                    title="List View"
-                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                      projectLayoutMode === "list"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <List className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setProjectLayoutMode("grid")}
-                    title="Grid View"
-                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                      projectLayoutMode === "grid"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
                 <Button
                   onClick={handleOpenCreateProject}
                   size="sm"
@@ -1357,31 +1325,6 @@ export const WorkspacesProjectsView: React.FC<{
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border">
-                  <button
-                    onClick={() => setWorkspaceLayoutMode("list")}
-                    title="List View"
-                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                      workspaceLayoutMode === "list"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <List className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setWorkspaceLayoutMode("grid")}
-                    title="Grid View"
-                    className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                      workspaceLayoutMode === "grid"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
                 <Button
                   onClick={handleOpenCreateWorkspace}
                   size="sm"

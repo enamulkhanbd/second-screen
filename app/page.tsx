@@ -148,6 +148,9 @@ export default function Home() {
     currentUser,
     currentOrg,
     currentProject,
+    syncTargetProject,
+    setSyncTargetProject,
+    setProjectSettingsTab,
     isLoadingTenant,
     isLoadingProjects,
     isLoadingProjectData,
@@ -188,6 +191,24 @@ export default function Home() {
 
     setCurrentProject(project);
     setSidebarTab(targetTab);
+
+    if (targetPath !== pathname) {
+      router.push(targetPath);
+    }
+  };
+
+  const navigateToProjectSettings = (project: Project, tab: "details" | "sync" = "details") => {
+    if (!currentOrg || project.orgId !== currentOrg.id) return;
+
+    const targetPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(project.slug)}/project-settings`;
+    if (targetPath !== pathname) {
+      pendingRoutePath.current = targetPath;
+    }
+
+    setSyncTargetProject(project);
+    setCurrentProject(project);
+    setProjectSettingsTab(tab);
+    setSidebarTab("project-settings");
 
     if (targetPath !== pathname) {
       router.push(targetPath);
@@ -337,14 +358,14 @@ export default function Home() {
 
     const workspaceRoute =
       WORKSPACE_TAB_TO_ROUTE[sidebarTab as keyof typeof WORKSPACE_TAB_TO_ROUTE];
+    const projectForRoute = currentProject || syncTargetProject;
     const targetPath = workspaceRoute
       ? `/${encodeURIComponent(currentOrg.slug)}/${workspaceRoute}`
-      : currentProject
-      ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${sidebarTab}`
+      : projectForRoute
+      ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(projectForRoute.slug)}/${sidebarTab}`
       : null;
 
     if (!targetPath) {
-      if (pathname !== "/") router.push("/");
       return;
     }
 
@@ -358,6 +379,7 @@ export default function Home() {
   }, [
     currentOrg,
     currentProject,
+    syncTargetProject,
     currentUser,
     isLoadingTenant,
     pathname,
@@ -495,7 +517,10 @@ export default function Home() {
         ) : sidebarTab === "dashboard" ? (
           <DashboardView />
         ) : sidebarTab === "projects" ? (
-          <WorkspacesProjectsView onSelectProject={navigateToProject} />
+          <WorkspacesProjectsView
+            onSelectProject={navigateToProject}
+            onOpenProjectSettings={navigateToProjectSettings}
+          />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "documentation" ? (
