@@ -91,8 +91,8 @@ export const TokensPlatformLogo: React.FC<TokensPlatformLogoProps> = ({
       <div
         onClick={onClick}
         className={cn(
-          "rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-xs flex-shrink-0 transition-transform select-none",
-          onClick && "cursor-pointer hover:scale-105 active:scale-95",
+          "rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-xs flex-shrink-0 transition-opacity select-none",
+          onClick && "cursor-pointer hover:opacity-90",
           className
         )}
         style={{ width: boxSize, height: boxSize }}

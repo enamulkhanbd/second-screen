@@ -435,7 +435,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
         </div>
       ) : icon.svg ? (
         <div
-          className={`max-h-14 max-w-[85%] flex items-center justify-center transition-transform duration-150 group-hover:scale-105 [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14 ${shouldThemeSvg ? "brightness-0 dark:invert" : ""}`}
+          className={`max-h-14 max-w-[85%] flex items-center justify-center [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14 ${shouldThemeSvg ? "brightness-0 dark:invert" : ""}`}
           dangerouslySetInnerHTML={{ __html: icon.svg }}
         />
       ) : icon.url ? (
@@ -444,8 +444,8 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           alt={displayTitle}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
-          className={`max-h-14 max-w-[85%] object-contain transition-all duration-200 group-hover:scale-105 ${
-            isLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          className={`max-h-14 max-w-[85%] object-contain transition-opacity duration-150 ${
+            isLoaded ? "opacity-100" : "opacity-0"
           } ${
             shouldThemeSvg
               ? "brightness-0 dark:invert"
@@ -493,7 +493,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           alt={displayTitle}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
-          className={`max-h-full max-w-full object-contain transition-all duration-200 group-hover:scale-105 ${
+          className={`max-h-full max-w-full object-contain transition-opacity duration-150 ${
             isLoaded ? "opacity-100" : "opacity-0"
           }`}
           loading="lazy"
@@ -2753,14 +2753,14 @@ export const AssetsView: React.FC = () => {
                   {/* 1. Direct Multi-Layer SVG / ZIP / Folder Dropzone Card */}
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className={`p-5 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col justify-between group text-center space-y-4 ${
+                    className={`p-5 rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col justify-between group text-center space-y-4 ${
                       isDragOver
-                        ? "border-primary bg-primary/5 scale-[1.01]"
-                        : "border-border/80 bg-card hover:bg-card/80 shadow-xs"
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-border/80 bg-card hover:bg-muted/40 shadow-xs"
                     }`}
                   >
                     <div className="space-y-3 flex flex-col items-center">
-                      <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                         <UploadCloud className="w-5 h-5" />
                       </div>
                       <div>
@@ -2801,10 +2801,10 @@ export const AssetsView: React.FC = () => {
                       setDrawerActiveTab("figma");
                       setIsSettingsDrawerOpen(true);
                     }}
-                    className="p-5 rounded-2xl border border-border bg-card hover:bg-violet-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
+                    className="p-5 rounded-2xl border border-border bg-card hover:bg-violet-500/5 hover:border-violet-500/30 transition-colors cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
                     <div className="space-y-3">
-                      <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
                         <Figma className="w-5 h-5" />
                       </div>
                       <div>
@@ -2845,10 +2845,10 @@ export const AssetsView: React.FC = () => {
                       setDrawerActiveTab("git");
                       setIsSettingsDrawerOpen(true);
                     }}
-                    className="p-5 rounded-2xl border border-border bg-card hover:bg-emerald-500/5 transition-all cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
+                    className="p-5 rounded-2xl border border-border bg-card hover:bg-emerald-500/5 hover:border-emerald-500/30 transition-colors cursor-pointer flex flex-col justify-between group space-y-4 shadow-xs"
                   >
                     <div className="space-y-3">
-                      <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                         <FolderGit2 className="w-5 h-5" />
                       </div>
                       <div>

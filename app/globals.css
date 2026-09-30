@@ -32,12 +32,6 @@
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 0 0% 89.8%;
     --sidebar-ring: 0 0% 3.9%;
-    --interaction-hover-brightness: 0.97;
-    --interaction-pressed-brightness: 0.92;
-    --interaction-pressed-scale: 0.985;
-    --interaction-state-duration: 140ms;
-    --interaction-focus-ring-width: 2px;
-    --interaction-focus-ring-offset: 2px;
   }
 
   .dark {
@@ -68,8 +62,6 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 14.9%;
     --sidebar-ring: 0 0% 83.1%;
-    --interaction-hover-brightness: 1.12;
-    --interaction-pressed-brightness: 1.2;
   }
 }
 
@@ -104,43 +96,23 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-:is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"]), [class~="cursor-pointer"]) {
-  transition: background-color var(--interaction-state-duration) ease,
-    color var(--interaction-state-duration) ease,
-    filter var(--interaction-state-duration) ease,
-    transform var(--interaction-state-duration) ease,
-    outline-color var(--interaction-state-duration) ease,
-    box-shadow var(--interaction-state-duration) ease,
-    opacity var(--interaction-state-duration) ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  :is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"]), [class~="cursor-pointer"]):not(:disabled):not([aria-disabled="true"]):not([data-disabled]):hover {
-    filter: brightness(var(--interaction-hover-brightness));
-  }
-}
-
-:is(button, a[href], [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"]), [class~="cursor-pointer"]):not(:disabled):not([aria-disabled="true"]):not([data-disabled]):active {
-  filter: brightness(var(--interaction-pressed-brightness));
-  transform: scale(var(--interaction-pressed-scale));
-}
-
-:is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):focus {
-  box-shadow: none;
-  outline: none;
-}
-
-:is(input:not([type="hidden"]), select, textarea):focus {
-  border-color: hsl(var(--input));
-}
-
+/* Accessible semantic focus rings for keyboard navigation */
 :is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):focus-visible {
-  outline: var(--interaction-focus-ring-width) solid hsl(var(--ring));
-  outline-offset: var(--interaction-focus-ring-offset);
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+:is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"]), [class~="cursor-pointer"]) {
-    transition-duration: 0.01ms;
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
+

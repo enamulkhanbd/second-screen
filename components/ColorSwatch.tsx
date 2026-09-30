@@ -39,7 +39,7 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({ value, type, name }) =
         className="group relative flex items-center gap-2 cursor-pointer select-none"
       >
         <div
-          className="relative w-6 h-6 rounded-md border border-black/20 dark:border-white/20 shadow-inner flex-shrink-0 transition-transform group-hover:scale-105"
+          className="relative w-6 h-6 rounded-md border border-black/20 dark:border-white/20 shadow-inner flex-shrink-0 transition-opacity group-hover:opacity-90"
           style={{ backgroundColor: valStr }}
         />
         <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate max-w-[130px]">

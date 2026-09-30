@@ -245,7 +245,7 @@ export const TokenVisualPreviewCell: React.FC<{
         title={`Click to copy: ${token.resolvedValue}${token.resolvedHex ? ` (${token.resolvedHex})` : ""} (Contrast: ${bestRatio}:1)`}
       >
         <div
-          className="w-7 h-7 rounded-lg border border-black/15 dark:border-white/20 shadow-xs flex-shrink-0 transition-transform group-hover:scale-105"
+          className="w-7 h-7 rounded-lg border border-black/15 dark:border-white/20 shadow-xs flex-shrink-0 transition-opacity group-hover:opacity-90"
           style={{ backgroundColor: token.resolvedHex || token.resolvedValue }}
         />
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
