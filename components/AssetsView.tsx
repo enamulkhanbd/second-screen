@@ -1546,7 +1546,7 @@ export const AssetsView: React.FC = () => {
 
     try {
       const zip = new JSZip();
-      for (const asset of targetAssets) {
+      const filePromises = targetAssets.map(async (asset) => {
         const typeFolder = asset.type || "general";
         const catFolder = asset.category || "general";
         const assetName = asset.name || asset.title || "asset";
@@ -1554,21 +1554,39 @@ export const AssetsView: React.FC = () => {
         const isSvg = itemType === "icon" || !!asset.svg || asset.contentType?.includes("svg") || asset.name.toLowerCase().endsWith(".svg") || asset.url?.toLowerCase().includes(".svg");
 
         if (isSvg) {
-          let svgContent = "";
           try {
-            svgContent = await fetchSvgContentSafely(asset.url || "", asset.svg);
-          } catch { continue; }
-          if (!svgContent) continue;
+            const svgContent = await fetchSvgContentSafely(asset.url || "", asset.svg);
+            if (!svgContent) return null;
 
-          const enriched = enrichSvgWithName(svgContent, assetName);
-          zip.file(`${typeFolder}/${catFolder}/${assetName.toLowerCase().endsWith(".svg") ? assetName : `${assetName}.svg`}`, enriched);
+            const enriched = enrichSvgWithName(svgContent, assetName);
+            const fileName = assetName.toLowerCase().endsWith(".svg") ? assetName : `${assetName}.svg`;
+            return {
+              path: `${typeFolder}/${catFolder}/${fileName}`,
+              content: enriched,
+            };
+          } catch {
+            return null;
+          }
         } else if (asset.url) {
           try {
             const arrayBuffer = await fetchAssetArrayBufferSafely(asset.url);
             const ext = extensionFromContentType(asset.contentType || "") || asset.url.split(".").pop()?.split("?")[0] || "dat";
             const fileName = assetName.includes(".") ? assetName : `${assetName}.${ext}`;
-            zip.file(`${typeFolder}/${catFolder}/${fileName}`, arrayBuffer);
-          } catch { continue; }
+            return {
+              path: `${typeFolder}/${catFolder}/${fileName}`,
+              content: arrayBuffer,
+            };
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      });
+
+      const files = await Promise.all(filePromises);
+      for (const file of files) {
+        if (file) {
+          zip.file(file.path, file.content);
         }
       }
 
