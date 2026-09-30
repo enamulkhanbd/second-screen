@@ -29,7 +29,6 @@ export interface SystemDocSection {
       | "assets"
       | "exports"
       | "releases"
-      | "activity"
       | "project-settings"
       | "mcp"
       | "project-settings"

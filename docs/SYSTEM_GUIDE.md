@@ -263,7 +263,6 @@ Active when connected to GitHub, Azure DevOps, GitLab, or Bitbucket.
 - **Path Scoping**: Direct repository path scoping (e.g. `tokens/design-tokens.json` or `packages/tokens/src/`).
 - **Push Workflow**: Commit message prompt, diff summary calculation, and direct push to remote branch.
 - **Pull Workflow**: Fetches latest remote changes, highlights incoming additions/deletions, and merges into the local state.
-- **Commit Details Modal**: Inspect full commit diffs, additions, and deletions using `/api/git/commit-details`.
 
 ---
 

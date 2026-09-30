@@ -249,7 +249,6 @@ interface TokenStoreState {
     | "assets"
     | "exports"
     | "releases"
-    | "activity"
     | "mcp"
     | "project-settings"
     | "members"
@@ -270,7 +269,6 @@ interface TokenStoreState {
       | "assets"
       | "exports"
       | "releases"
-      | "activity"
       | "mcp"
       | "project-settings"
       | "members"
@@ -3755,7 +3753,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         "exports",
         "releases",
         "branches",
-        "activity",
         "mcp",
         "project-settings",
         "members",

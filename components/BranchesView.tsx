@@ -280,9 +280,6 @@ export const BranchesView: React.FC = () => {
             Branches and token versioning are managed directly through your external sync provider.
           </p>
           <div className="pt-2 flex items-center justify-center gap-2">
-            <Button size="sm" onClick={() => setSidebarTab("activity")}>
-              View Git Log
-            </Button>
             <Button variant="outline" size="sm" onClick={() => setSidebarTab("tokens")}>
               Back to Tokens
             </Button>

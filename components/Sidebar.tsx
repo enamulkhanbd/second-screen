@@ -12,7 +12,6 @@ import {
   Image as ImageIcon,
   Download,
   Package,
-  Clock,
   GitBranch,
   Rocket,
   Settings,
@@ -104,7 +103,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
     figmaResolvedVariables,
     sidebarTab,
     setSidebarTab,
-    setProjectSettingsTab,
     setMembersSubTab,
     credentials,
     releases,
@@ -653,23 +651,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
               <Settings className="size-4 flex-shrink-0" />
               {!isCollapsed && <span>Workspace Settings</span>}
             </button>
-
-            {syncTargetProject && (
-              <button
-                onClick={() => {
-                  setProjectSettingsTab("details");
-                  setSidebarTab("project-settings");
-                }}
-                title={`Project Settings: ${syncTargetProject.name}`}
-                className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "project-settings"
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                  }`}
-              >
-                <Settings className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Project Settings</span>}
-              </button>
-            )}
           </div>
         )}
 
@@ -846,19 +827,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 </span>
               )}
             </button>
-
-            {/* Git Log (Activity) */}
-            <button
-              onClick={() => setSidebarTab("activity")}
-              title="Git Log"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "activity"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Clock className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Git Log</span>}
-            </button>
           </div>
         )}
 
@@ -872,22 +840,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 SETTINGS
               </div>
             )}
-
-            {/* Project Settings */}
-            <button
-              onClick={() => {
-                setProjectSettingsTab("details");
-                setSidebarTab("project-settings");
-              }}
-              title="Project Settings"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "project-settings"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Settings className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Project Settings</span>}
-            </button>
 
             {/* MCP & CLI */}
             <button

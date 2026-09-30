@@ -664,13 +664,6 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                   <Edit2 className="w-3.5 h-3.5 text-primary" />
                   <span>Edit set</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setSidebarTab("activity")}
-                  className="gap-2 cursor-pointer"
-                >
-                  <History className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>Set history</span>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {

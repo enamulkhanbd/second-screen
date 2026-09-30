@@ -375,12 +375,6 @@ export const DashboardView: React.FC = () => {
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-foreground tracking-tight">Recent activity</h2>
-              <button
-                onClick={() => setSidebarTab("activity")}
-                className="text-xs text-primary hover:underline font-medium cursor-pointer"
-              >
-                Show all activity
-              </button>
             </div>
 
             <div className="border border-border rounded-xl bg-card overflow-hidden shadow-2xs">

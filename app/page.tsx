@@ -45,10 +45,6 @@ const ExportsView = dynamic(
   () => import("@/components/ExportsView").then((module) => module.ExportsView),
   { ssr: false, loading: WorkspaceLoading }
 );
-const ActivityView = dynamic(
-  () => import("@/components/ActivityView").then((module) => module.ActivityView),
-  { ssr: false, loading: WorkspaceLoading }
-);
 const BranchesView = dynamic(
   () => import("@/components/BranchesView").then((module) => module.BranchesView),
   { ssr: false, loading: WorkspaceLoading }
@@ -106,7 +102,6 @@ const PROJECT_ROUTE_TABS = new Set([
   "assets",
   "exports",
   "releases",
-  "activity",
   "mcp",
   "project-settings",
   "changelog",
@@ -488,8 +483,6 @@ export default function Home() {
           <ReleasesWorkspace />
         ) : sidebarTab === "branches" ? (
           <BranchesView />
-        ) : sidebarTab === "activity" ? (
-          <ActivityView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "mcp" ? (
           <McpCliView />
         ) : sidebarTab === "project-settings" ? (
