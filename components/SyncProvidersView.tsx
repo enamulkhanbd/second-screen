@@ -8,9 +8,13 @@ import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import {
   FolderGit2,
   GitBranch,
+  Shield,
   ShieldCheck,
+  ShieldOff,
+  Lock,
   Zap,
   Key,
+  KeyRound,
   FolderTree,
   FileCode,
   Download,
@@ -37,6 +41,7 @@ import {
   Figma,
   Database,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,7 +129,27 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   const canEdit = userRole === "owner" || userRole === "admin" || userRole === "editor";
 
   // -------------------------------------------------------------
-  // Git State
+  // Shield / Privacy Mode (presentation & screen-share protection)
+  // -------------------------------------------------------------
+  const [shieldMode, setShieldMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ts_privacy_shield_mode") === "true";
+    }
+    return false;
+  });
+
+  const toggleShieldMode = () => {
+    setShieldMode((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ts_privacy_shield_mode", String(next));
+      }
+      return next;
+    });
+  };
+
+  // -------------------------------------------------------------
+  // Git State & Write-Only PAT Vault
   // -------------------------------------------------------------
   const [provider, setProvider] = useState<GitProvider>(projectCredentials.provider || "github");
   const [owner, setOwner] = useState(projectCredentials.owner || "");
@@ -132,8 +157,15 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [repo, setRepo] = useState(projectCredentials.repo || "");
   const [branch, setBranch] = useState(projectCredentials.branch || "");
   const [filePath, setFilePath] = useState(projectCredentials.filePath || projectCredentials.path || "");
-  const [pat, setPat] = useState(projectCredentials.pat || "");
-  const [showPat, setShowPat] = useState(false);
+
+  // Write-Only PAT Pattern: stored secret is never placed in editable DOM input value
+  const configuredGitPat = projectCredentials.pat || credentials.pat || "";
+  const hasConfiguredGitPat = Boolean(configuredGitPat);
+  const gitPatLast4 = configuredGitPat.length >= 4 ? configuredGitPat.slice(-4) : "";
+  const [isReplacingGitPat, setIsReplacingGitPat] = useState(false);
+  const [newGitPatInput, setNewGitPatInput] = useState("");
+  const [showNewGitPat, setShowNewGitPat] = useState(false);
+
   const [rememberPat, setRememberPat] = useState(true);
   const [isSavingGit, setIsSavingGit] = useState(false);
   const [isTestingGit, setIsTestingGit] = useState(false);
@@ -142,9 +174,14 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [commitMessage, setCommitMessage] = useState("Update design tokens via Second Screen");
   const [isPushingGit, setIsPushingGit] = useState(false);
 
+  // Helper to obtain the effective PAT for test/save actions without exposing it in the DOM
+  const getEffectiveGitPat = () => {
+    if (isReplacingGitPat) return newGitPatInput.trim();
+    return newGitPatInput.trim() || configuredGitPat;
+  };
+
   // -------------------------------------------------------------
-  // -------------------------------------------------------------
-  // Figma Companion Plugin State
+  // Figma Companion Plugin State & Write-Only Figma PAT
   // -------------------------------------------------------------
   const [pairCodeInput, setPairCodeInput] = useState("");
   const [showPairInput, setShowPairInput] = useState(false);
@@ -155,13 +192,19 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   const [isLoadingPluginStatus, setIsLoadingPluginStatus] = useState(false);
   const [isUnlinkingPlugin, setIsUnlinkingPlugin] = useState(false);
 
-  // Unified Figma PAT State
-  const [figmaPatInput, setFigmaPatInput] = useState(projectFigmaConfig?.pat || "");
-  const [showFigmaPat, setShowFigmaPat] = useState(false);
+  // Write-Only Figma PAT State
+  const configuredFigmaPat = projectFigmaConfig?.pat || "";
+  const hasConfiguredFigmaPat = Boolean(configuredFigmaPat);
+  const figmaPatLast4 = configuredFigmaPat.length >= 4 ? configuredFigmaPat.slice(-4) : "";
+  const [isReplacingFigmaPat, setIsReplacingFigmaPat] = useState(false);
+  const [newFigmaPatInput, setNewFigmaPatInput] = useState("");
+  const [showNewFigmaPat, setShowNewFigmaPat] = useState(false);
   const [isSavingFigmaPat, setIsSavingFigmaPat] = useState(false);
 
   useEffect(() => {
-    setFigmaPatInput(projectFigmaConfig?.pat || "");
+    setIsReplacingFigmaPat(false);
+    setNewFigmaPatInput("");
+    setShowNewFigmaPat(false);
   }, [syncProject?.id, projectFigmaConfig?.pat]);
 
   const saveTargetFigmaPat = async (value: string) => {
@@ -173,9 +216,20 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
   const handleSaveFigmaPat = async (e: React.FormEvent) => {
     e.preventDefault();
+    const tokenToSave = isReplacingFigmaPat
+      ? newFigmaPatInput.trim()
+      : (newFigmaPatInput.trim() || configuredFigmaPat);
     setIsSavingFigmaPat(true);
     try {
-      await saveTargetFigmaPat(figmaPatInput);
+      await saveTargetFigmaPat(tokenToSave);
+      setIsReplacingFigmaPat(false);
+      setNewFigmaPatInput("");
+      setShowNewFigmaPat(false);
+      addToast({
+        type: "success",
+        title: "Figma PAT Saved",
+        message: "Unified Figma PAT updated successfully in vault.",
+      });
     } finally {
       setIsSavingFigmaPat(false);
     }
@@ -212,8 +266,19 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
     setRepo(projectCredentials.repo || "");
     setBranch(projectCredentials.branch || "");
     setFilePath(projectCredentials.filePath || projectCredentials.path || "");
-    setPat(projectCredentials.pat || "");
-  }, [syncProject?.id, projectCredentials]);
+    setIsReplacingGitPat(false);
+    setNewGitPatInput("");
+    setShowNewGitPat(false);
+  }, [
+    syncProject?.id,
+    projectCredentials.provider,
+    projectCredentials.owner,
+    projectCredentials.project,
+    projectCredentials.repo,
+    projectCredentials.branch,
+    projectCredentials.filePath,
+    projectCredentials.path,
+  ]);
 
   const activeProvider = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
   const isGitConnected = Boolean(projectCredentials.owner && projectCredentials.repo);
@@ -303,11 +368,12 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   // Git Actions
   // -------------------------------------------------------------
   const handleTestConnection = async () => {
-    if (!owner || !repo || !pat) {
+    const effectivePat = getEffectiveGitPat();
+    if (!owner || !repo || !effectivePat) {
       addToast({
         type: "error",
         title: "Incomplete Details",
-        message: "Please provide Repository Owner, Repo Name, and a valid PAT.",
+        message: "Please provide Repository Owner, Repo Name, and a valid Personal Access Token.",
       });
       return;
     }
@@ -322,7 +388,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         branch: branch.trim(),
         path: filePath.trim(),
         filePath: filePath.trim(),
-        pat: pat.trim(),
+        pat: effectivePat,
       };
       const testCreds = sanitizeGitCredentials(rawCreds);
 
@@ -358,6 +424,16 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
     e.preventDefault();
     if (!currentOrg || !syncProject) return;
 
+    const effectivePat = getEffectiveGitPat();
+    if (!owner || !repo || !effectivePat) {
+      addToast({
+        type: "error",
+        title: "Incomplete Details",
+        message: "Please provide Repository Owner, Repo Name, and a Personal Access Token.",
+      });
+      return;
+    }
+
     setIsSavingGit(true);
     try {
       const rawCreds = {
@@ -368,7 +444,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         branch: branch.trim(),
         path: filePath.trim(),
         filePath: filePath.trim(),
-        pat: pat.trim(),
+        pat: effectivePat,
       };
       const updatedCreds = sanitizeGitCredentials(rawCreds);
 
@@ -381,6 +457,10 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
       if (currentProject && currentProject.id === syncProject.id) {
         setCurrentProject(updatedProject);
       }
+
+      setIsReplacingGitPat(false);
+      setNewGitPatInput("");
+      setShowNewGitPat(false);
 
       addToast({
         type: "success",
@@ -395,6 +475,39 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
       });
     } finally {
       setIsSavingGit(false);
+    }
+  };
+
+  const handleRemoveGitPat = async () => {
+    if (!currentOrg || !syncProject) return;
+    try {
+      const updatedCreds = {
+        ...(syncProject.gitConfig || credentials),
+        pat: "",
+      };
+      setCredentials(updatedCreds);
+      await saveProjectGitConfig(currentOrg.id, syncProject.id, updatedCreds);
+      const updatedProject = { ...syncProject, gitConfig: updatedCreds };
+      if (syncTargetProject) {
+        setSyncTargetProject(updatedProject);
+      }
+      if (currentProject && currentProject.id === syncProject.id) {
+        setCurrentProject(updatedProject);
+      }
+      setIsReplacingGitPat(false);
+      setNewGitPatInput("");
+      setShowNewGitPat(false);
+      addToast({
+        type: "info",
+        title: "PAT Removed",
+        message: "Personal Access Token has been removed from this project.",
+      });
+    } catch (err: any) {
+      addToast({
+        type: "error",
+        title: "Failed to Remove Token",
+        message: err.message || "An error occurred.",
+      });
     }
   };
 
@@ -663,9 +776,33 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                       </Badge>
                     </div>
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      {isGitConnected
-                        ? `Mirrors tokens to ${credentials.owner}/${credentials.repo} on branch ${credentials.branch || "main"}.`
-                        : "Connect GitHub, GitLab, Bitbucket, or Azure DevOps to sync tokens directly into your dev codebase & CI/CD."}
+                      {isGitConnected ? (
+                        <>
+                          Mirrors tokens to{" "}
+                          <span
+                            className={cn(
+                              "font-mono font-medium text-foreground",
+                              shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                            )}
+                            title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
+                          >
+                            {credentials.owner}/{credentials.repo}
+                          </span>{" "}
+                          on branch{" "}
+                          <span
+                            className={cn(
+                              "font-mono font-medium text-foreground",
+                              shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                            )}
+                            title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
+                          >
+                            {credentials.branch || "main"}
+                          </span>
+                          .
+                        </>
+                      ) : (
+                        "Connect GitHub, GitLab, Bitbucket, or Azure DevOps to sync tokens directly into your dev codebase & CI/CD."
+                      )}
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
@@ -687,18 +824,53 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                   <FolderGit2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={cn(
+                        "font-bold text-sm text-foreground",
+                        shieldMode && isGitConnected && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                      )}
+                      title={shieldMode && isGitConnected ? "Shield Mode: Hover to unmask" : undefined}
+                    >
                       {isGitConnected ? `${credentials.owner}/${credentials.repo}` : "No Git Provider Connected"}
                     </span>
                     <Badge variant={isGitConnected ? "success" : "outline"} className="text-[10px]">
                       {isGitConnected ? "Connected" : "Disconnected"}
                     </Badge>
+                    {shieldMode && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1">
+                        <ShieldCheck className="w-2.5 h-2.5" />
+                        <span>Shielded</span>
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {isGitConnected
-                      ? `Branch: ${credentials.branch || "main"} · File: ${credentials.filePath || credentials.path || "root"}`
-                      : "Configure credentials below to commit and sync tokens directly to your Git repository."}
+                    {isGitConnected ? (
+                      <>
+                        Branch:{" "}
+                        <span
+                          className={cn(
+                            "font-mono font-medium text-foreground",
+                            shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                          )}
+                          title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
+                        >
+                          {credentials.branch || "main"}
+                        </span>{" "}
+                        · File:{" "}
+                        <span
+                          className={cn(
+                            "font-mono font-medium text-foreground",
+                            shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                          )}
+                          title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
+                        >
+                          {credentials.filePath || credentials.path || "root"}
+                        </span>
+                      </>
+                    ) : (
+                      "Configure credentials below to commit and sync tokens directly to your Git repository."
+                    )}
                   </p>
                 </div>
               </div>
@@ -732,23 +904,67 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
             {/* Git Configuration Form */}
             <form onSubmit={handleSaveGitConfig} className="p-6 rounded-2xl border border-border bg-card shadow-xs space-y-6">
-              <div className="border-b border-border/80 pb-3 flex items-center justify-between">
+              <div className="border-b border-border/80 pb-3 flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <h2 className="text-sm font-bold text-foreground">Repository Credentials &amp; Target</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-foreground">Repository Credentials &amp; Target</h2>
+                    {shieldMode && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Shield Active</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Tokens are written to and read from your repository in W3C DTCG standard JSON format.
                   </p>
                 </div>
-                <a
-                  href={activeProvider.docsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
-                >
-                  <span>{activeProvider.label} Docs</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleShieldMode}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-2xs",
+                      shieldMode
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25"
+                        : "bg-muted/60 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                    title={shieldMode ? "Shield Mode Active: Click to show details" : "Enable Shield Mode to blur sensitive info for screen sharing"}
+                  >
+                    {shieldMode ? <ShieldOff className="w-3.5 h-3.5 text-emerald-500" /> : <Shield className="w-3.5 h-3.5 text-primary" />}
+                    <span>{shieldMode ? "Disable Shield" : "Privacy Shield"}</span>
+                  </button>
+
+                  <a
+                    href={activeProvider.docsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1 font-medium pl-1"
+                  >
+                    <span>{activeProvider.label} Docs</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
+
+              {/* Shield Mode Banner when active */}
+              {shieldMode && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
+                    <span>
+                      <strong>Presentation Shield Mode Active:</strong> Organization, repository, and branch paths are obscured to protect your infrastructure during demos, video calls, and screen shares. Hover over any field to unblur.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleShieldMode}
+                    className="text-xs underline hover:no-underline font-medium shrink-0 ml-3 cursor-pointer"
+                  >
+                    Turn Off
+                  </button>
+                </div>
+              )}
 
               {/* Provider Selection */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -772,82 +988,215 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
               {/* Input Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">
-                    {provider === "azure" ? "Azure Organization" : "Repository Owner / Org *"}
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">
+                      {provider === "azure" ? "Azure Organization" : "Repository Owner / Org *"}
+                    </Label>
+                    {shieldMode && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
+                    )}
+                  </div>
                   <Input
                     placeholder="e.g. acme-corp or username"
                     value={owner}
                     onChange={(e) => setOwner(e.target.value)}
                     required
-                    className="text-xs h-9"
+                    className={cn(
+                      "text-xs h-9 transition-all duration-200",
+                      shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
+                    )}
+                    title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
                   />
                 </div>
 
                 {provider === "azure" && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Azure Project Name *</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Azure Project Name *</Label>
+                      {shieldMode && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
+                      )}
+                    </div>
                     <Input
                       placeholder="e.g. DesignSystem"
                       value={gitProject}
                       onChange={(e) => setGitProject(e.target.value)}
                       required
-                      className="text-xs h-9"
+                      className={cn(
+                        "text-xs h-9 transition-all duration-200",
+                        shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
+                      )}
+                      title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
                     />
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Repository Name *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Repository Name *</Label>
+                    {shieldMode && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
+                    )}
+                  </div>
                   <Input
                     placeholder="e.g. design-tokens or brand-ui"
                     value={repo}
                     onChange={(e) => setRepo(e.target.value)}
                     required
-                    className="text-xs h-9"
+                    className={cn(
+                      "text-xs h-9 transition-all duration-200",
+                      shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
+                    )}
+                    title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Target Branch</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Target Branch</Label>
+                    {shieldMode && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
+                    )}
+                  </div>
                   <Input
                     placeholder="main or develop"
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
-                    className="text-xs h-9"
+                    className={cn(
+                      "text-xs h-9 transition-all duration-200",
+                      shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
+                    )}
+                    title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">File / Directory Path in Repo</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">File / Directory Path in Repo</Label>
+                    {shieldMode && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
+                    )}
+                  </div>
                   <Input
                     placeholder="e.g. tokens.json or tokens/"
                     value={filePath}
                     onChange={(e) => setFilePath(e.target.value)}
-                    className="text-xs h-9 font-mono"
+                    className={cn(
+                      "text-xs h-9 font-mono transition-all duration-200",
+                      shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
+                    )}
+                    title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
                   />
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-xs font-semibold">Personal Access Token (PAT) *</Label>
-                  <div className="relative">
-                    <Input
-                      type={showPat ? "text" : "password"}
-                      placeholder={activeProvider.patPlaceholder}
-                      value={pat}
-                      onChange={(e) => setPat(e.target.value)}
-                      required
-                      className="text-xs h-9 font-mono pr-9"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPat(!showPat)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                {/* Write-Only Personal Access Token (PAT) Vault Area */}
+                {hasConfiguredGitPat && !isReplacingGitPat ? (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Personal Access Token (PAT)</span>
+                      </Label>
+                      <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 gap-1 py-0 font-medium">
+                        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                        <span>Write-Only Secret Vault</span>
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 w-full">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                          <KeyRound className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                            <span className="font-mono text-xs text-foreground tracking-widest select-none truncate">
+                              ••••••••••••••••••••••••••••••••
+                            </span>
+                            {gitPatLast4 && (
+                              <span className="text-[10px] font-mono text-muted-foreground bg-background/80 border border-border px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                                ending in ••••{gitPatLast4}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Secret stored securely. Plaintext is protected and never rendered in the DOM.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsReplacingGitPat(true);
+                            setNewGitPatInput("");
+                          }}
+                          className="h-8 text-xs gap-1.5 font-medium"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Replace Token</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveGitPat}
+                          className="h-8 text-xs text-destructive hover:bg-destructive/10"
+                          title="Remove Saved Token"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-primary" />
+                        <span>{hasConfiguredGitPat ? "New Personal Access Token (PAT) *" : "Personal Access Token (PAT) *"}</span>
+                      </Label>
+                      {hasConfiguredGitPat && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsReplacingGitPat(false);
+                            setNewGitPatInput("");
+                            setShowNewGitPat(false);
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                        >
+                          Cancel &amp; Keep Current Token
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type={showNewGitPat ? "text" : "password"}
+                        placeholder={hasConfiguredGitPat ? "Paste new token to rotate credentials..." : activeProvider.patPlaceholder}
+                        value={newGitPatInput}
+                        onChange={(e) => setNewGitPatInput(e.target.value)}
+                        required={!hasConfiguredGitPat}
+                        autoComplete="new-password"
+                        className="text-xs h-9 font-mono pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewGitPat(!showNewGitPat)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        title={showNewGitPat ? "Hide token" : "Show token while typing"}
+                      >
+                        {showNewGitPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {hasConfiguredGitPat
+                        ? "Enter a new token to rotate credentials. Token is write-only and cannot be viewed once saved."
+                        : `Token is protected with write-only encryption. Scope: repo read & write.`}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Form Bottom Actions */}
@@ -857,7 +1206,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={isTestingGit || !owner || !repo || !pat}
+                    disabled={isTestingGit || !owner || !repo || !getEffectiveGitPat()}
                     onClick={handleTestConnection}
                     className="gap-1.5 text-xs h-9"
                   >
@@ -882,7 +1231,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isSavingGit || !owner || !repo || !pat}
+                  disabled={isSavingGit || !owner || !repo || !getEffectiveGitPat()}
                   className="gap-1.5 text-xs h-9 font-semibold"
                 >
                   <Save className="w-3.5 h-3.5" />
@@ -1104,56 +1453,111 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                 </Button>
               </div>
 
-              <form onSubmit={handleSaveFigmaPat} className="space-y-3 max-w-xl">
-                <div className="space-y-1.5">
+              <form onSubmit={handleSaveFigmaPat} className="space-y-3 w-full">
+                <div className="space-y-1.5 w-full">
                   <Label htmlFor="figmaPatVaultInput" className="text-xs font-semibold">
                     Figma Personal Access Token (PAT)
                   </Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        id="figmaPatVaultInput"
-                        type={showFigmaPat ? "text" : "password"}
-                        placeholder="figd_..."
-                        value={figmaPatInput}
-                        onChange={(e) => setFigmaPatInput(e.target.value)}
-                        className="h-9 text-xs font-mono pr-8"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowFigmaPat(!showFigmaPat)}
-                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        {showFigmaPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                  {hasConfiguredFigmaPat && !isReplacingFigmaPat ? (
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-violet-500/20 bg-violet-500/5 w-full">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-500 shrink-0">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                            <span className="font-mono text-xs text-foreground tracking-widest select-none truncate">
+                              ••••••••••••••••••••••••••••••••
+                            </span>
+                            {figmaPatLast4 && (
+                              <span className="text-[10px] font-mono text-muted-foreground bg-background/80 border border-border px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                                ending in ••••{figmaPatLast4}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Write-only secret stored securely in project vault.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsReplacingFigmaPat(true);
+                            setNewFigmaPatInput("");
+                          }}
+                          className="h-8 text-xs gap-1.5 font-medium"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Replace Token</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            await saveTargetFigmaPat("");
+                            setIsReplacingFigmaPat(false);
+                            setNewFigmaPatInput("");
+                          }}
+                          className="h-8 text-xs text-destructive hover:bg-destructive/10"
+                          title="Remove Token"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          id="figmaPatVaultInput"
+                          type={showNewFigmaPat ? "text" : "password"}
+                          placeholder={hasConfiguredFigmaPat ? "Paste new token to rotate..." : "figd_..."}
+                          value={newFigmaPatInput}
+                          onChange={(e) => setNewFigmaPatInput(e.target.value)}
+                          className="h-9 text-xs font-mono pr-8"
+                          autoComplete="new-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewFigmaPat(!showNewFigmaPat)}
+                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {showNewFigmaPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
 
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={isSavingFigmaPat}
-                      className="h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1.5 font-semibold"
-                    >
-                      {isSavingFigmaPat ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                      <span>Save Token</span>
-                    </Button>
-
-                    {projectFigmaConfig?.pat && (
                       <Button
-                        type="button"
-                        variant="ghost"
+                        type="submit"
                         size="sm"
-                        onClick={async () => {
-                          await saveTargetFigmaPat("");
-                          setFigmaPatInput("");
-                        }}
-                        className="h-9 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
-                        title="Remove Token"
+                        disabled={isSavingFigmaPat || !newFigmaPatInput.trim()}
+                        className="h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1.5 font-semibold"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {isSavingFigmaPat ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        <span>Save Token</span>
                       </Button>
-                    )}
-                  </div>
+
+                      {hasConfiguredFigmaPat && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsReplacingFigmaPat(false);
+                            setNewFigmaPatInput("");
+                            setShowNewFigmaPat(false);
+                          }}
+                          className="h-9 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <p className="text-[11px] text-muted-foreground">
                     Generate via Figma: <strong>Profile &gt; Settings &gt; Security &gt; Personal access tokens</strong>.
                   </p>
