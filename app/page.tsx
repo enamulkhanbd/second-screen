@@ -201,6 +201,19 @@ export default function Home() {
     }
 
     if (pendingRoutePath.current !== pathname) return;
+
+    // When on root route "/", show Workspaces list without redirecting
+    if (pathname === "/") {
+      if (sidebarTab !== "workspaces") {
+        setSidebarTab("workspaces");
+      }
+      if (currentProject) {
+        setCurrentProject(null);
+      }
+      pendingRoutePath.current = null;
+      return;
+    }
+
     if (!workspaceSlug) return;
     if (!currentUser || isLoadingTenant) return;
 
@@ -307,6 +320,14 @@ export default function Home() {
   useEffect(() => {
     if (!currentUser || isLoadingTenant || pendingRoutePath.current !== null) return;
 
+    // When on root route "/", do not redirect to an org overview
+    if (pathname === "/") {
+      if (sidebarTab !== "workspaces") {
+        setSidebarTab("workspaces");
+      }
+      return;
+    }
+
     if (sidebarTab === "workspaces") {
       if (pathname !== "/") router.push("/");
       return;
@@ -391,10 +412,16 @@ export default function Home() {
     );
   }
 
-  const isWorkspacesView = sidebarTab === "workspaces";
+  const isWorkspacesView = sidebarTab === "workspaces" || pathname === "/";
 
   return (
-    <main className="flex h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
+    <main
+      className={`flex h-screen overflow-hidden ${
+        isWorkspacesView
+          ? "bg-[#09090d] text-zinc-100"
+          : "bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100"
+      }`}
+    >
       {/* 1. Primary Navigation Sidebar - Full height to top */}
       {!isWorkspacesView && (
         <>
@@ -461,10 +488,10 @@ export default function Home() {
         )}
 
         {/* 3. Main Workspace Page Views */}
-        {isLoadingProjectData && sidebarTab !== "project-settings" ? (
-          <WorkspaceLoading />
-        ) : sidebarTab === "workspaces" ? (
+        {isWorkspacesView ? (
           <WorkspacesListView />
+        ) : isLoadingProjectData && sidebarTab !== "project-settings" ? (
+          <WorkspaceLoading />
         ) : sidebarTab === "dashboard" ? (
           <DashboardView />
         ) : sidebarTab === "projects" ? (
