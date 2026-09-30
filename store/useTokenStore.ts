@@ -3279,8 +3279,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  // Theme mode initialization (default follows system)
-  themeMode: "system",
+  // Theme mode initialization (default is dark theme)
+  themeMode: "dark",
   setThemeMode: (mode) => {
     set({ themeMode: mode });
     if (typeof window !== "undefined") {
@@ -3720,7 +3720,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // 4. Restore Theme Mode (light/dark/system)
       const savedTheme = localStorage.getItem("ts_theme_mode") as "light" | "dark" | "system" | null;
-      let initialTheme: "light" | "dark" | "system" = "system";
+      let initialTheme: "light" | "dark" | "system" = "dark";
       if (savedTheme && (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system")) {
         initialTheme = savedTheme;
       }

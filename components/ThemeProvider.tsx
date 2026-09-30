@@ -9,14 +9,19 @@ import { getContrastTextColor, hexToRgb, rgbToHsl, normalizeHexColor } from "@/u
  * with the `dark` class on <html>, enabling Tailwind dark mode.
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { themeMode, currentOrg } = useTokenStore();
+  const { themeMode, currentOrg, sidebarTab } = useTokenStore();
 
   useEffect(() => {
     const root = document.documentElement;
 
     const applyTheme = () => {
+      const isWorkspaces =
+        sidebarTab === "workspaces" ||
+        (typeof window !== "undefined" && window.location.pathname === "/");
       const isDark =
-        themeMode === "dark"
+        isWorkspaces
+          ? true
+          : themeMode === "dark"
           ? true
           : themeMode === "light"
           ? false
@@ -37,10 +42,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       mediaQuery.addEventListener("change", handler);
       return () => mediaQuery.removeEventListener("change", handler);
     }
-  }, [themeMode]);
+  }, [themeMode, sidebarTab]);
 
   useEffect(() => {
     const root = document.documentElement;
+
+    // On Workspaces list view, always clear organization color overrides to preserve apps default theme
+    if (sidebarTab === "workspaces") {
+      root.style.removeProperty("--primary");
+      root.style.removeProperty("--primary-foreground");
+      root.style.removeProperty("--ring");
+      return;
+    }
+
     const rawColor = currentOrg?.color?.trim().toLowerCase();
     // If color is default brand (#171717, legacy #6366f1, or legacy #2e9401/#2d9401) or not customized, remove inline override so globals.css controls both light & dark mode!
     const isDefaultBrand =
