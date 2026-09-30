@@ -38,12 +38,21 @@ import {
   Search,
   CheckCircle,
   Image as ImageIcon,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -78,6 +87,7 @@ export const MembersView: React.FC = () => {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [previewInvitation, setPreviewInvitation] = useState<OrganizationInvitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Activity tab filters & search
   const [activityFilter, setActivityFilter] = useState<string>("all");
@@ -117,6 +127,7 @@ export const MembersView: React.FC = () => {
           message: `Invited ${inviteEmail} as ${ROLE_DEFINITIONS[inviteRole].title}.`,
         });
         setInviteEmail("");
+        setIsInviteModalOpen(false);
         setPreviewInvitation(inv);
         setMembersSubTab("invites");
       }
@@ -255,6 +266,12 @@ export const MembersView: React.FC = () => {
     );
   }, [pendingInvitations, memberEmails]);
 
+  const isCustomOrgColor = useMemo(() => {
+    if (!currentOrg?.color) return false;
+    const trimmed = currentOrg.color.trim().toLowerCase();
+    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+  }, [currentOrg?.color]);
+
   // Real workspace activities (no mock fallbacks)
   const allActivities: UserActivityItem[] = useMemo(() => {
     return userActivities || [];
@@ -358,18 +375,37 @@ export const MembersView: React.FC = () => {
       {/* Top Page Header - Spans full width from far left to far right */}
       <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Members &amp; Access
-              </h1>
-              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
-                {currentOrg.name}
-              </Badge>
+          <div className="flex items-center gap-3.5">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 overflow-hidden border border-border/80 ${
+                isCustomOrgColor ? "text-white" : "bg-primary/10 text-primary"
+              }`}
+              style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+            >
+              {currentOrg?.logoUrl ? (
+                <img
+                  src={currentOrg.logoUrl}
+                  alt={currentOrg.name}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <span>{currentOrg?.icon || currentOrg?.name?.[0]?.toUpperCase() || "🏢"}</span>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Manage team members, roles, and pending invitations for this workspace.
-            </p>
+
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-bold tracking-tight text-foreground">
+                  Members &amp; Access
+                </h1>
+                <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
+                  {currentOrg.name}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Manage team members, roles, and pending invitations for this workspace.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -389,69 +425,67 @@ export const MembersView: React.FC = () => {
 
       {/* Main Content Area - Sized to 960px */}
       <div className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
-        {/* Section 1: Invite New Member */}
-        {canInvite && (
-          <form onSubmit={handleSendInvite} className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-border/70 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <UserPlus className="w-4 h-4 text-primary" />
-                      <span>Invite New Team Member</span>
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Send an email invite or generate a secure direct join link.
-                    </p>
+        {/* Modal Dialog for Invite New Team Member */}
+        <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+          <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+            <form onSubmit={handleSendInvite} className="flex flex-col">
+              <DialogHeader className="px-6 py-5 border-b border-border/80 bg-card/40 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 flex-shrink-0">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-4">
+                    <DialogTitle className="text-base font-bold text-foreground">
+                      Invite New Team Member
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                      Send an email invite to join <span className="font-semibold text-foreground">{currentOrg.name}</span> or generate a secure direct join link.
+                    </DialogDescription>
                   </div>
                 </div>
+              </DialogHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                  <div className="sm:col-span-6 space-y-1.5">
-                    <Label className="text-xs font-semibold">Colleague Email</Label>
-                    <Input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="designer@company.com"
-                      required
-                      className="h-9 text-xs"
-                    />
-                  </div>
+              <div className="p-6 space-y-4">
+                {/* Colleague Email */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">
+                    Colleague Email <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="designer@company.com"
+                    required
+                    autoFocus
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-                  <div className="sm:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold">Role</Label>
-                    <Select
-                      value={inviteRole}
-                      onValueChange={(val: any) => setInviteRole(val as UserRole)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {canManageRoles && (
-                          <SelectItem value="admin">
-                            <span className="font-semibold text-xs">Admin</span>
-                          </SelectItem>
-                        )}
-                        <SelectItem value="editor">
-                          <span className="font-semibold text-xs">Editor</span>
+                {/* Role */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Role</Label>
+                  <Select
+                    value={inviteRole}
+                    onValueChange={(val: any) => setInviteRole(val as UserRole)}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {canManageRoles && (
+                        <SelectItem value="admin">
+                          <span className="font-semibold text-xs">Admin</span>
                         </SelectItem>
-                        <SelectItem value="viewer">
-                          <span className="font-semibold text-xs">Viewer</span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <Button
-                      type="submit"
-                      disabled={loading || !inviteEmail.trim()}
-                      className="w-full h-9 text-xs font-bold gap-1.5"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{loading ? "Sending..." : "Send Invite"}</span>
-                    </Button>
-                  </div>
+                      )}
+                      <SelectItem value="editor">
+                        <span className="font-semibold text-xs">Editor</span>
+                      </SelectItem>
+                      <SelectItem value="viewer">
+                        <span className="font-semibold text-xs">Viewer</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Role Permissions Hint */}
@@ -462,62 +496,97 @@ export const MembersView: React.FC = () => {
                     <span>{selectedRoleDef.description}</span>
                   </div>
                 </div>
-              </form>
-            )}
-
-            {/* Section 2: Members & Invitations Roster Card */}
-            <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
-              <div className="p-6 border-b border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    {membersSubTab === "invites" ? (
-                      <>
-                        <Clock className="w-4 h-4 text-amber-500" />
-                        <span>Pending Invitations ({activePendingInvitations.length})</span>
-                      </>
-                    ) : (
-                      <>
-                        <Users className="w-4 h-4 text-primary" />
-                        <span>Active Members ({members.length})</span>
-                      </>
-                    )}
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {membersSubTab === "invites"
-                      ? "Colleagues who have been invited to this workspace but have not yet accepted."
-                      : "Designers and engineers with access to this organization's design tokens and projects."}
-                  </p>
-                </div>
-
-                {/* Pill Tab Switcher matching Projects & Workspaces */}
-                <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setMembersSubTab("members")}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      membersSubTab !== "invites"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Users className="w-3.5 h-3.5 text-primary" />
-                    <span>Active ({members.length})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMembersSubTab("invites")}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      membersSubTab === "invites"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Clock className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Invitations ({activePendingInvitations.length})</span>
-                  </button>
-                </div>
               </div>
+
+              <DialogFooter className="px-6 py-4 border-t border-border/80 bg-card/40 flex items-center justify-end gap-2 flex-shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsInviteModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={loading || !inviteEmail.trim()}
+                  className="gap-1.5 font-semibold shadow-xs"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{loading ? "Sending..." : "Send Invite"}</span>
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Toolbar: Active / Invitations Tabs on Left, Send Invite Button on Right */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card/40 p-2.5 rounded-xl border border-border">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMembersSubTab("members")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                membersSubTab !== "invites"
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Active</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  membersSubTab !== "invites"
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {members.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMembersSubTab("invites")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                membersSubTab === "invites"
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Invitations</span>
+              {activePendingInvitations.length > 0 && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    membersSubTab === "invites"
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {activePendingInvitations.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {canInvite && (
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setIsInviteModalOpen(true)}
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Send Invite</span>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Members & Invitations Table List View Container */}
+        <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border shadow-2xs">
 
               {membersSubTab !== "invites" ? (
                 <div className="divide-y divide-border/60">
@@ -604,12 +673,26 @@ export const MembersView: React.FC = () => {
                   })}
                 </div>
               ) : activePendingInvitations.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-                  <Mail className="w-8 h-8 opacity-30 text-muted-foreground" />
-                  <span className="text-xs font-semibold text-foreground">No pending invitations</span>
-                  <span className="text-[11px] text-muted-foreground max-w-xs">
-                    Invited teammates will appear here until they accept their invitation.
-                  </span>
+                <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted/60 flex items-center justify-center">
+                    <Mail className="w-6 h-6 opacity-40 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-foreground block">No pending invitations</span>
+                    <span className="text-[11px] text-muted-foreground max-w-xs mt-1 block">
+                      Invited teammates will appear here until they accept their invitation.
+                    </span>
+                  </div>
+                  {canInvite && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="mt-2 h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Send Invite</span>
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="divide-y divide-border/60">
