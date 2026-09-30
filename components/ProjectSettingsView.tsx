@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import dynamic from "next/dynamic";
+import { SyncProvidersView } from "@/components/SyncProvidersView";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Lock,
@@ -32,10 +32,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const SyncProvidersView = dynamic(
-  () => import("@/components/SyncProvidersView").then((module) => module.SyncProvidersView),
-  { ssr: false }
-);
 
 export const ProjectSettingsView: React.FC = () => {
   const {

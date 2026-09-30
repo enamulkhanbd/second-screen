@@ -1166,7 +1166,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const previousThemeGroupId = isSameProject ? previousState.activeThemeGroupId : "";
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
-    const isProjectSettings = get().sidebarTab === "project-settings";
+    const isProjectSettings = get().sidebarTab === "project-settings" || Boolean(options?.skipHydration);
     const needsProjectHydration = !options?.skipHydration && !isProjectSettings && Boolean(proj && proj.rawTokens === undefined);
 
     set({
@@ -1474,34 +1474,36 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isLoadingAssets: cachedAssets.length === 0,
       });
 
-      // Hydrate assets from R2
-      loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
-        if (!isScopeActive(proj.orgId, proj.id)) return;
-        set({
-          assets: loadedAssets,
-          isLoadingAssets: false,
+      if (!isProjectSettings && !options?.skipHydration) {
+        // Hydrate assets from R2
+        loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
+          if (!isScopeActive(proj.orgId, proj.id)) return;
+          set({
+            assets: loadedAssets,
+            isLoadingAssets: false,
+          });
         });
-      });
 
-      // Hydrate asset configs (Git, Figma, Folders) from R2
-      loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
-        if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
-        if (r2Config.assetGitConfig !== undefined) {
-          set({ assetGitConfig: r2Config.assetGitConfig });
-        }
-        if (r2Config.assetFigmaConfig !== undefined) {
-          set({ assetFigmaConfig: r2Config.assetFigmaConfig });
-        }
-        if (r2Config.folders !== undefined) {
-          set({ assetFolders: r2Config.folders });
-        }
-      });
+        // Hydrate asset configs (Git, Figma, Folders) from R2
+        loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
+          if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
+          if (r2Config.assetGitConfig !== undefined) {
+            set({ assetGitConfig: r2Config.assetGitConfig });
+          }
+          if (r2Config.assetFigmaConfig !== undefined) {
+            set({ assetFigmaConfig: r2Config.assetFigmaConfig });
+          }
+          if (r2Config.folders !== undefined) {
+            set({ assetFolders: r2Config.folders });
+          }
+        });
 
-      // 4. Restore scoped localStorage data (releases, targets, config, activities)
-      const scopeOrgId = get().currentOrg?.id;
-      if (scopeOrgId) {
-        restoreScopedProjectData(scopeOrgId, proj.id);
-        get().loadOrganizationActivities(scopeOrgId);
+        // 4. Restore scoped localStorage data (releases, targets, config, activities)
+        const scopeOrgId = get().currentOrg?.id;
+        if (scopeOrgId) {
+          restoreScopedProjectData(scopeOrgId, proj.id);
+          get().loadOrganizationActivities(scopeOrgId);
+        }
       }
     } else {
       if (typeof window !== "undefined") {

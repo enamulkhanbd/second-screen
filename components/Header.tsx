@@ -383,7 +383,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
   // Check for remote updates on load and when returning to the app
   useEffect(() => {
-    if (!isGitConfigured || !credentials.pat) return;
+    if (!isGitConfigured || !credentials.pat || hideVersionControls || sidebarTab === "project-settings") return;
 
     checkRemoteUpdates();
 
@@ -401,7 +401,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, [isGitConfigured, credentials.owner, credentials.repo, credentials.branch, credentials.pat, checkRemoteUpdates]);
+  }, [isGitConfigured, credentials.owner, credentials.repo, credentials.branch, credentials.pat, checkRemoteUpdates, hideVersionControls, sidebarTab]);
 
   // Fetch branch list whenever branch dropdown is opened
   useEffect(() => {

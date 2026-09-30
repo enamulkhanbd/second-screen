@@ -13,6 +13,7 @@ import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
 import { WorkspacesListView } from "@/components/WorkspacesListView";
 import { DashboardView } from "@/components/DashboardView";
 import { VariablesView } from "@/components/VariablesView";
+import { ProjectSettingsView } from "@/components/ProjectSettingsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
@@ -51,10 +52,6 @@ const BranchesView = dynamic(
 );
 const McpCliView = dynamic(
   () => import("@/components/McpCliView").then((module) => module.McpCliView),
-  { ssr: false, loading: WorkspaceLoading }
-);
-const ProjectSettingsView = dynamic(
-  () => import("@/components/ProjectSettingsView").then((module) => module.ProjectSettingsView),
   { ssr: false, loading: WorkspaceLoading }
 );
 const MembersView = dynamic(
@@ -205,10 +202,10 @@ export default function Home() {
       pendingRoutePath.current = targetPath;
     }
 
+    setSidebarTab("project-settings");
     setSyncTargetProject(project);
     setCurrentProject(project, { skipHydration: true });
     setProjectSettingsTab(tab);
-    setSidebarTab("project-settings");
 
     if (targetPath !== pathname) {
       router.push(targetPath);
