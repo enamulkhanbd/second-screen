@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { computeTokensDiff } from "@/utils/tokenDiff";
 import { computeThemeChanges, formatByteSize } from "@/utils/releaseNotesGenerator";
 import { compileCssVariables, compileStyleDictionary } from "@/utils/releaseCompiler";
+import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
 
 interface NewReleaseViewProps {
   onCancel: () => void;
@@ -101,6 +102,19 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
       themeChanges.length
     );
   }, [diffSummary, themeChanges]);
+
+  // Deprecated tokens ship in the release; this only flags ones needing attention.
+  const deprecationSummary = useMemo(() => {
+    const releaseTag = tag.trim().startsWith("v") ? tag.trim() : `v${tag.trim()}`;
+    const deprecated = resolvedTokens.filter((t) => t.deprecated);
+    return {
+      total: deprecated.length,
+      overdue: deprecated.filter((t) =>
+        isDeprecationOverdue(t.deprecatedRemoveAfter, { currentVersion: releaseTag })
+      ),
+      errors: deprecated.filter((t) => t.deprecatedSeverity === "error").length,
+    };
+  }, [resolvedTokens, tag]);
 
   // Formatted artifacts sizes
   const rawJsonSize = useMemo(() => {
@@ -461,6 +475,24 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
             <ExternalLink className="w-3.5 h-3.5" />
           </Button>
         </div>
+
+        {/* Deprecated tokens notice */}
+        {deprecationSummary.total > 0 && (
+          <div className="p-4 rounded-xl border border-amber-300/60 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 space-y-1 w-full">
+            <h3 className="text-xs font-bold text-foreground">
+              {deprecationSummary.total} deprecated token{deprecationSummary.total === 1 ? "" : "s"} included
+            </h3>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              They stay in this release with their deprecation details.
+              {deprecationSummary.errors > 0 && ` ${deprecationSummary.errors} marked as error.`}
+              {deprecationSummary.overdue.length > 0 &&
+                ` ${deprecationSummary.overdue.length} past their removal deadline: ${deprecationSummary.overdue
+                  .slice(0, 5)
+                  .map((t) => t.name)
+                  .join(", ")}${deprecationSummary.overdue.length > 5 ? ", …" : ""}.`}
+            </p>
+          </div>
+        )}
 
         {/* Changes Compared To Previous Release Section (Full-Width) */}
         <div className="space-y-3 pt-2 w-full">

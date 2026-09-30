@@ -9,6 +9,7 @@ import {
   ColorSpaceOption,
   CasingOption,
 } from "@/types/exports";
+import { readDeprecation, buildDeprecationNode } from "@/utils/tokenDeprecation";
 
 // ============================================================================
 // Helper Utilities
@@ -593,6 +594,10 @@ export function generateDtcgExportFiles(rawTokens: RawTokensDocument): Generated
       };
       if (obj.description || obj.$description) {
         dtcgToken.$description = obj.description || obj.$description;
+      }
+      const deprecation = readDeprecation(obj, obj.$extensions?.["studio.tokens"]);
+      if (deprecation) {
+        dtcgToken.$deprecated = buildDeprecationNode(deprecation);
       }
       return dtcgToken;
     }

@@ -7,6 +7,7 @@ import {
 } from "@/types/tokens";
 import { extractColorModifier, applyColorModifier, ColorModifier } from "./colorModifier";
 import Color from "colorjs.io";
+import { readDeprecation } from "./tokenDeprecation";
 
 // Check if a leaf is a token node (has 'value' or '$value')
 export function isTokenLeaf(node: any): node is RawTokenLeaf {
@@ -948,7 +949,7 @@ export function flattenAndResolveTokens(
           extensions["studio.tokens"] && typeof extensions["studio.tokens"] === "object"
             ? extensions["studio.tokens"]
             : {};
-        const deprecatedFlag = Boolean(node.$deprecated ?? node.deprecated ?? studioExt.deprecated);
+        const deprecation = readDeprecation(node, studioExt);
         const figmaKey =
           typeof node.$figmaVariableReferences === "string"
             ? node.$figmaVariableReferences
@@ -971,23 +972,11 @@ export function flattenAndResolveTokens(
           isAlias,
           aliasTarget: aliasMatch ? String(aliasMatch[1]) : undefined,
           description,
-          deprecated: deprecatedFlag || undefined,
-          deprecatedMessage:
-            typeof (node.$deprecatedMessage ?? studioExt.deprecatedMessage) === "string"
-              ? String(node.$deprecatedMessage ?? studioExt.deprecatedMessage)
-              : undefined,
-          deprecatedReplacement:
-            typeof (node.$replacementToken ?? studioExt.replacementToken) === "string"
-              ? String(node.$replacementToken ?? studioExt.replacementToken)
-              : undefined,
-          deprecatedSeverity:
-            typeof (node.$deprecatedSeverity ?? studioExt.deprecatedSeverity) === "string"
-              ? String(node.$deprecatedSeverity ?? studioExt.deprecatedSeverity)
-              : undefined,
-          deprecatedRemoveAfter:
-            typeof (node.$deprecatedRemoveAfter ?? studioExt.deprecatedRemoveAfter) === "string"
-              ? String(node.$deprecatedRemoveAfter ?? studioExt.deprecatedRemoveAfter)
-              : undefined,
+          deprecated: deprecation ? true : undefined,
+          deprecatedMessage: deprecation?.message,
+          deprecatedReplacement: deprecation?.replacementToken,
+          deprecatedSeverity: deprecation?.severity,
+          deprecatedRemoveAfter: deprecation?.removeAfter,
           figmaVariableKey: figmaKey,
           category: typeof node.category === "string" ? node.category : undefined,
         });
@@ -1064,22 +1053,14 @@ export function setTokenAtKeyPath(
       else delete nextLeaf.description;
     }
     if (finalVal.category !== undefined) nextLeaf.category = finalVal.category;
-    if (finalVal.$deprecated) {
-      nextLeaf.$deprecated = true;
-      if (finalVal.$deprecatedMessage) nextLeaf.$deprecatedMessage = finalVal.$deprecatedMessage;
-      else delete nextLeaf.$deprecatedMessage;
-      if (finalVal.$replacementToken) nextLeaf.$replacementToken = finalVal.$replacementToken;
-      else delete nextLeaf.$replacementToken;
-      if (finalVal.$deprecatedSeverity) nextLeaf.$deprecatedSeverity = finalVal.$deprecatedSeverity;
-      else delete nextLeaf.$deprecatedSeverity;
-      if (finalVal.$deprecatedRemoveAfter) nextLeaf.$deprecatedRemoveAfter = finalVal.$deprecatedRemoveAfter;
-      else delete nextLeaf.$deprecatedRemoveAfter;
-    } else {
-      delete nextLeaf.$deprecated;
+    // Only touch deprecation when the payload carries it, so bulk edits keep existing metadata.
+    if ("$deprecated" in finalVal) {
       delete nextLeaf.$deprecatedMessage;
       delete nextLeaf.$replacementToken;
       delete nextLeaf.$deprecatedSeverity;
       delete nextLeaf.$deprecatedRemoveAfter;
+      if (finalVal.$deprecated) nextLeaf.$deprecated = finalVal.$deprecated;
+      else delete nextLeaf.$deprecated;
     }
     current[lastSegment] = nextLeaf;
   } else if (existing && typeof existing === "object") {

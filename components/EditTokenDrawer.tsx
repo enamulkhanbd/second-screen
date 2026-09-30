@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { buildDeprecationNode } from "@/utils/tokenDeprecation";
 
 interface EditTokenDrawerProps {
   token: FlattenedToken | null;
@@ -138,7 +139,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   const [deprecated, setDeprecated] = useState(false);
   const [deprecatedMessage, setDeprecatedMessage] = useState("");
   const [replacementToken, setReplacementToken] = useState("");
-  const [deprecatedSeverity, setDeprecatedSeverity] = useState("Warning");
+  const [deprecatedSeverity, setDeprecatedSeverity] = useState("warning");
   const [deprecatedRemoveAfter, setDeprecatedRemoveAfter] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -169,7 +170,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
     setDeprecated(Boolean(token.deprecated));
     setDeprecatedMessage(token.deprecatedMessage || "");
     setReplacementToken(token.deprecatedReplacement || "");
-    setDeprecatedSeverity(token.deprecatedSeverity || "Warning");
+    setDeprecatedSeverity(token.deprecatedSeverity || "warning");
     setDeprecatedRemoveAfter(token.deprecatedRemoveAfter || "");
     setPicker("none");
   }, [token, availableSets]);
@@ -230,11 +231,14 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
       type: tokenType,
       description: description.trim() || undefined,
       category: category.trim() || undefined,
-      $deprecated: deprecated || undefined,
-      $deprecatedMessage: deprecated ? deprecatedMessage.trim() : undefined,
-      $replacementToken: deprecated ? replacementToken.trim() : undefined,
-      $deprecatedSeverity: deprecated ? deprecatedSeverity : undefined,
-      $deprecatedRemoveAfter: deprecated ? deprecatedRemoveAfter : undefined,
+      $deprecated: deprecated
+        ? buildDeprecationNode({
+            severity: deprecatedSeverity,
+            message: deprecatedMessage,
+            replacementToken,
+            removeAfter: deprecatedRemoveAfter,
+          })
+        : undefined,
     };
 
     if (tokenSet && tokenSet !== token.setName) {
@@ -558,18 +562,18 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
-                        <SelectItem value="Warning">Warning</SelectItem>
-                        <SelectItem value="Error">Error</SelectItem>
+                        <SelectItem value="warning">Warning</SelectItem>
+                        <SelectItem value="error">Error</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[11px]">Remove After</Label>
                     <Input
-                      type="date"
                       value={deprecatedRemoveAfter}
                       onChange={(e) => setDeprecatedRemoveAfter(e.target.value)}
-                      className="h-8 text-xs"
+                      className="h-8 text-xs font-mono"
+                      placeholder="2026-10-01 or v2.0.11"
                     />
                   </div>
                 </div>

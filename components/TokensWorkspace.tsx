@@ -45,6 +45,7 @@ import {
   ArrowDownAZ,
   ArrowUp01,
   ArrowDown01,
+  TriangleAlert,
 } from "lucide-react";
 import { AddTokenModal } from "@/components/AddTokenModal";
 import { CodeEditor } from "@/components/ui/CodeEditor";
@@ -60,6 +61,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { buildTokenGroupTree, TokenGroupNode, getActiveThemeSets } from "@/utils/themeHelpers";
 import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
+import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
 import { ThemeSwitcherDropdown } from "@/components/ThemeSwitcherDropdown";
 import { cn } from "@/lib/utils";
 
@@ -121,6 +123,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   // PREVIEW MODE STATE & FILTERING
   // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDeprecatedOnly, setShowDeprecatedOnly] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
@@ -224,8 +227,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   }, [resolvedTokens, activeSet, activeThemeInfo]);
 
   // Filter tokens strictly for the active set (or all sets if 'ALL')
+  const deprecatedCount = useMemo(() => setTokens.filter((t) => t.deprecated).length, [setTokens]);
+
   const displayedTokens = useMemo(() => {
     return setTokens.filter((token) => {
+      if (showDeprecatedOnly && !token.deprecated) return false;
+
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -238,7 +245,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
       return true;
     });
-  }, [setTokens, searchQuery]);
+  }, [setTokens, searchQuery, showDeprecatedOnly]);
 
   // Grouping depth state (default to 0: All Levels)
   const [groupDepth, setGroupDepth] = useState<number>(0);
@@ -278,7 +285,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   // Reset infinite scroll count whenever filters, active set, or sort changes
   useEffect(() => {
     setVisibleCount(INITIAL_BATCH_SIZE);
-  }, [searchQuery, activeSet, groupDepth, sortField, sortDirection]);
+  }, [searchQuery, showDeprecatedOnly, activeSet, groupDepth, sortField, sortDirection]);
 
   const totalCount = displayedTokens.length;
 
@@ -835,6 +842,24 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
           {/* Theme Switcher Button */}
           {themeGroups.length > 0 && <ThemeSwitcherDropdown />}
+
+          {/* Deprecated-only filter */}
+          {(deprecatedCount > 0 || showDeprecatedOnly) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeprecatedOnly((v) => !v)}
+              aria-pressed={showDeprecatedOnly}
+              className={cn(
+                "h-8 gap-1.5 px-2.5 text-xs cursor-pointer shadow-2xs border-border bg-background hover:bg-muted/80",
+                showDeprecatedOnly ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800" : "text-muted-foreground"
+              )}
+              title={showDeprecatedOnly ? "Show all tokens" : "Show only deprecated tokens"}
+            >
+              <TriangleAlert className="w-3.5 h-3.5" />
+              <span className="font-mono">{deprecatedCount}</span>
+            </Button>
+          )}
 
           {/* Search Icon / Toggle */}
           {isSearchOpen ? (
@@ -1525,6 +1550,30 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     String(token.resolvedValue).includes("unresolved") ||
     String(token.rawValue).includes("unresolved");
 
+  const releases = useTokenStore((s) => s.releases);
+  const latestVersion = useMemo(() => {
+    let latest: { version: string; createdAt: string } | undefined;
+    for (const r of releases || []) {
+      if (!latest || r.createdAt > latest.createdAt) latest = r;
+    }
+    return latest?.version;
+  }, [releases]);
+  const isRemovalDue = token.deprecated
+    ? isDeprecationOverdue(token.deprecatedRemoveAfter, { currentVersion: latestVersion })
+    : false;
+  const deprecationTitle = token.deprecated
+    ? [
+        `Deprecated (${token.deprecatedSeverity || "warning"})`,
+        token.deprecatedMessage,
+        token.deprecatedReplacement ? `Use ${token.deprecatedReplacement}` : undefined,
+        token.deprecatedRemoveAfter
+          ? `Remove after ${token.deprecatedRemoveAfter}${isRemovalDue ? " (overdue)" : ""}`
+          : undefined,
+      ]
+        .filter(Boolean)
+      .join("\n")
+    : undefined;
+
   const rawValueStr =
     typeof token.rawValue === "object"
       ? JSON.stringify(token.rawValue)
@@ -1638,6 +1687,19 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
           >
             {token.name}
           </span>
+          {token.deprecated && (
+            <span
+              title={deprecationTitle}
+              className={cn(
+                "shrink-0 inline-flex items-center px-1.5 py-0 rounded text-[10px] font-sans font-semibold border cursor-default",
+                token.deprecatedSeverity === "error" || isRemovalDue
+                  ? "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60"
+                  : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-900/60"
+              )}
+            >
+              {isRemovalDue ? "Remove due" : "Deprecated"}
+            </span>
+          )}
         </div>
         {startResizing && (
           <div
