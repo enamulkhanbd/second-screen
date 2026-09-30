@@ -376,6 +376,12 @@ export const MembersView: React.FC = () => {
               <Users className="w-3.5 h-3.5 text-muted-foreground" />
               <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
             </Badge>
+            {activePendingInvitations.length > 0 && (
+              <Badge variant="outline" className="text-xs px-2.5 py-1 gap-1.5 font-medium text-amber-500 border-amber-500/30 bg-amber-500/10">
+                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <span>{activePendingInvitations.length} pending</span>
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -555,6 +561,139 @@ export const MembersView: React.FC = () => {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Section 3: Pending Invitations */}
+            <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
+              <div className="p-6 border-b border-border/70 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                    <span>Pending Invitations ({activePendingInvitations.length})</span>
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Colleagues who have been invited to this workspace but have not yet accepted.
+                  </p>
+                </div>
+              </div>
+
+              {activePendingInvitations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-1.5">
+                  <Mail className="w-6 h-6 opacity-30 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-foreground">No pending invitations</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Invited teammates will appear here until they accept their invitation.
+                  </span>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {activePendingInvitations.map((inv) => {
+                    const expiry = getExpiryStatus(inv.expiresAt);
+                    const isExpired = expiry.isExpired;
+                    const roleDef = ROLE_DEFINITIONS[inv.role] || ROLE_DEFINITIONS.editor;
+
+                    return (
+                      <div
+                        key={inv.id}
+                        className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors ${
+                          isExpired ? "bg-destructive/5" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center justify-center border border-amber-500/20 flex-shrink-0">
+                            {inv.inviteeEmail.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                {inv.inviteeEmail}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] font-normal capitalize">
+                                {roleDef.title}
+                              </Badge>
+                              {isExpired && (
+                                <Badge variant="destructive" className="text-[9px] px-1.5 py-0 gap-1 font-semibold">
+                                  <AlertTriangle className="size-2.5" />
+                                  <span>Expired</span>
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                              <span>Invited by {inv.invitedByName || inv.invitedByEmail}</span>
+                              <span>•</span>
+                              <span>Sent {formatDateTime(inv.createdAt)}</span>
+                              <span>•</span>
+                              <span className={isExpired ? "text-destructive font-medium" : ""}>
+                                {expiry.label}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {isExpired ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleResendInvite(inv.id)}
+                              disabled={resendingId === inv.id}
+                              className="h-8 text-xs font-semibold gap-1.5 cursor-pointer"
+                            >
+                              <RotateCcw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                              <span>{resendingId === inv.id ? "Resending..." : "Resend"}</span>
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyLink(inv.token)}
+                                className="h-8 text-xs gap-1.5 cursor-pointer"
+                                title="Copy direct join link"
+                              >
+                                {copiedToken === inv.token ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span className="text-emerald-500 font-medium">Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Copy Link</span>
+                                  </>
+                                )}
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResendInvite(inv.id)}
+                                disabled={resendingId === inv.id}
+                                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                                title="Renew invitation with fresh 7-day link"
+                              >
+                                <RotateCcw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                                <span>{resendingId === inv.id ? "Renewing..." : "Resend"}</span>
+                              </Button>
+                            </>
+                          )}
+
+                          {canManageRoles && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => revokeInvitationAction(inv.id)}
+                              className="h-8 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Revoke invitation"
+                            >
+                              Revoke
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
