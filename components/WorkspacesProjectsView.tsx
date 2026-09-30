@@ -444,11 +444,14 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
   };
 
   const handleOpenProjectSettings = (project: Project, tab: "details" | "sync" = "details") => {
-    setSyncTargetProject(project);
-    setCurrentProject(project);
-    setProjectSettingsTab(tab);
+    if (onOpenProjectSettings) {
+      onOpenProjectSettings(project, tab);
+      return;
+    }
     setSidebarTab("project-settings");
-    onOpenProjectSettings?.(project, tab);
+    setSyncTargetProject(project);
+    setCurrentProject(project, { skipHydration: true });
+    setProjectSettingsTab(tab);
   };
 
   const handleConfigureSync = (project: Project) => handleOpenProjectSettings(project, "sync");

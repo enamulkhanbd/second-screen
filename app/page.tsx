@@ -13,6 +13,7 @@ import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
 import { WorkspacesListView } from "@/components/WorkspacesListView";
 import { DashboardView } from "@/components/DashboardView";
 import { VariablesView } from "@/components/VariablesView";
+import { ProjectSettingsView } from "@/components/ProjectSettingsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
@@ -51,10 +52,6 @@ const BranchesView = dynamic(
 );
 const McpCliView = dynamic(
   () => import("@/components/McpCliView").then((module) => module.McpCliView),
-  { ssr: false, loading: WorkspaceLoading }
-);
-const ProjectSettingsView = dynamic(
-  () => import("@/components/ProjectSettingsView").then((module) => module.ProjectSettingsView),
   { ssr: false, loading: WorkspaceLoading }
 );
 const MembersView = dynamic(
@@ -205,10 +202,10 @@ export default function Home() {
       pendingRoutePath.current = targetPath;
     }
 
-    setSyncTargetProject(project);
-    setCurrentProject(project);
-    setProjectSettingsTab(tab);
     setSidebarTab("project-settings");
+    setSyncTargetProject(project);
+    setCurrentProject(project, { skipHydration: true });
+    setProjectSettingsTab(tab);
 
     if (targetPath !== pathname) {
       router.push(targetPath);
@@ -304,13 +301,22 @@ export default function Home() {
       return;
     }
 
-    if (currentProject?.id !== matchingProject.id) {
-      setCurrentProject(matchingProject);
-      return;
+    const isProjectChanging = currentProject?.id !== matchingProject.id;
+    const isTabChanging = sidebarTab !== routeTab;
+
+    if (routeTab === "project-settings") {
+      setSyncTargetProject(matchingProject);
     }
 
-    if (sidebarTab !== routeTab) {
+    if (isProjectChanging) {
+      setCurrentProject(matchingProject, { skipHydration: routeTab === "project-settings" });
+    }
+
+    if (isTabChanging) {
       setSidebarTab(routeTab as typeof sidebarTab);
+    }
+
+    if (isProjectChanging || isTabChanging) {
       return;
     }
 
