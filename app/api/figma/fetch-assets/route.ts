@@ -261,20 +261,30 @@ async function processSingleFigmaSource(
   const chunkSize = 80;
   const imageUrlMap: Record<string, string> = {};
 
+  const chunks: string[][] = [];
   for (let i = 0; i < nodeIds.length; i += chunkSize) {
-    const chunk = nodeIds.slice(i, i + chunkSize);
-    const imgRes = await fetch(
-      `https://api.figma.com/v1/images/${fileKey}?ids=${chunk.join(",")}&format=svg`,
-      { headers }
-    );
-
-    if (imgRes.ok) {
-      const imgData = await imgRes.json();
-      if (imgData.images) {
-        Object.assign(imageUrlMap, imgData.images);
-      }
-    }
+    chunks.push(nodeIds.slice(i, i + chunkSize));
   }
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const imgRes = await fetch(
+          `https://api.figma.com/v1/images/${fileKey}?ids=${chunk.join(",")}&format=svg`,
+          { headers }
+        );
+
+        if (imgRes.ok) {
+          const imgData = await imgRes.json();
+          if (imgData.images) {
+            Object.assign(imageUrlMap, imgData.images);
+          }
+        }
+      } catch (err) {
+        console.warn("Error fetching Figma image chunk:", err);
+      }
+    })
+  );
 
   // 4. Download and sanitize SVGs concurrently
   const assets: ProjectAsset[] = [];
@@ -285,44 +295,46 @@ async function processSingleFigmaSource(
     fetchChunks.push(componentNodes.slice(i, i + 15));
   }
 
-  for (const chunk of fetchChunks) {
-    await Promise.all(
-      chunk.map(async (comp) => {
-        const svgUrl = imageUrlMap[comp.id];
-        if (!svgUrl) return;
+  await Promise.all(
+    fetchChunks.map(async (chunk) => {
+      await Promise.all(
+        chunk.map(async (comp) => {
+          const svgUrl = imageUrlMap[comp.id];
+          if (!svgUrl) return;
 
-        try {
-          const svgFetchRes = await fetch(svgUrl);
-          if (!svgFetchRes.ok) return;
+          try {
+            const svgFetchRes = await fetch(svgUrl);
+            if (!svgFetchRes.ok) return;
 
-          const rawSvg = await svgFetchRes.text();
-          const cleanSvg = sanitizeSvg(rawSvg);
-          if (!cleanSvg || !cleanSvg.includes("<svg")) return;
+            const rawSvg = await svgFetchRes.text();
+            const cleanSvg = sanitizeSvg(rawSvg);
+            if (!cleanSvg || !cleanSvg.includes("<svg")) return;
 
-          const meta = parseComponentMetadata(comp.name, comp.parentName, comp.description);
-          const figmaDirectUrl = `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(comp.id)}`;
+            const meta = parseComponentMetadata(comp.name, comp.parentName, comp.description);
+            const figmaDirectUrl = `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(comp.id)}`;
 
-          assets.push({
-            id: `figma_${comp.id.replace(/[^a-zA-Z0-9]/g, "_")}_${Math.random().toString(36).substring(2, 6)}`,
-            name: meta.name,
-            title: meta.title,
-            type: meta.type,
-            category: target.sourceName || meta.category,
-            tag: meta.tag,
-            svg: cleanSvg,
-            updatedAt: now,
-            source: "figma",
-            figmaNodeId: comp.id,
-            figmaUrl: figmaDirectUrl,
-            figmaSourceId: target.sourceId,
-            figmaSourceName: target.sourceName || nodeName,
-          });
-        } catch (err) {
-          console.warn(`Error fetching SVG for component ${comp.id}:`, err);
-        }
-      })
-    );
-  }
+            assets.push({
+              id: `figma_${comp.id.replace(/[^a-zA-Z0-9]/g, "_")}_${Math.random().toString(36).substring(2, 6)}`,
+              name: meta.name,
+              title: meta.title,
+              type: meta.type,
+              category: target.sourceName || meta.category,
+              tag: meta.tag,
+              svg: cleanSvg,
+              updatedAt: now,
+              source: "figma",
+              figmaNodeId: comp.id,
+              figmaUrl: figmaDirectUrl,
+              figmaSourceId: target.sourceId,
+              figmaSourceName: target.sourceName || nodeName,
+            });
+          } catch (err) {
+            console.warn(`Error fetching SVG for component ${comp.id}:`, err);
+          }
+        })
+      );
+    })
+  );
 
   return {
     sourceId: target.sourceId,
