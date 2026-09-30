@@ -3717,6 +3717,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       // 5. Restore Active Sidebar Tab and Tokens View Mode
       const validTabs = [
         "dashboard",
+        "projects",
         "variables",
         "tokens",
         "themes",
@@ -3737,9 +3738,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       ];
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const isLegacySyncTab = ["integrations", "sync", "project-sync"].includes(savedTab || "");
+      const currentTab = get().sidebarTab;
       const initialTab: any =
         isLegacySyncTab
           ? "project-settings"
+          : currentTab && validTabs.includes(currentTab)
+          ? currentTab
           : savedTab && validTabs.includes(savedTab)
           ? savedTab
           : "dashboard";
