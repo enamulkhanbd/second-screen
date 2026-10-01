@@ -14,7 +14,7 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/releases
- * Dynamically compiles release packages and assets from Firestore
+ * Dynamically compiles release packages and assets for a project.
  */
 export async function GET(req: NextRequest) {
   try {

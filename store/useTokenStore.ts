@@ -519,7 +519,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   };
 
   /**
-   * Persists assets to R2 (if configured) or falls back to Firestore.
+  * Persists asset metadata and files through the R2-backed asset API.
    * This is the single abstraction point for all asset write operations.
    *
    * @param orgId       - Organization ID
@@ -3720,7 +3720,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       localStorage.removeItem("ts_cached_meta");
 
       // 2. Credentials are NO LONGER restored from global localStorage.
-      //    They are derived from the project's Firestore gitConfig in setCurrentProject.
+      //    They are derived from the project's config in setCurrentProject.
       //    We only keep the PAT alive so it can be re-attached when the project loads.
       //    (PAT is intentionally global since users often share one PAT across projects.)
 
@@ -3966,7 +3966,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       groups.find((g) => g && typeof g.name === "string" && g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // Synchronize loaded tokens with active Project in Cloud Firestore and Active Branch
+    // Synchronize loaded tokens with the active project and branch.
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
     if (currentOrg && currentProject) {
       set({ cloudSaveStatus: "saving" });
@@ -5239,7 +5239,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       return { userActivities: updated };
     });
 
-    // Asynchronously persist to Cloud Firestore for team visibility
+    // Asynchronously persist remotely for team visibility.
     const targetOrgId = act.orgId || currentOrg?.id;
     if (targetOrgId) {
       logOrganizationActivity(targetOrgId, newActivity).catch(() => {});
@@ -5269,7 +5269,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
       }
     } catch (e) {
-      console.warn("Failed to load organization activities from Firestore:", e);
+      console.warn("Failed to load organization activities:", e);
     }
   },
 
@@ -5302,7 +5302,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     set({ documentation: updatedDoc, activeDocFolderId: newFolder.id });
     if (currentOrg && currentProject) {
       saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch((err) => {
-        console.error("Failed to save doc folder to Firestore:", err);
+        console.error("Failed to save documentation folder:", err);
       });
       get().logUserActivity({
         type: "doc",

@@ -84,8 +84,7 @@ export interface ProjectAsset {
   duration?: number;
   /**
    * Inline SVG string content.
-   * @deprecated Kept for backward compatibility during Firestore→R2 migration.
-   * New assets use `url` field pointing to R2 CDN.
+    * Used when SVG markup is available locally; new assets use `url` when possible.
    */
   svg?: string;
   path?: string;
@@ -148,11 +147,7 @@ export interface Project {
   assetFigmaConfig?: AssetFigmaConfig | null;
   assets?: ProjectAsset[];
   assetFolders?: AssetFolder[];
-  /** @deprecated Firestore chunking flag — no longer needed with R2 storage */
-  hasChunkedAssets?: boolean;
   assetsCount?: number;
-  /** Storage provider for assets: "r2" for Cloudflare R2, "firestore" for legacy */
-  assetsStorageProvider?: "r2" | "firestore";
   rawTokens?: RawTokensDocument;
   themeGroups?: ThemeGroup[];
   figmaVariables?: RawTokensDocument;
