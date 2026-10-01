@@ -96,15 +96,29 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Accessible semantic focus rings for keyboard navigation */
+/* Semantic interaction states */
+/* Reset: clear outlines for pointer-driven focus (must stay before hover/highlight rules) */
+:is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):focus:not(:focus-visible):not([data-highlighted]) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Hover: subtle border for pointer interaction */
+:is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):hover:not(:focus-visible) {
+  outline: 1px solid hsl(var(--ring) / 0.6);
+  outline-offset: 1px;
+}
+
+/* Radix highlight: menus/listboxes move DOM focus on hover, so use data-highlighted */
+[data-highlighted]:not(:focus-visible) {
+  outline: 1px solid hsl(var(--ring) / 0.6);
+  outline-offset: 1px;
+}
+
+/* Keyboard focus: strong accessible ring */
 :is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
-}
-
-:is(button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [tabindex]:not([tabindex="-1"])):focus:not(:focus-visible) {
-  outline: none;
-  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
