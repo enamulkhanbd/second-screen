@@ -153,9 +153,9 @@ export const WorkspacesListView: React.FC = () => {
           <Button
             onClick={() => setIsCreateOpen(true)}
             size="sm"
-            className="bg-[#22c55e] hover:bg-[#16a34a] text-zinc-950 hover:text-black font-semibold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all border-0"
+            className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-zinc-950 stroke-[2.5]" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Create workspace</span>
           </Button>
         </div>
