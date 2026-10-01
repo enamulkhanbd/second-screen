@@ -9,6 +9,27 @@ interface WorkspaceSkeletonProps {
 
 const widths = ["w-24", "w-40", "w-32", "w-48", "w-28", "w-36"];
 
+/**
+ * Returns how many skeleton rows are needed to fill the current viewport so
+ * full-page table skeletons never leave blank space below the last row.
+ */
+function useViewportSkeletonRows(minRows: number, rowHeight: number, chromeHeight: number) {
+  const [rows, setRows] = React.useState(minRows);
+
+  React.useEffect(() => {
+    const update = () => {
+      const available = window.innerHeight - chromeHeight;
+      // +2 buffer rows so fractional rows are covered; overflow-hidden clips the excess.
+      setRows(Math.max(minRows, Math.ceil(available / rowHeight) + 2));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [minRows, rowHeight, chromeHeight]);
+
+  return rows;
+}
+
 function PageHeaderSkeleton({ withSearch = false }: { withSearch?: boolean }) {
   return (
     <div className="space-y-4">
@@ -79,6 +100,9 @@ function ListSkeleton() {
 }
 
 function TokenTableSkeleton() {
+  // Chrome above the rows: ~57px toolbar + ~37px thead. Each row is ~37px tall.
+  const rowCount = useViewportSkeletonRows(16, 37, 57 + 37);
+
   return (
     <div className="flex h-full w-full min-h-0 flex-1 flex-col bg-background">
       <div className="flex min-h-[57px] items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -113,7 +137,7 @@ function TokenTableSkeleton() {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 16 }, (_, rowIndex) => (
+            {Array.from({ length: rowCount }, (_, rowIndex) => (
               <tr key={rowIndex} className="border-b border-border/30">
                 <td className="border-r border-border/30 px-3 py-3"><Skeleton className="mx-auto h-3.5 w-3.5" /></td>
                 <td className="border-r border-border/30 px-4 py-3"><Skeleton className={`h-3 ${widths[rowIndex % widths.length]}`} /></td>
