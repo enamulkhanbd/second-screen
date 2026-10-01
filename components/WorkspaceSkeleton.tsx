@@ -23,8 +23,8 @@ function PageHeaderSkeleton({ withSearch = false }: { withSearch?: boolean }) {
 
 function CardGridSkeleton() {
   return (
-    <div className="flex-1 overflow-y-auto bg-background">
-      <div className="mx-auto flex w-full max-w-[960px] flex-col gap-6 px-6 py-8">
+    <div className="h-full w-full flex-1 overflow-y-auto bg-background">
+      <div className="mx-auto flex min-h-full w-full max-w-[960px] flex-col gap-6 px-6 py-8">
         <PageHeaderSkeleton withSearch />
         <div className="flex gap-2 overflow-hidden">
           {["w-16", "w-20", "w-24", "w-28"].map((width) => (
@@ -32,7 +32,7 @@ function CardGridSkeleton() {
           ))}
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, index) => (
+          {Array.from({ length: 9 }, (_, index) => (
             <div key={index} className="space-y-4 rounded-lg border border-border p-4">
               <div className="flex items-start justify-between gap-3">
                 <Skeleton className="h-9 w-9 rounded-lg" />
@@ -57,11 +57,11 @@ function CardGridSkeleton() {
 
 function ListSkeleton() {
   return (
-    <div className="flex-1 overflow-y-auto bg-background">
-      <div className="mx-auto flex w-full max-w-[960px] flex-col gap-6 px-6 py-8">
+    <div className="h-full w-full flex-1 overflow-y-auto bg-background">
+      <div className="mx-auto flex min-h-full w-full max-w-[960px] flex-col gap-6 px-6 py-8">
         <PageHeaderSkeleton withSearch />
         <div className="overflow-hidden rounded-lg border border-border">
-          {Array.from({ length: 8 }, (_, index) => (
+          {Array.from({ length: 12 }, (_, index) => (
             <div key={index} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
               <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
               <div className="min-w-0 flex-1 space-y-2">
@@ -80,7 +80,7 @@ function ListSkeleton() {
 
 function TokenTableSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
+    <div className="flex h-full w-full min-h-0 flex-1 flex-col bg-background">
       <div className="flex min-h-[57px] items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <Skeleton className="h-7 w-7 shrink-0" />
@@ -113,7 +113,7 @@ function TokenTableSkeleton() {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 9 }, (_, rowIndex) => (
+            {Array.from({ length: 16 }, (_, rowIndex) => (
               <tr key={rowIndex} className="border-b border-border/30">
                 <td className="border-r border-border/30 px-3 py-3"><Skeleton className="mx-auto h-3.5 w-3.5" /></td>
                 <td className="border-r border-border/30 px-4 py-3"><Skeleton className={`h-3 ${widths[rowIndex % widths.length]}`} /></td>
@@ -133,7 +133,7 @@ function TokenTableSkeleton() {
 
 function DocumentationSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 bg-background">
+    <div className="flex h-full w-full min-h-0 flex-1 bg-background">
       <aside className="hidden w-60 shrink-0 border-r border-border p-4 lg:block">
         <Skeleton className="mb-5 h-8 w-full" />
         <div className="space-y-3">
@@ -168,8 +168,8 @@ function DocumentationSkeleton() {
 
 function FormSkeleton() {
   return (
-    <div className="flex-1 overflow-y-auto bg-background">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-8">
+    <div className="h-full w-full flex-1 overflow-y-auto bg-background">
+      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-8 px-6 py-8">
         <PageHeaderSkeleton />
         <div className="space-y-6 rounded-lg border border-border p-5">
           {Array.from({ length: 5 }, (_, index) => (
