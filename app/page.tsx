@@ -21,59 +21,79 @@ import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { WorkspaceSkeleton, type WorkspaceSkeletonVariant } from "@/components/WorkspaceSkeleton";
 
-function WorkspaceLoading() {
-  return (
-    <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-      Loading workspace...
-    </div>
-  );
+function WorkspaceLoading({ variant = "form" }: { variant?: WorkspaceSkeletonVariant }) {
+  return <WorkspaceSkeleton variant={variant} />;
 }
 
 const ReleasesWorkspace = dynamic(
   () => import("@/components/ReleasesWorkspace").then((module) => module.ReleasesWorkspace),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const DocumentationView = dynamic(
   () => import("@/components/DocumentationView").then((module) => module.DocumentationView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="documentation" /> }
 );
 const AssetsView = dynamic(
   () => import("@/components/AssetsView").then((module) => module.AssetsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="cards" /> }
 );
 const ExportsView = dynamic(
   () => import("@/components/ExportsView").then((module) => module.ExportsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const BranchesView = dynamic(
   () => import("@/components/BranchesView").then((module) => module.BranchesView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const McpCliView = dynamic(
   () => import("@/components/McpCliView").then((module) => module.McpCliView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading /> }
 );
 const MembersView = dynamic(
   () => import("@/components/MembersView").then((module) => module.MembersView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const OrgSettingsView = dynamic(
   () => import("@/components/OrgSettingsView").then((module) => module.OrgSettingsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading /> }
 );
 const ExtensionsView = dynamic(
   () => import("@/components/ExtensionsView").then((module) => module.ExtensionsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="cards" /> }
 );
 const SystemChangelogView = dynamic(
   () => import("@/components/SystemChangelogView").then((module) => module.SystemChangelogView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const SystemDocsView = dynamic(
   () => import("@/components/SystemDocsView").then((module) => module.SystemDocsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="documentation" /> }
 );
+
+function getProjectLoadingVariant(tab: string): WorkspaceSkeletonVariant {
+  switch (tab) {
+    case "assets":
+    case "extensions":
+      return "cards";
+    case "documentation":
+    case "system-docs":
+      return "documentation";
+    case "tokens":
+    case "themes":
+    case "variables":
+      return "table";
+    case "branches":
+    case "exports":
+    case "members":
+    case "releases":
+    case "changelog":
+      return "list";
+    default:
+      return "form";
+  }
+}
 
 const WORKSPACE_ROUTE_TO_TAB = {
   overview: "dashboard",
@@ -519,7 +539,7 @@ export default function Home() {
         {isWorkspacesView ? (
           <WorkspacesListView />
         ) : isLoadingProjectData && sidebarTab !== "project-settings" ? (
-          <WorkspaceLoading />
+          <WorkspaceLoading variant={getProjectLoadingVariant(sidebarTab)} />
         ) : sidebarTab === "dashboard" ? (
           <DashboardView />
         ) : sidebarTab === "projects" ? (
