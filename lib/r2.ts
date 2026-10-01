@@ -219,7 +219,7 @@ import { AssetType, ProjectAsset } from "@/types/tenant";
 
 /**
  * Uploads the asset metadata index (lightweight JSON) for a project.
- * This replaces the Firestore asset document storage.
+ * Stores the lightweight asset metadata index alongside files in R2.
  */
 export async function uploadMetadataIndex(
   orgId: string,

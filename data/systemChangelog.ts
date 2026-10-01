@@ -4,24 +4,24 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
     version: "v1.5.0",
     releaseDate: "September 24, 2026",
-    title: "Supabase PostgreSQL Database & Auth Engine Migration (Zero Firebase Fallback)",
+    title: "Supabase PostgreSQL Database & Auth Platform",
     badge: "Major Release",
     badgeVariant: "default",
     isLatest: true,
     summary:
-      "Successfully transitioned the platform database, tenancy engine, audit logs, and user authentication from Google Firebase to a high-performance Supabase PostgreSQL architecture with strict Row Level Security (RLS) and zero remaining Firebase dependencies.",
+      "Moved platform data, tenancy, audit logs, and authentication to Supabase PostgreSQL with strict Row Level Security (RLS).",
     highlights: [
       "100% Zero-Data-Loss Migration: Automatically transferred all organizations, members, project branches, DTCG token trees, activities, and invitations.",
       "PostgreSQL Tenancy & RLS: Enforced cryptographic row-level isolation on organizations, organization_members, projects, and activities.",
-      "Supabase Auth Engine: Replaced Firebase Auth with modern cookie-aware Supabase SSR Authentication and OAuth provider integrations.",
+      "Supabase Auth Engine: Added cookie-aware Supabase SSR authentication and OAuth provider integrations.",
       "Companion Plugin Synchronization: Migrated Figma Companion PAT pairing sessions and API key registries to Postgres.",
-      "Complete Dependency Purge: Uninstalled Firebase SDK completely with zero legacy fallbacks.",
+      "Dependency Cleanup: Removed unused client and admin packages from the application bundle.",
     ],
     items: [
       {
         title: "Supabase PostgreSQL Tenancy Architecture",
         description:
-          "Replaced Firestore document collections with relational PostgreSQL schemas featuring cascade constraints, compound indexes, and RLS policies.",
+          "Implemented relational PostgreSQL schemas featuring cascade constraints, compound indexes, and RLS policies.",
         category: "feature",
         tags: ["Supabase", "PostgreSQL", "Database", "RLS"],
       },
@@ -33,9 +33,9 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
         tags: ["Auth", "Supabase", "Cookies", "Security"],
       },
       {
-        title: "Zero-Firebase Dependency Elimination",
+        title: "Lean Backend Dependencies",
         description:
-          "Purged legacy Firebase client and admin packages from bundle dependencies, reducing bundle overhead and latency.",
+          "Removed unused client and admin packages from bundle dependencies, reducing bundle overhead and latency.",
         category: "enhancement",
         tags: ["Performance", "Bundle", "Clean Architecture"],
       },
@@ -110,7 +110,7 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
       "Comprehensive catalog of 182 schemas matching modern token specifications across 41 Color Spaces (OKLCH, OKLab, Display P3, HCT), 81 Functions (APCA, WCAG 2.1, harmonize), and 60 Core Utilities.",
       "100% self-hosted schema endpoints (/api/v1/schemas/*) serving valid JSON Schema draft 2020-12 documents with zero third-party domain dependencies.",
       "Reference-accurate dark theme inspection dialog matching Tokens Studio aesthetics with copyable schema URLs and no scrollbar clutter.",
-      "Per-project extension persistence in Cloud Firestore integrated with Zustand state.",
+      "Per-project extension settings persist with project data and hydrate into Zustand state.",
       "Progressive infinite scrolling and memory-efficient batching in TokensWorkspace for smooth navigation of 13,000+ tokens without browser freezing.",
       "O(1) in-memory alias indexing and cached color conversions eliminating recursive alias resolution lag.",
     ],
@@ -146,9 +146,9 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
       {
         title: "Multi-Tenant Project Schema Persistence",
         description:
-          "Project-scoped schema activation stored directly in Cloud Firestore (enabledSchemas), providing governance over allowed token types per project.",
+          "Project-scoped schema activation (enabledSchemas) provides governance over allowed token types per project.",
         category: "feature",
-        tags: ["Multi-Tenant", "Firestore", "Governance"],
+        tags: ["Multi-Tenant", "Governance"],
       },
       {
         title: "Large-Scale Token Performance Optimization",
@@ -309,9 +309,9 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
     badgeVariant: "secondary",
     isLatest: false,
     summary:
-      "Added cross-team real-time User Activity Audit Logging via Firestore, full event tracking across tokens and assets, and dynamic dual-path Git icon synchronization.",
+      "Added cross-team real-time user activity logging, full event tracking across tokens and assets, and dynamic dual-path Git icon synchronization.",
     highlights: [
-      "Authentic cross-team User Activity Log powered by Cloud Firestore (`organizations/{orgId}/activities`).",
+      "Cross-team user activity logging with organization-level visibility.",
       "Full event tracking across token mutations, theme creation, releases, vector asset uploads, and member management.",
       "Dynamic Git sync supporting both `assets/icons` and `assets/icons/svg` with parent `metadata.json` automatic resolution.",
       "High-scale asset ingestion expanded to 5,000 items with Azure DevOps chunking.",
@@ -321,9 +321,9 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
       {
         title: "Cross-Team User Activity Audit Logs",
         description:
-          "Completely eliminated dummy/mock fallback logs in favor of a shared Firestore audit collection, enabling all team members in an organization to see who modified tokens, created releases, or updated assets in real time.",
+          "Replaced dummy activity logs with a shared organization activity log, enabling team members to see token, release, and asset changes in real time.",
         category: "feature",
-        tags: ["Audit Log", "Firestore", "Team"],
+        tags: ["Audit Log", "Team"],
       },
       {
         title: "Comprehensive Platform Event Triggers",
@@ -502,7 +502,7 @@ export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
     highlights: [
       "Multi-tenant workspace architecture with project switching.",
       "Role-based access control: Owner, Admin, Editor, and Viewer.",
-      "Firebase authentication and cloud persistence.",
+      "User authentication and cloud persistence.",
     ],
     items: [
       {
