@@ -965,15 +965,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 <DropdownMenuItem
                   onClick={() => setThemeMode("light")}
                   className={cn(
-                    "flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
-                    themeMode === "light" && "bg-accent text-accent-foreground"
+                    "flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium",
+                    themeMode === "light" && "bg-muted/80 text-foreground font-semibold"
                   )}
                 >
                   <div className="size-3.5 flex items-center justify-center shrink-0">
                     {themeMode === "light" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
                   </div>
                   <Sun className="size-4 text-foreground/80 shrink-0" />
-                  <span className={cn(themeMode === "light" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                  <span className={cn(themeMode === "light" ? "font-semibold text-foreground" : "text-muted-foreground")}>
                     Light
                   </span>
                 </DropdownMenuItem>
@@ -981,15 +981,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 <DropdownMenuItem
                   onClick={() => setThemeMode("dark")}
                   className={cn(
-                    "flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
-                    themeMode === "dark" && "bg-accent text-accent-foreground"
+                    "flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium",
+                    themeMode === "dark" && "bg-muted/80 text-foreground font-semibold"
                   )}
                 >
                   <div className="size-3.5 flex items-center justify-center shrink-0">
                     {themeMode === "dark" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
                   </div>
                   <Moon className="size-4 text-foreground/80 shrink-0" />
-                  <span className={cn(themeMode === "dark" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                  <span className={cn(themeMode === "dark" ? "font-semibold text-foreground" : "text-muted-foreground")}>
                     Dark
                   </span>
                 </DropdownMenuItem>
@@ -997,15 +997,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 <DropdownMenuItem
                   onClick={() => setThemeMode("system")}
                   className={cn(
-                    "flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
-                    themeMode === "system" && "bg-accent text-accent-foreground"
+                    "flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors text-foreground hover:bg-muted/70 font-medium",
+                    themeMode === "system" && "bg-muted/80 text-foreground font-semibold"
                   )}
                 >
                   <div className="size-3.5 flex items-center justify-center shrink-0">
                     {themeMode === "system" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
                   </div>
                   <Monitor className="size-4 text-foreground/80 shrink-0" />
-                  <span className={cn(themeMode === "system" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                  <span className={cn(themeMode === "system" ? "font-semibold text-foreground" : "text-muted-foreground")}>
                     System
                   </span>
                 </DropdownMenuItem>
@@ -1013,7 +1013,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleSignOut}
-                className="gap-2 text-destructive focus:text-destructive cursor-pointer data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive"
+                className="gap-2 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors"
               >
                 <LogOut className="size-3.5" />
                 <span>Log Out</span>
