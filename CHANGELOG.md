@@ -34,14 +34,14 @@ All notable changes to the Tokens & Asset Management Platform will be documented
   - **Core & Utilities (60)**: Base dimensions, typography, borders, shadows, opacity, and cross-platform exporters (`android-xml-*`, `ios-swiftui-*`, `jetpack-compose-*`, `react-native-*`, `flutter-*`, `figma-*`, `css-*`, `dtcg`).
 - **Self-Hosted JSON Schema Registry API**: Implemented local API routes (`/api/v1/schemas` and `/api/v1/schemas/[...path]`) returning valid draft 2020-12 JSON Schema documents with dynamic origin resolution. Completely eliminates all external copyright risks and third-party domain dependencies.
 - **Reference-Accurate Extension Inspector Modal**: Replicated the dark-themed detail inspection dialog (`components/ExtensionDetailModal.tsx`) with dark-green category and status pills, angled link icon, copyable self-hosted schema URL, external open arrow, and zero scrollbar clutter.
-- **Multi-Tenant Project Schema Persistence**: Project-level schema activation (`enabledSchemas`) persists per project in Cloud Firestore and hydrates into Zustand state on project switch.
+- **Multi-Tenant Project Schema Persistence**: Project-level schema activation (`enabledSchemas`) persists with project data and hydrates into Zustand state on project switch.
 - **Large-Scale Token Performance Optimization (13,000+ Tokens)**:
   - **Progressive Infinite Scrolling**: Implemented progressive batch loading (`100 tokens` per batch) with scroll sentinel in `components/TokensWorkspace.tsx`, preventing browser freezes when browsing large enterprise repositories.
   - **Eliminated Zustand Subscription Bloat**: Hoisted editing states and memoized table row nodes (`React.memo`), avoiding 13,000+ listener executions per keystroke.
   - **$O(1)$ In-Memory Alias Index**: Built a flat lookup index (`buildTokenLookupIndex`) eliminating deep recursive set scans during token alias resolution.
   - **Fast Color Conversion Cache**: Introduced LRU-cached hex conversions (`toHexFast`), bypassing repeated `colorjs.io` object allocations.
   - **Bounded Matrix Tree**: Bound grouped matrix calculations in `components/ThemeMatrix.tsx` to the active page, ensuring instantaneous rendering.
-  - **Storage Sanitization & Document Safeguards**: Stripped heavy raw tokens from cached project lists in `localStorage` and added payload size limits to guard Cloud Firestore's 1 MiB boundary.
+  - **Storage Sanitization & Document Safeguards**: Stripped heavy raw tokens from cached project lists in `localStorage` and added payload size safeguards.
 
 ---
 
@@ -56,7 +56,7 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 - **Multi-Tenant Workspace & Project Directory**: Full workspace architecture (`components/WorkspacesProjectsView.tsx`) allowing team members to switch organizations, view active vs archived projects, configure custom brand icons and colors, and manage team members.
 - **Project Lifecycle Management & Danger Zone**: Implemented comprehensive project configuration (`components/ProjectSettingsView.tsx`) with profile details (name, slug, description, base permissions). Added non-destructive project archiving (freezes project to read-only status) and permanent project deletion with a two-step confirmation dialog.
 - **Strict Duplicate Name Validation & Collision Guards**:
-  - **Globally Unique Organizations**: Enforced case-insensitive, whitespace-trimmed uniqueness across all organizations in Firestore and local caches. Duplicate organization names or URL slugs are strictly blocked.
+  - **Globally Unique Organizations**: Enforced case-insensitive, whitespace-trimmed uniqueness across all organizations and local caches. Duplicate organization names or URL slugs are strictly blocked.
   - **Organization-Scoped Unique Projects**: Project names are strictly unique within each organization, while permitting different organizations to create projects sharing the same name.
   - **Real-Time UI Protection**: Integrated real-time duplicate name detection across all modals (`CreateProjectModal`, `WorkspacesProjectsView`, `ProjectSettingsView`) with immediate inline alerts and disabled submit buttons.
 - **Zero-Preset Clean Initialization**: Completely removed all legacy starter tokens (`colors.brand.*`, `spacing.*`) and mock Figma collection IDs (`VariableCollectionId:6:598`). New projects start 100% clean with zero injected tokens and zero dummy configurations.
@@ -86,7 +86,7 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 - **Public Reader Route & Granular Publishing**: Dedicated public site (`/docs/[orgSlug]/[projectSlug]`) with one-click global publishing and page-by-page visibility switches.
 - **Root Elements Overview Directory (`/`)**: Visual documentation dashboard summarizing key documentation metrics and element directory cards.
 - **First-Load Onboarding & Creation Guide**: When starting a fresh project, the canvas starts cleanly without auto-seeded dummy pages, presenting an interactive 4-step guide, instant `+ Create Your First Page` CTA, and an optional `Start with Foundations Template` button.
-- **Cloud Persistence & Audit Logging**: Scoped documentation stored dynamically in Cloud Firestore under `organizations/{orgId}/projects/{projectId}` with automatic event recording in the team activity log.
+- **Cloud Persistence & Audit Logging**: Scoped documentation stored with project data and automatically recorded in the team activity log.
 
 ---
 
@@ -96,7 +96,7 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 
 ### 🚀 Highlights
 
-- **Real-Time Cross-Team User Activity Audit Logs**: Completely eliminated static/mock fallback data and replaced it with a dynamic, real-time Firestore audit log under `organizations/{orgId}/activities` that synchronizes activity across all organization collaborators.
+- **Real-Time Cross-Team User Activity Audit Logs**: Replaced static/mock fallback data with a dynamic, real-time organization activity log shared across collaborators.
 - **Comprehensive Platform Event Instrumentation**: All core workspace actions—including token edits (`updateSingleToken`, `updateSetJson`, `addNewToken`, `deleteToken`, set creations/deletions), theme matrix additions, release package publishing, asset mutations (`uploadAssets`, `applyMetadataToAssets`, `updateAsset`, `deleteAsset`, `syncAssetsFromGit`, `syncAllFigmaSources`), and team invitations/member role updates—now automatically capture actor details, workspace project context, and precise action metadata.
 - **Modernized Audit Trail UX**: Enhanced both the Team & Access Management Activity subtab and the User Activity Drawer with category filters (`All`, `Tokens`, `Git Operations`, `Figma`, `Assets`, `Releases`, `Team`), search filtering across descriptions and actor details, role pills, project badges, contextual metadata chips (e.g. old $\to$ new values, branch/commit SHA, icon count), and full localized datetime tooltips.
 - **Dynamic Git Icon & Asset Hierarchy Sync**: Added flexible path synchronization supporting both `assets/icons` and `assets/icons/svg` with parent `metadata.json` automatic resolution and subfolder-stripping for clean icon naming.
@@ -112,7 +112,7 @@ All notable changes to the Tokens & Asset Management Platform will be documented
 
 - **Multi-Tenant Scope Isolation**: 100% sandboxed context isolation across organizations and projects. Switching context immediately purges residual state and resets theme groups (`$themes.json`) for unconfigured projects.
 - **Figma Layer Name Enrichment for SVGs**: Copied SVG markup and downloaded `.svg` files now automatically contain embedded `id`, `data-name`, and `<title>` tags so pasting vector icons into Figma, Sketch, or Illustrator retains their exact icon names instead of pasting as generic `"Frame"`.
-- **Zero-Latency App Startup**: Added instant `localStorage` cache hydration and parallelized Firestore database queries (`Promise.allSettled`), bypassing starting delay and unblocking the UI immediately.
+- **Zero-Latency App Startup**: Added instant `localStorage` cache hydration and parallelized database queries (`Promise.allSettled`), bypassing startup delay and unblocking the UI immediately.
 
 ---
 

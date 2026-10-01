@@ -110,7 +110,7 @@ interface TokenStoreState {
   setCurrentUser: (user: { uid: string; email: string; displayName?: string; avatarUrl?: string } | null) => void;
   signOutUser: () => Promise<void>;
   setCurrentOrg: (org: Organization | null) => void;
-  setCurrentProject: (project: Project | null) => void;
+  setCurrentProject: (project: Project | null, options?: { skipHydration?: boolean }) => void;
   setSyncTargetProject: (project: Project | null) => void;
   setActiveInviteToken: (token: string | null) => void;
   setPendingInvitePrompt: (inv: OrganizationInvitation | null) => void;
@@ -519,7 +519,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   };
 
   /**
-   * Persists assets to R2 (if configured) or falls back to Firestore.
+  * Persists asset metadata and files through the R2-backed asset API.
    * This is the single abstraction point for all asset write operations.
    *
    * @param orgId       - Organization ID
@@ -1159,14 +1159,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  setCurrentProject: (proj) => {
+  setCurrentProject: (proj, options) => {
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
     const previousState = get();
     const isSameProject = previousState.currentProject?.id === proj?.id;
     const previousThemeGroupId = isSameProject ? previousState.activeThemeGroupId : "";
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
-    const needsProjectHydration = Boolean(proj && proj.rawTokens === undefined);
+    const isProjectSettings = get().sidebarTab === "project-settings" || Boolean(options?.skipHydration);
+    const needsProjectHydration = !options?.skipHydration && !isProjectSettings && Boolean(proj && proj.rawTokens === undefined);
 
     set({
       currentProject: proj,
@@ -1473,34 +1474,36 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isLoadingAssets: cachedAssets.length === 0,
       });
 
-      // Hydrate assets from R2
-      loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
-        if (!isScopeActive(proj.orgId, proj.id)) return;
-        set({
-          assets: loadedAssets,
-          isLoadingAssets: false,
+      if (!isProjectSettings && !options?.skipHydration) {
+        // Hydrate assets from R2
+        loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
+          if (!isScopeActive(proj.orgId, proj.id)) return;
+          set({
+            assets: loadedAssets,
+            isLoadingAssets: false,
+          });
         });
-      });
 
-      // Hydrate asset configs (Git, Figma, Folders) from R2
-      loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
-        if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
-        if (r2Config.assetGitConfig !== undefined) {
-          set({ assetGitConfig: r2Config.assetGitConfig });
-        }
-        if (r2Config.assetFigmaConfig !== undefined) {
-          set({ assetFigmaConfig: r2Config.assetFigmaConfig });
-        }
-        if (r2Config.folders !== undefined) {
-          set({ assetFolders: r2Config.folders });
-        }
-      });
+        // Hydrate asset configs (Git, Figma, Folders) from R2
+        loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
+          if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
+          if (r2Config.assetGitConfig !== undefined) {
+            set({ assetGitConfig: r2Config.assetGitConfig });
+          }
+          if (r2Config.assetFigmaConfig !== undefined) {
+            set({ assetFigmaConfig: r2Config.assetFigmaConfig });
+          }
+          if (r2Config.folders !== undefined) {
+            set({ assetFolders: r2Config.folders });
+          }
+        });
 
-      // 4. Restore scoped localStorage data (releases, targets, config, activities)
-      const scopeOrgId = get().currentOrg?.id;
-      if (scopeOrgId) {
-        restoreScopedProjectData(scopeOrgId, proj.id);
-        get().loadOrganizationActivities(scopeOrgId);
+        // 4. Restore scoped localStorage data (releases, targets, config, activities)
+        const scopeOrgId = get().currentOrg?.id;
+        if (scopeOrgId) {
+          restoreScopedProjectData(scopeOrgId, proj.id);
+          get().loadOrganizationActivities(scopeOrgId);
+        }
       }
     } else {
       if (typeof window !== "undefined") {
@@ -3279,8 +3282,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  // Theme mode initialization (default follows system)
-  themeMode: "system",
+  // Theme mode initialization (default is dark theme)
+  themeMode: "dark",
   setThemeMode: (mode) => {
     set({ themeMode: mode });
     if (typeof window !== "undefined") {
@@ -3306,6 +3309,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   sidebarTab: "dashboard",
   projectSettingsTab: "details",
   setSidebarTab: (tab) => {
+    const currentProj = get().currentProject;
     set((state) => ({
       sidebarTab: tab,
       syncTargetProject: tab === "project-settings" ? state.syncTargetProject : null,
@@ -3317,6 +3321,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           localStorage.removeItem("ts_sync_target_project_id");
         }
       } catch { }
+    }
+    // If entering a token-bearing Studio tab and project tokens have not been hydrated yet, trigger hydration
+    if (
+      tab !== "project-settings" &&
+      currentProj &&
+      currentProj.rawTokens === undefined &&
+      !get().isLoadingProjectData
+    ) {
+      get().setCurrentProject(currentProj);
     }
   },
   setProjectSettingsTab: (tab) => {
@@ -3707,7 +3720,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       localStorage.removeItem("ts_cached_meta");
 
       // 2. Credentials are NO LONGER restored from global localStorage.
-      //    They are derived from the project's Firestore gitConfig in setCurrentProject.
+      //    They are derived from the project's config in setCurrentProject.
       //    We only keep the PAT alive so it can be re-attached when the project loads.
       //    (PAT is intentionally global since users often share one PAT across projects.)
 
@@ -3720,7 +3733,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // 4. Restore Theme Mode (light/dark/system)
       const savedTheme = localStorage.getItem("ts_theme_mode") as "light" | "dark" | "system" | null;
-      let initialTheme: "light" | "dark" | "system" = "system";
+      let initialTheme: "light" | "dark" | "system" = "dark";
       if (savedTheme && (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system")) {
         initialTheme = savedTheme;
       }
@@ -3953,7 +3966,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       groups.find((g) => g && typeof g.name === "string" && g.name.toLowerCase() === "theme") ||
       groups[0];
 
-    // Synchronize loaded tokens with active Project in Cloud Firestore and Active Branch
+    // Synchronize loaded tokens with the active project and branch.
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
     if (currentOrg && currentProject) {
       set({ cloudSaveStatus: "saving" });
@@ -5226,7 +5239,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       return { userActivities: updated };
     });
 
-    // Asynchronously persist to Cloud Firestore for team visibility
+    // Asynchronously persist remotely for team visibility.
     const targetOrgId = act.orgId || currentOrg?.id;
     if (targetOrgId) {
       logOrganizationActivity(targetOrgId, newActivity).catch(() => {});
@@ -5256,7 +5269,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         });
       }
     } catch (e) {
-      console.warn("Failed to load organization activities from Firestore:", e);
+      console.warn("Failed to load organization activities:", e);
     }
   },
 
@@ -5289,7 +5302,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     set({ documentation: updatedDoc, activeDocFolderId: newFolder.id });
     if (currentOrg && currentProject) {
       saveProjectDocumentation(currentOrg.id, currentProject.id, updatedDoc).catch((err) => {
-        console.error("Failed to save doc folder to Firestore:", err);
+        console.error("Failed to save documentation folder:", err);
       });
       get().logUserActivity({
         type: "doc",

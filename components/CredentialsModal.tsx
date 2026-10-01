@@ -12,6 +12,11 @@ import {
   AlertCircle,
   RefreshCw,
   Globe,
+  ShieldCheck,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
 import { PluginDistributionModal } from "@/components/PluginDistributionModal";
@@ -44,13 +49,24 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
     addToast,
   } = useTokenStore();
   const [modalTab, setModalTab] = useState<"git" | "apikeys" | "plugin">("git");
-  const [form, setForm] = useState<GitCredentials>({ ...credentials });
+  const [form, setForm] = useState<GitCredentials>({ ...credentials, pat: "" });
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Write-Only PAT state
+  const configuredPat = credentials.pat || "";
+  const hasConfiguredPat = Boolean(configuredPat);
+  const patLast4 = configuredPat.length >= 4 ? configuredPat.slice(-4) : "";
+  const [isReplacingPat, setIsReplacingPat] = useState(false);
+  const [newPatInput, setNewPatInput] = useState("");
+  const [showNewPat, setShowNewPat] = useState(false);
+
   React.useEffect(() => {
     if (isOpen) {
-      setForm({ ...credentials });
+      setForm({ ...credentials, pat: "" });
+      setIsReplacingPat(false);
+      setNewPatInput("");
+      setShowNewPat(false);
       setStatusMessage(null);
     }
   }, [isOpen, credentials]);
@@ -61,6 +77,9 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
       await saveProjectGitConfig(currentOrg.id, currentProject.id, null);
       await saveProjectTokens(currentOrg.id, currentProject.id, {});
     }
+    setIsReplacingPat(false);
+    setNewPatInput("");
+    setShowNewPat(false);
     setForm({
       provider: "github",
       owner: "",
@@ -93,7 +112,9 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
     setStatusMessage(null);
     setLoading(true);
 
-    const sanitized = sanitizeGitCredentials(form);
+    const effectivePat = isReplacingPat ? newPatInput.trim() : (newPatInput.trim() || configuredPat);
+    const formToSubmit = { ...form, pat: effectivePat };
+    const sanitized = sanitizeGitCredentials(formToSubmit);
 
     if (sanitized.provider === "github" && (!sanitized.repo || !sanitized.pat)) {
       setLoading(false);
@@ -273,18 +294,85 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="gh-pat">GitHub Personal Access Token (PAT)</Label>
-                    <Input
-                      id="gh-pat"
-                      type="password"
-                      placeholder="ghp_..."
-                      value={form.pat}
-                      onChange={(e) => setForm({ ...form, pat: e.target.value })}
-                      required
-                      className="font-mono text-xs"
-                    />
-                  </div>
+                  {hasConfiguredPat && !isReplacingPat ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>GitHub Personal Access Token (PAT)</span>
+                        </Label>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" />
+                          <span>Write-Only Vault</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                        <div className="flex items-center gap-2">
+                          <KeyRound className="w-4 h-4 text-emerald-500" />
+                          <span className="font-mono text-xs tracking-wider text-foreground select-none">
+                            ••••••••••••••••••••••••••••••••
+                          </span>
+                          {patLast4 && (
+                            <span className="text-[10px] font-mono text-muted-foreground bg-background px-1.5 py-0.5 rounded border">
+                              ••••{patLast4}
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsReplacingPat(true);
+                            setNewPatInput("");
+                          }}
+                          className="h-7 text-xs"
+                        >
+                          Replace
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="gh-pat">
+                          {hasConfiguredPat ? "New GitHub PAT *" : "GitHub Personal Access Token (PAT) *"}
+                        </Label>
+                        {hasConfiguredPat && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsReplacingPat(false);
+                              setNewPatInput("");
+                              setShowNewPat(false);
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Input
+                          id="gh-pat"
+                          type={showNewPat ? "text" : "password"}
+                          placeholder={hasConfiguredPat ? "Paste new token to rotate..." : "ghp_..."}
+                          value={newPatInput}
+                          onChange={(e) => setNewPatInput(e.target.value)}
+                          required={!hasConfiguredPat}
+                          autoComplete="new-password"
+                          className="font-mono text-xs pr-8"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPat(!showNewPat)}
+                          className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {showNewPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -342,18 +430,85 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="az-pat">Azure Personal Access Token (PAT)</Label>
-                    <Input
-                      id="az-pat"
-                      type="password"
-                      placeholder="Paste your Azure DevOps PAT here..."
-                      value={form.pat}
-                      onChange={(e) => setForm({ ...form, pat: e.target.value })}
-                      required
-                      className="font-mono text-xs"
-                    />
-                  </div>
+                  {hasConfiguredPat && !isReplacingPat ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Azure Personal Access Token (PAT)</span>
+                        </Label>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" />
+                          <span>Write-Only Vault</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                        <div className="flex items-center gap-2">
+                          <KeyRound className="w-4 h-4 text-emerald-500" />
+                          <span className="font-mono text-xs tracking-wider text-foreground select-none">
+                            ••••••••••••••••••••••••••••••••
+                          </span>
+                          {patLast4 && (
+                            <span className="text-[10px] font-mono text-muted-foreground bg-background px-1.5 py-0.5 rounded border">
+                              ••••{patLast4}
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsReplacingPat(true);
+                            setNewPatInput("");
+                          }}
+                          className="h-7 text-xs"
+                        >
+                          Replace
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="az-pat">
+                          {hasConfiguredPat ? "New Azure DevOps PAT *" : "Azure Personal Access Token (PAT) *"}
+                        </Label>
+                        {hasConfiguredPat && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsReplacingPat(false);
+                              setNewPatInput("");
+                              setShowNewPat(false);
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Input
+                          id="az-pat"
+                          type={showNewPat ? "text" : "password"}
+                          placeholder={hasConfiguredPat ? "Paste new token to rotate..." : "Paste your Azure DevOps PAT here..."}
+                          value={newPatInput}
+                          onChange={(e) => setNewPatInput(e.target.value)}
+                          required={!hasConfiguredPat}
+                          autoComplete="new-password"
+                          className="font-mono text-xs pr-8"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPat(!showNewPat)}
+                          className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {showNewPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 

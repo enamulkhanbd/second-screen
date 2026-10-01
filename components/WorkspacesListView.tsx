@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Organization } from "@/types/tenant";
+import { getOrgProjectSummaries } from "@/services/organizationService";
 import { Plus, Folder, Users, Building2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,17 +20,19 @@ import {
 
 const COLOR_PRESETS = [
   "#171717", // Neutral
+  "#0d9488", // Teal (Arogga)
+  "#22c55e", // Green (UX Studio)
   "#6366f1", // Indigo
   "#8b5cf6", // Violet
   "#d946ef", // Fuchsia / Magenta
   "#ec4899", // Pink
   "#f43f5e", // Rose
-  "#10b981", // Emerald
   "#3b82f6", // Blue
   "#f59e0b", // Amber
 ];
 
 export const WorkspacesListView: React.FC = () => {
+  const router = useRouter();
   const {
     userOrgs,
     currentOrg,
@@ -44,10 +48,47 @@ export const WorkspacesListView: React.FC = () => {
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgColor, setNewOrgColor] = useState("#171717");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projectCounts, setProjectCounts] = useState<Record<string, number>>({});
+
+  // Dynamically load real project counts for all user organizations
+  useEffect(() => {
+    if (userOrgs.length === 0) return;
+    let isCancelled = false;
+
+    userOrgs.forEach(async (org) => {
+      try {
+        if (typeof window !== "undefined") {
+          const cached = localStorage.getItem(`ts_cached_org_projects_${org.id}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && !isCancelled) {
+              setProjectCounts((prev) => ({ ...prev, [org.id]: parsed.length }));
+            }
+          }
+        }
+        const projects = await getOrgProjectSummaries(org.id);
+        if (!isCancelled && projects) {
+          setProjectCounts((prev) => ({ ...prev, [org.id]: projects.length }));
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(`ts_cached_org_projects_${org.id}`, JSON.stringify(projects));
+            } catch {}
+          }
+        }
+      } catch {}
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [userOrgs]);
 
   // Helper to get project count for a given org
   const getProjectCount = (orgId: string) => {
-    if (orgId === currentOrg?.id) {
+    if (projectCounts[orgId] !== undefined) {
+      return projectCounts[orgId];
+    }
+    if (orgId === currentOrg?.id && orgProjects.length > 0) {
       return orgProjects.length;
     }
     if (typeof window !== "undefined") {
@@ -66,11 +107,7 @@ export const WorkspacesListView: React.FC = () => {
     setCurrentOrg(org);
     setCurrentProject(null);
     setSidebarTab("dashboard");
-    addToast({
-      type: "info",
-      title: "Workspace Switched",
-      message: `Opened "${org.name}".`,
-    });
+    router.push(`/${encodeURIComponent(org.slug)}/overview`);
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -92,6 +129,7 @@ export const WorkspacesListView: React.FC = () => {
         setCurrentOrg(created);
         setCurrentProject(null);
         setSidebarTab("dashboard");
+        router.push(`/${encodeURIComponent(created.slug)}/overview`);
       }
     } catch (err: any) {
       addToast({
@@ -105,48 +143,75 @@ export const WorkspacesListView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-y-auto select-none">
-      <div className="max-w-3xl w-full mx-auto px-6 py-12 sm:py-16 space-y-6">
-        {/* Header matching Screenshot 1 */}
+    <div className="flex-1 flex flex-col h-full bg-[#09090d] text-zinc-100 font-sans overflow-y-auto select-none">
+      <div className="max-w-4xl w-full mx-auto px-6 py-12 sm:py-16 space-y-6">
+        {/* Header matching Screenshot */}
         <div className="flex items-center justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
             Workspaces
           </h1>
           <Button
             onClick={() => setIsCreateOpen(true)}
             size="sm"
-            className="font-medium text-xs px-3.5 py-1.5 rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create workspace</span>
           </Button>
         </div>
 
-        {/* Workspaces List matching Screenshot 1 */}
-        <div className="space-y-3">
+        {/* Workspaces List matching Screenshot */}
+        <div className="space-y-3.5">
           {userOrgs.map((org, index) => {
             const projectCount = getProjectCount(org.id);
-            const memberCount = org.members?.length || 1;
-            const orgColor = org.color || (index % 2 === 0 ? "#171717" : "#525252");
+            const memberCount = org.members?.length || org.memberUids?.length || 1;
+            const isPlanetOrg =
+              org.name?.toLowerCase().includes("planet") || org.slug?.includes("planet");
+            const isAroggaOrg =
+              org.name?.toLowerCase().includes("arogga") || org.slug?.includes("arogga");
+            const isUxStudioOrg =
+              org.name?.toLowerCase().includes("ux studio") || org.slug?.includes("ux-studio");
+
+            const orgColor =
+              org.color ||
+              (isAroggaOrg
+                ? "#0d9488"
+                : isUxStudioOrg
+                ? "#22c55e"
+                : index % 2 === 0
+                ? "#171717"
+                : "#525252");
+
+            const logoImgUrl = org.logoUrl || (isPlanetOrg ? "/logo-app.png" : "");
             const initialLetter = org.name ? org.name.charAt(0).toUpperCase() : "W";
 
             return (
               <div
                 key={org.id}
                 onClick={() => handleSelectWorkspace(org)}
-                className="group p-4 sm:p-5 rounded-2xl border border-border/80 bg-card hover:bg-muted/30 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
+                className="group p-5 sm:p-6 rounded-2xl border border-[#1f2126] bg-[#0e0e11] hover:bg-[#131418] hover:border-zinc-700/80 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
               >
                 {/* Left side: Avatar + Name + Subtitle */}
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-4 min-w-0">
                   <div
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-xs shrink-0 overflow-hidden"
-                    style={{ backgroundColor: orgColor }}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-xs shrink-0 overflow-hidden"
+                    style={{
+                      backgroundColor: logoImgUrl
+                        ? isPlanetOrg
+                          ? "#dcfce7"
+                          : "transparent"
+                        : orgColor,
+                    }}
                   >
-                    {org.logoUrl ? (
+                    {logoImgUrl ? (
                       <img
-                        src={org.logoUrl}
+                        src={logoImgUrl}
                         alt={org.name}
-                        className="w-full h-full object-cover rounded-xl"
+                        className={
+                          isPlanetOrg
+                            ? "w-10 h-10 object-contain"
+                            : "w-full h-full object-cover"
+                        }
                       />
                     ) : (
                       <span>{initialLetter}</span>
@@ -154,24 +219,24 @@ export const WorkspacesListView: React.FC = () => {
                   </div>
 
                   <div className="min-w-0 space-y-1">
-                    <h2 className="font-bold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors truncate">
+                    <h2 className="font-bold text-base sm:text-lg text-white group-hover:text-primary transition-colors truncate">
                       {org.name || "Untitled Workspace"}
                     </h2>
 
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-zinc-400 font-normal">
                       Workspace
                     </p>
                   </div>
                 </div>
 
-                {/* Right side: Project Count & Member Count matching Screenshot 1 */}
-                <div className="flex items-center gap-4 sm:gap-6 text-xs text-muted-foreground/80 font-mono shrink-0">
-                  <div className="flex items-center gap-1.5" title={`${projectCount} Projects`}>
-                    <Folder className="w-3.5 h-3.5 text-muted-foreground/70" />
+                {/* Right side: Project Count & Member Count matching Screenshot */}
+                <div className="flex items-center gap-5 sm:gap-7 text-xs sm:text-sm text-zinc-400 font-mono shrink-0">
+                  <div className="flex items-center gap-2" title={`${projectCount} Projects`}>
+                    <Folder className="w-4 h-4 text-zinc-400/80" strokeWidth={1.75} />
                     <span>{projectCount}</span>
                   </div>
-                  <div className="flex items-center gap-1.5" title={`${memberCount} Members`}>
-                    <Users className="w-3.5 h-3.5 text-muted-foreground/70" />
+                  <div className="flex items-center gap-2" title={`${memberCount} Members`}>
+                    <Users className="w-4 h-4 text-zinc-400/80" strokeWidth={1.75} />
                     <span>{memberCount}</span>
                   </div>
                 </div>
@@ -180,16 +245,16 @@ export const WorkspacesListView: React.FC = () => {
           })}
 
           {userOrgs.length === 0 && (
-            <div className="text-center p-12 border border-dashed border-border rounded-2xl bg-card/40 space-y-3">
+            <div className="text-center p-12 border border-dashed border-[#1f2126] rounded-2xl bg-[#0e0e11]/60 space-y-3">
               <Building2 className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-              <h3 className="font-semibold text-sm text-foreground">No workspaces found</h3>
+              <h3 className="font-semibold text-sm text-white">No workspaces found</h3>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 Get started by creating your first workspace to organize design tokens and projects.
               </p>
               <Button
                 onClick={() => setIsCreateOpen(true)}
                 size="sm"
-                className="mt-2 text-xs"
+                className="mt-2 text-xs bg-[#22c55e] text-zinc-950 hover:bg-[#16a34a] font-semibold"
               >
                 Create workspace
               </Button>
@@ -200,15 +265,15 @@ export const WorkspacesListView: React.FC = () => {
 
       {/* Create Workspace Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md font-sans">
+        <DialogContent className="sm:max-w-md font-sans bg-[#121316] border-[#1f2126] text-white">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold">Create New Workspace</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">
+                <DialogTitle className="text-base font-bold text-white">Create New Workspace</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5 text-zinc-400">
                   Set up a shared space for your design tokens, themes, and projects.
                 </DialogDescription>
               </div>
@@ -217,20 +282,20 @@ export const WorkspacesListView: React.FC = () => {
 
           <form onSubmit={handleCreateWorkspace} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground">Workspace Name *</Label>
+              <Label className="text-xs font-semibold text-zinc-200">Workspace Name *</Label>
               <Input
                 type="text"
                 required
                 placeholder="e.g. Acme Design System, Planet2"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
-                className="text-xs h-9"
+                className="text-xs h-9 bg-[#0c0d10] border-[#27292e] text-white"
                 autoFocus
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground">Workspace Color</Label>
+              <Label className="text-xs font-semibold text-zinc-200">Workspace Color</Label>
               <div className="flex items-center gap-2">
                 {COLOR_PRESETS.map((color) => (
                   <button
@@ -252,7 +317,7 @@ export const WorkspacesListView: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-xs"
+                className="text-xs border-[#27292e] text-zinc-300 hover:bg-[#1f2126]"
               >
                 Cancel
               </Button>
@@ -260,7 +325,7 @@ export const WorkspacesListView: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={isSubmitting || !newOrgName.trim()}
-                className="text-xs font-semibold"
+                className="text-xs font-semibold bg-[#22c55e] text-zinc-950 hover:bg-[#16a34a]"
               >
                 {isSubmitting ? "Creating..." : "Create Workspace"}
               </Button>

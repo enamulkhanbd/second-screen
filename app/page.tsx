@@ -13,6 +13,7 @@ import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
 import { WorkspacesListView } from "@/components/WorkspacesListView";
 import { DashboardView } from "@/components/DashboardView";
 import { VariablesView } from "@/components/VariablesView";
+import { ProjectSettingsView } from "@/components/ProjectSettingsView";
 import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { AuthGatewayView } from "@/components/AuthGatewayView";
@@ -20,63 +21,79 @@ import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { WorkspaceSkeleton, type WorkspaceSkeletonVariant } from "@/components/WorkspaceSkeleton";
 
-function WorkspaceLoading() {
-  return (
-    <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-      Loading workspace...
-    </div>
-  );
+function WorkspaceLoading({ variant = "form" }: { variant?: WorkspaceSkeletonVariant }) {
+  return <WorkspaceSkeleton variant={variant} />;
 }
 
 const ReleasesWorkspace = dynamic(
   () => import("@/components/ReleasesWorkspace").then((module) => module.ReleasesWorkspace),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const DocumentationView = dynamic(
   () => import("@/components/DocumentationView").then((module) => module.DocumentationView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="documentation" /> }
 );
 const AssetsView = dynamic(
   () => import("@/components/AssetsView").then((module) => module.AssetsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="cards" /> }
 );
 const ExportsView = dynamic(
   () => import("@/components/ExportsView").then((module) => module.ExportsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const BranchesView = dynamic(
   () => import("@/components/BranchesView").then((module) => module.BranchesView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const McpCliView = dynamic(
   () => import("@/components/McpCliView").then((module) => module.McpCliView),
-  { ssr: false, loading: WorkspaceLoading }
-);
-const ProjectSettingsView = dynamic(
-  () => import("@/components/ProjectSettingsView").then((module) => module.ProjectSettingsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading /> }
 );
 const MembersView = dynamic(
   () => import("@/components/MembersView").then((module) => module.MembersView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const OrgSettingsView = dynamic(
   () => import("@/components/OrgSettingsView").then((module) => module.OrgSettingsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading /> }
 );
 const ExtensionsView = dynamic(
   () => import("@/components/ExtensionsView").then((module) => module.ExtensionsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="cards" /> }
 );
 const SystemChangelogView = dynamic(
   () => import("@/components/SystemChangelogView").then((module) => module.SystemChangelogView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
 );
 const SystemDocsView = dynamic(
   () => import("@/components/SystemDocsView").then((module) => module.SystemDocsView),
-  { ssr: false, loading: WorkspaceLoading }
+  { ssr: false, loading: () => <WorkspaceLoading variant="documentation" /> }
 );
+
+function getProjectLoadingVariant(tab: string): WorkspaceSkeletonVariant {
+  switch (tab) {
+    case "assets":
+    case "extensions":
+      return "cards";
+    case "documentation":
+    case "system-docs":
+      return "documentation";
+    case "tokens":
+    case "themes":
+    case "variables":
+      return "table";
+    case "branches":
+    case "exports":
+    case "members":
+    case "releases":
+    case "changelog":
+      return "list";
+    default:
+      return "form";
+  }
+}
 
 const WORKSPACE_ROUTE_TO_TAB = {
   overview: "dashboard",
@@ -148,6 +165,9 @@ export default function Home() {
     currentUser,
     currentOrg,
     currentProject,
+    syncTargetProject,
+    setSyncTargetProject,
+    setProjectSettingsTab,
     isLoadingTenant,
     isLoadingProjects,
     isLoadingProjectData,
@@ -194,6 +214,24 @@ export default function Home() {
     }
   };
 
+  const navigateToProjectSettings = (project: Project, tab: "details" | "sync" = "details") => {
+    if (!currentOrg || project.orgId !== currentOrg.id) return;
+
+    const targetPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(project.slug)}/project-settings`;
+    if (targetPath !== pathname) {
+      pendingRoutePath.current = targetPath;
+    }
+
+    setSidebarTab("project-settings");
+    setSyncTargetProject(project);
+    setCurrentProject(project, { skipHydration: true });
+    setProjectSettingsTab(tab);
+
+    if (targetPath !== pathname) {
+      router.push(targetPath);
+    }
+  };
+
   useEffect(() => {
     if (previousPathname.current !== pathname) {
       previousPathname.current = pathname;
@@ -201,6 +239,19 @@ export default function Home() {
     }
 
     if (pendingRoutePath.current !== pathname) return;
+
+    // When on root route "/", show Workspaces list without redirecting
+    if (pathname === "/") {
+      if (sidebarTab !== "workspaces") {
+        setSidebarTab("workspaces");
+      }
+      if (currentProject) {
+        setCurrentProject(null);
+      }
+      pendingRoutePath.current = null;
+      return;
+    }
+
     if (!workspaceSlug) return;
     if (!currentUser || isLoadingTenant) return;
 
@@ -270,13 +321,22 @@ export default function Home() {
       return;
     }
 
-    if (currentProject?.id !== matchingProject.id) {
-      setCurrentProject(matchingProject);
-      return;
+    const isProjectChanging = currentProject?.id !== matchingProject.id;
+    const isTabChanging = sidebarTab !== routeTab;
+
+    if (routeTab === "project-settings") {
+      setSyncTargetProject(matchingProject);
     }
 
-    if (sidebarTab !== routeTab) {
+    if (isProjectChanging) {
+      setCurrentProject(matchingProject, { skipHydration: routeTab === "project-settings" });
+    }
+
+    if (isTabChanging) {
       setSidebarTab(routeTab as typeof sidebarTab);
+    }
+
+    if (isProjectChanging || isTabChanging) {
       return;
     }
 
@@ -307,6 +367,14 @@ export default function Home() {
   useEffect(() => {
     if (!currentUser || isLoadingTenant || pendingRoutePath.current !== null) return;
 
+    // When on root route "/", do not redirect to an org overview
+    if (pathname === "/") {
+      if (sidebarTab !== "workspaces") {
+        setSidebarTab("workspaces");
+      }
+      return;
+    }
+
     if (sidebarTab === "workspaces") {
       if (pathname !== "/") router.push("/");
       return;
@@ -316,14 +384,14 @@ export default function Home() {
 
     const workspaceRoute =
       WORKSPACE_TAB_TO_ROUTE[sidebarTab as keyof typeof WORKSPACE_TAB_TO_ROUTE];
+    const projectForRoute = currentProject || syncTargetProject;
     const targetPath = workspaceRoute
       ? `/${encodeURIComponent(currentOrg.slug)}/${workspaceRoute}`
-      : currentProject
-      ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${sidebarTab}`
+      : projectForRoute
+      ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(projectForRoute.slug)}/${sidebarTab}`
       : null;
 
     if (!targetPath) {
-      if (pathname !== "/") router.push("/");
       return;
     }
 
@@ -337,6 +405,7 @@ export default function Home() {
   }, [
     currentOrg,
     currentProject,
+    syncTargetProject,
     currentUser,
     isLoadingTenant,
     pathname,
@@ -391,10 +460,16 @@ export default function Home() {
     );
   }
 
-  const isWorkspacesView = sidebarTab === "workspaces";
+  const isWorkspacesView = sidebarTab === "workspaces" || pathname === "/";
 
   return (
-    <main className="flex h-screen overflow-hidden bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100">
+    <main
+      className={`flex h-screen overflow-hidden ${
+        isWorkspacesView
+          ? "bg-[#09090d] text-zinc-100"
+          : "bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100"
+      }`}
+    >
       {/* 1. Primary Navigation Sidebar - Full height to top */}
       {!isWorkspacesView && (
         <>
@@ -461,14 +536,17 @@ export default function Home() {
         )}
 
         {/* 3. Main Workspace Page Views */}
-        {isLoadingProjectData && sidebarTab !== "project-settings" ? (
-          <WorkspaceLoading />
-        ) : sidebarTab === "workspaces" ? (
+        {isWorkspacesView ? (
           <WorkspacesListView />
+        ) : isLoadingProjectData && sidebarTab !== "project-settings" ? (
+          <WorkspaceLoading variant={getProjectLoadingVariant(sidebarTab)} />
         ) : sidebarTab === "dashboard" ? (
           <DashboardView />
         ) : sidebarTab === "projects" ? (
-          <WorkspacesProjectsView onSelectProject={navigateToProject} />
+          <WorkspacesProjectsView
+            onSelectProject={navigateToProject}
+            onOpenProjectSettings={navigateToProjectSettings}
+          />
         ) : sidebarTab === "variables" ? (
           <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : sidebarTab === "documentation" ? (

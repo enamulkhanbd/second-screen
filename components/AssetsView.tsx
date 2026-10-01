@@ -820,8 +820,7 @@ export const AssetsView: React.FC = () => {
     }
   }, [currentOrg?.id, currentProject?.id]);
 
-  // Note: Auto-persist for chunked assets is no longer needed.
-  // Assets are persisted to R2 (or Firestore fallback) through store actions.
+  // Assets are persisted to R2 through store actions.
 
   // Infinite scroll intersection observer to smoothly load the next batch
   React.useEffect(() => {

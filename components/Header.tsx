@@ -186,9 +186,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     if (sidebarTab === "project-settings" && (syncTargetProject || currentProject)) {
       const project = syncTargetProject || currentProject;
       items.push({
-        label: "Overview",
+        label: "Projects",
         hasBackButton: true,
-        onClick: () => setSidebarTab("dashboard"),
+        onClick: () => {
+          setCurrentProject(null);
+          setSidebarTab("projects");
+        },
       });
       items.push({
         label: orgName,
@@ -380,7 +383,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
   // Check for remote updates on load and when returning to the app
   useEffect(() => {
-    if (!isGitConfigured || !credentials.pat) return;
+    if (!isGitConfigured || !credentials.pat || hideVersionControls || sidebarTab === "project-settings") return;
 
     checkRemoteUpdates();
 
@@ -398,7 +401,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, [isGitConfigured, credentials.owner, credentials.repo, credentials.branch, credentials.pat, checkRemoteUpdates]);
+  }, [isGitConfigured, credentials.owner, credentials.repo, credentials.branch, credentials.pat, checkRemoteUpdates, hideVersionControls, sidebarTab]);
 
   // Fetch branch list whenever branch dropdown is opened
   useEffect(() => {

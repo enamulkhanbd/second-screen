@@ -38,12 +38,21 @@ import {
   Search,
   CheckCircle,
   Image as ImageIcon,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -78,6 +87,7 @@ export const MembersView: React.FC = () => {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [previewInvitation, setPreviewInvitation] = useState<OrganizationInvitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Activity tab filters & search
   const [activityFilter, setActivityFilter] = useState<string>("all");
@@ -117,7 +127,9 @@ export const MembersView: React.FC = () => {
           message: `Invited ${inviteEmail} as ${ROLE_DEFINITIONS[inviteRole].title}.`,
         });
         setInviteEmail("");
+        setIsInviteModalOpen(false);
         setPreviewInvitation(inv);
+        setMembersSubTab("invites");
       }
     } catch (e: any) {
       addToast({
@@ -254,6 +266,12 @@ export const MembersView: React.FC = () => {
     );
   }, [pendingInvitations, memberEmails]);
 
+  const isCustomOrgColor = useMemo(() => {
+    if (!currentOrg?.color) return false;
+    const trimmed = currentOrg.color.trim().toLowerCase();
+    return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
+  }, [currentOrg?.color]);
+
   // Real workspace activities (no mock fallbacks)
   const allActivities: UserActivityItem[] = useMemo(() => {
     return userActivities || [];
@@ -357,18 +375,37 @@ export const MembersView: React.FC = () => {
       {/* Top Page Header - Spans full width from far left to far right */}
       <div className="w-full px-6 md:px-8 py-5 border-b border-border/60 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Members &amp; Access
-              </h1>
-              <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
-                {currentOrg.name}
-              </Badge>
+          <div className="flex items-center gap-3.5">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 overflow-hidden border border-border/80 ${
+                isCustomOrgColor ? "text-white" : "bg-primary/10 text-primary"
+              }`}
+              style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+            >
+              {currentOrg?.logoUrl ? (
+                <img
+                  src={currentOrg.logoUrl}
+                  alt={currentOrg.name}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <span>{currentOrg?.icon || currentOrg?.name?.[0]?.toUpperCase() || "🏢"}</span>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Manage team members, roles, and pending invitations for this workspace.
-            </p>
+
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-bold tracking-tight text-foreground">
+                  Members &amp; Access
+                </h1>
+                <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
+                  {currentOrg.name}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Manage team members, roles, and pending invitations for this workspace.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -376,75 +413,79 @@ export const MembersView: React.FC = () => {
               <Users className="w-3.5 h-3.5 text-muted-foreground" />
               <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
             </Badge>
+            {activePendingInvitations.length > 0 && (
+              <Badge variant="outline" className="text-xs px-2.5 py-1 gap-1.5 font-medium text-amber-500 border-amber-500/30 bg-amber-500/10">
+                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <span>{activePendingInvitations.length} pending</span>
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main Content Area - Sized to 960px */}
       <div className="max-w-[960px] w-full mx-auto p-6 md:p-8 space-y-6 flex-1">
-        {/* Section 1: Invite New Member */}
-        {canInvite && (
-          <form onSubmit={handleSendInvite} className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-border/70 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <UserPlus className="w-4 h-4 text-primary" />
-                      <span>Invite New Team Member</span>
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Send an email invite or generate a secure direct join link.
-                    </p>
+        {/* Modal Dialog for Invite New Team Member */}
+        <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+          <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+            <form onSubmit={handleSendInvite} className="flex flex-col">
+              <DialogHeader className="px-6 py-5 border-b border-border/80 bg-card/40 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 flex-shrink-0">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-4">
+                    <DialogTitle className="text-base font-bold text-foreground">
+                      Invite New Team Member
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                      Send an email invite to join <span className="font-semibold text-foreground">{currentOrg.name}</span> or generate a secure direct join link.
+                    </DialogDescription>
                   </div>
                 </div>
+              </DialogHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                  <div className="sm:col-span-6 space-y-1.5">
-                    <Label className="text-xs font-semibold">Colleague Email</Label>
-                    <Input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="designer@company.com"
-                      required
-                      className="h-9 text-xs"
-                    />
-                  </div>
+              <div className="p-6 space-y-4">
+                {/* Colleague Email */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">
+                    Colleague Email <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="designer@company.com"
+                    required
+                    autoFocus
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-                  <div className="sm:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold">Role</Label>
-                    <Select
-                      value={inviteRole}
-                      onValueChange={(val: any) => setInviteRole(val as UserRole)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {canManageRoles && (
-                          <SelectItem value="admin">
-                            <span className="font-semibold text-xs">Admin</span>
-                          </SelectItem>
-                        )}
-                        <SelectItem value="editor">
-                          <span className="font-semibold text-xs">Editor</span>
+                {/* Role */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Role</Label>
+                  <Select
+                    value={inviteRole}
+                    onValueChange={(val: any) => setInviteRole(val as UserRole)}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {canManageRoles && (
+                        <SelectItem value="admin">
+                          <span className="font-semibold text-xs">Admin</span>
                         </SelectItem>
-                        <SelectItem value="viewer">
-                          <span className="font-semibold text-xs">Viewer</span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <Button
-                      type="submit"
-                      disabled={loading || !inviteEmail.trim()}
-                      className="w-full h-9 text-xs font-bold gap-1.5"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{loading ? "Sending..." : "Send Invite"}</span>
-                    </Button>
-                  </div>
+                      )}
+                      <SelectItem value="editor">
+                        <span className="font-semibold text-xs">Editor</span>
+                      </SelectItem>
+                      <SelectItem value="viewer">
+                        <span className="font-semibold text-xs">Viewer</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Role Permissions Hint */}
@@ -455,106 +496,313 @@ export const MembersView: React.FC = () => {
                     <span>{selectedRoleDef.description}</span>
                   </div>
                 </div>
-              </form>
-            )}
-
-            {/* Section 2: Active Members Roster */}
-            <div className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
-              <div className="p-6 border-b border-border/70 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span>Active Members ({members.length})</span>
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Designers and engineers with access to this organization&apos;s design tokens and projects.
-                  </p>
-                </div>
               </div>
 
-              <div className="divide-y divide-border/60">
-                {members.map((member) => {
-                  const isMemberOwner = member.role === "owner" || member.uid === currentOrg.ownerUid;
-                  const isCurrentUser = member.uid === currentUser?.uid || member.email === currentUser?.email;
-                  const roleDef = ROLE_DEFINITIONS[member.role] || ROLE_DEFINITIONS.editor;
+              <DialogFooter className="px-6 py-4 border-t border-border/80 bg-card/40 flex items-center justify-end gap-2 flex-shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsInviteModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={loading || !inviteEmail.trim()}
+                  className="gap-1.5 font-semibold shadow-xs"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{loading ? "Sending..." : "Send Invite"}</span>
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-                  return (
-                    <div
-                      key={member.email}
-                      className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center border border-primary/20 flex-shrink-0">
-                          {member.displayName ? member.displayName.charAt(0).toUpperCase() : member.email.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-foreground">
-                              {member.displayName || member.email.split("@")[0]}
-                            </span>
-                            {isCurrentUser && (
-                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">You</Badge>
-                            )}
-                            {isMemberOwner && (
-                              <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                                <Crown className="size-2.5" />
-                                <span>Owner</span>
-                              </Badge>
-                            )}
+        {/* Toolbar: Active / Invitations Tabs on Left, Send Invite Button on Right */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card/40 p-2.5 rounded-xl border border-border">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMembersSubTab("members")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                membersSubTab !== "invites"
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Active</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  membersSubTab !== "invites"
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {members.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMembersSubTab("invites")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                membersSubTab === "invites"
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Invitations</span>
+              {activePendingInvitations.length > 0 && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    membersSubTab === "invites"
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {activePendingInvitations.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {canInvite && (
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setIsInviteModalOpen(true)}
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Send Invite</span>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Members & Invitations Table List View Container */}
+        <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border shadow-2xs">
+
+              {membersSubTab !== "invites" ? (
+                <div className="divide-y divide-border/60">
+                  {members.map((member) => {
+                    const isMemberOwner = member.role === "owner" || member.uid === currentOrg.ownerUid;
+                    const isCurrentUser = member.uid === currentUser?.uid || member.email === currentUser?.email;
+                    const roleDef = ROLE_DEFINITIONS[member.role] || ROLE_DEFINITIONS.editor;
+
+                    return (
+                      <div
+                        key={member.email}
+                        className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center border border-primary/20 flex-shrink-0">
+                            {member.displayName ? member.displayName.charAt(0).toUpperCase() : member.email.charAt(0).toUpperCase()}
                           </div>
-                          <p className="text-[11px] text-muted-foreground font-mono">{member.email}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                {member.displayName || member.email.split("@")[0]}
+                              </span>
+                              {isCurrentUser && (
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">You</Badge>
+                              )}
+                              {isMemberOwner && (
+                                <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                  <Crown className="size-2.5" />
+                                  <span>Owner</span>
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground font-mono">{member.email}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Role Selector or Badge */}
+                          {isMemberOwner ? (
+                            <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
+                              Owner
+                            </Badge>
+                          ) : canManageRoles ? (
+                            <Select
+                              value={member.role}
+                              onValueChange={(val: any) => handleRoleChange(member.email, val as UserRole)}
+                            >
+                              <SelectTrigger className="h-8 w-28 text-xs">
+                                <SelectValue placeholder="Role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">
+                                  <span className="font-semibold text-xs">Admin</span>
+                                </SelectItem>
+                                <SelectItem value="editor">
+                                  <span className="font-semibold text-xs">Editor</span>
+                                </SelectItem>
+                                <SelectItem value="viewer">
+                                  <span className="font-semibold text-xs">Viewer</span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
+                              {roleDef.title}
+                            </Badge>
+                          )}
+
+                          {/* Remove Action */}
+                          {canManageRoles && !isMemberOwner && !isCurrentUser && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeMemberAction(member.email)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Remove member"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              ) : activePendingInvitations.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted/60 flex items-center justify-center">
+                    <Mail className="w-6 h-6 opacity-40 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-foreground block">No pending invitations</span>
+                    <span className="text-[11px] text-muted-foreground max-w-xs mt-1 block">
+                      Invited teammates will appear here until they accept their invitation.
+                    </span>
+                  </div>
+                  {canInvite && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="mt-2 h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Send Invite</span>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {activePendingInvitations.map((inv) => {
+                    const expiry = getExpiryStatus(inv.expiresAt);
+                    const isExpired = expiry.isExpired;
+                    const roleDef = ROLE_DEFINITIONS[inv.role] || ROLE_DEFINITIONS.editor;
 
-                      <div className="flex items-center gap-3">
-                        {/* Role Selector or Badge */}
-                        {isMemberOwner ? (
-                          <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
-                            Owner
-                          </Badge>
-                        ) : canManageRoles ? (
-                          <Select
-                            value={member.role}
-                            onValueChange={(val: any) => handleRoleChange(member.email, val as UserRole)}
-                          >
-                            <SelectTrigger className="h-8 w-28 text-xs">
-                              <SelectValue placeholder="Role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">
-                                <span className="font-semibold text-xs">Admin</span>
-                              </SelectItem>
-                              <SelectItem value="editor">
-                                <span className="font-semibold text-xs">Editor</span>
-                              </SelectItem>
-                              <SelectItem value="viewer">
-                                <span className="font-semibold text-xs">Viewer</span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline" className="text-xs capitalize font-medium px-2.5 py-1">
-                            {roleDef.title}
-                          </Badge>
-                        )}
+                    return (
+                      <div
+                        key={inv.id}
+                        className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors ${
+                          isExpired ? "bg-destructive/5" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center justify-center border border-amber-500/20 flex-shrink-0">
+                            {inv.inviteeEmail.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                {inv.inviteeEmail}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] font-normal capitalize">
+                                {roleDef.title}
+                              </Badge>
+                              {isExpired && (
+                                <Badge variant="destructive" className="text-[9px] px-1.5 py-0 gap-1 font-semibold">
+                                  <AlertTriangle className="size-2.5" />
+                                  <span>Expired</span>
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                              <span>Invited by {inv.invitedByName || inv.invitedByEmail}</span>
+                              <span>•</span>
+                              <span>Sent {formatDateTime(inv.createdAt)}</span>
+                              <span>•</span>
+                              <span className={isExpired ? "text-destructive font-medium" : ""}>
+                                {expiry.label}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                        {/* Remove Action */}
-                        {canManageRoles && !isMemberOwner && !isCurrentUser && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeMemberAction(member.email)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
-                            title="Remove member"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {isExpired ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleResendInvite(inv.id)}
+                              disabled={resendingId === inv.id}
+                              className="h-8 text-xs font-semibold gap-1.5 cursor-pointer"
+                            >
+                              <RotateCcw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                              <span>{resendingId === inv.id ? "Resending..." : "Resend"}</span>
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyLink(inv.token)}
+                                className="h-8 text-xs gap-1.5 cursor-pointer"
+                                title="Copy direct join link"
+                              >
+                                {copiedToken === inv.token ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span className="text-emerald-500 font-medium">Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Copy Link</span>
+                                  </>
+                                )}
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResendInvite(inv.id)}
+                                disabled={resendingId === inv.id}
+                                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                                title="Renew invitation with fresh 7-day link"
+                              >
+                                <RotateCcw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                                <span>{resendingId === inv.id ? "Renewing..." : "Resend"}</span>
+                              </Button>
+                            </>
+                          )}
+
+                          {canManageRoles && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => revokeInvitationAction(inv.id)}
+                              className="h-8 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Revoke invitation"
+                            >
+                              Revoke
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

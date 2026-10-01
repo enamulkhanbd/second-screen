@@ -20,7 +20,7 @@ async function getAuthenticatedUser(req: NextRequest) {
 
 /**
  * GET /api/v1/auth/pat
- * List all active API keys dynamically from Firestore
+ * List all active API keys.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * DELETE /api/v1/auth/pat?id=...
- * Revoke an API key dynamically in Firestore
+ * Revoke an API key.
  */
 export async function DELETE(req: NextRequest) {
   try {

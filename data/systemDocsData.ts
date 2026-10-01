@@ -178,7 +178,7 @@ export const SYSTEM_DOCS_SECTIONS: SystemDocSection[] = [
     badge: "182 Schemas",
     highlights: [
       "Zero External Dependencies: All 182 schemas are self-hosted under /api/v1/schemas/* with no third-party tracking.",
-      "Per-Project Toggling: Enable or disable specific schemas per project with Cloud Firestore persistence.",
+      "Per-Project Toggling: Enable or disable specific schemas per project with project-level persistence.",
       "Draft 2020-12 REST APIs: Valid JSON Schema endpoints resolving dynamically to your application origin.",
       "Inspector Dialog: Dark-themed inspector with copyable local schema URLs and schema tree viewer.",
     ],
