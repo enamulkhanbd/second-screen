@@ -964,7 +964,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 </div>
                 <DropdownMenuItem
                   onClick={() => setThemeMode("light")}
-                  className="flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer"
+                  className={cn(
+                    "flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
+                    themeMode === "light" && "bg-accent text-accent-foreground"
+                  )}
                 >
                   <div className="size-3.5 flex items-center justify-center shrink-0">
                     {themeMode === "light" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
@@ -977,7 +980,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
 
                 <DropdownMenuItem
                   onClick={() => setThemeMode("dark")}
-                  className="flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer"
+                  className={cn(
+                    "flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
+                    themeMode === "dark" && "bg-accent text-accent-foreground"
+                  )}
                 >
                   <div className="size-3.5 flex items-center justify-center shrink-0">
                     {themeMode === "dark" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
@@ -990,7 +996,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
 
                 <DropdownMenuItem
                   onClick={() => setThemeMode("system")}
-                  className="flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer"
+                  className={cn(
+                    "flex items-center gap-2.5 px-2 py-1.5 text-xs cursor-pointer data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
+                    themeMode === "system" && "bg-accent text-accent-foreground"
+                  )}
                 >
                   <div className="size-3.5 flex items-center justify-center shrink-0">
                     {themeMode === "system" && <Check className="size-3.5 text-foreground stroke-[2.5]" />}
@@ -1004,7 +1013,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleSignOut}
-                className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                className="gap-2 text-destructive focus:text-destructive cursor-pointer data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive"
               >
                 <LogOut className="size-3.5" />
                 <span>Log Out</span>
