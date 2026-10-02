@@ -25,7 +25,6 @@ import {
   DocPage,
   DocFolder,
   DocBlock,
-  createDefaultDocumentation,
   createEmptyDocumentation,
 } from "@/types/documentation";
 import {
@@ -319,7 +318,6 @@ interface TokenStoreState {
   reorderDocBlocks: (pageId: string, blocks: DocBlock[]) => Promise<void>;
   publishDocPage: (pageId: string, isPublished: boolean) => Promise<void>;
   publishEntireDocumentation: (isPublishedGlobally: boolean, allowPublicAccess?: boolean) => Promise<void>;
-  loadStarterDocumentationTemplate: () => Promise<void>;
 
   // View Mode & Filters
   viewMode: "sets" | "matrix" | "flow";
@@ -456,6 +454,15 @@ const projectConfigCache = new Map<string, any>();
 // so the "restore active project from localStorage" step can't run twice and
 // clobber a project the user has since opened.
 let tenantDataLoadState: { uid: string; promise: Promise<void> } | null = null;
+
+const INVITE_TOKEN_STORAGE_KEY = "ts_pending_invite_token";
+
+function clearStoredInviteToken(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(INVITE_TOKEN_STORAGE_KEY);
+  } catch {}
+}
 
 function cacheHydratedProject(project: Project): void {
   if (typeof window === "undefined") return;
@@ -979,8 +986,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setIsDocEditing: (isEditing) => set({ isDocEditing: isEditing }),
   setSelectedDocBlockId: (blockId) => set({ selectedDocBlockId: blockId }),
 
-  setActiveInviteToken: (token) => set({ activeInviteToken: token }),
-  setPendingInvitePrompt: (inv) => set({ pendingInvitePrompt: inv }),
+  setActiveInviteToken: (token) => {
+    if (!token) clearStoredInviteToken();
+    set({ activeInviteToken: token });
+  },
+  setPendingInvitePrompt: (inv) => {
+    if (!inv) {
+      clearStoredInviteToken();
+      set({ pendingInvitePrompt: null, activeInviteToken: null });
+      return;
+    }
+    set({ pendingInvitePrompt: inv });
+  },
 
   setCurrentUser: (user) => {
     set({ currentUser: user });
@@ -1637,28 +1654,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         const found = orgs.find((o) => o.id === savedOrgId);
         if (found) activeOrg = found;
       }
-      if (!activeOrg && orgs.length === 0) {
-        try {
-          const userName = get().currentUser?.displayName || "My";
-          const orgCandidate = `${userName}'s Organization`;
-          const avail = await checkOrganizationNameAvailable(orgCandidate);
-          const finalName = avail.available ? orgCandidate : `${orgCandidate} ${Date.now().toString().slice(-4)}`;
-          const defaultOrg = await get().createOrgAction(finalName);
-          if (defaultOrg) {
-            activeOrg = defaultOrg;
-            const defaultProj = await get().createProjectAction(
-              "Core Tokens",
-              "Primary design token system",
-              "🎨",
-              "#171717"
-            );
-            if (defaultProj) {
-              get().setRawTokens({});
-            }
-          }
-        } catch (initErr) {
-          console.warn("Failed initializing default org/project:", initErr);
-        }
+      // Resolve any pending invitation before the UI decides between a workspace and onboarding.
+      try {
+        const inviteToken = get().activeInviteToken;
+        const [tokenInv, emailInvs] = await Promise.all([
+          inviteToken ? getInvitationByToken(inviteToken) : Promise.resolve(null),
+          email ? getPendingInvitationsForEmail(email) : Promise.resolve([]),
+        ]);
+        const pendingInv = tokenInv && tokenInv.status === "pending" ? tokenInv : emailInvs[0];
+        if (pendingInv) set({ pendingInvitePrompt: pendingInv });
+      } catch (inviteErr) {
+        console.warn("Failed resolving pending invitations:", inviteErr);
       }
 
       set({ currentOrg: activeOrg });
@@ -1804,6 +1810,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
 
       if (updatedOrg) {
+        clearStoredInviteToken();
         const allOrgs = await getUserOrganizations(currentUser.uid, currentUser.email);
         set((state) => ({
           userOrgs: allOrgs,
@@ -3868,8 +3875,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           }
         }
 
-        const inviteToken = urlParams.get("invite");
+        const inviteToken = urlParams.get("invite") || sessionStorage.getItem(INVITE_TOKEN_STORAGE_KEY);
         if (inviteToken) {
+          // OAuth redirects drop the query string, so keep the token for this tab session.
+          try {
+            sessionStorage.setItem(INVITE_TOKEN_STORAGE_KEY, inviteToken);
+          } catch {}
           set({ activeInviteToken: inviteToken });
           getInvitationByToken(inviteToken).then((inv) => {
             if (inv && inv.status === "pending") {
@@ -5287,7 +5298,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   // Living Documentation Actions
   addDocFolder: async (title: string) => {
     const { documentation, currentProject, currentOrg } = get();
-    const currentDoc = documentation || createDefaultDocumentation(currentProject?.name);
+    const currentDoc = documentation || createEmptyDocumentation();
     const newFolder: DocFolder = {
       id: `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       title: title.trim() || "New Section",
@@ -5362,7 +5373,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   addDocPage: async (title: string, folderId?: string | null) => {
     const { documentation, currentProject, currentOrg } = get();
-    const currentDoc = documentation || createDefaultDocumentation(currentProject?.name);
+    const currentDoc = documentation || createEmptyDocumentation();
     const cleanTitle = title.trim() || "Untitled Page";
     const slug = cleanTitle
       .toLowerCase()
@@ -5627,26 +5638,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         description: isPublishedGlobally
           ? `Published live documentation for project "${currentProject.name}"`
           : `Unpublished live documentation for project "${currentProject.name}"`,
-      });
-    }
-  },
-
-  loadStarterDocumentationTemplate: async () => {
-    const { currentProject, currentOrg } = get();
-    const templateDoc = createDefaultDocumentation(currentProject?.name || "Design System");
-    set({
-      documentation: templateDoc,
-      activeDocPageId: templateDoc.pages[0]?.id || null,
-      activeDocFolderId: null,
-      selectedDocBlockId: null,
-      isDocEditing: false,
-    });
-    if (currentOrg && currentProject) {
-      saveProjectDocumentation(currentOrg.id, currentProject.id, templateDoc).catch(console.error);
-      get().logUserActivity({
-        type: "doc",
-        title: "Loaded starter documentation",
-        description: `Loaded starter documentation template for "${currentProject.name}"`,
       });
     }
   },
