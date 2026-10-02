@@ -305,7 +305,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   </button>
                 </div>
 
-                <div className="space-y-0.5 max-h-[180px] overflow-y-auto">
+                <div className="space-y-0.5 max-h-[180px] overflow-x-hidden overflow-y-auto">
                   {userOrgs.map((org) => {
                     const isSelected = currentOrg?.id === org.id;
                     return (
