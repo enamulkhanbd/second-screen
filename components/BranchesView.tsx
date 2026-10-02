@@ -130,7 +130,7 @@ export const BranchesView: React.FC = () => {
 
   // Generate granular history items for the branch
   const historyItems = useMemo(() => {
-    const authorName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "enamulkhanbd";
+    const authorName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Unknown";
     const items: Array<{
       name: string;
       category: "Option" | "Theme" | "Token" | "Set" | "Asset" | "Doc";
@@ -176,41 +176,6 @@ export const BranchesView: React.FC = () => {
         items.push({
           name: grp.name,
           category: "Theme",
-          author: authorName,
-          time: "just now",
-        });
-      });
-
-      // Token set tokens
-      const sampleTokens = [
-        "title.md.medium",
-        "title.md.semibold",
-        "title.lg.medium",
-        "title.lg.semibold",
-        "title.xl.medium",
-        "title.xl.semibold",
-        "title.xxl.semibold",
-        "caption.sm.medium",
-        "caption.md.normal",
-        "caption.sm.normal",
-        "subtitle.md.normal",
-        "subtitle.sm.normal",
-        "body.md.normal",
-        "body.sm.normal",
-        "body.lg.normal",
-        "body.xs.normal",
-        "heading.h1.semibold",
-        "heading.h1.medium",
-        "heading.h2.medium",
-        "heading.h3.semibold",
-        "heading.h4.medium",
-        "overline.sm.normal",
-      ];
-
-      sampleTokens.forEach((tok) => {
-        items.push({
-          name: tok,
-          category: "Token",
           author: authorName,
           time: "just now",
         });

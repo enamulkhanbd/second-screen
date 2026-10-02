@@ -113,6 +113,11 @@ export const AcceptInviteModal: React.FC = () => {
       return;
     }
 
+    if (currentUser.email.trim().toLowerCase() !== pendingInvitePrompt.inviteeEmail.trim().toLowerCase()) {
+      setError(`This invitation was sent to ${pendingInvitePrompt.inviteeEmail}. Sign in with that email to join.`);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {

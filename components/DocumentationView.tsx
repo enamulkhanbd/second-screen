@@ -51,7 +51,6 @@ export const DocumentationView: React.FC = () => {
     reorderDocBlocks,
     publishDocPage,
     publishEntireDocumentation,
-    loadStarterDocumentationTemplate,
     addToast,
   } = useTokenStore();
 
@@ -284,7 +283,6 @@ export const DocumentationView: React.FC = () => {
           <DocEmptyStateGuide
             projectName={currentProject?.name}
             onCreateFirstPage={() => handleAddPage(null)}
-            onLoadTemplate={loadStarterDocumentationTemplate}
             onCreateFolder={handleAddFolder}
           />
         ) : isViewingOverview ? (
