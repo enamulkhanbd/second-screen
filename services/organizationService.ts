@@ -520,6 +520,9 @@ export async function createOrganizationInvitation(
   role: UserRole
 ): Promise<OrganizationInvitation> {
   const normalizedEmail = inviteeEmail.trim().toLowerCase();
+  if (normalizedEmail === inviter.email.trim().toLowerCase()) {
+    throw new Error("You are already part of this workspace.");
+  }
   if (isSupabaseConfigured) await assertInviteEmailAvailable(orgId, normalizedEmail);
 
   const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;

@@ -39,6 +39,18 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     }
 
     const admin = createAdminClient();
+    const { data: organization, error: organizationError } = await admin
+      .from("organizations")
+      .select("owner_uid")
+      .eq("id", invitation.org_id)
+      .maybeSingle();
+    if (organizationError) throw organizationError;
+    if (organization?.owner_uid === user.id) {
+      return NextResponse.json(
+        { error: "You are already the owner of this workspace.", code: "already_member" },
+        { status: 409 }
+      );
+    }
 
     // Never downgrade an existing membership (e.g. the org owner) through an invitation.
     const { data: existing, error: existingError } = await admin

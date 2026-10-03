@@ -41,6 +41,16 @@ FROM ranked_invitations r
 WHERE i.id = r.id
   AND r.duplicate_rank > 1;
 
+UPDATE public.invitations i
+SET status = 'revoked'
+WHERE i.status = 'pending'
+  AND EXISTS (
+    SELECT 1
+    FROM public.organization_members m
+    WHERE m.org_id = i.org_id
+      AND lower(trim(m.email)) = lower(trim(i.email))
+  );
+
 CREATE UNIQUE INDEX IF NOT EXISTS organization_members_org_email_key
   ON public.organization_members (org_id, lower(trim(email)));
 
