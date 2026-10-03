@@ -458,33 +458,56 @@ export async function updateOrgMember(
  */
 export async function removeOrgMember(
   orgId: string,
-  memberEmailOrUid: string
+  memberUid: string
 ): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  const client = getClient();
-  try {
-    const isEmail = memberEmailOrUid.includes("@");
-    if (isEmail) {
-      await client
-        .from("organization_members")
-        .delete()
-        .eq("org_id", orgId)
-        .ilike("email", memberEmailOrUid.trim());
-    } else {
-      await client
-        .from("organization_members")
-        .delete()
-        .eq("org_id", orgId)
-        .eq("user_id", memberEmailOrUid);
-    }
-  } catch (e) {
-    console.warn("Supabase error removing member:", e);
-  }
+  if (!isSupabaseConfigured) throw new Error("Supabase is not configured.");
+  const response = await fetch(
+    `/api/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(memberUid)}`,
+    { method: "DELETE" }
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || "Failed to remove member.");
 }
 
 // -------------------------------------------------------------
 // INVITATION OPERATIONS (100% Dynamic Supabase)
 // -------------------------------------------------------------
+
+function generateInviteToken(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return `tok_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+
+async function assertInviteEmailAvailable(
+  orgId: string,
+  email: string,
+  excludeInvitationId?: string
+): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const client = getClient();
+  const [{ data: members, error: membersError }, { data: invitations, error: invitationsError }] =
+    await Promise.all([
+      client.from("organization_members").select("email").eq("org_id", orgId),
+      client.from("invitations").select("id, email").eq("org_id", orgId).eq("status", "pending"),
+    ]);
+
+  if (membersError) throw membersError;
+  if (invitationsError) throw invitationsError;
+
+  if (members?.some((member: { email: string | null }) => member.email?.trim().toLowerCase() === normalizedEmail)) {
+    throw new Error("This email is already an active member of this workspace.");
+  }
+  if (
+    invitations?.some(
+      (invitation: { id: string; email: string | null }) =>
+        invitation.id !== excludeInvitationId &&
+        invitation.email?.trim().toLowerCase() === normalizedEmail
+    )
+  ) {
+    throw new Error("A pending invitation already exists for this email in this workspace.");
+  }
+}
 
 /**
  * Generates an invitation for an email in Supabase
@@ -496,8 +519,14 @@ export async function createOrganizationInvitation(
   inviteeEmail: string,
   role: UserRole
 ): Promise<OrganizationInvitation> {
+  const normalizedEmail = inviteeEmail.trim().toLowerCase();
+  if (normalizedEmail === inviter.email.trim().toLowerCase()) {
+    throw new Error("You are already part of this workspace.");
+  }
+  if (isSupabaseConfigured) await assertInviteEmailAvailable(orgId, normalizedEmail);
+
   const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const token = `tok_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
+  const token = generateInviteToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
   const now = new Date().toISOString();
 
@@ -509,7 +538,7 @@ export async function createOrganizationInvitation(
     invitedByUid: inviter.uid,
     invitedByName: inviter.name || inviter.email.split("@")[0],
     invitedByEmail: inviter.email,
-    inviteeEmail: inviteeEmail.trim().toLowerCase(),
+    inviteeEmail: normalizedEmail,
     role,
     status: "pending",
     createdAt: now,
@@ -519,7 +548,7 @@ export async function createOrganizationInvitation(
   if (isSupabaseConfigured) {
     const client = getClient();
     try {
-      await client.from("invitations").insert({
+      const { error: insertErr } = await client.from("invitations").insert({
         id,
         org_id: orgId,
         org_name: orgName,
@@ -533,8 +562,13 @@ export async function createOrganizationInvitation(
         created_at: now,
         expires_at: expiresAt,
       });
+      if (insertErr) throw insertErr;
     } catch (e) {
       console.warn("Supabase error saving invitation:", e);
+      if ((e as { code?: string })?.code === "23505") {
+        throw new Error("This email already has a membership or pending invitation in this workspace.");
+      }
+      throw e;
     }
   }
 
@@ -571,10 +605,19 @@ export async function resendOrganizationInvitation(
   if (!invitationId || !isSupabaseConfigured) return null;
   const client = getClient();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const newToken = `tok_${Math.random().toString(36).substring(2, 15)}_${Math.random().toString(36).substring(2, 15)}`;
+  const newToken = generateInviteToken();
   const now = new Date().toISOString();
 
   try {
+    const { data: currentInvitation, error: lookupError } = await client
+      .from("invitations")
+      .select("org_id, email")
+      .eq("id", invitationId)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!currentInvitation) return null;
+    await assertInviteEmailAvailable(currentInvitation.org_id, currentInvitation.email, invitationId);
+
     const { data, error } = await client
       .from("invitations")
       .update({
@@ -587,6 +630,9 @@ export async function resendOrganizationInvitation(
       .select()
       .maybeSingle();
 
+    if (error?.code === "23505") {
+      throw new Error("This email already has a membership or pending invitation in this workspace.");
+    }
     if (error || !data) return null;
     return mapDbInvitation(data);
   } catch (e) {
@@ -640,48 +686,32 @@ export async function getInvitationByToken(token: string): Promise<OrganizationI
 }
 
 /**
- * Accepts an invitation in Supabase
+ * Accepts an invitation through the server API, which verifies the signed-in user's email.
  */
-export async function acceptOrganizationInvitation(
-  token: string,
-  user: { uid: string; email: string; displayName?: string }
-): Promise<Organization | null> {
-  const inv = await getInvitationByToken(token);
-  if (!inv || inv.status !== "pending") {
-    throw new Error("Invitation is invalid or has already been used.");
+export async function acceptOrganizationInvitation(token: string): Promise<Organization | null> {
+  const res = await fetch(`/api/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(payload?.error || "Invitation is invalid or has already been used.");
   }
+  return await getOrganization(payload.orgId);
+}
 
-  if (inv.expiresAt && new Date(inv.expiresAt).getTime() < Date.now()) {
-    throw new Error("This invitation has expired. Please ask your team administrator to resend it.");
+/**
+ * Asks the server to email an invitation link. Resolves false when delivery is unavailable.
+ */
+export async function sendInvitationEmail(invitationId: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/invitations/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invitationId }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    return res.ok && payload?.sent === true;
+  } catch {
+    return false;
   }
-
-  // 1. Add user as a member of the organization
-  const newMember: OrganizationMember = {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName || user.email.split("@")[0],
-    role: inv.role,
-    joinedAt: new Date().toISOString(),
-  };
-
-  await updateOrgMember(inv.orgId, newMember);
-
-  // 2. Mark invitation status as accepted
-  if (isSupabaseConfigured) {
-    const client = getClient();
-    try {
-      await client
-        .from("invitations")
-        .update({
-          status: "accepted",
-        })
-        .eq("id", inv.id);
-    } catch (e) {
-      console.warn("Supabase error updating invitation status:", e);
-    }
-  }
-
-  return await getOrganization(inv.orgId);
 }
 
 /**

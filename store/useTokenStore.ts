@@ -73,6 +73,7 @@ import {
   acceptOrganizationInvitation,
   revokeInvitation,
   resendOrganizationInvitation,
+  sendInvitationEmail,
   removeOrgMember,
   deleteOrganization,
   deleteProject,
@@ -1781,6 +1782,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         pendingInvitations: [inv, ...state.pendingInvitations.filter((i) => i.id !== inv.id)],
       }));
 
+      void sendInvitationEmail(inv.id).then((sent) => {
+        if (sent) {
+          get().addToast({
+            type: "success",
+            title: "Invitation Email Sent",
+            message: `Email delivered to ${inv.inviteeEmail}.`,
+          });
+        }
+      });
+
       get().logUserActivity({
         type: "team",
         title: "Team Member Invited",
@@ -1803,11 +1814,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (!currentUser) return false;
 
     try {
-      const updatedOrg = await acceptOrganizationInvitation(token, {
-        uid: currentUser.uid,
-        email: currentUser.email,
-        displayName: currentUser.displayName,
-      });
+      const updatedOrg = await acceptOrganizationInvitation(token);
 
       if (updatedOrg) {
         clearStoredInviteToken();
@@ -1847,6 +1854,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             i.id === id ? updated : i
           ),
         }));
+        void sendInvitationEmail(updated.id).then((sent) => {
+          if (sent) {
+            get().addToast({
+              type: "success",
+              title: "Invitation Email Sent",
+              message: `Email delivered to ${updated.inviteeEmail}.`,
+            });
+          }
+        });
         return updated;
       }
     } catch (e) {
@@ -1891,6 +1907,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
     } catch (e) {
       console.warn("Error removing member:", e);
+      get().addToast({
+        type: "error",
+        title: "Member Not Removed",
+        message: e instanceof Error ? e.message : "Please try again.",
+      });
     }
   },
 

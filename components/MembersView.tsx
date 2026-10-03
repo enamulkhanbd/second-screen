@@ -88,6 +88,8 @@ export const MembersView: React.FC = () => {
   const [previewInvitation, setPreviewInvitation] = useState<OrganizationInvitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ uid: string; displayName: string; email: string } | null>(null);
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
 
   // Activity tab filters & search
   const [activityFilter, setActivityFilter] = useState<string>("all");
@@ -103,6 +105,17 @@ export const MembersView: React.FC = () => {
   const isOwner = currentOrg?.ownerUid === currentUser?.uid;
   const canManageRoles = isOwner || userRole === "admin";
   const canInvite = isOwner || userRole === "admin" || userRole === "editor";
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove || isRemovingMember) return;
+    setIsRemovingMember(true);
+    try {
+      await removeMemberAction(memberToRemove.uid);
+    } finally {
+      setIsRemovingMember(false);
+      setMemberToRemove(null);
+    }
+  };
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,7 +200,7 @@ export const MembersView: React.FC = () => {
 
   const handleCopyLink = (token: string) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const inviteUrl = `${origin}?invite=${token}`;
+    const inviteUrl = `${origin}/invite/${token}`;
     navigator.clipboard.writeText(inviteUrl);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2500);
@@ -660,7 +673,11 @@ export const MembersView: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeMemberAction(member.email)}
+                              onClick={() => setMemberToRemove({
+                                uid: member.uid,
+                                displayName: member.displayName || member.email.split("@")[0],
+                                email: member.email,
+                              })}
                               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
                               title="Remove member"
                             >
@@ -814,6 +831,48 @@ export const MembersView: React.FC = () => {
             invitation={previewInvitation}
           />
         )}
+
+        <Dialog
+          open={Boolean(memberToRemove)}
+          onOpenChange={(open) => !open && !isRemovingMember && setMemberToRemove(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div className="space-y-1">
+                  <DialogTitle>Remove team member?</DialogTitle>
+                  <DialogDescription>
+                    {memberToRemove?.displayName} ({memberToRemove?.email}) will lose access to {currentOrg?.name} immediately.
+                    This won&apos;t delete their account.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMemberToRemove(null)}
+                disabled={isRemovingMember}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmRemoveMember}
+                disabled={isRemovingMember}
+                className="gap-2"
+              >
+                {isRemovingMember && <RotateCcw className="w-3.5 h-3.5 animate-spin" />}
+                Remove member
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   };

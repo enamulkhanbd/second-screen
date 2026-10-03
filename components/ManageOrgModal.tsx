@@ -119,7 +119,7 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
 
   const handleCopyLink = (token: string) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const link = `${origin}/?invite=${token}`;
+    const link = `${origin}/invite/${token}`;
     navigator.clipboard.writeText(link);
     setCopiedToken(token);
     addToast({
