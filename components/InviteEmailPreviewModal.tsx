@@ -44,7 +44,7 @@ export const InviteEmailPreviewModal: React.FC<InviteEmailPreviewModalProps> = (
 
   const roleDef = ROLE_DEFINITIONS[invitation.role];
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-  const inviteLink = `${origin}/?invite=${invitation.token}`;
+  const inviteLink = `${origin}/invite/${invitation.token}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(inviteLink);

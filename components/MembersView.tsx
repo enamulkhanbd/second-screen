@@ -187,7 +187,7 @@ export const MembersView: React.FC = () => {
 
   const handleCopyLink = (token: string) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const inviteUrl = `${origin}?invite=${token}`;
+    const inviteUrl = `${origin}/invite/${token}`;
     navigator.clipboard.writeText(inviteUrl);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2500);
