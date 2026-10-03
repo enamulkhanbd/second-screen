@@ -458,28 +458,15 @@ export async function updateOrgMember(
  */
 export async function removeOrgMember(
   orgId: string,
-  memberEmailOrUid: string
+  memberUid: string
 ): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  const client = getClient();
-  try {
-    const isEmail = memberEmailOrUid.includes("@");
-    if (isEmail) {
-      await client
-        .from("organization_members")
-        .delete()
-        .eq("org_id", orgId)
-        .ilike("email", memberEmailOrUid.trim());
-    } else {
-      await client
-        .from("organization_members")
-        .delete()
-        .eq("org_id", orgId)
-        .eq("user_id", memberEmailOrUid);
-    }
-  } catch (e) {
-    console.warn("Supabase error removing member:", e);
-  }
+  if (!isSupabaseConfigured) throw new Error("Supabase is not configured.");
+  const response = await fetch(
+    `/api/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(memberUid)}`,
+    { method: "DELETE" }
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || "Failed to remove member.");
 }
 
 // -------------------------------------------------------------

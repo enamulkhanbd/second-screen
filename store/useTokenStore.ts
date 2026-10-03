@@ -1907,6 +1907,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
     } catch (e) {
       console.warn("Error removing member:", e);
+      get().addToast({
+        type: "error",
+        title: "Member Not Removed",
+        message: e instanceof Error ? e.message : "Please try again.",
+      });
     }
   },
 
