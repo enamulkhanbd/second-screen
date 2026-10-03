@@ -41,14 +41,26 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     const admin = createAdminClient();
 
     // Never downgrade an existing membership (e.g. the org owner) through an invitation.
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
       .from("organization_members")
-      .select("user_id")
-      .eq("org_id", invitation.org_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .select("user_id, email")
+      .eq("org_id", invitation.org_id);
+    if (existingError) throw existingError;
 
-    if (!existing) {
+    const normalizedEmail = user.email.trim().toLowerCase();
+    const sameEmailMembership = existing?.find(
+      (member) => member.email?.trim().toLowerCase() === normalizedEmail
+    );
+    if (sameEmailMembership && sameEmailMembership.user_id !== user.id) {
+      return NextResponse.json(
+        { error: "This email is already a member of the workspace under another account.", code: "email_already_member" },
+        { status: 409 }
+      );
+    }
+
+    const existingUserMembership = existing?.find((member) => member.user_id === user.id);
+
+    if (!existingUserMembership) {
       const { error: memberErr } = await admin.from("organization_members").insert({
         org_id: invitation.org_id,
         user_id: user.id,
@@ -58,6 +70,12 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
         role: invitation.role,
         joined_at: new Date().toISOString(),
       });
+      if (memberErr?.code === "23505") {
+        return NextResponse.json(
+          { error: "This email is already a member of the workspace.", code: "email_already_member" },
+          { status: 409 }
+        );
+      }
       if (memberErr) throw memberErr;
     }
 

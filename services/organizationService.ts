@@ -479,6 +479,36 @@ function generateInviteToken(): string {
   return `tok_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
+async function assertInviteEmailAvailable(
+  orgId: string,
+  email: string,
+  excludeInvitationId?: string
+): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const client = getClient();
+  const [{ data: members, error: membersError }, { data: invitations, error: invitationsError }] =
+    await Promise.all([
+      client.from("organization_members").select("email").eq("org_id", orgId),
+      client.from("invitations").select("id, email").eq("org_id", orgId).eq("status", "pending"),
+    ]);
+
+  if (membersError) throw membersError;
+  if (invitationsError) throw invitationsError;
+
+  if (members?.some((member: { email: string | null }) => member.email?.trim().toLowerCase() === normalizedEmail)) {
+    throw new Error("This email is already an active member of this workspace.");
+  }
+  if (
+    invitations?.some(
+      (invitation: { id: string; email: string | null }) =>
+        invitation.id !== excludeInvitationId &&
+        invitation.email?.trim().toLowerCase() === normalizedEmail
+    )
+  ) {
+    throw new Error("A pending invitation already exists for this email in this workspace.");
+  }
+}
+
 /**
  * Generates an invitation for an email in Supabase
  */
@@ -489,6 +519,9 @@ export async function createOrganizationInvitation(
   inviteeEmail: string,
   role: UserRole
 ): Promise<OrganizationInvitation> {
+  const normalizedEmail = inviteeEmail.trim().toLowerCase();
+  if (isSupabaseConfigured) await assertInviteEmailAvailable(orgId, normalizedEmail);
+
   const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const token = generateInviteToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
@@ -502,7 +535,7 @@ export async function createOrganizationInvitation(
     invitedByUid: inviter.uid,
     invitedByName: inviter.name || inviter.email.split("@")[0],
     invitedByEmail: inviter.email,
-    inviteeEmail: inviteeEmail.trim().toLowerCase(),
+    inviteeEmail: normalizedEmail,
     role,
     status: "pending",
     createdAt: now,
@@ -529,6 +562,9 @@ export async function createOrganizationInvitation(
       if (insertErr) throw insertErr;
     } catch (e) {
       console.warn("Supabase error saving invitation:", e);
+      if ((e as { code?: string })?.code === "23505") {
+        throw new Error("This email already has a membership or pending invitation in this workspace.");
+      }
       throw e;
     }
   }
@@ -570,6 +606,15 @@ export async function resendOrganizationInvitation(
   const now = new Date().toISOString();
 
   try {
+    const { data: currentInvitation, error: lookupError } = await client
+      .from("invitations")
+      .select("org_id, email")
+      .eq("id", invitationId)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!currentInvitation) return null;
+    await assertInviteEmailAvailable(currentInvitation.org_id, currentInvitation.email, invitationId);
+
     const { data, error } = await client
       .from("invitations")
       .update({
@@ -582,6 +627,9 @@ export async function resendOrganizationInvitation(
       .select()
       .maybeSingle();
 
+    if (error?.code === "23505") {
+      throw new Error("This email already has a membership or pending invitation in this workspace.");
+    }
     if (error || !data) return null;
     return mapDbInvitation(data);
   } catch (e) {
