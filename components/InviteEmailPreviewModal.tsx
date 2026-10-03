@@ -3,15 +3,12 @@
 import React, { useState } from "react";
 import { OrganizationInvitation, ROLE_DEFINITIONS } from "@/types/tenant";
 import {
-  Mail,
   Copy,
   Check,
   ExternalLink,
-  Shield,
-  Layers,
-  Sparkles,
-  ArrowRight,
   Clock,
+  Link2,
+  Mail,
 } from "lucide-react";
 import {
   Dialog,
@@ -23,7 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 import { useTokenStore } from "@/store/useTokenStore";
 
 interface InviteEmailPreviewModalProps {
@@ -46,123 +42,95 @@ export const InviteEmailPreviewModal: React.FC<InviteEmailPreviewModalProps> = (
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
   const inviteLink = `${origin}/invite/${invitation.token}`;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
-    addToast({
-      type: "success",
-      title: "Invite Link Copied",
-      message: "Direct workspace invitation link copied to clipboard.",
-    });
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      addToast({
+        type: "success",
+        title: "Invite Link Copied",
+        message: "Share the link with the invited person.",
+      });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      addToast({
+        type: "error",
+        title: "Could Not Copy Link",
+        message: "Select and copy the invitation link instead.",
+      });
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden font-sans">
-        {/* Header */}
-        <DialogHeader className="p-5 border-b border-border bg-muted/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <Mail className="w-4 h-4" />
-              </div>
-              <div>
-                <DialogTitle className="text-base font-bold">
-                  Invitation Email Preview
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Email invitation dispatched to <span className="font-semibold text-foreground">{invitation.inviteeEmail}</span>
-                </DialogDescription>
-              </div>
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden font-sans">
+        <DialogHeader className="p-6 border-b border-border bg-muted/20">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Link2 className="w-4 h-4" />
             </div>
-
-            <Badge variant="violet" className="text-xs capitalize gap-1">
-              <span>{roleDef.icon}</span>
-              <span>{roleDef.title} Role</span>
-            </Badge>
+            <div className="min-w-0 space-y-1">
+              <DialogTitle className="text-base font-bold">Invitation created</DialogTitle>
+              <DialogDescription className="text-xs leading-relaxed">
+                Share this invite with <span className="font-semibold text-foreground break-all">{invitation.inviteeEmail}</span>.
+                They&apos;ll join using this email address.
+              </DialogDescription>
+            </div>
           </div>
         </DialogHeader>
 
-        {/* Email Body Container (Styled HTML Card) */}
-        <div className="p-6 bg-slate-50 dark:bg-zinc-950/60 overflow-y-auto max-h-[60vh] space-y-4">
-          {/* Email Envelope Meta */}
-          <div className="p-3 rounded-lg bg-card border border-border space-y-1.5 text-xs">
-            <div className="flex items-center justify-between text-muted-foreground text-[11px]">
-              <span>From: <strong className="text-foreground">Tokens Platform &lt;invites@tokensplatform.io&gt;</strong></span>
-              <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Valid for 7 days</span>
-            </div>
-            <div className="text-muted-foreground text-[11px]">
-              <span>To: <strong className="text-foreground">{invitation.inviteeEmail}</strong></span>
-            </div>
-            <div className="text-foreground font-semibold text-xs pt-1 border-t border-border/50">
-              Subject: You&apos;ve been invited to join &quot;{invitation.orgName}&quot; on Tokens Platform
-            </div>
-          </div>
-
-          {/* Rendered Email Template */}
-          <div className="p-6 rounded-xl bg-card border border-border shadow-sm space-y-5 text-left">
-            {/* Brand Logo */}
-            <TokensPlatformLogo variant="full" />
-
-            {/* Main Message */}
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold text-foreground">
-                Join {invitation.orgName} on Tokens Platform
-              </h2>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong className="text-foreground">{invitation.invitedByName}</strong> ({invitation.invitedByEmail}) has invited you to collaborate on design tokens in <strong className="text-foreground">{invitation.orgName}</strong> with the <strong className="text-primary">{roleDef.title}</strong> role.
-              </p>
-            </div>
-
-            {/* Role Permissions Card */}
-            <div className="p-3.5 rounded-lg bg-muted/40 border border-border text-xs space-y-2">
-              <div className="font-semibold text-foreground flex items-center gap-1.5">
+        <div className="p-6 space-y-5">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-xs">
+            <dt className="text-muted-foreground">Workspace</dt>
+            <dd className="font-semibold text-foreground break-words">{invitation.orgName}</dd>
+            <dt className="text-muted-foreground">Invited by</dt>
+            <dd className="font-medium text-foreground break-words">
+              {invitation.invitedByName} <span className="text-muted-foreground">({invitation.invitedByEmail})</span>
+            </dd>
+            <dt className="text-muted-foreground">Role</dt>
+            <dd>
+              <Badge variant="violet" className="text-[11px] gap-1">
                 <span>{roleDef.icon}</span>
-                <span>Your Permissions as {roleDef.title}:</span>
-              </div>
-              <p className="text-muted-foreground text-[11px] leading-relaxed">
-                {roleDef.description}
-              </p>
-            </div>
+                <span>{roleDef.title}</span>
+              </Badge>
+            </dd>
+            <dt className="text-muted-foreground flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> Expires
+            </dt>
+            <dd className="text-foreground">
+              {new Date(invitation.expiresAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
+            </dd>
+          </dl>
 
-            {/* CTA Button in Email */}
-            <div className="pt-2">
-              <a
-                href={inviteLink}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleCopyLink();
-                }}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 transition-all cursor-pointer"
+          <div className="space-y-2">
+            <label htmlFor="invite-share-link" className="text-xs font-semibold">Invitation link</label>
+            <div className="flex items-stretch gap-2">
+              <div
+                id="invite-share-link"
+                className="min-w-0 flex-1 rounded-md border border-input bg-muted/30 px-3 py-2 text-xs font-mono text-muted-foreground break-all select-all"
               >
-                <span>Accept Invitation & Join Workspace</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            <div className="pt-4 border-t border-border text-[11px] text-muted-foreground">
-              If the button doesn&apos;t work, copy and paste this link in your browser:
-              <div className="mt-1 font-mono text-[10px] bg-muted/60 p-2 rounded border border-border/80 break-all select-all text-foreground">
                 {inviteLink}
               </div>
+              <Button type="button" onClick={handleCopyLink} className="shrink-0 gap-1.5 text-xs">
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? "Copied" : "Copy link"}</span>
+              </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              The invitee can create an account or sign in, then join the workspace.
+            </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <DialogFooter className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
-            Close Preview
+        <DialogFooter className="p-4 border-t border-border bg-muted/20 sm:justify-between">
+          <Button asChild variant="outline" className="gap-1.5 text-xs">
+            <a href={inviteLink} target="_blank" rel="noreferrer">
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open invite page</span>
+            </a>
           </Button>
-
-          <Button
-            size="sm"
-            onClick={handleCopyLink}
-            className="gap-1.5 text-xs font-bold"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? "Link Copied!" : "Copy Direct Invitation Link"}</span>
+          <Button variant="ghost" onClick={onClose} className="text-xs">
+            Done
           </Button>
         </DialogFooter>
       </DialogContent>
