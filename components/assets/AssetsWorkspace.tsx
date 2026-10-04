@@ -635,6 +635,7 @@ export const AssetsWorkspace: React.FC = () => {
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkMetadataOpen, setIsBulkMetadataOpen] = useState(false);
   const [singleDeleteAsset, setSingleDeleteAsset] = useState<ProjectAsset | null>(null);
+  const emptyCollectionInputRef = useRef<HTMLInputElement | null>(null);
 
   // Drag and Drop Zone State
   const [isDragOver, setIsDragOver] = useState(false);
@@ -856,6 +857,19 @@ export const AssetsWorkspace: React.FC = () => {
       return direction * ASSET_COLLATOR.compare(a.title || a.name, b.title || b.name);
     });
   }, [displayAssets, activeFolderId, selectedAssetType, selectedType, selectedCategory, selectedFigmaSource, searchQuery, selectedFormats, selectedTag, sortBy, sortDirection]);
+
+  const isUnfilteredEmptyCollection = Boolean(
+    !isLoadingAssets &&
+    currentActiveFolder &&
+    filteredAssets.length === 0 &&
+    searchQuery === "" &&
+    selectedType === "all" &&
+    selectedCategory === "all" &&
+    selectedAssetType === "all" &&
+    selectedFigmaSource === "all" &&
+    selectedFormats.size === 0 &&
+    selectedTag === "all"
+  );
 
   // Progressive loading: only render visibleCount icons at once to prevent DOM freezing
   const [visibleCount, setVisibleCount] = useState(ASSET_BATCH_SIZE);
@@ -1234,6 +1248,48 @@ export const AssetsWorkspace: React.FC = () => {
     await handleProcessIncomingFiles(files, collectionId, dimensions);
   };
 
+  const uploadEmptyCollectionFiles = async (files: File[], collectionId: string) => {
+    if (!canUserEdit()) {
+      addToast({
+        type: "info",
+        title: "Read-Only Mode",
+        message: "Viewer role cannot upload assets.",
+      });
+      return;
+    }
+
+    const dimensions = new Map<string, NonNullable<ProjectAsset["dimensions"]>>();
+    const imageFiles = files.filter((file) => file.type.startsWith("image/") && !file.type.includes("svg"));
+    const results = await Promise.all(imageFiles.map(async (file) => {
+      try {
+        return { file, size: await getImageDimensions(file) };
+      } catch (cause) {
+        return { file, size: undefined, cause };
+      }
+    }));
+    const failedDimensions = results.filter((result) => "cause" in result).map(({ file }) => file.name);
+    if (failedDimensions.length > 0) {
+      addToast({
+        type: "info",
+        title: "Image dimensions unavailable",
+        message: `Could not read dimensions for ${failedDimensions.join(", ")}. The files will still be uploaded.`,
+      });
+    }
+    for (const { file, size } of results) {
+      if (size) dimensions.set(`${file.name}:${file.size}:${file.lastModified}`, size);
+    }
+
+    try {
+      await handleQueueUpload(files, collectionId, dimensions);
+    } catch (cause) {
+      addToast({
+        type: "error",
+        title: "Upload failed",
+        message: cause instanceof Error ? cause.message : "The files could not be uploaded.",
+      });
+    }
+  };
+
   // Drag and Drop handlers with recursive folder reader
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1249,7 +1305,7 @@ export const AssetsWorkspace: React.FC = () => {
     e.preventDefault();
     setIsDragOver(false);
 
-    const folderTarget = dragTargetFolderId || undefined;
+    const folderTarget = dragTargetFolderId || activeFolderId || undefined;
     setDragTargetFolderId(null);
 
     // Check if DataTransfer items support webkitGetAsEntry for recursive folder drop
@@ -1314,9 +1370,15 @@ export const AssetsWorkspace: React.FC = () => {
     }
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setUploadTargetFolderId(folderTarget || activeFolderId || null);
-      setPendingUploadFiles(Array.from(e.dataTransfer.files));
-      setIsUploadQueueOpen(true);
+      const files = Array.from(e.dataTransfer.files);
+      const targetFolderId = folderTarget || activeFolderId;
+      if (isUnfilteredEmptyCollection && targetFolderId) {
+        await uploadEmptyCollectionFiles(files, targetFolderId);
+      } else {
+        setUploadTargetFolderId(targetFolderId || null);
+        setPendingUploadFiles(files);
+        setIsUploadQueueOpen(true);
+      }
     }
   };
 
@@ -2781,22 +2843,6 @@ export const AssetsWorkspace: React.FC = () => {
                   )}
                 </div>
               </div>
-              {canUserEdit() && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setUploadTargetFolderId(currentActiveFolder.id);
-                      setIsUploadQueueOpen(true);
-                    }}
-                    className="h-7 text-xs gap-1.5 cursor-pointer"
-                  >
-                    <UploadCloud className="w-3 h-3 text-muted-foreground" />
-                    <span>Upload Files</span>
-                  </Button>
-                </div>
-              )}
             </div>
           )}
 
@@ -2849,7 +2895,7 @@ export const AssetsWorkspace: React.FC = () => {
           )}
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto p-6 pb-24 space-y-6">
+          <div className={`flex-1 min-h-0 ${isUnfilteredEmptyCollection ? "overflow-hidden p-0" : "overflow-y-auto p-6 pb-24 space-y-6"}`}>
             {isLoadingAssets ? (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
@@ -2862,7 +2908,7 @@ export const AssetsWorkspace: React.FC = () => {
                   {Array.from({ length: 18 }).map((_, idx) => renderSkeletonCard(idx))}
                 </div>
               </div>
-            ) : displayAssets.length === 0 ? (
+            ) : displayAssets.length === 0 && !currentActiveFolder ? (
               /* High-Value Onboarding Setup Guide Empty State */
               <div className="max-w-5xl mx-auto py-8 space-y-8 animate-in fade-in duration-300">
                 {r2StorageError && (
@@ -3054,39 +3100,69 @@ export const AssetsWorkspace: React.FC = () => {
                 </div>
               </div>
             ) : filteredAssets.length === 0 ? (
-              currentActiveFolder && searchQuery === "" && selectedType === "all" && selectedCategory === "all" && selectedAssetType === "all" && selectedFormats.size === 0 && selectedTag === "all" ? (
+              isUnfilteredEmptyCollection ? (
                 /* Empty Folder State */
-                <div className="flex min-h-full w-full flex-col items-center justify-center p-6 text-center">
+                <div
+                  className={`flex min-h-[220px] w-full flex-col items-center justify-center border-2 border-dashed p-6 text-center transition-colors ${
+                    isDragOver ? "border-primary bg-primary/5" : "border-border/70"
+                  }`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setIsDragOver(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setIsDragOver(false);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.stopPropagation();
+                    void handleDrop(event);
+                  }}
+                >
+                  <input
+                    ref={emptyCollectionInputRef}
+                    type="file"
+                    multiple
+                    accept=".svg,.png,.jpg,.jpeg,.webp,.gif,.ico,.avif,.mp4,.webm,.mov,.pdf,.json,.zip"
+                    className="hidden"
+                    onChange={(event) => {
+                      const files = Array.from(event.target.files || []);
+                      event.currentTarget.value = "";
+                      if (currentActiveFolder && files.length > 0) {
+                        void uploadEmptyCollectionFiles(files, currentActiveFolder.id);
+                      }
+                    }}
+                  />
                   <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                     <FolderPlus className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-bold text-foreground">Collection is Empty</h3>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {isDragOver ? "Drop files to upload" : "Collection is Empty"}
+                  </h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                    {currentActiveFolder.description || `No assets have been added to "${currentActiveFolder.name}" yet.`}
+                    {isDragOver
+                      ? `Files will be added to "${currentActiveFolder?.name}".`
+                      : `Drop files or folders here to add them to "${currentActiveFolder?.name}".`}
                   </p>
-                  <div className="flex items-center gap-2 mt-4">
-                    {canUserEdit() && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setUploadTargetFolderId(currentActiveFolder.id);
-                          setIsUploadQueueOpen(true);
-                        }}
-                        className="gap-1.5 text-xs font-semibold cursor-pointer"
-                      >
-                        <UploadCloud className="w-3.5 h-3.5" />
-                        <span>Upload Files to {currentActiveFolder.name}</span>
-                      </Button>
-                    )}
+                  {currentActiveFolder?.description && !isDragOver && (
+                    <p className="mt-1 max-w-sm text-[11px] text-muted-foreground/70">
+                      {currentActiveFolder.description}
+                    </p>
+                  )}
+                  {canUserEdit() && (
                     <Button
-                      variant="outline"
                       size="sm"
-                      onClick={() => setActiveFolderId(null)}
-                      className="text-xs cursor-pointer"
+                      onClick={() => emptyCollectionInputRef.current?.click()}
+                      className="mt-4 gap-1.5 text-xs font-semibold cursor-pointer"
                     >
-                      View All Assets
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Browse files</span>
                     </Button>
-                  </div>
+                  )}
                 </div>
               ) : (
                 /* Search / Filter Empty State */
