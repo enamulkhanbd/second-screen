@@ -1293,6 +1293,7 @@ export const AssetsWorkspace: React.FC = () => {
   // Drag and Drop handlers with recursive folder reader
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    if (isUnfilteredEmptyCollection) return;
     setIsDragOver(true);
   };
 
@@ -1301,9 +1302,11 @@ export const AssetsWorkspace: React.FC = () => {
     setIsDragOver(false);
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent, fromEmptyCollectionDropZone = false) => {
     e.preventDefault();
     setIsDragOver(false);
+
+    if (isUnfilteredEmptyCollection && !dragTargetFolderId && !fromEmptyCollectionDropZone) return;
 
     const folderTarget = dragTargetFolderId || activeFolderId || undefined;
     setDragTargetFolderId(null);
@@ -2272,7 +2275,7 @@ export const AssetsWorkspace: React.FC = () => {
       onDrop={handleDrop}
     >
       {/* Full-surface drag-and-drop visual dropzone indicator */}
-      {isDragOver && (
+      {isDragOver && !isUnfilteredEmptyCollection && (
         <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary flex flex-col items-center justify-center pointer-events-none transition-all animate-in fade-in duration-150">
           <div className="bg-card border border-primary/30 shadow-2xl rounded-2xl p-6 flex flex-col items-center gap-3 text-center max-w-sm pointer-events-none">
             <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center animate-bounce">
@@ -2895,7 +2898,7 @@ export const AssetsWorkspace: React.FC = () => {
           )}
 
           {/* Main Content Area */}
-          <div className={`flex-1 min-h-0 ${isUnfilteredEmptyCollection ? "overflow-hidden p-0" : "overflow-y-auto p-6 pb-24 space-y-6"}`}>
+          <div className={`flex-1 min-h-0 ${isUnfilteredEmptyCollection ? "flex items-center justify-center overflow-hidden p-6" : "overflow-y-auto p-6 pb-24 space-y-6"}`}>
             {isLoadingAssets ? (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
@@ -3103,7 +3106,7 @@ export const AssetsWorkspace: React.FC = () => {
               isUnfilteredEmptyCollection ? (
                 /* Empty Folder State */
                 <div
-                  className={`flex min-h-[220px] w-full flex-col items-center justify-center border-2 border-dashed p-6 text-center transition-colors ${
+                  className={`mx-auto flex min-h-[240px] w-full max-w-2xl flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors ${
                     isDragOver ? "border-primary bg-primary/5" : "border-border/70"
                   }`}
                   onDragOver={(event) => {
@@ -3120,7 +3123,7 @@ export const AssetsWorkspace: React.FC = () => {
                   }}
                   onDrop={(event) => {
                     event.stopPropagation();
-                    void handleDrop(event);
+                    void handleDrop(event, true);
                   }}
                 >
                   <input
@@ -3140,13 +3143,13 @@ export const AssetsWorkspace: React.FC = () => {
                   <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                     <FolderPlus className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    {isDragOver ? "Drop files to upload" : "Collection is Empty"}
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {isDragOver ? "Release to add files" : "Collection is empty"}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-sm">
                     {isDragOver
-                      ? `Files will be added to "${currentActiveFolder?.name}".`
-                      : `Drop files or folders here to add them to "${currentActiveFolder?.name}".`}
+                      ? `Files will be added to ${currentActiveFolder?.name}.`
+                      : `Drop files or folders here to add them to ${currentActiveFolder?.name}.`}
                   </p>
                   {currentActiveFolder?.description && !isDragOver && (
                     <p className="mt-1 max-w-sm text-[11px] text-muted-foreground/70">
