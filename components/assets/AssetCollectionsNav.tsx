@@ -1,7 +1,6 @@
 "use client";
 
 import { AssetCollection } from "@/types/tenant";
-import { Button } from "@/components/ui/button";
 
 interface AssetCollectionsNavProps {
   collections: AssetCollection[];
@@ -9,8 +8,6 @@ interface AssetCollectionsNavProps {
   activeId: string | null;
   totalCount: number;
   onSelect: (id: string | null) => void;
-  onCreate: () => void;
-  canEdit: boolean;
 }
 
 export function AssetCollectionsNav({
@@ -19,8 +16,6 @@ export function AssetCollectionsNav({
   activeId,
   totalCount,
   onSelect,
-  onCreate,
-  canEdit,
 }: AssetCollectionsNavProps) {
   return (
     <nav aria-label="Asset collections" className="flex items-center gap-2 overflow-x-auto border-b border-border px-6 py-2">
@@ -52,11 +47,6 @@ export function AssetCollectionsNav({
           <span className="ml-1 font-mono opacity-70">{counts.get(collection.id) || 0}</span>
         </button>
       ))}
-      {canEdit && (
-        <Button type="button" variant="ghost" size="sm" onClick={onCreate} className="h-7 shrink-0 text-xs">
-          + New Collection
-        </Button>
-      )}
     </nav>
   );
 }

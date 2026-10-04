@@ -2486,9 +2486,7 @@ export const AssetsWorkspace: React.FC = () => {
         counts={folderCountMap}
         activeId={activeFolderId}
         totalCount={displayAssets.length}
-        canEdit={canUserEdit()}
         onSelect={setActiveFolderId}
-        onCreate={() => setIsCreateCollectionOpen(true)}
       />
 
       {/* Main Body: Left Categories Sidebar + Right Content Area */}
@@ -2510,6 +2508,19 @@ export const AssetsWorkspace: React.FC = () => {
                     {assetFolders.length}
                   </Badge>
                 </div>
+                {canUserEdit() && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateCollectionOpen(true)}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    aria-label="Create collection"
+                    title="Create collection"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
               {/* Folder list */}
