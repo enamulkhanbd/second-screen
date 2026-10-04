@@ -3106,8 +3106,8 @@ export const AssetsWorkspace: React.FC = () => {
               isUnfilteredEmptyCollection ? (
                 /* Empty Folder State */
                 <div
-                  className={`mx-auto flex min-h-[240px] w-full max-w-2xl flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors ${
-                    isDragOver ? "border-primary bg-primary/5" : "border-border/70"
+                  className={`mx-auto flex h-[35vh] min-h-[220px] max-h-[420px] w-full max-w-3xl flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+                    isDragOver ? "border-primary bg-primary/10" : "border-muted-foreground/35 bg-muted/20 hover:border-primary/50"
                   }`}
                   onDragOver={(event) => {
                     event.preventDefault();
@@ -3140,19 +3140,19 @@ export const AssetsWorkspace: React.FC = () => {
                       }
                     }}
                   />
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-                    <FolderPlus className="w-6 h-6" />
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <FolderPlus className="h-7 w-7" />
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground">
+                  <h3 className="text-base font-semibold text-foreground">
                     {isDragOver ? "Release to add files" : "Collection is empty"}
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                  <p className="mt-2 max-w-sm text-sm text-muted-foreground">
                     {isDragOver
                       ? `Files will be added to ${currentActiveFolder?.name}.`
                       : `Drop files or folders here to add them to ${currentActiveFolder?.name}.`}
                   </p>
                   {currentActiveFolder?.description && !isDragOver && (
-                    <p className="mt-1 max-w-sm text-[11px] text-muted-foreground/70">
+                    <p className="mt-2 max-w-sm text-xs text-muted-foreground/80">
                       {currentActiveFolder.description}
                     </p>
                   )}
@@ -3160,9 +3160,9 @@ export const AssetsWorkspace: React.FC = () => {
                     <Button
                       size="sm"
                       onClick={() => emptyCollectionInputRef.current?.click()}
-                      className="mt-4 gap-1.5 text-xs font-semibold cursor-pointer"
+                      className="mt-5 gap-1.5 text-sm font-semibold cursor-pointer"
                     >
-                      <UploadCloud className="w-3.5 h-3.5" />
+                      <UploadCloud className="h-4 w-4" />
                       <span>Browse files</span>
                     </Button>
                   )}
