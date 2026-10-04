@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
 
           // If no content is provided (e.g. metadata-only update), preserve the existing asset file in R2
           if (!asset.content) {
+            const folderId = asset.folderId || asset.collectionId || topFolderId || undefined;
             uploadedAssets.push({
               id: assetId,
               name: asset.name,
@@ -97,11 +98,21 @@ export async function POST(req: NextRequest) {
               type: asset.type,
               tag: asset.tag,
               category: asset.category && asset.category !== "general" ? asset.category : undefined,
-              folderId: asset.folderId || topFolderId || undefined,
+              folderId,
+              collectionId: asset.collectionId || folderId,
               assetType: asset.assetType,
               url: asset.url,
               contentType: asset.contentType,
               size: asset.size,
+              description: asset.description,
+              dimensions: asset.dimensions,
+              colorSpace: asset.colorSpace,
+              format: asset.format,
+              customMetadata: asset.customMetadata,
+              version: asset.version,
+              history: asset.history,
+              uploadedBy: asset.uploadedBy,
+              createdAt: asset.createdAt,
               path: asset.path,
               updatedAt: now,
               source: asset.source || "upload",
@@ -132,7 +143,7 @@ export async function POST(req: NextRequest) {
             extension
           );
 
-          const targetFolderId = asset.folderId || topFolderId || undefined;
+          const targetFolderId = asset.folderId || asset.collectionId || topFolderId || undefined;
           const inferredType = asset.assetType || deriveAssetType(result.contentType, asset.name || "");
           const isSvg = (contentType || "").includes("svg") || (result.contentType || "").includes("svg");
           const rawSvg = isSvg && typeof asset.content === "string" && asset.content.includes("<svg") ? asset.content : undefined;
@@ -145,10 +156,20 @@ export async function POST(req: NextRequest) {
             tag: asset.tag,
             category: asset.category && asset.category !== "general" ? asset.category : undefined,
             folderId: targetFolderId,
+            collectionId: asset.collectionId || targetFolderId,
             assetType: inferredType,
             url: result.url,
             contentType: result.contentType,
             size: result.size,
+            description: asset.description,
+            dimensions: asset.dimensions,
+            colorSpace: asset.colorSpace,
+            format: asset.format || contentType.split("/").pop()?.toUpperCase(),
+            customMetadata: asset.customMetadata,
+            version: asset.version || 1,
+            history: asset.history,
+            uploadedBy: asset.uploadedBy,
+            createdAt: asset.createdAt || now,
             svg: rawSvg,
             path: asset.path,
             updatedAt: now,

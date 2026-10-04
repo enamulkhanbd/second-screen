@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
     const project = await getProject(orgId, projectId);
     const configWithProtectedIntegrations = {
       ...(config || {}),
+      collections: config?.collections || config?.folders || [],
+      folders: config?.folders || config?.collections || [],
       assetGitConfig: project?.assetGitConfig || config?.assetGitConfig || null,
       assetFigmaConfig: project?.assetFigmaConfig || config?.assetFigmaConfig || null,
     };
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
         assetGitConfig: null,
         assetFigmaConfig: null,
         folders: [],
+        collections: [],
       },
     });
   } catch (err: any) {
@@ -77,7 +80,7 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/assets/config
  * Updates a project's asset configuration in Cloudflare R2.
- * Body: { orgId, projectId, assetGitConfig?, assetFigmaConfig?, assetsCount?, folders? }
+ * Body: { orgId, projectId, assetGitConfig?, assetFigmaConfig?, assetsCount?, folders?, collections? }
  */
 export async function POST(req: NextRequest) {
   if (!isR2Configured) {
@@ -89,7 +92,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { orgId, projectId, assetGitConfig, assetFigmaConfig, assetsCount, folders } = body;
+    const { orgId, projectId, assetGitConfig, assetFigmaConfig, assetsCount, folders, collections } = body;
 
     if (!orgId || !projectId) {
       return NextResponse.json(
@@ -110,7 +113,9 @@ export async function POST(req: NextRequest) {
     const merged = {
       ...(existing || {}),
       ...(assetsCount !== undefined ? { assetsCount } : {}),
-      ...(folders !== undefined ? { folders } : {}),
+      ...(folders !== undefined || collections !== undefined
+        ? { folders: collections ?? folders, collections: collections ?? folders }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
 

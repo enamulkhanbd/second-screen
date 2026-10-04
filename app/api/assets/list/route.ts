@@ -157,6 +157,7 @@ export async function POST(req: NextRequest) {
           return {
             ...asset,
             folderId: targetFolderId || undefined,
+            collectionId: targetFolderId || undefined,
             updatedAt: now,
           };
         }
@@ -190,7 +191,17 @@ export async function POST(req: NextRequest) {
             ...(update.category !== undefined && { category: update.category }),
             ...(update.name !== undefined && { name: update.name }),
             ...(update.folderId !== undefined && { folderId: update.folderId || undefined }),
+            ...(update.collectionId !== undefined && { collectionId: update.collectionId || update.folderId || undefined }),
             ...(update.assetType !== undefined && { assetType: update.assetType }),
+            ...(update.description !== undefined && { description: update.description }),
+            ...(update.dimensions !== undefined && { dimensions: update.dimensions }),
+            ...(update.colorSpace !== undefined && { colorSpace: update.colorSpace }),
+            ...(update.format !== undefined && { format: update.format }),
+            ...(update.customMetadata !== undefined && { customMetadata: update.customMetadata }),
+            ...(update.version !== undefined && { version: update.version }),
+            ...(update.history !== undefined && { history: update.history }),
+            ...(update.uploadedBy !== undefined && { uploadedBy: update.uploadedBy }),
+            ...(update.createdAt !== undefined && { createdAt: update.createdAt }),
             updatedAt: now,
           };
         }

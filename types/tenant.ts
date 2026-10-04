@@ -49,16 +49,37 @@ export interface Organization {
   updatedAt: string;
 }
 
-export type AssetType = "icon" | "image" | "video" | "document" | "other";
+export type AssetType = "icon" | "image" | "illustration" | "video" | "document" | "other";
+
+export interface CustomMetadataField {
+  id: string;
+  label: string;
+  type: "text" | "number" | "select" | "date" | "boolean";
+  options?: string[];
+  required?: boolean;
+}
 
 export interface AssetFolder {
   id: string;
   name: string;
   description?: string;
+  allowedAssetTypes?: AssetType[];
+  customFields?: CustomMetadataField[];
   icon?: string;
   color?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export type AssetCollection = AssetFolder;
+
+export interface AssetVersionHistory {
+  id: string;
+  version: number;
+  title: string;
+  timestamp: string;
+  author?: string;
+  notes?: string;
 }
 
 export interface ProjectAsset {
@@ -68,8 +89,11 @@ export interface ProjectAsset {
   type?: string;
   tag?: string;
   category?: string;
+  description?: string;
   /** Folder identifier (undefined or null = root / All Assets) */
   folderId?: string;
+  /** Collection identifier; folderId remains the compatibility alias. */
+  collectionId?: string;
   /** Semantic asset category type */
   assetType?: AssetType;
   /** CDN URL for the asset file (R2 public URL) */
@@ -79,7 +103,12 @@ export interface ProjectAsset {
   /** File size in bytes */
   size?: number;
   /** Dimensions for visual media */
-  dimensions?: { width: number; height: number };
+  dimensions?: { width: number; height: number; aspect?: string };
+  colorSpace?: string;
+  format?: string;
+  customMetadata?: Record<string, unknown>;
+  version?: number;
+  history?: AssetVersionHistory[];
   /** Duration in seconds for media files */
   duration?: number;
   /**
@@ -88,8 +117,10 @@ export interface ProjectAsset {
    */
   svg?: string;
   path?: string;
+  createdAt?: string;
   updatedAt: string;
   source: "upload" | "git" | "figma";
+  uploadedBy?: string;
   figmaNodeId?: string;
   figmaUrl?: string;
   figmaSourceId?: string;
