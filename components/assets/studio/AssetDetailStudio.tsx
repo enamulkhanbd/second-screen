@@ -50,6 +50,22 @@ function formatDate(value?: string) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString();
 }
 
+function getFileType(asset: ProjectAsset) {
+  for (const source of [asset.path, asset.name, asset.url]) {
+    if (!source) continue;
+    const filename = source.split(/[?#]/, 1)[0].split(/[\\/]/).pop() || "";
+    const extension = filename.match(/\.([^.]+)$/)?.[1];
+    if (extension) return `.${extension.toLowerCase()}`;
+  }
+
+  if (asset.svg || asset.contentType?.toLowerCase() === "image/svg+xml") return ".svg";
+
+  const subtype = asset.contentType?.split("/").pop()?.split(";")[0].toLowerCase();
+  if (subtype) return `.${subtype === "jpeg" ? "jpg" : subtype}`;
+
+  return asset.format ? `.${asset.format.toLowerCase()}` : "—";
+}
+
 function normalizeCategory(category?: string) {
   return category?.trim().toLocaleLowerCase() || "";
 }
@@ -80,6 +96,7 @@ export function AssetDetailStudio({
   const [customMetadata, setCustomMetadata] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
+  const [filenameCopyStatus, setFilenameCopyStatus] = useState("");
   const collectionId = asset?.collectionId || asset?.folderId;
   const collection = collections.find((item) => item.id === collectionId);
   const assetCategory = normalizeCategory(asset?.category);
@@ -114,6 +131,7 @@ export function AssetDetailStudio({
     setCustomMetadata(asset?.customMetadata || {});
     setError(null);
     setCopyStatus("");
+    setFilenameCopyStatus("");
   }, [asset]);
 
   if (!asset) return null;
@@ -144,6 +162,15 @@ export function AssetDetailStudio({
       setCopyStatus("Asset link copied.");
     } catch {
       setCopyStatus("Could not copy the asset link.");
+    }
+  };
+
+  const copyFilename = async () => {
+    try {
+      await navigator.clipboard.writeText(asset.name);
+      setFilenameCopyStatus("Filename copied.");
+    } catch {
+      setFilenameCopyStatus("Could not copy the filename.");
     }
   };
 
@@ -363,9 +390,24 @@ export function AssetDetailStudio({
                           {index === 0 ? (
                             <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-muted-foreground">
                               <dt>Size</dt><dd>{formatSize(asset.size)}</dd>
-                              <dt>Type</dt><dd className="capitalize">{asset.assetType || mediaType}</dd>
+                              <dt>Type</dt><dd>{getFileType(asset)}</dd>
                               {asset.dimensions && <><dt>Dimensions</dt><dd>{asset.dimensions.width} × {asset.dimensions.height}px</dd></>}
-                              <dt>Filename</dt><dd className="truncate" title={asset.name}>{asset.name}</dd>
+                              <dt>Filename</dt>
+                              <dd className="flex min-w-0 items-center gap-1">
+                                <span className="truncate" title={asset.name}>{asset.name}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 shrink-0"
+                                  onClick={copyFilename}
+                                  aria-label="Copy filename"
+                                  title={filenameCopyStatus || "Copy filename"}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <span role="status" className="sr-only">{filenameCopyStatus}</span>
+                              </dd>
                             </dl>
                           ) : (
                             <p className="mt-1 text-muted-foreground">{entry.title}{entry.author ? ` · ${entry.author}` : ""}</p>

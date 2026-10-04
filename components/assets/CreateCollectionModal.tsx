@@ -26,8 +26,6 @@ const ASSET_TYPES: { value: AssetType; label: string }[] = [
   { value: "document", label: "Document" },
 ];
 const FIELD_TYPES: CustomMetadataField["type"][] = ["text", "number", "select", "date", "boolean"];
-const DEFAULT_ALLOWED_ASSET_TYPES = ASSET_TYPES.map(({ value }) => value);
-
 interface CreateCollectionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,7 +35,7 @@ interface CreateCollectionModalProps {
 export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCollectionModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [allowedAssetTypes, setAllowedAssetTypes] = useState<AssetType[]>(DEFAULT_ALLOWED_ASSET_TYPES);
+  const [allowedAssetTypes, setAllowedAssetTypes] = useState<AssetType[]>([]);
   const [fields, setFields] = useState<CustomMetadataField[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +43,7 @@ export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCo
   const reset = () => {
     setName("");
     setDescription("");
-    setAllowedAssetTypes(DEFAULT_ALLOWED_ASSET_TYPES);
+    setAllowedAssetTypes([]);
     setFields([]);
     setError(null);
   };

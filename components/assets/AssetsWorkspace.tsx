@@ -3056,7 +3056,7 @@ export const AssetsWorkspace: React.FC = () => {
             ) : filteredAssets.length === 0 ? (
               currentActiveFolder && searchQuery === "" && selectedType === "all" && selectedCategory === "all" && selectedAssetType === "all" && selectedFormats.size === 0 && selectedTag === "all" ? (
                 /* Empty Folder State */
-                <div className="flex flex-col items-center justify-center py-20 text-center p-6 border-2 border-dashed border-border/80 rounded-2xl bg-card/40 my-8">
+                <div className="flex min-h-full w-full flex-col items-center justify-center p-6 text-center">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                     <FolderPlus className="w-6 h-6" />
                   </div>
