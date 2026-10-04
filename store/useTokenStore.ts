@@ -165,14 +165,8 @@ interface TokenStoreState {
 
   assets: ProjectAsset[];
   assetFolders: AssetFolder[];
-  assetCollections: AssetCollection[];
   activeFolderId: string | null;
-  activeCollectionId: string | null;
   setActiveFolderId: (folderId: string | null) => void;
-  createAssetFolder: (name: string, description?: string, icon?: string, color?: string) => Promise<AssetFolder>;
-  updateAssetFolder: (folderId: string, updates: Partial<AssetFolder>) => Promise<void>;
-  deleteAssetFolder: (folderId: string, moveContentsToFolderId?: string | null) => Promise<void>;
-  setActiveCollectionId: (collectionId: string | null) => void;
   createCollection: (data: Omit<AssetCollection, "id" | "createdAt" | "updatedAt">) => Promise<AssetCollection>;
   updateCollection: (id: string, updates: Partial<AssetCollection>) => Promise<void>;
   deleteCollection: (id: string, moveContentsToId?: string | null) => Promise<void>;
@@ -592,7 +586,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               tag: a.tag,
               category: a.category,
               folderId: a.folderId,
-              collectionId: a.collectionId,
               assetType: a.assetType,
               description: a.description,
               dimensions: a.dimensions,
@@ -618,7 +611,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         tag: a.tag,
         category: a.category && a.category !== "general" ? a.category : undefined,
         folderId: a.folderId,
-        collectionId: a.collectionId,
         assetType: a.assetType,
         description: a.description,
         dimensions: a.dimensions,
@@ -705,8 +697,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             type: a.type,
             tag: a.tag,
             category: a.category,
-            folderId: a.folderId,
-            collectionId: a.collectionId || a.folderId,
+            folderId: a.folderId || a.collectionId,
             assetType: a.assetType,
             url: a.url,
             contentType: a.contentType || "image/svg+xml",
@@ -827,7 +818,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       assetGitConfig?: AssetGitConfig | null;
       assetFigmaConfig?: AssetFigmaConfig | null;
       folders?: AssetFolder[];
-      collections?: AssetCollection[];
       assetsCount?: number;
     }
   ): Promise<boolean> => {
@@ -1277,9 +1267,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       figmaMeta: null,
       assets: [],
       assetFolders: [],
-      assetCollections: [],
       activeFolderId: null,
-      activeCollectionId: null,
       assetGitConfig: null,
       assetFigmaConfig: null,
       credentials: DEFAULT_CREDENTIALS,
@@ -1547,10 +1535,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         figmaUpdatedAt: proj.figmaUpdatedAt || null,
         figmaMeta: proj.figmaMeta || null,
         assets: cachedAssets,
-        assetFolders: cachedConfig?.folders || proj.assetFolders || [],
-        assetCollections: cachedConfig?.collections || cachedConfig?.folders || proj.assetFolders || [],
+        assetFolders: cachedConfig?.collections || cachedConfig?.folders || proj.assetFolders || [],
         activeFolderId: null,
-        activeCollectionId: null,
         assetGitConfig: cachedConfig?.assetGitConfig !== undefined ? cachedConfig.assetGitConfig : (proj.assetGitConfig || null),
         assetFigmaConfig: cachedConfig?.assetFigmaConfig !== undefined ? cachedConfig.assetFigmaConfig : normalizedFigmaConfig,
         documentation: docToUse,
@@ -1583,7 +1569,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           if (r2Config.folders !== undefined) {
             set({
               assetFolders: r2Config.collections || r2Config.folders,
-              assetCollections: r2Config.collections || r2Config.folders,
             });
           }
         });
@@ -2434,9 +2419,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   assets: [],
   assetFolders: [],
-  assetCollections: [],
   activeFolderId: null,
-  activeCollectionId: null,
   assetGitConfig: null,
   assetFigmaConfig: null,
   isSyncingAssets: false,
@@ -2444,93 +2427,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   isLoadingAssets: false,
   r2StorageError: null,
 
-  setActiveFolderId: (activeFolderId) => set({ activeFolderId, activeCollectionId: activeFolderId }),
-
-  createAssetFolder: async (name, description, icon, color) => {
-    const { currentOrg, currentProject, assetFolders, addToast } = get();
-    const now = new Date().toISOString();
-    const newFolder: AssetFolder = {
-      id: `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: name.trim(),
-      description: description?.trim() || undefined,
-      icon: icon || "Folder",
-      color: color || "blue",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const updatedFolders = [...assetFolders, newFolder];
-    set({ assetFolders: updatedFolders, assetCollections: updatedFolders });
-    if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
-        folders: updatedFolders,
-        collections: updatedFolders,
-      });
-    }
-    addToast({
-      type: "success",
-      title: "Folder Created",
-      message: `Created folder "${newFolder.name}".`,
-    });
-    return newFolder;
-  },
-
-  updateAssetFolder: async (folderId, updates) => {
-    const { currentOrg, currentProject, assetFolders, addToast } = get();
-    const now = new Date().toISOString();
-    const updatedFolders = assetFolders.map((f) => (f.id === folderId ? { ...f, ...updates, updatedAt: now } : f));
-    set({ assetFolders: updatedFolders, assetCollections: updatedFolders });
-    if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
-        folders: updatedFolders,
-        collections: updatedFolders,
-      });
-    }
-    addToast({
-      type: "success",
-      title: "Folder Updated",
-      message: "Folder settings saved.",
-    });
-  },
-
-  deleteAssetFolder: async (folderId, moveContentsToFolderId) => {
-    const { currentOrg, currentProject, assetFolders, assets, activeFolderId, addToast } = get();
-    const targetFolder = assetFolders.find((f) => f.id === folderId);
-    const updatedFolders = assetFolders.filter((f) => f.id !== folderId);
-    const now = new Date().toISOString();
-    const updatedAssets = assets.map((a) => {
-      if (a.folderId === folderId) {
-        return {
-          ...a,
-          folderId: moveContentsToFolderId || undefined,
-          collectionId: moveContentsToFolderId || undefined,
-          updatedAt: now,
-        };
-      }
-      return a;
-    });
-    const nextActive = activeFolderId === folderId ? null : activeFolderId;
-    set({
-      assetFolders: updatedFolders,
-      assetCollections: updatedFolders,
-      assets: updatedAssets,
-      activeFolderId: nextActive,
-      activeCollectionId: nextActive,
-    });
-    if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
-        folders: updatedFolders,
-        collections: updatedFolders,
-      });
-      await persistAssetsToStorage(currentOrg.id, currentProject.id, updatedAssets);
-    }
-    addToast({
-      type: "info",
-      title: "Folder Deleted",
-      message: `Deleted folder "${targetFolder?.name || ""}".`,
-    });
-  },
-
-  setActiveCollectionId: (activeCollectionId) => set({ activeCollectionId, activeFolderId: activeCollectionId }),
+  setActiveFolderId: (activeFolderId) => set({ activeFolderId }),
 
   createCollection: async (data) => {
     const name = data.name.trim();
@@ -2549,11 +2446,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (currentOrg && currentProject) {
       const saved = await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
         folders: updatedCollections,
-        collections: updatedCollections,
       });
       if (!saved) throw new Error("Could not save the collection configuration.");
     }
-    set({ assetFolders: updatedCollections, assetCollections: updatedCollections });
+    set({ assetFolders: updatedCollections });
     addToast({
       type: "success",
       title: "Collection Created",
@@ -2563,11 +2459,53 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   updateCollection: async (id, updates) => {
-    await get().updateAssetFolder(id, updates);
+    const { currentOrg, currentProject, assetFolders, addToast } = get();
+    const updatedCollections = assetFolders.map((collection) =>
+      collection.id === id ? { ...collection, ...updates, updatedAt: new Date().toISOString() } : collection
+    );
+    if (!updatedCollections.some((collection) => collection.id === id)) {
+      throw new Error(`Collection "${id}" was not found.`);
+    }
+    if (currentOrg && currentProject) {
+      const saved = await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
+        folders: updatedCollections,
+      });
+      if (!saved) throw new Error("Could not save the collection changes.");
+    }
+    set({ assetFolders: updatedCollections });
+    addToast({ type: "success", title: "Collection Updated", message: "Collection settings saved." });
   },
 
   deleteCollection: async (id, moveContentsToId) => {
-    await get().deleteAssetFolder(id, moveContentsToId);
+    const { currentOrg, currentProject, assetFolders, assets, activeFolderId, addToast } = get();
+    const targetCollection = assetFolders.find((collection) => collection.id === id);
+    const updatedCollections = assetFolders.filter((collection) => collection.id !== id);
+    const now = new Date().toISOString();
+    const updatedAssets = assets.map((asset) => {
+      if ((asset.collectionId || asset.folderId) !== id) return asset;
+      return {
+        ...asset,
+        folderId: moveContentsToId || undefined,
+        updatedAt: now,
+      };
+    });
+    set({
+      assetFolders: updatedCollections,
+      assets: updatedAssets,
+      activeFolderId: activeFolderId === id ? null : activeFolderId,
+    });
+    if (currentOrg && currentProject) {
+      const saved = await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
+        folders: updatedCollections,
+      });
+      if (!saved) throw new Error("Could not save the collection changes.");
+      await persistAssetsToStorage(currentOrg.id, currentProject.id, updatedAssets);
+    }
+    addToast({
+      type: "info",
+      title: "Collection Deleted",
+      message: `Deleted collection "${targetCollection?.name || ""}".`,
+    });
   },
 
   updateAssetDetails: async (id, updates) => {
@@ -2608,7 +2546,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         return {
           ...a,
           folderId: targetFolderId || undefined,
-          collectionId: targetFolderId || undefined,
           updatedAt: now,
         };
       }
@@ -2660,7 +2597,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         if (config.assetFigmaConfig !== undefined) set({ assetFigmaConfig: config.assetFigmaConfig });
         const collections = config.collections || config.folders;
         if (collections !== undefined) {
-          set({ assetFolders: collections, assetCollections: collections });
+          set({ assetFolders: collections });
         }
       }
     } finally {
@@ -2685,7 +2622,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       tag: a.tag || undefined,
       category: a.category && a.category !== "general" ? a.category : undefined,
       folderId: a.folderId !== undefined ? a.folderId : (activeFolderId || undefined),
-      collectionId: a.collectionId || a.folderId || activeFolderId || undefined,
       assetType: a.assetType,
       description: a.description,
       dimensions: a.dimensions,
@@ -2913,7 +2849,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             tag: upload.tag,
             category: upload.category,
             folderId: upload.folderId || upload.collectionId || undefined,
-            collectionId: upload.collectionId || upload.folderId || undefined,
             assetType: upload.assetType,
             url: presigned.publicUrl,
             contentType: upload.contentType,

@@ -530,15 +530,11 @@ export const AssetsWorkspace: React.FC = () => {
     currentProject,
     assets: storeAssets,
     assetFolders = [],
-    assetCollections = [],
     activeFolderId = null,
-    activeCollectionId = null,
     setActiveFolderId,
-    setActiveCollectionId,
-    createAssetFolder,
     createCollection,
-    updateAssetFolder,
-    deleteAssetFolder,
+    updateCollection,
+    deleteCollection,
     moveAssetsToFolder,
     uploadAssets,
     uploadAssetsDirect,
@@ -577,15 +573,11 @@ export const AssetsWorkspace: React.FC = () => {
       currentProject: state.currentProject,
       assets: state.assets,
       assetFolders: state.assetFolders,
-      assetCollections: state.assetCollections,
       activeFolderId: state.activeFolderId,
-      activeCollectionId: state.activeCollectionId,
       setActiveFolderId: state.setActiveFolderId,
-      setActiveCollectionId: state.setActiveCollectionId,
-      createAssetFolder: state.createAssetFolder,
       createCollection: state.createCollection,
-      updateAssetFolder: state.updateAssetFolder,
-      deleteAssetFolder: state.deleteAssetFolder,
+      updateCollection: state.updateCollection,
+      deleteCollection: state.deleteCollection,
       moveAssetsToFolder: state.moveAssetsToFolder,
       uploadAssets: state.uploadAssets,
       uploadAssetsDirect: state.uploadAssetsDirect,
@@ -647,7 +639,6 @@ export const AssetsWorkspace: React.FC = () => {
   const [dragTargetFolderId, setDragTargetFolderId] = useState<string | null>(null);
 
   // Folder management modals state
-  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [isEditFolderOpen, setIsEditFolderOpen] = useState(false);
   const [isDeleteFolderOpen, setIsDeleteFolderOpen] = useState(false);
   const [isMoveAssetsOpen, setIsMoveAssetsOpen] = useState(false);
@@ -1184,7 +1175,7 @@ export const AssetsWorkspace: React.FC = () => {
     collection: Omit<AssetCollection, "id" | "createdAt" | "updatedAt">
   ) => {
     const created = await createCollection(collection);
-    setActiveCollectionId(created.id);
+    setActiveFolderId(created.id);
   };
 
   const handleQueueUpload = async (
@@ -1192,7 +1183,7 @@ export const AssetsWorkspace: React.FC = () => {
     collectionId: string | null,
     dimensions: Map<string, NonNullable<ProjectAsset["dimensions"]>>
   ) => {
-    const collection = assetCollections.find((item) => item.id === collectionId);
+    const collection = assetFolders.find((item) => item.id === collectionId);
     const allowedTypes = collection?.allowedAssetTypes;
     if (allowedTypes?.length) {
       const incompatible = files.filter((file) => {
@@ -1226,7 +1217,6 @@ export const AssetsWorkspace: React.FC = () => {
           type: assetType,
           category: folderCategory || (selectedCategory !== "all" ? selectedCategory : undefined),
           folderId: collectionId || undefined,
-          collectionId: collectionId || undefined,
           assetType,
           contentType,
           dimensions: dimensions.get(`${file.name}:${file.size}:${file.lastModified}`),
@@ -1329,27 +1319,10 @@ export const AssetsWorkspace: React.FC = () => {
   };
 
   // Folder submission handlers
-  const handleCreateFolderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!folderFormName.trim()) return;
-    const created = await createAssetFolder(
-      folderFormName.trim(),
-      folderFormDesc.trim() || undefined,
-      folderFormIcon,
-      folderFormColor
-    );
-    if (created) {
-      setActiveFolderId(created.id);
-    }
-    setFolderFormName("");
-    setFolderFormDesc("");
-    setIsCreateFolderOpen(false);
-  };
-
   const handleEditFolderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!folderToEdit || !folderFormName.trim()) return;
-    await updateAssetFolder(folderToEdit.id, {
+    await updateCollection(folderToEdit.id, {
       name: folderFormName.trim(),
       description: folderFormDesc.trim() || undefined,
       icon: folderFormIcon,
@@ -1361,7 +1334,7 @@ export const AssetsWorkspace: React.FC = () => {
 
   const handleConfirmDeleteFolder = async () => {
     if (!folderToDelete) return;
-    await deleteAssetFolder(folderToDelete.id);
+    await deleteCollection(folderToDelete.id);
     setIsDeleteFolderOpen(false);
     setFolderToDelete(null);
   };
@@ -2069,7 +2042,7 @@ export const AssetsWorkspace: React.FC = () => {
                     className="gap-2 cursor-pointer text-xs"
                   >
                     <FolderInput className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Move to Folder...</span>
+                    <span>Move to Collection...</span>
                   </DropdownMenuItem>
                 )}
                 {canUserEdit() && (
@@ -2436,24 +2409,6 @@ export const AssetsWorkspace: React.FC = () => {
                     </div>
                   </div>
                 </DropdownMenuItem>
-                {canUserEdit() && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setFolderFormName("");
-                        setFolderFormDesc("");
-                        setFolderFormIcon("Folder");
-                        setFolderFormColor("blue");
-                        setIsCreateFolderOpen(true);
-                      }}
-                      className="gap-2 cursor-pointer text-xs text-primary font-semibold"
-                    >
-                      <FolderPlus className="w-3.5 h-3.5" />
-                      <span>Create New Folder</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -2527,12 +2482,12 @@ export const AssetsWorkspace: React.FC = () => {
       </header>
 
       <AssetCollectionsNav
-        collections={assetCollections.length > 0 ? assetCollections : assetFolders}
+        collections={assetFolders}
         counts={folderCountMap}
-        activeCollectionId={activeCollectionId}
+        activeId={activeFolderId}
         totalCount={displayAssets.length}
         canEdit={canUserEdit()}
-        onSelect={setActiveCollectionId}
+        onSelect={setActiveFolderId}
         onCreate={() => setIsCreateCollectionOpen(true)}
       />
 
@@ -2541,7 +2496,7 @@ export const AssetsWorkspace: React.FC = () => {
         {/* Left Sidebar: Folders + Asset Types + Categories */}
         {(displayAssets.length > 0 || assetFolders.length > 0 || canUserEdit()) && (
           <aside className="w-64 border-r border-border bg-card/30 flex flex-col flex-shrink-0 select-none overflow-hidden">
-            {/* SECTION 1: FOLDERS */}
+            {/* SECTION 1: COLLECTIONS */}
             <div
               className={`p-3 ${
                 categories.length > 0 ? "border-b border-border/40 max-h-[50%]" : "flex-1"
@@ -2550,29 +2505,11 @@ export const AssetsWorkspace: React.FC = () => {
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <div className="flex items-center gap-1.5">
                   <Folder className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Folders</span>
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Collections</span>
                   <Badge variant="secondary" className="text-[10px] font-mono py-0 px-1.5 ml-0.5">
                     {assetFolders.length}
                   </Badge>
                 </div>
-                {canUserEdit() && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setFolderFormName("");
-                      setFolderFormDesc("");
-                      setFolderFormIcon("Folder");
-                      setFolderFormColor("blue");
-                      setIsCreateFolderOpen(true);
-                    }}
-                    className="h-6 px-2 text-[11px] gap-1 font-medium border-border/80 bg-background hover:bg-muted text-foreground shadow-2xs cursor-pointer rounded-md transition-colors"
-                    title="Create New Folder"
-                  >
-                    <FolderPlus className="w-3.5 h-3.5" />
-                    <span>New</span>
-                  </Button>
-                )}
               </div>
 
               {/* Folder list */}
@@ -2713,7 +2650,7 @@ export const AssetsWorkspace: React.FC = () => {
                                   className="gap-2 cursor-pointer text-xs"
                                 >
                                   <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span>Edit Folder</span>
+                                  <span>Edit Collection</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -2724,7 +2661,7 @@ export const AssetsWorkspace: React.FC = () => {
                                   className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete Folder</span>
+                                  <span>Delete Collection</span>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -3118,7 +3055,7 @@ export const AssetsWorkspace: React.FC = () => {
                   <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                     <FolderPlus className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-bold text-foreground">Folder is Empty</h3>
+                  <h3 className="text-sm font-bold text-foreground">Collection is Empty</h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-sm">
                     {currentActiveFolder.description || `No assets have been added to "${currentActiveFolder.name}" yet.`}
                   </p>
@@ -3175,7 +3112,7 @@ export const AssetsWorkspace: React.FC = () => {
               <div className="space-y-4">
                 <AssetListView
                   assets={filteredAssets.slice(0, visibleCount)}
-                  collections={assetCollections.length > 0 ? assetCollections : assetFolders}
+                  collections={assetFolders}
                   selectedIds={selectedAssetIds}
                   canEdit={canUserEdit()}
                   onOpen={setDetailAsset}
@@ -3281,7 +3218,7 @@ export const AssetsWorkspace: React.FC = () => {
               className="h-8 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
             >
               <FolderInput className="w-3.5 h-3.5 text-blue-500" />
-              <span>Move to Folder</span>
+              <span>Move to Collection</span>
             </Button>
           )}
 
@@ -4346,110 +4283,23 @@ export const AssetsWorkspace: React.FC = () => {
         </Dialog>
       )}
 
-      {/* Create Folder Modal */}
-      <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold flex items-center gap-2">
-              <FolderPlus className="w-4 h-4 text-primary" />
-              <span>Create New Folder</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Organize brand icons, marketing imagery, videos, or documents into dedicated folders.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleCreateFolderSubmit} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="folderName" className="text-xs font-semibold">
-                Folder Name
-              </Label>
-              <Input
-                id="folderName"
-                value={folderFormName}
-                onChange={(e) => setFolderFormName(e.target.value)}
-                placeholder="e.g. Brand Marketing, Product Shots, Video Assets"
-                required
-                className="h-8 text-xs"
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="folderDesc" className="text-xs font-semibold">
-                Description (Optional)
-              </Label>
-              <Input
-                id="folderDesc"
-                value={folderFormDesc}
-                onChange={(e) => setFolderFormDesc(e.target.value)}
-                placeholder="e.g. High-resolution campaign assets and media"
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Icon</Label>
-              <div className="flex items-center gap-2 flex-wrap">
-                {["Folder", "Image", "Video", "FileText", "Sparkles", "Briefcase", "Shield", "Heart", "Globe"].map(
-                  (iconKey) => {
-                    const IconComp = getFolderIconComponent(iconKey);
-                    const isSelected = folderFormIcon.toLowerCase() === iconKey.toLowerCase();
-                    return (
-                      <button
-                        key={iconKey}
-                        type="button"
-                        onClick={() => setFolderFormIcon(iconKey)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
-                          isSelected
-                            ? "border-primary bg-primary text-primary-foreground shadow-2xs"
-                            : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                        }`}
-                        title={iconKey}
-                      >
-                        <IconComp className="w-4 h-4" />
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCreateFolderOpen(false)}
-                className="text-xs h-8 cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" className="text-xs h-8 font-semibold cursor-pointer">
-                Create Folder
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Folder Modal */}
+      {/* Edit Collection Modal */}
       <Dialog open={isEditFolderOpen} onOpenChange={setIsEditFolderOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
               <Edit2 className="w-4 h-4 text-primary" />
-              <span>Edit Folder</span>
+              <span>Edit Collection</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Update folder name, description, and icon.
+              Update collection name, description, and icon.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleEditFolderSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="editFolderName" className="text-xs font-semibold">
-                Folder Name
+                Collection Name
               </Label>
               <Input
                 id="editFolderName"
@@ -4519,16 +4369,16 @@ export const AssetsWorkspace: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Folder Modal */}
+      {/* Delete Collection Modal */}
       <Dialog open={isDeleteFolderOpen} onOpenChange={setIsDeleteFolderOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-5 h-5" />
-              <DialogTitle className="text-sm font-bold">Delete Folder?</DialogTitle>
+              <DialogTitle className="text-sm font-bold">Delete Collection?</DialogTitle>
             </div>
             <DialogDescription className="text-xs pt-1">
-              Are you sure you want to delete the folder{" "}
+              Are you sure you want to delete the collection{" "}
               <strong className="text-foreground">{folderToDelete?.name}</strong>? Contained assets will be moved to{" "}
               <strong>All Assets</strong> and will not be deleted.
             </DialogDescription>
@@ -4549,7 +4399,7 @@ export const AssetsWorkspace: React.FC = () => {
               onClick={handleConfirmDeleteFolder}
               className="text-xs font-semibold cursor-pointer"
             >
-              Delete Folder
+              Delete Collection
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4561,10 +4411,10 @@ export const AssetsWorkspace: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
               <FolderInput className="w-4 h-4 text-primary" />
-              <span>Move to Folder</span>
+              <span>Move to Collection</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Select destination folder for{" "}
+              Select destination collection for{" "}
               {assetToMoveId ? "this asset" : `${selectedAssetIds.size} selected assets`}.
             </DialogDescription>
           </DialogHeader>
@@ -4579,7 +4429,7 @@ export const AssetsWorkspace: React.FC = () => {
                 <Grid className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
                 <div>
                   <div className="font-semibold text-foreground">All Assets (Root)</div>
-                  <div className="text-[10px] text-muted-foreground">Remove from assigned folder</div>
+                  <div className="text-[10px] text-muted-foreground">Remove from assigned collection</div>
                 </div>
               </div>
             </button>
@@ -4717,14 +4567,14 @@ export const AssetsWorkspace: React.FC = () => {
           setIsUploadQueueOpen(open);
           if (!open) setPendingUploadFiles([]);
         }}
-        collections={assetCollections.length > 0 ? assetCollections : assetFolders}
+        collections={assetFolders}
         initialCollectionId={uploadTargetFolderId}
         initialFiles={pendingUploadFiles}
         onUpload={handleQueueUpload}
       />
       <AssetDetailStudio
         asset={detailAsset}
-        collections={assetCollections.length > 0 ? assetCollections : assetFolders}
+        collections={assetFolders}
         assets={displayAssets}
         canEdit={canUserEdit()}
         onClose={() => setDetailAsset(null)}

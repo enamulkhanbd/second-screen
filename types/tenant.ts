@@ -92,7 +92,7 @@ export interface ProjectAsset {
   description?: string;
   /** Folder identifier (undefined or null = root / All Assets) */
   folderId?: string;
-  /** Collection identifier; folderId remains the compatibility alias. */
+  /** Legacy alias read from existing records; new writes use folderId. */
   collectionId?: string;
   /** Semantic asset category type */
   assetType?: AssetType;

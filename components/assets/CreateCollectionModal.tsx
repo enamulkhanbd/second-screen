@@ -16,6 +16,7 @@ import {
 
 const ASSET_TYPES: AssetType[] = ["image", "icon", "illustration", "document", "video"];
 const FIELD_TYPES: CustomMetadataField["type"][] = ["text", "number", "select", "date", "boolean"];
+const COLLECTION_ICONS = ["Folder", "Image", "Video", "FileText", "Sparkles", "Briefcase", "Shield", "Heart", "Globe"];
 
 interface CreateCollectionModalProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface CreateCollectionModalProps {
 export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCollectionModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("Folder");
   const [allowedAssetTypes, setAllowedAssetTypes] = useState<AssetType[]>([...ASSET_TYPES]);
   const [fields, setFields] = useState<CustomMetadataField[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,6 +36,7 @@ export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCo
   const reset = () => {
     setName("");
     setDescription("");
+    setIcon("Folder");
     setAllowedAssetTypes([...ASSET_TYPES]);
     setFields([]);
     setError(null);
@@ -56,9 +59,9 @@ export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCo
       await onCreate({
         name: name.trim(),
         description: description.trim() || undefined,
+        icon,
         allowedAssetTypes,
         customFields: fields.filter((field) => field.label.trim()),
-        icon: "Folder",
         color: "blue",
       });
       reset();
@@ -101,6 +104,20 @@ export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCo
               <Label htmlFor="collection-description">Description</Label>
               <Input id="collection-description" value={description} onChange={(event) => setDescription(event.target.value)} />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="collection-icon">Collection icon</Label>
+            <select
+              id="collection-icon"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={icon}
+              onChange={(event) => setIcon(event.target.value)}
+            >
+              {COLLECTION_ICONS.map((collectionIcon) => (
+                <option key={collectionIcon} value={collectionIcon}>{collectionIcon}</option>
+              ))}
+            </select>
           </div>
 
           <fieldset className="space-y-2">

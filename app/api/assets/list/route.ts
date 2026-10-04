@@ -55,7 +55,10 @@ async function fetchAssetMetadata(orgId: string, projectId: string): Promise<Pro
     }
   }
 
-  return metadata;
+  return metadata.map(({ collectionId, ...asset }) => ({
+    ...asset,
+    folderId: asset.folderId || collectionId,
+  }));
 }
 
 /**
@@ -157,7 +160,6 @@ export async function POST(req: NextRequest) {
           return {
             ...asset,
             folderId: targetFolderId || undefined,
-            collectionId: targetFolderId || undefined,
             updatedAt: now,
           };
         }
@@ -191,7 +193,6 @@ export async function POST(req: NextRequest) {
             ...(update.category !== undefined && { category: update.category }),
             ...(update.name !== undefined && { name: update.name }),
             ...(update.folderId !== undefined && { folderId: update.folderId || undefined }),
-            ...(update.collectionId !== undefined && { collectionId: update.collectionId || update.folderId || undefined }),
             ...(update.assetType !== undefined && { assetType: update.assetType }),
             ...(update.description !== undefined && { description: update.description }),
             ...(update.dimensions !== undefined && { dimensions: update.dimensions }),

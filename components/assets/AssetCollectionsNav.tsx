@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 interface AssetCollectionsNavProps {
   collections: AssetCollection[];
   counts: Map<string, number>;
-  activeCollectionId: string | null;
+  activeId: string | null;
   totalCount: number;
   onSelect: (id: string | null) => void;
   onCreate: () => void;
@@ -16,7 +16,7 @@ interface AssetCollectionsNavProps {
 export function AssetCollectionsNav({
   collections,
   counts,
-  activeCollectionId,
+  activeId,
   totalCount,
   onSelect,
   onCreate,
@@ -26,10 +26,10 @@ export function AssetCollectionsNav({
     <nav aria-label="Asset collections" className="flex items-center gap-2 overflow-x-auto border-b border-border px-6 py-2">
       <button
         type="button"
-        aria-pressed={activeCollectionId === null}
+        aria-pressed={activeId === null}
         onClick={() => onSelect(null)}
         className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-          activeCollectionId === null
+          activeId === null
             ? "border-primary bg-primary/10 text-primary"
             : "border-border text-muted-foreground hover:bg-muted"
         }`}
@@ -40,10 +40,10 @@ export function AssetCollectionsNav({
         <button
           key={collection.id}
           type="button"
-          aria-pressed={activeCollectionId === collection.id}
+          aria-pressed={activeId === collection.id}
           onClick={() => onSelect(collection.id)}
           className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            activeCollectionId === collection.id
+            activeId === collection.id
               ? "border-primary bg-primary/10 text-primary"
               : "border-border text-muted-foreground hover:bg-muted"
           }`}
