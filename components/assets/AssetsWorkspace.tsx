@@ -6,7 +6,6 @@ import { shallow } from "zustand/shallow";
 import { ProjectAsset, AssetFolder, AssetCollection, AssetType, AssetGitConfig, FigmaSourceLink } from "@/types/tenant";
 import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
 import { formatBytes } from "@/utils/assetFormatting";
-import { AssetCollectionsNav } from "@/components/assets/AssetCollectionsNav";
 import { CreateCollectionModal } from "@/components/assets/CreateCollectionModal";
 import { UploadAssetsModal } from "@/components/assets/UploadAssetsModal";
 import { AssetListView } from "@/components/assets/AssetListView";
@@ -2483,14 +2482,6 @@ export const AssetsWorkspace: React.FC = () => {
           </Button>
         </div>
       </header>
-
-      <AssetCollectionsNav
-        collections={assetFolders}
-        counts={folderCountMap}
-        activeId={activeFolderId}
-        totalCount={displayAssets.length}
-        onSelect={setActiveFolderId}
-      />
 
       {/* Main Body: Left Categories Sidebar + Right Content Area */}
       <div className="flex-1 flex overflow-hidden">
