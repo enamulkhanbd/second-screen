@@ -5,7 +5,6 @@ import { AssetCollection, ProjectAsset } from "@/types/tenant";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -33,6 +32,7 @@ interface AssetDetailStudioProps {
   assets: ProjectAsset[];
   canEdit: boolean;
   onClose: () => void;
+  onSelectAsset: (asset: ProjectAsset) => void;
   onUpdate: (id: string, updates: Partial<ProjectAsset>) => Promise<void>;
   onDownload: (asset: ProjectAsset) => void;
   onDelete: (asset: ProjectAsset) => void;
@@ -69,16 +69,14 @@ export function AssetDetailStudio({
   assets,
   canEdit,
   onClose,
+  onSelectAsset,
   onUpdate,
   onDownload,
   onDelete,
 }: AssetDetailStudioProps) {
   const [tab, setTab] = useState<"details" | "history">("details");
   const [zoom, setZoom] = useState(100);
-  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [tags, setTags] = useState("");
   const [customMetadata, setCustomMetadata] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
@@ -112,10 +110,7 @@ export function AssetDetailStudio({
   useEffect(() => {
     setTab("details");
     setZoom(100);
-    setName(asset?.title || asset?.name || "");
     setDescription(asset?.description || "");
-    setCategory(asset?.category || "");
-    setTags(asset?.tag || "");
     setCustomMetadata(asset?.customMetadata || {});
     setError(null);
     setCopyStatus("");
@@ -134,11 +129,7 @@ export function AssetDetailStudio({
     setError(null);
     try {
       await onUpdate(asset.id, {
-        name: name.trim() || asset.name,
-        title: name.trim() || asset.name,
         description,
-        category: category.trim(),
-        tag: tags.trim(),
         customMetadata,
       });
     } catch (cause) {
@@ -182,7 +173,7 @@ export function AssetDetailStudio({
         <div className="flex h-full min-h-0 flex-col">
           <header className="flex min-h-14 items-center gap-3 border-b border-border px-4 py-2">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{name}</p>
+              <p className="truncate text-sm font-semibold">{asset.title || asset.name}</p>
               <p className="text-[11px] capitalize text-muted-foreground">{mediaType}</p>
             </div>
             <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close asset preview" title="Close" className="h-8 w-8">
@@ -342,7 +333,7 @@ export function AssetDetailStudio({
                     />
                   </section>
                   {(asset.category || asset.tag) && (
-                    <section className="grid grid-cols-2 gap-3 border-b border-border pb-3 text-xs">
+                    <section className="space-y-3 border-b border-border pb-3 text-xs">
                       {asset.category && (
                         <div className="min-w-0 space-y-1">
                           <h3 className="font-medium">Category</h3>
@@ -355,7 +346,7 @@ export function AssetDetailStudio({
                           <p className="break-words text-muted-foreground">{asset.tag}</p>
                         </div>
                       )}
-                  </section>
+                    </section>
                   )}
                   <section className="space-y-2 border-b border-border pb-3">
                     <div className="flex items-center justify-between">
@@ -391,9 +382,16 @@ export function AssetDetailStudio({
                     {similarAssets.length > 0 ? (
                       <div className="grid grid-cols-3 gap-1.5">
                         {similarAssets.map((item) => (
-                          <div key={item.id} className="flex aspect-square items-center justify-center overflow-hidden rounded border border-border bg-muted/30 p-1" title={item.title || item.name}>
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => onSelectAsset(item)}
+                            className="flex aspect-square items-center justify-center overflow-hidden rounded border border-border bg-muted/30 p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            title={`View ${item.title || item.name}`}
+                            aria-label={`View similar asset: ${item.title || item.name}`}
+                          >
                             {item.url && item.contentType?.startsWith("image/") ? <img src={item.url} alt="" className="max-h-full max-w-full object-contain" loading="lazy" /> : <span className="truncate text-[9px]">{item.name}</span>}
-                          </div>
+                          </button>
                         ))}
                       </div>
                     ) : (

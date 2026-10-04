@@ -4583,6 +4583,7 @@ export const AssetsWorkspace: React.FC = () => {
         assets={displayAssets}
         canEdit={canUserEdit()}
         onClose={() => setDetailAsset(null)}
+        onSelectAsset={setDetailAsset}
         onUpdate={updateAssetDetails}
         onDownload={handleDownloadSingleAsset}
         onDelete={(asset) => {
