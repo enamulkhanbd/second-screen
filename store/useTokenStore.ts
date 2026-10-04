@@ -50,6 +50,8 @@ import {
   ROLE_DEFINITIONS,
   ProjectAsset,
   AssetFolder,
+  AssetCollection,
+  AssetVersionHistory,
   AssetType,
   AssetGitConfig,
   AssetFigmaConfig,
@@ -165,9 +167,10 @@ interface TokenStoreState {
   assetFolders: AssetFolder[];
   activeFolderId: string | null;
   setActiveFolderId: (folderId: string | null) => void;
-  createAssetFolder: (name: string, description?: string, icon?: string, color?: string) => Promise<AssetFolder>;
-  updateAssetFolder: (folderId: string, updates: Partial<AssetFolder>) => Promise<void>;
-  deleteAssetFolder: (folderId: string, moveContentsToFolderId?: string | null) => Promise<void>;
+  createCollection: (data: Omit<AssetCollection, "id" | "createdAt" | "updatedAt">) => Promise<AssetCollection>;
+  updateCollection: (id: string, updates: Partial<AssetCollection>) => Promise<void>;
+  deleteCollection: (id: string, moveContentsToId?: string | null) => Promise<void>;
+  updateAssetDetails: (id: string, updates: Partial<ProjectAsset>) => Promise<void>;
   moveAssetsToFolder: (assetIds: string[], targetFolderId: string | null) => Promise<void>;
   assetGitConfig: AssetGitConfig | null;
   assetFigmaConfig: AssetFigmaConfig | null;
@@ -186,12 +189,36 @@ interface TokenStoreState {
       tag?: string;
       category?: string;
       folderId?: string;
+      collectionId?: string;
       assetType?: AssetType;
       svg?: string;
       content?: string;
       contentType?: string;
+      dimensions?: ProjectAsset["dimensions"];
+      colorSpace?: string;
+      format?: string;
+      description?: string;
+      customMetadata?: Record<string, unknown>;
+      version?: number;
+      history?: AssetVersionHistory[];
     }>
   ) => Promise<void>;
+  uploadAssetsDirect: (uploads: Array<{
+    file: File;
+    name: string;
+    title?: string;
+    type?: string;
+    tag?: string;
+    category?: string;
+    folderId?: string;
+    collectionId?: string;
+    assetType?: AssetType;
+    contentType: string;
+    dimensions?: ProjectAsset["dimensions"];
+    colorSpace?: string;
+    format?: string;
+    path?: string;
+  }>) => Promise<void>;
   applyMetadataToAssets: (metadataMap: Map<string, { name?: string; title?: string; type?: string; tag?: string; category?: string }>) => Promise<void>;
   updateAsset: (id: string, updates: Partial<ProjectAsset>) => Promise<void>;
   updateAssets: (ids: string[], updates: Partial<ProjectAsset>) => Promise<void>;
@@ -560,6 +587,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               category: a.category,
               folderId: a.folderId,
               assetType: a.assetType,
+              description: a.description,
+              dimensions: a.dimensions,
+              colorSpace: a.colorSpace,
+              format: a.format,
+              customMetadata: a.customMetadata,
+              version: a.version,
+              history: a.history,
+              uploadedBy: a.uploadedBy,
+              createdAt: a.createdAt,
             })),
           }),
         });
@@ -576,6 +612,15 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         category: a.category && a.category !== "general" ? a.category : undefined,
         folderId: a.folderId,
         assetType: a.assetType,
+        description: a.description,
+        dimensions: a.dimensions,
+        colorSpace: a.colorSpace,
+        format: a.format,
+        customMetadata: a.customMetadata,
+        version: a.version,
+        history: a.history,
+        uploadedBy: a.uploadedBy,
+        createdAt: a.createdAt,
         content: a.svg || "", // SVG content for upload
         contentType: a.contentType || "image/svg+xml",
         source: a.source,
@@ -652,11 +697,20 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             type: a.type,
             tag: a.tag,
             category: a.category,
-            folderId: a.folderId,
+            folderId: a.folderId || a.collectionId,
             assetType: a.assetType,
             url: a.url,
             contentType: a.contentType || "image/svg+xml",
             size: a.size,
+            dimensions: a.dimensions,
+            colorSpace: a.colorSpace,
+            format: a.format,
+            description: a.description,
+            customMetadata: a.customMetadata,
+            version: a.version,
+            history: a.history,
+            uploadedBy: a.uploadedBy,
+            createdAt: a.createdAt,
             svg: a.svg, // preserved for 0ms instant vector rendering
             path: a.path,
             updatedAt: a.updatedAt,
@@ -728,6 +782,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     assetGitConfig?: AssetGitConfig | null;
     assetFigmaConfig?: AssetFigmaConfig | null;
     folders?: AssetFolder[];
+    collections?: AssetCollection[];
   } | null> => {
     const cacheKey = `${orgId}::${projectId}`;
     try {
@@ -1480,7 +1535,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         figmaUpdatedAt: proj.figmaUpdatedAt || null,
         figmaMeta: proj.figmaMeta || null,
         assets: cachedAssets,
-        assetFolders: cachedConfig?.folders || proj.assetFolders || [],
+        assetFolders: cachedConfig?.collections || cachedConfig?.folders || proj.assetFolders || [],
         activeFolderId: null,
         assetGitConfig: cachedConfig?.assetGitConfig !== undefined ? cachedConfig.assetGitConfig : (proj.assetGitConfig || null),
         assetFigmaConfig: cachedConfig?.assetFigmaConfig !== undefined ? cachedConfig.assetFigmaConfig : normalizedFigmaConfig,
@@ -1512,7 +1567,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             set({ assetFigmaConfig: r2Config.assetFigmaConfig });
           }
           if (r2Config.folders !== undefined) {
-            set({ assetFolders: r2Config.folders });
+            set({
+              assetFolders: r2Config.collections || r2Config.folders,
+            });
           }
         });
 
@@ -2372,67 +2429,111 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setActiveFolderId: (activeFolderId) => set({ activeFolderId }),
 
-  createAssetFolder: async (name, description, icon, color) => {
+  createCollection: async (data) => {
+    const name = data.name.trim();
+    if (!name) throw new Error("Collection name is required.");
     const { currentOrg, currentProject, assetFolders, addToast } = get();
     const now = new Date().toISOString();
-    const newFolder: AssetFolder = {
-      id: `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: name.trim(),
-      description: description?.trim() || undefined,
-      icon: icon || "Folder",
-      color: color || "blue",
+    const collection: AssetCollection = {
+      ...data,
+      id: `collection_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      description: data.description?.trim() || undefined,
       createdAt: now,
       updatedAt: now,
     };
-    const updatedFolders = [...assetFolders, newFolder];
-    set({ assetFolders: updatedFolders });
+    const updatedCollections = [...assetFolders, collection];
     if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { folders: updatedFolders });
+      const saved = await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
+        folders: updatedCollections,
+      });
+      if (!saved) throw new Error("Could not save the collection configuration.");
     }
+    set({ assetFolders: updatedCollections });
     addToast({
       type: "success",
-      title: "Folder Created",
-      message: `Created folder "${newFolder.name}".`,
+      title: "Collection Created",
+      message: `Created collection "${collection.name}".`,
     });
-    return newFolder;
+    return collection;
   },
 
-  updateAssetFolder: async (folderId, updates) => {
+  updateCollection: async (id, updates) => {
     const { currentOrg, currentProject, assetFolders, addToast } = get();
-    const now = new Date().toISOString();
-    const updatedFolders = assetFolders.map((f) => (f.id === folderId ? { ...f, ...updates, updatedAt: now } : f));
-    set({ assetFolders: updatedFolders });
-    if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { folders: updatedFolders });
+    const updatedCollections = assetFolders.map((collection) =>
+      collection.id === id ? { ...collection, ...updates, updatedAt: new Date().toISOString() } : collection
+    );
+    if (!updatedCollections.some((collection) => collection.id === id)) {
+      throw new Error(`Collection "${id}" was not found.`);
     }
-    addToast({
-      type: "success",
-      title: "Folder Updated",
-      message: "Folder settings saved.",
-    });
+    if (currentOrg && currentProject) {
+      const saved = await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
+        folders: updatedCollections,
+      });
+      if (!saved) throw new Error("Could not save the collection changes.");
+    }
+    set({ assetFolders: updatedCollections });
+    addToast({ type: "success", title: "Collection Updated", message: "Collection settings saved." });
   },
 
-  deleteAssetFolder: async (folderId, moveContentsToFolderId) => {
+  deleteCollection: async (id, moveContentsToId) => {
     const { currentOrg, currentProject, assetFolders, assets, activeFolderId, addToast } = get();
-    const targetFolder = assetFolders.find((f) => f.id === folderId);
-    const updatedFolders = assetFolders.filter((f) => f.id !== folderId);
+    const targetCollection = assetFolders.find((collection) => collection.id === id);
+    const updatedCollections = assetFolders.filter((collection) => collection.id !== id);
     const now = new Date().toISOString();
-    const updatedAssets = assets.map((a) => {
-      if (a.folderId === folderId) {
-        return { ...a, folderId: moveContentsToFolderId || undefined, updatedAt: now };
-      }
-      return a;
+    const updatedAssets = assets.map((asset) => {
+      if ((asset.collectionId || asset.folderId) !== id) return asset;
+      return {
+        ...asset,
+        folderId: moveContentsToId || undefined,
+        updatedAt: now,
+      };
     });
-    const nextActive = activeFolderId === folderId ? null : activeFolderId;
-    set({ assetFolders: updatedFolders, assets: updatedAssets, activeFolderId: nextActive });
+    set({
+      assetFolders: updatedCollections,
+      assets: updatedAssets,
+      activeFolderId: activeFolderId === id ? null : activeFolderId,
+    });
     if (currentOrg && currentProject) {
-      await saveAssetConfigToStorage(currentOrg.id, currentProject.id, { folders: updatedFolders });
+      const saved = await saveAssetConfigToStorage(currentOrg.id, currentProject.id, {
+        folders: updatedCollections,
+      });
+      if (!saved) throw new Error("Could not save the collection changes.");
       await persistAssetsToStorage(currentOrg.id, currentProject.id, updatedAssets);
     }
     addToast({
       type: "info",
-      title: "Folder Deleted",
-      message: `Deleted folder "${targetFolder?.name || ""}".`,
+      title: "Collection Deleted",
+      message: `Deleted collection "${targetCollection?.name || ""}".`,
+    });
+  },
+
+  updateAssetDetails: async (id, updates) => {
+    const asset = get().assets.find((item) => item.id === id);
+    if (!asset) throw new Error(`Asset "${id}" was not found.`);
+    const changedFields = Object.keys(updates).filter((key) => {
+      const field = key as keyof ProjectAsset;
+      return JSON.stringify(asset[field]) !== JSON.stringify(updates[field]);
+    });
+    if (changedFields.length === 0) return;
+    const isNewVersion = updates.url !== undefined || updates.svg !== undefined;
+    const version = (asset.version || 1) + (isNewVersion ? 1 : 0);
+    const historyEntry: AssetVersionHistory = {
+      id: `history_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      version,
+      title: isNewVersion
+        ? "Asset replaced"
+        : changedFields.includes("description")
+        ? "Description updated"
+        : "Asset details updated",
+      timestamp: new Date().toISOString(),
+      author: get().currentUser?.displayName || get().currentUser?.email,
+      notes: changedFields.length > 0 ? `Updated ${changedFields.join(", ")}` : undefined,
+    };
+    await get().updateAsset(id, {
+      ...updates,
+      version,
+      history: [...(asset.history || []), historyEntry],
     });
   },
 
@@ -2442,14 +2543,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const now = new Date().toISOString();
     const updated = assets.map((a) => {
       if (idSet.has(a.id)) {
-        return { ...a, folderId: targetFolderId || undefined, updatedAt: now };
+        return {
+          ...a,
+          folderId: targetFolderId || undefined,
+          updatedAt: now,
+        };
       }
       return a;
     });
     set({ assets: updated });
     if (currentOrg && currentProject) {
       try {
-        await fetch("/api/assets/list", {
+        const response = await fetch("/api/assets/list", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -2460,8 +2565,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             targetFolderId,
           }),
         });
-      } catch (err) {
-        console.error("Failed to persist move-folder to R2:", err);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || `Could not move assets (${response.status}).`);
+        }
+      } catch (cause) {
+        set({ assets });
+        console.error("Failed to persist move-folder to R2:", cause);
+        throw cause;
       }
     }
     addToast({
@@ -2484,7 +2595,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       if (config && isScopeActive(currentOrg.id, currentProject.id)) {
         if (config.assetGitConfig !== undefined) set({ assetGitConfig: config.assetGitConfig });
         if (config.assetFigmaConfig !== undefined) set({ assetFigmaConfig: config.assetFigmaConfig });
-        if (config.folders !== undefined) set({ assetFolders: config.folders });
+        const collections = config.collections || config.folders;
+        if (collections !== undefined) {
+          set({ assetFolders: collections });
+        }
       }
     } finally {
       set({ isLoadingAssets: false });
@@ -2496,7 +2610,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   uploadAssets: async (newAssets) => {
     if (!get().canUserEdit()) {
       get().addToast({ type: "info", title: "Read-Only Access", message: "Viewer role cannot upload assets." });
-      return;
+      throw new Error("Viewer role cannot upload assets.");
     }
     const { currentOrg, currentProject, assets, activeFolderId, addToast } = get();
     const now = new Date().toISOString();
@@ -2509,6 +2623,22 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       category: a.category && a.category !== "general" ? a.category : undefined,
       folderId: a.folderId !== undefined ? a.folderId : (activeFolderId || undefined),
       assetType: a.assetType,
+      description: a.description,
+      dimensions: a.dimensions,
+      colorSpace: a.colorSpace,
+      format: a.format,
+      customMetadata: a.customMetadata,
+      version: a.version || 1,
+      history: a.history || [{
+        id: `history_${Date.now()}_${i}`,
+        version: 1,
+        title: "Asset uploaded",
+        timestamp: now,
+        author: get().currentUser?.displayName || get().currentUser?.email,
+        notes: "Initial version",
+      }],
+      createdAt: now,
+      uploadedBy: get().currentUser?.displayName || get().currentUser?.email,
       svg: a.svg,
       contentType: a.contentType || (a.svg ? "image/svg+xml" : undefined),
       updatedAt: now,
@@ -2535,23 +2665,32 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               assets: slice,
             }),
           });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.assets && Array.isArray(data.assets)) {
-              allUploadedAssets.push(...data.assets);
-            }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.success || !Array.isArray(data.assets)) {
+            throw new Error(data.error || `Asset upload failed (${res.status}).`);
           }
+          allUploadedAssets.push(...data.assets);
         }
-        if (allUploadedAssets.length > 0) {
-          const urlMap = new Map<string, string>(allUploadedAssets.map((x: any) => [x.id, x.url]));
-          const finalized = updated.map((asset) => ({
-            ...asset,
-            url: (urlMap.get(asset.id) || asset.url) as string | undefined,
-          }));
-          set({ assets: finalized });
+        if (allUploadedAssets.length !== created.length) {
+          throw new Error(`Uploaded ${allUploadedAssets.length} of ${created.length} assets.`);
         }
-      } catch (err) {
-        console.error("Failed uploading assets to R2:", err);
+        const urlMap = new Map<string, string>(allUploadedAssets.map((item: ProjectAsset) => [item.id, item.url || ""]));
+        const finalized = updated.map((asset) => ({
+          ...asset,
+          url: urlMap.get(asset.id) || asset.url,
+        }));
+        set({ assets: finalized });
+        projectAssetsCache.set(`${currentOrg.id}::${currentProject.id}`, finalized);
+      } catch (cause) {
+        set({ assets });
+        projectAssetsCache.set(`${currentOrg.id}::${currentProject.id}`, assets);
+        console.error("Failed uploading assets to R2:", cause);
+        addToast({
+          type: "error",
+          title: "Upload Failed",
+          message: cause instanceof Error ? cause.message : "Could not upload assets to storage.",
+        });
+        throw cause;
       }
     }
 
@@ -2571,11 +2710,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       },
     });
 
-    addToast({
-      type: "success",
-      title: "Assets Uploaded",
-      message: `Added ${created.length} SVG vector asset${created.length > 1 ? "s" : ""}.`,
-    });
   },
 
   applyMetadataToAssets: async (metadataMap) => {
@@ -2657,6 +2791,133 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "success",
       title: "Asset Updated",
       message: "Saved changes to icon.",
+    });
+  },
+
+  uploadAssetsDirect: async (uploads) => {
+    if (!get().canUserEdit()) {
+      throw new Error("Viewer role cannot upload assets.");
+    }
+    const { currentOrg, currentProject } = get();
+    if (!currentOrg || !currentProject) {
+      throw new Error("Select an organization and project before uploading assets.");
+    }
+    if (uploads.length === 0) return;
+
+    const now = new Date().toISOString();
+    const uploadedMetadata: ProjectAsset[] = [];
+    const failures: string[] = [];
+    const BATCH_SIZE = 4;
+
+    for (let i = 0; i < uploads.length; i += BATCH_SIZE) {
+      const batchResults = await Promise.all(uploads.slice(i, i + BATCH_SIZE).map(async (upload): Promise<ProjectAsset | null> => {
+        const seed = `${currentOrg.id}/${currentProject.id}/${upload.file.name}/${upload.file.size}/${upload.file.lastModified}/${upload.collectionId || upload.folderId || ""}`;
+        let hash = 2166136261;
+        for (let index = 0; index < seed.length; index++) {
+          hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
+        }
+        const id = `asset_${(hash >>> 0).toString(36)}`;
+        try {
+          const presignResponse = await fetch("/api/assets/presigned-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orgId: currentOrg.id,
+              projectId: currentProject.id,
+              assetId: id,
+              filename: upload.file.name,
+              contentType: upload.contentType,
+            }),
+          });
+          const presigned = await presignResponse.json().catch(() => ({}));
+          if (!presignResponse.ok || !presigned.presignedUrl || !presigned.publicUrl) {
+            throw new Error(presigned.error || `Could not prepare upload (${presignResponse.status}).`);
+          }
+
+          const fileResponse = await fetch(presigned.presignedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": upload.contentType },
+            body: upload.file,
+          });
+          if (!fileResponse.ok) throw new Error(`File transfer failed (${fileResponse.status}).`);
+
+          return {
+            id,
+            name: upload.name,
+            title: upload.title || upload.name,
+            type: upload.type,
+            tag: upload.tag,
+            category: upload.category,
+            folderId: upload.folderId || upload.collectionId || undefined,
+            assetType: upload.assetType,
+            url: presigned.publicUrl,
+            contentType: upload.contentType,
+            size: upload.file.size,
+            dimensions: upload.dimensions,
+            colorSpace: upload.colorSpace,
+            format: upload.format,
+            path: upload.path || upload.file.name,
+            updatedAt: now,
+            createdAt: now,
+            uploadedBy: get().currentUser?.displayName || get().currentUser?.email,
+            version: 1,
+            history: [{
+              id: `history_${id}_1`,
+              version: 1,
+              title: "Asset uploaded",
+              timestamp: now,
+              author: get().currentUser?.displayName || get().currentUser?.email,
+              notes: "Initial version",
+            }],
+            source: "upload" as const,
+          } satisfies ProjectAsset;
+        } catch (cause) {
+          failures.push(`${upload.file.name}: ${cause instanceof Error ? cause.message : "upload failed"}`);
+          return null;
+        }
+      }));
+
+      uploadedMetadata.push(...batchResults.filter((asset): asset is ProjectAsset => asset !== null));
+    }
+
+    if (uploadedMetadata.length > 0) {
+      const response = await fetch("/api/assets/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId: currentOrg.id,
+          projectId: currentProject.id,
+          assets: uploadedMetadata.map((asset) => ({ ...asset, content: "" })),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success || !Array.isArray(data.assets)) {
+        throw new Error(data.error || `Could not save uploaded asset metadata (${response.status}).`);
+      }
+
+      const currentAssets = get().assets;
+      const newIds = new Set(uploadedMetadata.map((asset) => asset.id));
+      const updatedAssets = [...data.assets, ...currentAssets.filter((asset) => !newIds.has(asset.id))] as ProjectAsset[];
+      set({ assets: updatedAssets });
+      projectAssetsCache.set(`${currentOrg.id}::${currentProject.id}`, updatedAssets);
+    }
+
+    if (failures.length > 0) {
+      const message = `Uploaded ${uploadedMetadata.length} of ${uploads.length} assets. ${failures.join("; ")}`;
+      get().addToast({ type: "error", title: "Some uploads failed", message });
+      throw new Error(message);
+    }
+
+    get().addToast({
+      type: "success",
+      title: "Assets Uploaded",
+      message: `Successfully uploaded ${uploadedMetadata.length} asset${uploadedMetadata.length === 1 ? "" : "s"}.`,
+    });
+    get().logUserActivity({
+      type: "asset",
+      title: "Assets Uploaded",
+      description: `Uploaded ${uploadedMetadata.length} assets to the project using direct storage upload.`,
+      metadata: { count: uploadedMetadata.length, source: "upload" },
     });
   },
 

@@ -41,8 +41,10 @@ export async function GET(req: NextRequest) {
 
     const config = await loadAssetConfig(orgId, projectId);
     const project = await getProject(orgId, projectId);
+    const { collections: _legacyCollections, ...existingConfig } = config || {};
     const configWithProtectedIntegrations = {
-      ...(config || {}),
+      ...existingConfig,
+      folders: config?.folders || config?.collections || [],
       assetGitConfig: project?.assetGitConfig || config?.assetGitConfig || null,
       assetFigmaConfig: project?.assetFigmaConfig || config?.assetFigmaConfig || null,
     };
@@ -78,6 +80,7 @@ export async function GET(req: NextRequest) {
  * POST /api/assets/config
  * Updates a project's asset configuration in Cloudflare R2.
  * Body: { orgId, projectId, assetGitConfig?, assetFigmaConfig?, assetsCount?, folders? }
+ * Accepts `collections` as a legacy compatibility alias for `folders`.
  */
 export async function POST(req: NextRequest) {
   if (!isR2Configured) {
@@ -89,7 +92,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { orgId, projectId, assetGitConfig, assetFigmaConfig, assetsCount, folders } = body;
+    const { orgId, projectId, assetGitConfig, assetFigmaConfig, assetsCount, folders, collections } = body;
 
     if (!orgId || !projectId) {
       return NextResponse.json(
@@ -106,11 +109,15 @@ export async function POST(req: NextRequest) {
     // Load existing config to merge partial updates
     const existing = await loadAssetConfig(orgId, projectId);
     const project = await getProject(orgId, projectId);
+    const { collections: _legacyCollections, ...existingConfig } = existing || {};
+    const savedFolders = collections ?? folders ?? existing?.folders ?? existing?.collections;
 
     const merged = {
-      ...(existing || {}),
+      ...existingConfig,
       ...(assetsCount !== undefined ? { assetsCount } : {}),
-      ...(folders !== undefined ? { folders } : {}),
+      ...(savedFolders !== undefined
+        ? { folders: savedFolders }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
 

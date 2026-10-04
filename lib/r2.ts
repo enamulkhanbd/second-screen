@@ -150,7 +150,7 @@ export function extensionFromContentType(contentType: string): string {
 }
 
 /**
- * Derives the semantic asset type ("icon" | "image" | "video" | "document" | "other")
+ * Derives the semantic asset type from the MIME contentType and filename extension.
  * from the MIME contentType and filename extension.
  */
 export function deriveAssetType(contentType: string = "", filename: string = ""): AssetType {
@@ -159,6 +159,9 @@ export function deriveAssetType(contentType: string = "", filename: string = "")
   if (mime.includes("svg") || ext === "svg") return "icon";
   if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "ico", "bmp", "avif"].includes(ext)) return "image";
   if (mime.startsWith("video/") || ["mp4", "webm", "mov", "mkv", "avi"].includes(ext)) return "video";
+  if (mime.startsWith("audio/") || ["mp3", "wav", "ogg", "m4a", "aac", "flac"].includes(ext)) return "audio";
+  if (["woff", "woff2", "ttf", "otf", "eot"].includes(ext)) return "font";
+  if (["lottie", "tgs"].includes(ext) || (ext === "json" && filename.toLowerCase().includes("lottie"))) return "lottie";
   if (mime.includes("pdf") || mime.includes("document") || ["pdf", "doc", "docx", "ppt", "pptx", "txt"].includes(ext)) return "document";
   return "other";
 }
