@@ -49,7 +49,7 @@ export interface Organization {
   updatedAt: string;
 }
 
-export type AssetType = "icon" | "image" | "illustration" | "video" | "document" | "other";
+export type AssetType = "icon" | "image" | "illustration" | "video" | "audio" | "font" | "lottie" | "document" | "other";
 
 export interface CustomMetadataField {
   id: string;

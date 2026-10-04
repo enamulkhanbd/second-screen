@@ -303,6 +303,9 @@ export function getInferredAssetType(asset: ProjectAsset): AssetType {
   if (mime.includes("svg") || name.endsWith(".svg") || url.endsWith(".svg")) return "icon";
   if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|ico|bmp|avif)$/i.test(name) || /\.(png|jpe?g|webp|gif|ico)$/i.test(url)) return "image";
   if (mime.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(name) || /\.(mp4|webm|mov)$/i.test(url)) return "video";
+  if (mime.startsWith("audio/") || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(name)) return "audio";
+  if (/\.(woff2?|ttf|otf|eot)$/i.test(name)) return "font";
+  if (/\.(lottie|tgs)$/i.test(name) || (/lottie/i.test(name) && /\.json$/i.test(name))) return "lottie";
   if (mime.includes("pdf") || mime.includes("document") || /\.(pdf|docx?|pptx?|txt)$/i.test(name) || url.endsWith(".pdf")) return "document";
   return "icon";
 }
