@@ -4525,6 +4525,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       activeThemeOptionId: defaultGroup ? updatedOptionIds[defaultGroup.id] || defaultGroup.options[0]?.id || "" : "",
       activeThemeOptionIds: updatedOptionIds,
       isDirty: false,
+      isLoadingProjectData: false,
       syncError: null,
       ...(meta !== undefined ? { syncMeta: meta } : {}),
     });
