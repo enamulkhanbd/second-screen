@@ -723,11 +723,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   ): Promise<ProjectAsset[]> => {
     const cacheKey = `${orgId}::${projectId}`;
     try {
-      const res = await fetch("/api/assets/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, projectId }),
-      });
+      let res = await fetch(
+        `/api/assets/list?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`,
+        { method: "GET" }
+      );
+      if (!res.ok && res.status !== 404) {
+        res = await fetch("/api/assets/list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orgId, projectId, action: "list" }),
+        });
+      }
 
       if (res.ok) {
         const data = await res.json();

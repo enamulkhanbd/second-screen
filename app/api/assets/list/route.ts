@@ -137,7 +137,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    const requiredPermission = action === "list" ? "read" : "write";
+    const access = await authorizeProjectRequest(req, orgId, projectId, requiredPermission);
     if (!access.authorized) {
       return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
