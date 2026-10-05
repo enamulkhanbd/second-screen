@@ -1284,8 +1284,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
     const isProjectSettings = get().sidebarTab === "project-settings" || Boolean(options?.skipHydration);
-    const hasGitConfig = Boolean(proj?.gitConfig && proj.gitConfig.repo);
-    const needsProjectHydration = !options?.skipHydration && !isProjectSettings && !hasGitConfig && Boolean(proj && proj.rawTokens === undefined);
+    const needsProjectHydration = !options?.skipHydration && !isProjectSettings && Boolean(proj && proj.rawTokens === undefined);
 
     set({
       currentProject: proj,
