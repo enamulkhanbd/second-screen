@@ -371,7 +371,7 @@ interface TokenStoreState {
   // Actions
   initializeFromStorage: () => Promise<void> | void;
   fetchLiveTokens: (customCreds?: GitCredentials, options?: { force?: boolean }) => Promise<boolean>;
-  setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
+  setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta, options?: { persist?: boolean }) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
   updateSingleToken: (path: string[], newValue: any) => void;
@@ -1507,7 +1507,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // Hydrate Tokens & Themes
       if (initialTokens && Object.keys(initialTokens).length > 0) {
-        get().setRawTokens(initialTokens);
+        get().setRawTokens(initialTokens, undefined, { persist: false });
         set({
           themeGroups: initialThemes,
           activeThemeGroupId: activeThemeGroup?.id || "",
@@ -4379,7 +4379,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  setRawTokens: (doc, meta) => {
+  setRawTokens: (doc, meta, options) => {
     const { activeSet, activeThemeGroupId } = get();
     const canonical = canonicalizeTokenDocument(doc);
     const groups = extractThemeGroups(canonical);
@@ -4394,7 +4394,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     // Synchronize loaded tokens with the active project and branch.
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
-    if (currentOrg && currentProject) {
+    if (options?.persist !== false && currentOrg && currentProject) {
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const effectiveBranch = credentials.branch || activeBranch || "main";
       const hasBranch = projectBranches.some((b) => b.name === effectiveBranch);
