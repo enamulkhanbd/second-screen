@@ -112,7 +112,7 @@ const KNOWN_TYPE_NAMES = new Set([
 ]);
 
 const ASSET_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
-const ASSET_BATCH_SIZE = 100;
+const ASSET_BATCH_SIZE = 48;
 
 /**
  * Formats a category or type name by replacing hyphens and underscores with spaces and applying Title Case.

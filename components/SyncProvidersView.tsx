@@ -540,7 +540,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
   const handlePullTokensNow = async () => {
     try {
-      await fetchLiveTokens();
+      await fetchLiveTokens(undefined, { force: true });
       addToast({
         type: "success",
         title: "Tokens Pulled",

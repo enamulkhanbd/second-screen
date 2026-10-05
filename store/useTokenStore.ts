@@ -66,6 +66,8 @@ import {
   createOrganization,
   createProject,
   saveProjectTokens,
+  saveProjectTokensAndBranches,
+  invalidateMetadataCache,
   saveProjectGitConfig,
   saveProjectFigmaVariables,
   createOrganizationInvitation,
@@ -368,7 +370,7 @@ interface TokenStoreState {
 
   // Actions
   initializeFromStorage: () => Promise<void> | void;
-  fetchLiveTokens: (customCreds?: GitCredentials) => Promise<boolean>;
+  fetchLiveTokens: (customCreds?: GitCredentials, options?: { force?: boolean }) => Promise<boolean>;
   setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
@@ -588,6 +590,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
   let isCheckingRemoteUpdates = false;
   let lastRemoteCheckTimestamp = 0;
+  let inFlightLiveFetch: { key: string; promise: Promise<boolean> } | null = null;
+  let lastLiveFetch: { key: string; at: number } | null = null;
+  const LIVE_FETCH_TTL_MS = 60000;
+  const inFlightAssetLists = new Map<string, Promise<ProjectAsset[]>>();
+  const inFlightAssetConfigs = new Map<string, Promise<any>>();
   const isScopeActive = (orgId?: string, projectId?: string) => {
     if (!orgId || !projectId) return false;
     const { currentOrg, currentProject } = get();
@@ -715,7 +722,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
    * Loads assets strictly from Cloudflare R2 via /api/assets/list.
    * This is the single abstraction point for all asset read operations.
    */
-  const loadAssetsFromStorage = async (
+  const loadAssetsFromStorage = (
+    orgId: string,
+    projectId: string
+  ): Promise<ProjectAsset[]> => {
+    const cacheKey = `${orgId}::${projectId}`;
+    const pending = inFlightAssetLists.get(cacheKey);
+    if (pending) return pending;
+    const promise = fetchAssetsFromStorage(orgId, projectId).finally(() => {
+      inFlightAssetLists.delete(cacheKey);
+    });
+    inFlightAssetLists.set(cacheKey, promise);
+    return promise;
+  };
+
+  const fetchAssetsFromStorage = async (
     orgId: string,
     projectId: string
   ): Promise<ProjectAsset[]> => {
@@ -822,7 +843,26 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   /**
    * Loads asset configuration (Git sync & Figma sync settings) from Cloudflare R2.
    */
-  const loadAssetConfigFromStorage = async (
+  const loadAssetConfigFromStorage = (
+    orgId: string,
+    projectId: string
+  ): Promise<{
+    assetGitConfig?: AssetGitConfig | null;
+    assetFigmaConfig?: AssetFigmaConfig | null;
+    folders?: AssetFolder[];
+    collections?: AssetCollection[];
+  } | null> => {
+    const cacheKey = `${orgId}::${projectId}`;
+    const pending = inFlightAssetConfigs.get(cacheKey);
+    if (pending) return pending;
+    const promise = fetchAssetConfigFromStorage(orgId, projectId).finally(() => {
+      inFlightAssetConfigs.delete(cacheKey);
+    });
+    inFlightAssetConfigs.set(cacheKey, promise);
+    return promise;
+  };
+
+  const fetchAssetConfigFromStorage = async (
     orgId: string,
     projectId: string
   ): Promise<{
@@ -868,6 +908,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       assetsCount?: number;
     }
   ): Promise<boolean> => {
+    invalidateMetadataCache();
     try {
       const res = await fetch("/api/assets/config", {
         method: "POST",
@@ -926,13 +967,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const { currentOrg, currentProject, branches, activeBranch } = get();
     if (currentOrg && currentProject) {
       set({ cloudSaveStatus: "saving" });
-      saveProjectTokens(currentOrg.id, currentProject.id, doc, groups)
-        .then(() => {
-          set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
-        })
-        .catch(() => {
-          set({ cloudSaveStatus: "error" });
-        });
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const updatedBranches = projectBranches.map((b) =>
         b.name === activeBranch
@@ -944,7 +978,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             }
           : b
       );
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(() => {});
+      saveProjectTokensAndBranches(currentOrg.id, currentProject.id, doc, groups, updatedBranches, activeBranch)
+        .then(() => {
+          set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
+        })
+        .catch(() => {
+          set({ cloudSaveStatus: "error" });
+        });
       set({ branches: updatedBranches });
       updateProjectInMemoryAndCache(updatedBranches, doc, groups || currentProject.themeGroups);
     }
@@ -4021,7 +4061,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   // Live Git Fetcher (Memory-only, 100% fresh)
-  fetchLiveTokens: async (customCreds) => {
+  fetchLiveTokens: async (customCreds, options) => {
     const creds = customCreds || get().credentials;
     const scopeOrgId = get().currentOrg?.id;
     const scopeProjectId = get().currentProject?.id;
@@ -4029,6 +4069,20 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       return false;
     }
 
+    const fetchKey = `${scopeOrgId}:${scopeProjectId}:${creds.owner}/${creds.repo}@${creds.branch}`;
+    if (!options?.force) {
+      if (inFlightLiveFetch?.key === fetchKey) return inFlightLiveFetch.promise;
+      if (
+        lastLiveFetch?.key === fetchKey &&
+        Date.now() - lastLiveFetch.at < LIVE_FETCH_TTL_MS &&
+        get().lastFetchedSha &&
+        get().syncStatus === "success"
+      ) {
+        return true;
+      }
+    }
+
+    const run = async (): Promise<boolean> => {
     set({ syncStatus: "fetching", syncError: null });
     try {
       const res = await fetch("/api/git/fetch", {
@@ -4065,11 +4119,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         } catch {}
       }
       get().setRawTokens(data.tokens, data.syncMeta);
+      lastLiveFetch = { key: fetchKey, at: Date.now() };
       return true;
     } catch (err: any) {
       set({ syncStatus: "error", syncError: err.message });
       return false;
     }
+    };
+
+    const promise = run().finally(() => {
+      if (inFlightLiveFetch?.promise === promise) inFlightLiveFetch = null;
+    });
+    inFlightLiveFetch = { key: fetchKey, promise };
+    return promise;
   },
 
   initializeFromStorage: async () => {
@@ -4334,17 +4396,22 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     // Synchronize loaded tokens with the active project and branch.
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
     if (currentOrg && currentProject) {
-      set({ cloudSaveStatus: "saving" });
-      saveProjectTokens(currentOrg.id, currentProject.id, canonical, groups)
-        .then(() => {
-          set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
-        })
-        .catch(() => {
-          set({ cloudSaveStatus: "error" });
-        });
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const effectiveBranch = credentials.branch || activeBranch || "main";
       const hasBranch = projectBranches.some((b) => b.name === effectiveBranch);
+      // Hydration/refetch with identical content must not re-upload the document to the cloud.
+      const canonicalJson = JSON.stringify(canonical);
+      const storedBranch = projectBranches.find((b) => b.name === effectiveBranch);
+      const isUnchanged =
+        hasBranch &&
+        currentProject.activeBranch === effectiveBranch &&
+        Boolean(currentProject.rawTokens) &&
+        JSON.stringify(currentProject.rawTokens) === canonicalJson &&
+        Boolean(storedBranch?.rawTokens) &&
+        JSON.stringify(storedBranch!.rawTokens) === canonicalJson;
+      if (!isUnchanged) {
+        set({ cloudSaveStatus: "saving" });
+      }
       const updatedBranches = hasBranch
         ? projectBranches.map((b) =>
             b.name === effectiveBranch
@@ -4372,9 +4439,19 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               comments: [],
             },
           ];
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, effectiveBranch).catch(() => {});
-      set({ branches: updatedBranches, activeBranch: effectiveBranch });
-      updateProjectInMemoryAndCache(updatedBranches, canonical, groups, effectiveBranch);
+      if (!isUnchanged) {
+        saveProjectTokensAndBranches(currentOrg.id, currentProject.id, canonical, groups, updatedBranches, effectiveBranch)
+          .then(() => {
+            set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
+          })
+          .catch(() => {
+            set({ cloudSaveStatus: "error" });
+          });
+        set({ branches: updatedBranches, activeBranch: effectiveBranch });
+        updateProjectInMemoryAndCache(updatedBranches, canonical, groups, effectiveBranch);
+      } else {
+        set({ activeBranch: effectiveBranch });
+      }
     }
 
     set({
@@ -6057,8 +6134,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     set({ resolvedTokens: resolved });
 
     if (currentOrg && currentProject) {
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, cleanName).catch(console.error);
-      saveProjectTokens(currentOrg.id, currentProject.id, initialRaw, initialThemes).catch(console.error);
+      saveProjectTokensAndBranches(currentOrg.id, currentProject.id, initialRaw, initialThemes, updatedBranches, cleanName).catch(console.error);
       updateProjectInMemoryAndCache(updatedBranches, initialRaw, initialThemes, cleanName);
       get().logUserActivity({
         type: "git",
@@ -6094,7 +6170,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const hasSyncProvider = Boolean(credentials.provider && credentials.owner && credentials.repo);
     if (hasSyncProvider) {
       get().setCredentials({ branch: targetBranchName });
-      await get().fetchLiveTokens();
+      await get().fetchLiveTokens(undefined, { force: true });
       return;
     }
     if (targetBranchName === activeBranch) return;
@@ -6152,8 +6228,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
 
     if (currentOrg && currentProject) {
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, targetBranchName).catch(console.error);
-      saveProjectTokens(currentOrg.id, currentProject.id, targetRaw, targetThemes).catch(console.error);
+      saveProjectTokensAndBranches(currentOrg.id, currentProject.id, targetRaw, targetThemes, updatedBranches, targetBranchName).catch(console.error);
       updateProjectInMemoryAndCache(updatedBranches, targetRaw, targetThemes, targetBranchName);
       get().logUserActivity({
         type: "git",
@@ -6308,8 +6383,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
 
     if (currentOrg && currentProject) {
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(console.error);
-      saveProjectTokens(currentOrg.id, currentProject.id, mergedTokens, source.themeGroups || target.themeGroups).catch(console.error);
+      saveProjectTokensAndBranches(currentOrg.id, currentProject.id, mergedTokens, source.themeGroups || target.themeGroups, updatedBranches, activeBranch).catch(console.error);
       updateProjectInMemoryAndCache(
         updatedBranches,
         mergedTokens,
@@ -6392,8 +6466,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
 
     if (currentOrg && currentProject) {
-      saveProjectBranches(currentOrg.id, currentProject.id, updatedBranches, activeBranch).catch(console.error);
-      saveProjectTokens(currentOrg.id, currentProject.id, rawTokens, get().themeGroups).catch(console.error);
+      saveProjectTokensAndBranches(currentOrg.id, currentProject.id, rawTokens, get().themeGroups, updatedBranches, activeBranch).catch(console.error);
       updateProjectInMemoryAndCache(
         updatedBranches,
         rawTokens,
