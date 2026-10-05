@@ -35,7 +35,6 @@ import { CreateBranchModal } from "@/components/CreateBranchModal";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { TokenDiffViewer } from "@/components/TokenDiffViewer";
-import { UserActivityDrawer } from "@/components/UserActivityDrawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -137,7 +136,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   const [commitMessage, setCommitMessage] = useState("");
   const [showPushModal, setShowPushModal] = useState(false);
   const [showPullModal, setShowPullModal] = useState(false);
-  const [showActivityDrawer, setShowActivityDrawer] = useState(false);
 
   // Branch list state
   const [branches, setBranches] = useState<string[]>([]);
@@ -1057,12 +1055,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         </div>
         )}
       </header>
-
-      {/* User Activity Log Right Drawer */}
-      <UserActivityDrawer
-        isOpen={showActivityDrawer}
-        onClose={() => setShowActivityDrawer(false)}
-      />
 
       {/* Accept Invite Modal (Triggered automatically on invite detection) */}
       <AcceptInviteModal />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { UserRole, ROLE_DEFINITIONS, OrganizationInvitation } from "@/types/tenant";
 import { updateOrgMember } from "@/services/organizationService";
@@ -49,6 +49,7 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
     currentOrg,
     currentUser,
     pendingInvitations,
+    loadInvitations,
     sendInvitationAction,
     revokeInvitationAction,
     removeMemberAction,
@@ -61,6 +62,12 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
   const [loading, setLoading] = useState(false);
   const [previewInvitation, setPreviewInvitation] = useState<OrganizationInvitation | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && currentOrg?.id) {
+      loadInvitations(currentOrg.id);
+    }
+  }, [isOpen, currentOrg?.id, loadInvitations]);
 
   if (!currentOrg) return null;
 
