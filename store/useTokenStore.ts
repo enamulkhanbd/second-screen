@@ -543,6 +543,49 @@ function cacheProjectList(orgId: string, projects: Project[]): void {
   }
 }
 
+function getInitialRouteContext(): {
+  orgSlug: string | null;
+  projectSlug: string | null;
+  isProjectRoute: boolean;
+  isWorkspaceOnlyRoute: boolean;
+} {
+  if (typeof window === "undefined") {
+    return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+  }
+  try {
+    const segments = window.location.pathname
+      .split("/")
+      .filter(Boolean)
+      .map((s) => {
+        try {
+          return decodeURIComponent(s);
+        } catch {
+          return s;
+        }
+      });
+    if (segments.length === 0) {
+      return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+    }
+    const first = segments[0];
+    const systemRoutes = ["auth", "connect", "invite", "docs", "api"];
+    if (systemRoutes.includes(first)) {
+      return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+    }
+
+    const orgSlug = first;
+    const workspaceTabs = ["overview", "projects", "members", "settings", "dashboard"];
+    if (segments.length === 1 || (segments.length === 2 && workspaceTabs.includes(segments[1]))) {
+      return { orgSlug, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: true };
+    }
+
+    if (segments.length >= 2) {
+      const projectSlug = segments[1];
+      return { orgSlug, projectSlug, isProjectRoute: true, isWorkspaceOnlyRoute: false };
+    }
+  } catch {}
+  return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+}
+
 export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
   let isCheckingRemoteUpdates = false;
@@ -1236,6 +1279,21 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
     const previousState = get();
     const isSameProject = previousState.currentProject?.id === proj?.id;
+
+    // If the project is already active and its tokens are already hydrated in memory,
+    // merge any fresh metadata updates without wiping rawTokens or re-fetching.
+    if (
+      isSameProject &&
+      previousState.currentProject?.rawTokens !== undefined &&
+      proj &&
+      proj.rawTokens === undefined
+    ) {
+      set({
+        currentProject: { ...previousState.currentProject, ...proj, rawTokens: previousState.currentProject.rawTokens },
+      });
+      return;
+    }
+
     const previousThemeGroupId = isSameProject ? previousState.activeThemeGroupId : "";
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
@@ -1631,6 +1689,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   __runLoadTenantData: async (uid, email) => {
+    const routeContext = getInitialRouteContext();
+
     // 1. Instant Cache Hydration: If cached tenant orgs and projects exist in localStorage, restore them immediately
     if (typeof window !== "undefined") {
       try {
@@ -1640,7 +1700,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           const cachedOrgs: Organization[] = JSON.parse(cachedOrgsStr);
           if (Array.isArray(cachedOrgs) && cachedOrgs.length > 0) {
             let activeOrg = cachedOrgs[0];
-            if (savedOrgId) {
+            if (routeContext.orgSlug) {
+              const found = cachedOrgs.find((o) => o.slug === routeContext.orgSlug || o.id === routeContext.orgSlug);
+              if (found) activeOrg = found;
+            } else if (savedOrgId) {
               const found = cachedOrgs.find((o) => o.id === savedOrgId);
               if (found) activeOrg = found;
             }
@@ -1656,11 +1719,20 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                 const savedSyncTargetId = localStorage.getItem("ts_sync_target_project_id") || (isSyncSettings ? savedProjId : null);
                 const cachedSyncTarget = cachedProjects.find((project) => project.id === savedSyncTargetId);
                 if (cachedSyncTarget) get().setSyncTargetProject(cachedSyncTarget);
+
                 let activeProj: Project | null = null;
-                if (savedProjId && !isSyncSettings) {
+                if (routeContext.isWorkspaceOnlyRoute) {
+                  // User is on workspace-level overview/projects/members/settings; do not activate or hydrate any project
+                  activeProj = null;
+                } else if (routeContext.isProjectRoute && routeContext.projectSlug) {
+                  // User is on a project-specific route; ONLY activate the project matching this slug
+                  const found = cachedProjects.find((p) => p.slug === routeContext.projectSlug || p.id === routeContext.projectSlug);
+                  if (found) activeProj = found;
+                } else if (!routeContext.orgSlug && savedProjId && !isSyncSettings) {
                   const found = cachedProjects.find((p) => p.id === savedProjId);
                   if (found) activeProj = found;
                 }
+
                 if (isSyncSettings) localStorage.removeItem("ts_active_project_id");
                 if (activeProj) {
                   get().setCurrentProject(activeProj);
@@ -1708,10 +1780,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ userOrgs: orgs });
 
       let activeOrg = orgs[0] || null;
-      if (savedOrgId) {
+      if (routeContext.orgSlug) {
+        const found = orgs.find((o) => o.slug === routeContext.orgSlug || o.id === routeContext.orgSlug);
+        if (found) activeOrg = found;
+      } else if (savedOrgId) {
         const found = orgs.find((o) => o.id === savedOrgId);
         if (found) activeOrg = found;
       }
+
       // Resolve any pending invitation before the UI decides between a workspace and onboarding.
       try {
         const inviteToken = get().activeInviteToken;
@@ -1758,19 +1834,31 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
 
         let activeProj: Project | null = null;
-        const savedProjId = isSyncSettings ? null : savedActiveProjectId;
-        if (savedProjId) {
+        if (routeContext.isWorkspaceOnlyRoute) {
+          activeProj = null;
+        } else if (routeContext.isProjectRoute && routeContext.projectSlug) {
           const cachedCurrentProject = get().currentProject;
-          const found = cachedCurrentProject?.id === savedProjId &&
+          const found = (cachedCurrentProject?.slug === routeContext.projectSlug || cachedCurrentProject?.id === routeContext.projectSlug) &&
             cachedCurrentProject.orgId === activeOrg.id &&
             cachedCurrentProject.rawTokens !== undefined
             ? cachedCurrentProject
-            : projects.find((p) => p.id === savedProjId);
+            : projects.find((p) => p.slug === routeContext.projectSlug || p.id === routeContext.projectSlug);
+          if (found) activeProj = found;
+        } else if (!routeContext.orgSlug && savedActiveProjectId && !isSyncSettings) {
+          const cachedCurrentProject = get().currentProject;
+          const found = cachedCurrentProject?.id === savedActiveProjectId &&
+            cachedCurrentProject.orgId === activeOrg.id &&
+            cachedCurrentProject.rawTokens !== undefined
+            ? cachedCurrentProject
+            : projects.find((p) => p.id === savedActiveProjectId);
           if (found) activeProj = found;
         }
 
         if (activeProj) {
-          get().setCurrentProject(activeProj);
+          const curr = get().currentProject;
+          if (curr?.id !== activeProj.id || curr?.rawTokens === undefined) {
+            get().setCurrentProject(activeProj);
+          }
           const activeCreds = get().credentials;
           if (
             activeProj.rawTokens !== undefined &&

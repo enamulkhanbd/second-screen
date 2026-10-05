@@ -129,6 +129,8 @@ function mapDbInvitation(row: any): OrganizationInvitation {
 // ORGANIZATION OPERATIONS (100% Dynamic Supabase)
 // -------------------------------------------------------------
 
+const inFlightUserOrgsPromises = new Map<string, Promise<Organization[]>>();
+
 /**
  * Dynamically fetches all organizations where the user is a member or owner from Supabase
  */
@@ -136,86 +138,96 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
   if (!uid && !userEmail) return [];
   if (!isSupabaseConfigured) return [];
 
-  const client = getClient();
   const cleanEmail = userEmail?.trim().toLowerCase();
+  const cacheKey = `${uid || ""}__${cleanEmail || ""}`;
+  const inFlight = inFlightUserOrgsPromises.get(cacheKey);
+  if (inFlight) return inFlight;
 
-  try {
-    // 1. Find all org IDs where user is a direct member or has matching email
-    let memberOrgIds: string[] = [];
-    let memberFilter = "";
-    if (uid && cleanEmail) {
-      memberFilter = `user_id.eq.${uid},email.ilike.${cleanEmail}`;
-    } else if (uid) {
-      memberFilter = `user_id.eq.${uid}`;
-    } else if (cleanEmail) {
-      memberFilter = `email.ilike.${cleanEmail}`;
-    }
-
-    if (memberFilter) {
-      const { data: memberRows, error: mErr } = await client
-        .from("organization_members")
-        .select("org_id")
-        .or(memberFilter);
-      if (!mErr && memberRows) {
-        memberOrgIds = memberRows.map((m: any) => m.org_id);
-      }
-    }
-
-    // Auto-link user_id in background if matched by email
-    if (uid && cleanEmail) {
-      client
-        .from("organization_members")
-        .update({ user_id: uid })
-        .eq("email", cleanEmail)
-        .neq("user_id", uid)
-        .then(() => {})
-        .catch(() => {});
-    }
-
-    if (!uid && memberOrgIds.length === 0) {
-      return [];
-    }
-
-    // 2. Fetch all organizations where user is owner OR user is a member
-    let orgQuery = client.from("organizations").select(`
-      *,
-      organization_members (*)
-    `);
-
-    if (memberOrgIds.length > 0 && uid) {
-      orgQuery = orgQuery.or(`owner_uid.eq.${uid},id.in.(${memberOrgIds.join(",")})`);
-    } else if (memberOrgIds.length > 0) {
-      orgQuery = orgQuery.in("id", memberOrgIds);
-    } else if (uid) {
-      orgQuery = orgQuery.eq("owner_uid", uid);
-    }
-
-    const { data: orgsData, error: orgsErr } = await orgQuery.order("created_at", { ascending: true });
-
-    if (orgsErr) {
-      console.warn("Supabase error fetching user organizations:", orgsErr.message);
-      // Fallback query without joins if RLS limits nested select
-      let fallbackQuery = client.from("organizations").select("*");
-      if (memberOrgIds.length > 0 && uid) {
-        fallbackQuery = fallbackQuery.or(`owner_uid.eq.${uid},id.in.(${memberOrgIds.join(",")})`);
-      } else if (memberOrgIds.length > 0) {
-        fallbackQuery = fallbackQuery.in("id", memberOrgIds);
+  const fetchPromise = (async () => {
+    const client = getClient();
+    try {
+      // 1. Find all org IDs where user is a direct member or has matching email
+      let memberOrgIds: string[] = [];
+      let memberFilter = "";
+      if (uid && cleanEmail) {
+        memberFilter = `user_id.eq.${uid},email.ilike.${cleanEmail}`;
       } else if (uid) {
-        fallbackQuery = fallbackQuery.eq("owner_uid", uid);
+        memberFilter = `user_id.eq.${uid}`;
+      } else if (cleanEmail) {
+        memberFilter = `email.ilike.${cleanEmail}`;
       }
-      const { data: fallbackOrgs, error: fallbackError } = await fallbackQuery.order("created_at", { ascending: true });
-      if (fallbackError) {
-        console.warn("Supabase fallback error fetching user organizations:", fallbackError.message);
+
+      if (memberFilter) {
+        const { data: memberRows, error: mErr } = await client
+          .from("organization_members")
+          .select("org_id")
+          .or(memberFilter);
+        if (!mErr && memberRows) {
+          memberOrgIds = memberRows.map((m: any) => m.org_id);
+        }
+      }
+
+      // Auto-link user_id in background if matched by email
+      if (uid && cleanEmail) {
+        client
+          .from("organization_members")
+          .update({ user_id: uid })
+          .eq("email", cleanEmail)
+          .neq("user_id", uid)
+          .then(() => {})
+          .catch(() => {});
+      }
+
+      if (!uid && memberOrgIds.length === 0) {
         return [];
       }
-      return (fallbackOrgs || []).map((o: any) => mapDbOrgToOrganization(o, []));
-    }
 
-    return (orgsData || []).map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
-  } catch (e) {
-    console.warn("Supabase error fetching user organizations:", e);
-    return [];
-  }
+      // 2. Fetch all organizations where user is owner OR user is a member
+      let orgQuery = client.from("organizations").select(`
+        *,
+        organization_members (*)
+      `);
+
+      if (memberOrgIds.length > 0 && uid) {
+        orgQuery = orgQuery.or(`owner_uid.eq.${uid},id.in.(${memberOrgIds.join(",")})`);
+      } else if (memberOrgIds.length > 0) {
+        orgQuery = orgQuery.in("id", memberOrgIds);
+      } else if (uid) {
+        orgQuery = orgQuery.eq("owner_uid", uid);
+      }
+
+      const { data: orgsData, error: orgsErr } = await orgQuery.order("created_at", { ascending: true });
+
+      if (orgsErr) {
+        console.warn("Supabase error fetching user organizations:", orgsErr.message);
+        // Fallback query without joins if RLS limits nested select
+        let fallbackQuery = client.from("organizations").select("*");
+        if (memberOrgIds.length > 0 && uid) {
+          fallbackQuery = fallbackQuery.or(`owner_uid.eq.${uid},id.in.(${memberOrgIds.join(",")})`);
+        } else if (memberOrgIds.length > 0) {
+          fallbackQuery = fallbackQuery.in("id", memberOrgIds);
+        } else if (uid) {
+          fallbackQuery = fallbackQuery.eq("owner_uid", uid);
+        }
+        const { data: fallbackOrgs, error: fallbackError } = await fallbackQuery.order("created_at", { ascending: true });
+        if (fallbackError) {
+          console.warn("Supabase fallback error fetching user organizations:", fallbackError.message);
+          return [];
+        }
+        return (fallbackOrgs || []).map((o: any) => mapDbOrgToOrganization(o, []));
+      }
+
+      return (orgsData || []).map((o: any) => mapDbOrgToOrganization(o, o.organization_members || []));
+    } catch (e) {
+      console.warn("Supabase error fetching user organizations:", e);
+      return [];
+    }
+  })().finally(() => {
+    inFlightUserOrgsPromises.delete(cacheKey);
+  });
+
+  inFlightUserOrgsPromises.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 /**
@@ -789,31 +801,46 @@ export function safeSetCachedProjects(orgId: string, projs: Project[]): void {
   }
 }
 
+const inFlightProjectPromises = new Map<string, Promise<Project | null>>();
+const inFlightOrgSummariesPromises = new Map<string, Promise<Project[]>>();
+
 /**
  * Fetches a single project from Supabase by orgId and projectId with full tokens and branches
  */
 export async function getProject(orgId: string, projectId: string): Promise<Project | null> {
   if (!orgId || !projectId || !isSupabaseConfigured) return null;
-  const client = getClient();
-  try {
-    const { data, error } = await client
-      .from("projects")
-      .select("*")
-      .eq("org_id", orgId)
-      .eq("id", projectId)
-      .maybeSingle();
 
-    if (error || !data) return null;
-    const { data: integration } = await client
-      .from("project_integrations")
-      .select("git_config, asset_git_config, asset_figma_config")
-      .eq("project_id", projectId)
-      .maybeSingle();
-    return mapDbProjectToProject(data, integration || undefined);
-  } catch (e) {
-    console.warn("Supabase error fetching single project:", e);
-    return null;
-  }
+  const cacheKey = `${orgId}__${projectId}`;
+  const inFlight = inFlightProjectPromises.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const fetchPromise = (async () => {
+    const client = getClient();
+    try {
+      const { data, error } = await client
+        .from("projects")
+        .select("*")
+        .eq("org_id", orgId)
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+      const { data: integration } = await client
+        .from("project_integrations")
+        .select("git_config, asset_git_config, asset_figma_config")
+        .eq("project_id", projectId)
+        .maybeSingle();
+      return mapDbProjectToProject(data, integration || undefined);
+    } catch (e) {
+      console.warn("Supabase error fetching single project:", e);
+      return null;
+    }
+  })().finally(() => {
+    inFlightProjectPromises.delete(cacheKey);
+  });
+
+  inFlightProjectPromises.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 /**
@@ -822,84 +849,94 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
 export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> {
   if (!orgId) return [];
 
-  if (isSupabaseConfigured) {
-    try {
-      const client = getClient();
-      const { data, error } = await client
-        .from("projects")
-        .select("id, org_id, name, slug, description, icon, color, logo_url, active_branch, git_config, credentials, asset_git_config, asset_figma_config, enabled_schemas, created_at, updated_at")
-        .eq("org_id", orgId)
-        .order("created_at", { ascending: true });
+  const inFlight = inFlightOrgSummariesPromises.get(orgId);
+  if (inFlight) return inFlight;
 
-      if (!error && data) {
-        const { data: integrations } = await client
-          .from("project_integrations")
-          .select("project_id, git_config, asset_git_config, asset_figma_config")
-          .eq("org_id", orgId);
-        const integrationByProject = new Map<string, any>((integrations || []).map((item: any) => [item.project_id, item]));
+  const fetchPromise = (async () => {
+    if (isSupabaseConfigured) {
+      try {
+        const client = getClient();
+        const { data, error } = await client
+          .from("projects")
+          .select("id, org_id, name, slug, description, icon, color, logo_url, active_branch, git_config, credentials, asset_git_config, asset_figma_config, enabled_schemas, created_at, updated_at")
+          .eq("org_id", orgId)
+          .order("created_at", { ascending: true });
 
-        return data.map((row: any) => {
-          const integ = integrationByProject.get(row.id);
-          const gitConfig =
-            integ?.git_config && Object.keys(integ.git_config).length > 0
-              ? integ.git_config
-              : row.git_config && Object.keys(row.git_config).length > 0
-              ? row.git_config
-              : row.credentials && Object.keys(row.credentials).length > 0
-              ? row.credentials
-              : null;
-          const assetGitConfig =
-            integ?.asset_git_config && Object.keys(integ.asset_git_config).length > 0
-              ? integ.asset_git_config
-              : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
-              ? row.asset_git_config
-              : null;
-          const assetFigmaConfig =
-            integ?.asset_figma_config && Object.keys(integ.asset_figma_config).length > 0
-              ? integ.asset_figma_config
-              : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
-              ? row.asset_figma_config
-              : null;
+        if (!error && data) {
+          const { data: integrations } = await client
+            .from("project_integrations")
+            .select("project_id, git_config, asset_git_config, asset_figma_config")
+            .eq("org_id", orgId);
+          const integrationByProject = new Map<string, any>((integrations || []).map((item: any) => [item.project_id, item]));
 
-          return {
-            id: row.id,
-            orgId: row.org_id,
-            name: row.name,
-            slug: row.slug,
-            description: row.description || undefined,
-            icon: row.icon || "🎯",
-            color: row.color || "#171717",
-            logoUrl: row.logo_url || "",
-            activeBranch: row.active_branch || "main",
-            enabledSchemas: row.enabled_schemas || [],
-            gitConfig,
-            assetGitConfig,
-            assetFigmaConfig,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at,
-          };
-        });
+          return data.map((row: any) => {
+            const integ = integrationByProject.get(row.id);
+            const gitConfig =
+              integ?.git_config && Object.keys(integ.git_config).length > 0
+                ? integ.git_config
+                : row.git_config && Object.keys(row.git_config).length > 0
+                ? row.git_config
+                : row.credentials && Object.keys(row.credentials).length > 0
+                ? row.credentials
+                : null;
+            const assetGitConfig =
+              integ?.asset_git_config && Object.keys(integ.asset_git_config).length > 0
+                ? integ.asset_git_config
+                : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
+                ? row.asset_git_config
+                : null;
+            const assetFigmaConfig =
+              integ?.asset_figma_config && Object.keys(integ.asset_figma_config).length > 0
+                ? integ.asset_figma_config
+                : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
+                ? row.asset_figma_config
+                : null;
+
+            return {
+              id: row.id,
+              orgId: row.org_id,
+              name: row.name,
+              slug: row.slug,
+              description: row.description || undefined,
+              icon: row.icon || "🎯",
+              color: row.color || "#171717",
+              logoUrl: row.logo_url || "",
+              activeBranch: row.active_branch || "main",
+              enabledSchemas: row.enabled_schemas || [],
+              gitConfig,
+              assetGitConfig,
+              assetFigmaConfig,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+          });
+        }
+
+        if (error) {
+          console.warn("Supabase error fetching project summaries:", error.message);
+        }
+      } catch (e) {
+        console.warn("Supabase error fetching project summaries:", e);
       }
-
-      if (error) {
-        console.warn("Supabase error fetching project summaries:", error.message);
-      }
-    } catch (e) {
-      console.warn("Supabase error fetching project summaries:", e);
     }
-  }
 
-  if (typeof window !== "undefined") {
-    try {
-      const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-  }
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`ts_cached_org_projects_${orgId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch {}
+    }
 
-  return [];
+    return [];
+  })().finally(() => {
+    inFlightOrgSummariesPromises.delete(orgId);
+  });
+
+  inFlightOrgSummariesPromises.set(orgId, fetchPromise);
+  return fetchPromise;
 }
 
 /**
