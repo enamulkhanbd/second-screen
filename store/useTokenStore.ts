@@ -1279,21 +1279,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
     const previousState = get();
     const isSameProject = previousState.currentProject?.id === proj?.id;
-
-    // If the project is already active and its tokens are already hydrated in memory,
-    // merge any fresh metadata updates without wiping rawTokens or re-fetching.
-    if (
-      isSameProject &&
-      previousState.currentProject?.rawTokens !== undefined &&
-      proj &&
-      proj.rawTokens === undefined
-    ) {
-      set({
-        currentProject: { ...previousState.currentProject, ...proj, rawTokens: previousState.currentProject.rawTokens },
-      });
-      return;
-    }
-
     const previousThemeGroupId = isSameProject ? previousState.activeThemeGroupId : "";
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
@@ -1736,7 +1721,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
                 if (isSyncSettings) localStorage.removeItem("ts_active_project_id");
                 if (activeProj) {
                   get().setCurrentProject(activeProj);
-                } else {
+                } else if (!routeContext.isProjectRoute) {
                   set({
                     currentProject: null,
                     sidebarTab: getSidebarTabWithoutProject(),
@@ -1855,10 +1840,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
 
         if (activeProj) {
-          const curr = get().currentProject;
-          if (curr?.id !== activeProj.id || curr?.rawTokens === undefined) {
-            get().setCurrentProject(activeProj);
-          }
+          get().setCurrentProject(activeProj);
           const activeCreds = get().credentials;
           if (
             activeProj.rawTokens !== undefined &&
