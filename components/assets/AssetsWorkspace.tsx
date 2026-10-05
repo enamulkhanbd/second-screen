@@ -65,7 +65,6 @@ import {
   EyeOff,
   SlidersHorizontal,
   Save,
-  Loader2,
   List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -2950,12 +2949,6 @@ export const AssetsWorkspace: React.FC = () => {
           <div className={`flex-1 min-h-0 ${isUnfilteredEmptyCollection ? "flex items-center justify-center overflow-hidden p-6" : "overflow-y-auto p-6 pb-24 space-y-6"}`}>
             {isLoadingAssets ? (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground/70" />
-                    <span className="text-xs font-medium text-muted-foreground">Loading assets...</span>
-                  </div>
-                </div>
                 <div className="flex flex-wrap gap-4">
                   {Array.from({ length: 18 }).map((_, idx) => renderSkeletonCard(idx))}
                 </div>
