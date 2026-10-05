@@ -1,7 +1,10 @@
-"use client";
+import WorkspaceRouteClient from "./WorkspaceRouteClient";
 
-import Home from "../../page";
+// Client-only shell: pre-render once on demand so route changes are served from cache instead of rendering per request.
+export function generateStaticParams() {
+  return [];
+}
 
 export default function WorkspaceRoutePage() {
-  return <Home />;
+  return <WorkspaceRouteClient />;
 }
