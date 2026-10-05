@@ -315,11 +315,39 @@ export async function POST(req: NextRequest) {
         repo
       )}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
 
-      const treeRes = await fetch(treeUrl, {
+      // Same query as /api/git/check-updates so the returned SHA is comparable to its latestSha.
+      const commitPath = (creds.filePath || creds.path || "").trim().replace(/^\/+/, "");
+      const commitsUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo
+      )}/commits?sha=${encodeURIComponent(branch)}${commitPath ? `&path=${encodeURIComponent(commitPath)}` : ""}&per_page=1`;
+      const latestCommitPromise: Promise<string> = fetch(commitsUrl, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+      })
+        .then(async (r) => {
+          if (!r.ok) return "";
+          const d = await r.json();
+          return (Array.isArray(d) && d[0]?.sha) || "";
+        })
+        .catch(() => "");
+
+      const treePromise = fetch(treeUrl, {
         headers,
         cache: "no-store",
         signal: AbortSignal.timeout(20000),
       });
+      treePromise.catch(() => {});
+
+      const clientSha = (rawCreds as { lastCommitSha?: unknown }).lastCommitSha;
+      if (typeof clientSha === "string" && clientSha) {
+        const latestForCompare = await latestCommitPromise;
+        if (latestForCompare && latestForCompare === clientSha) {
+          return NextResponse.json({ unchanged: true, commitSha: latestForCompare });
+        }
+      }
+
+      const treeRes = await treePromise;
 
       if (!treeRes.ok) {
         const errorText = await treeRes.text();
@@ -406,6 +434,7 @@ export async function POST(req: NextRequest) {
 
       const treeData = await treeRes.json();
       const treeSha = treeData.sha || "";
+      const responseSha = (await latestCommitPromise) || treeSha;
       const cacheKey = `github:${owner.toLowerCase()}:${repo.toLowerCase()}:${branch.toLowerCase()}:${cleanPath.toLowerCase()}:${treeSha}`;
 
       if (treeSha) {
@@ -414,7 +443,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({
             tokens: cached.tokens,
             userProfile: cached.userProfile,
-            commitSha: cached.commitSha,
+            commitSha: responseSha,
             syncMeta: cached.syncMeta,
             cached: true,
           });
@@ -473,6 +502,19 @@ export async function POST(req: NextRequest) {
       const aggregated: Record<string, any> = {};
       const filesMeta: Record<string, string> = {};
 
+      // Profile lookup is independent of blob downloads, so run it concurrently.
+      const userProfilePromise: Promise<any> = fetch("https://api.github.com/user", { headers })
+        .then(async (uRes) => {
+          if (!uRes.ok) return undefined;
+          const uData = await uRes.json();
+          return {
+            avatarUrl: uData.avatar_url,
+            displayName: uData.name || uData.login,
+            username: uData.login,
+          };
+        })
+        .catch(() => undefined);
+
       // Concurrency-limited batching (12 at a time) to prevent GitHub 429 rate-limiting
       await batchProcess(targetBlobs, 12, async (blob) => {
         const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
@@ -511,20 +553,7 @@ export async function POST(req: NextRequest) {
       });
 
       // Fetch user profile avatar if available
-      let userProfile = undefined;
-      try {
-        const uRes = await fetch("https://api.github.com/user", { headers });
-        if (uRes.ok) {
-          const uData = await uRes.json();
-          userProfile = {
-            avatarUrl: uData.avatar_url,
-            displayName: uData.name || uData.login,
-            username: uData.login,
-          };
-        }
-      } catch {
-        // ignore
-      }
+      const userProfile = await userProfilePromise;
 
       const scoped = scopeAggregatedTokens(aggregated, filesMeta, cleanPath);
       if (Object.keys(scoped.tokens).length === 0) {
@@ -539,7 +568,7 @@ export async function POST(req: NextRequest) {
       const responsePayload = {
         tokens: scoped.tokens,
         userProfile,
-        commitSha: treeSha,
+        commitSha: responseSha,
         syncMeta: { mode: "folder", targetFolder: cleanPath, files: scoped.files },
       };
 

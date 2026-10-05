@@ -4084,19 +4084,29 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     const run = async (): Promise<boolean> => {
     set({ syncStatus: "fetching", syncError: null });
+    // Only allow the server to answer "unchanged" when in-memory tokens match that SHA and have no local edits.
+    const canSkipUnchanged =
+      !options?.force && !get().isDirty && lastLiveFetch?.key === fetchKey && Boolean(get().lastFetchedSha);
     try {
       const res = await fetch("/api/git/fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...creds,
-          lastCommitSha: get().lastFetchedSha || undefined,
+          lastCommitSha: canSkipUnchanged ? get().lastFetchedSha : undefined,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || data.error) {
         throw new Error(data.error || "Failed to fetch live tokens from Git");
+      }
+
+      if (data.unchanged) {
+        if (!isScopeActive(scopeOrgId, scopeProjectId)) return false;
+        set({ syncStatus: "success", syncError: null, hasRemoteChanges: false });
+        lastLiveFetch = { key: fetchKey, at: Date.now() };
+        return true;
       }
 
       if (data.userProfile) {
