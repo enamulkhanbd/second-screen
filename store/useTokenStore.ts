@@ -586,18 +586,6 @@ function getInitialRouteContext(): {
   return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
 }
 
-function yieldToNextPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    let timeoutId: number;
-    const finish = () => {
-      window.clearTimeout(timeoutId);
-      resolve();
-    };
-    timeoutId = window.setTimeout(finish, 100);
-    window.requestAnimationFrame(() => window.requestAnimationFrame(finish));
-  });
-}
-
 export const useTokenStore = create<TokenStoreState>((set, get) => {
   let scopeSwitchVersion = 0;
   let isCheckingRemoteUpdates = false;
@@ -1809,8 +1797,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
                 if (isSyncSettings) localStorage.removeItem("ts_active_project_id");
                 if (activeProj) {
-                  set({ isLoadingTenant: false, isLoadingProjectData: true });
-                  await yieldToNextPaint();
                   get().setCurrentProject(activeProj);
                 } else if (!routeContext.isProjectRoute) {
                   set({
@@ -1895,7 +1881,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           projects = await getOrgProjectSummaries(activeOrg.id);
         }
 
-        set({ orgProjects: projects, isLoadingProjects: true });
+        set({ orgProjects: projects, isLoadingProjects: false });
         const isSyncSettings = get().sidebarTab === "project-settings" && get().projectSettingsTab === "sync";
         const savedActiveProjectId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
         const savedSyncTargetId = typeof window !== "undefined"
@@ -1933,12 +1919,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
 
         if (activeProj) {
-          const isAlreadyActive = get().currentProject === activeProj;
-          if (!isAlreadyActive) {
-            set({ isLoadingTenant: false, isLoadingProjectData: true });
-            await yieldToNextPaint();
-            get().setCurrentProject(activeProj);
-          }
+          get().setCurrentProject(activeProj);
           const activeCreds = get().credentials;
           if (
             activeProj.rawTokens !== undefined &&
@@ -1954,7 +1935,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           set({
             currentProject: null,
             isLoadingProjectData: false,
-            isLoadingProjects: false,
             sidebarTab: getSidebarTabWithoutProject(),
           });
         }
