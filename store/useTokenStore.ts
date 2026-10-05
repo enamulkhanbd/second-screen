@@ -1603,6 +1603,22 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
               set({ isLoadingProjectData: false });
             }
           });
+        } else if (needsProjectHydration) {
+          const cachedProject = proj.orgId && proj.id
+            ? getCachedHydratedProject(proj.orgId, proj.id)
+            : null;
+          if (cachedProject) {
+            get().setCurrentProject(cachedProject);
+          } else {
+            set({ isLoadingProjectData: false });
+            get().addToast({
+              type: "error",
+              title: "Project tokens unavailable",
+              message: isSupabaseConfigured
+                ? "The project could not be identified for token loading."
+                : "This project has no cached token data and the data service is not configured.",
+            });
+          }
         }
       }
 
