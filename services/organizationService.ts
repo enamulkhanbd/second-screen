@@ -1634,6 +1634,8 @@ export async function logOrganizationActivity(
   }
 }
 
+const inFlightActivitiesPromises = new Map<string, Promise<UserActivityItem[]>>();
+
 /**
  * Fetches recent activity logs for an organization from Supabase (ordered by timestamp desc)
  */
@@ -1642,29 +1644,41 @@ export async function getOrganizationActivities(
   maxItems = 60
 ): Promise<UserActivityItem[]> {
   if (!orgId || !isSupabaseConfigured) return [];
-  const client = getClient();
-  try {
-    const { data, error } = await client
-      .from("activities")
-      .select("*")
-      .eq("org_id", orgId)
-      .order("timestamp", { ascending: false })
-      .limit(maxItems);
 
-    if (error || !data) return [];
-    return data.map((d: any) => ({
-      id: d.id,
-      type: d.type as any,
-      title: d.title,
-      description: d.description,
-      actor: d.user_data || { name: "User", email: "" },
-      timestamp: d.timestamp,
-      metadata: d.metadata,
-    }));
-  } catch (e) {
-    console.warn("Supabase error fetching organization activities:", e);
-    return [];
-  }
+  const cacheKey = `${orgId}__${maxItems}`;
+  const inFlight = inFlightActivitiesPromises.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const fetchPromise = (async () => {
+    const client = getClient();
+    try {
+      const { data, error } = await client
+        .from("activities")
+        .select("*")
+        .eq("org_id", orgId)
+        .order("timestamp", { ascending: false })
+        .limit(maxItems);
+
+      if (error || !data) return [];
+      return data.map((d: any) => ({
+        id: d.id,
+        type: d.type as any,
+        title: d.title,
+        description: d.description,
+        actor: d.user_data || { name: "User", email: "" },
+        timestamp: d.timestamp,
+        metadata: d.metadata,
+      }));
+    } catch (e) {
+      console.warn("Supabase error fetching organization activities:", e);
+      return [];
+    }
+  })().finally(() => {
+    inFlightActivitiesPromises.delete(cacheKey);
+  });
+
+  inFlightActivitiesPromises.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 /**
