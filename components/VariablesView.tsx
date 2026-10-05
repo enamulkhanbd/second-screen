@@ -116,7 +116,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [collectionToDelete, setCollectionToDelete] = useState<string | null>(null);
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
 
-  // Auto-fetch fresh Figma variables on mount or project switch
+  // Variables are hydrated with the project; this runs only from the manual Refresh button.
   const fetchVariables = async () => {
     if (!currentOrg?.id || !currentProject?.id) return;
     setIsRefreshing(true);
@@ -134,10 +134,6 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
       setIsRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    fetchVariables();
-  }, [currentOrg?.id, currentProject?.id]);
 
   // Extract all Figma collection set names
   const collections = useMemo(() => {

@@ -131,6 +131,19 @@ function mapDbInvitation(row: any): OrganizationInvitation {
 
 const inFlightUserOrgsPromises = new Map<string, Promise<Organization[]>>();
 
+// Short-lived read cache so route/tab changes do not re-query org and project metadata.
+const METADATA_CACHE_TTL_MS = 30000;
+let metadataCacheVersion = 0;
+const userOrgsCache = new Map<string, { at: number; version: number; data: Organization[] }>();
+const orgSummariesCache = new Map<string, { at: number; version: number; data: Project[] }>();
+
+/** Drops cached org/project metadata; call from every write that changes it. */
+export function invalidateMetadataCache(): void {
+  metadataCacheVersion++;
+  userOrgsCache.clear();
+  orgSummariesCache.clear();
+}
+
 /**
  * Dynamically fetches all organizations where the user is a member or owner from Supabase
  */
@@ -140,14 +153,20 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
 
   const cleanEmail = userEmail?.trim().toLowerCase();
   const cacheKey = `${uid || ""}__${cleanEmail || ""}`;
+  const cachedOrgs = userOrgsCache.get(cacheKey);
+  if (cachedOrgs && cachedOrgs.version === metadataCacheVersion && Date.now() - cachedOrgs.at < METADATA_CACHE_TTL_MS) {
+    return cachedOrgs.data;
+  }
   const inFlight = inFlightUserOrgsPromises.get(cacheKey);
   if (inFlight) return inFlight;
+  const startVersion = metadataCacheVersion;
 
   const fetchPromise = (async () => {
     const client = getClient();
     try {
       // 1. Find all org IDs where user is a direct member or has matching email
       let memberOrgIds: string[] = [];
+      let needsUserLink = false;
       let memberFilter = "";
       if (uid && cleanEmail) {
         memberFilter = `user_id.eq.${uid},email.ilike.${cleanEmail}`;
@@ -160,15 +179,18 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
       if (memberFilter) {
         const { data: memberRows, error: mErr } = await client
           .from("organization_members")
-          .select("org_id")
+          .select("org_id, email, user_id")
           .or(memberFilter);
         if (!mErr && memberRows) {
           memberOrgIds = memberRows.map((m: any) => m.org_id);
+          needsUserLink = memberRows.some(
+            (m: any) => m.email?.trim().toLowerCase() === cleanEmail && m.user_id !== uid
+          );
         }
       }
 
-      // Auto-link user_id in background if matched by email
-      if (uid && cleanEmail) {
+      // Auto-link user_id only when a member row matched by email is not linked yet
+      if (uid && cleanEmail && needsUserLink) {
         client
           .from("organization_members")
           .update({ user_id: uid })
@@ -222,7 +244,12 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
       console.warn("Supabase error fetching user organizations:", e);
       return [];
     }
-  })().finally(() => {
+  })().then((result) => {
+    if (result.length > 0 && startVersion === metadataCacheVersion) {
+      userOrgsCache.set(cacheKey, { at: Date.now(), version: startVersion, data: result });
+    }
+    return result;
+  }).finally(() => {
     inFlightUserOrgsPromises.delete(cacheKey);
   });
 
@@ -325,6 +352,7 @@ export async function createOrganization(
   color?: string,
   logoUrl?: string
 ): Promise<Organization> {
+  invalidateMetadataCache();
   const check = await checkOrganizationNameAvailable(name);
   if (!check.available) {
     throw new Error(check.error || `An organization with the name "${name}" already exists.`);
@@ -399,6 +427,7 @@ export async function updateOrganization(
   updates: Partial<{ name: string; slug: string; icon: string; color: string; logoUrl: string; avatarUrl: string }>
 ): Promise<void> {
   if (!orgId) return;
+  invalidateMetadataCache();
 
   if (updates.name) {
     const check = await checkOrganizationNameAvailable(updates.name, orgId);
@@ -431,6 +460,7 @@ export async function updateOrganization(
  */
 export async function deleteOrganization(orgId: string): Promise<void> {
   if (!orgId || !isSupabaseConfigured) return;
+  invalidateMetadataCache();
   const client = getClient();
   const { error } = await client.from("organizations").delete().eq("id", orgId);
   if (error) {
@@ -447,6 +477,7 @@ export async function updateOrgMember(
   member: OrganizationMember
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
+  invalidateMetadataCache();
   const client = getClient();
   try {
     await client.from("organization_members").upsert(
@@ -473,6 +504,7 @@ export async function removeOrgMember(
   memberUid: string
 ): Promise<void> {
   if (!isSupabaseConfigured) throw new Error("Supabase is not configured.");
+  invalidateMetadataCache();
   const response = await fetch(
     `/api/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(memberUid)}`,
     { method: "DELETE" }
@@ -701,6 +733,7 @@ export async function getInvitationByToken(token: string): Promise<OrganizationI
  * Accepts an invitation through the server API, which verifies the signed-in user's email.
  */
 export async function acceptOrganizationInvitation(token: string): Promise<Organization | null> {
+  invalidateMetadataCache();
   const res = await fetch(`/api/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" });
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -849,8 +882,13 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
 export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> {
   if (!orgId) return [];
 
+  const cachedSummaries = orgSummariesCache.get(orgId);
+  if (cachedSummaries && cachedSummaries.version === metadataCacheVersion && Date.now() - cachedSummaries.at < METADATA_CACHE_TTL_MS) {
+    return cachedSummaries.data;
+  }
   const inFlight = inFlightOrgSummariesPromises.get(orgId);
   if (inFlight) return inFlight;
+  const startVersion = metadataCacheVersion;
 
   const fetchPromise = (async () => {
     if (isSupabaseConfigured) {
@@ -931,7 +969,12 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
     }
 
     return [];
-  })().finally(() => {
+  })().then((result) => {
+    if (result.length > 0 && startVersion === metadataCacheVersion) {
+      orgSummariesCache.set(orgId, { at: Date.now(), version: startVersion, data: result });
+    }
+    return result;
+  }).finally(() => {
     inFlightOrgSummariesPromises.delete(orgId);
   });
 
@@ -1071,6 +1114,7 @@ export async function createProject(
   color?: string,
   logoUrl?: string
 ): Promise<Project> {
+  invalidateMetadataCache();
   const check = await checkProjectNameAvailable(orgId, name);
   if (!check.available) {
     throw new Error(check.error || `A project with the name "${name}" already exists in this organization.`);
@@ -1238,6 +1282,7 @@ export async function saveProjectBranches(
   activeBranch?: string
 ): Promise<void> {
   if (!orgId || !projectId || !isSupabaseConfigured) return;
+  invalidateMetadataCache();
   const client = getClient();
   const updates: Record<string, any> = {
     branches,
@@ -1257,6 +1302,7 @@ export async function saveProjectBranches(
  * Deletes a Project from an Organization in Supabase
  */
 export async function deleteProject(orgId: string, projectId: string): Promise<void> {
+  invalidateMetadataCache();
   if (isSupabaseConfigured) {
     const client = getClient();
     try {
@@ -1286,6 +1332,7 @@ export async function updateProject(
   projectId: string,
   updates: Partial<{ name: string; description: string; slug: string; icon: string; color: string; logoUrl: string; isArchived?: boolean }>
 ): Promise<void> {
+  invalidateMetadataCache();
   if (updates.name) {
     const check = await checkProjectNameAvailable(orgId, updates.name, projectId);
     if (!check.available) {
@@ -1357,6 +1404,36 @@ export async function saveProjectTokens(
 }
 
 /**
+ * Saves tokens, themes and branches in a single UPDATE instead of two separate large PATCH requests.
+ */
+export async function saveProjectTokensAndBranches(
+  orgId: string,
+  projectId: string,
+  rawTokens: RawTokensDocument,
+  themeGroups: ThemeGroup[] | undefined,
+  branches: ProjectBranch[],
+  activeBranch?: string
+): Promise<void> {
+  if (!orgId || !projectId || !isSupabaseConfigured) return;
+  invalidateMetadataCache();
+  const client = getClient();
+  const updates: Record<string, any> = {
+    raw_tokens: rawTokens,
+    theme_groups: themeGroups || extractThemeGroups(rawTokens),
+    branches,
+    updated_at: new Date().toISOString(),
+  };
+  if (activeBranch) updates.active_branch = activeBranch;
+  try {
+    const { error } = await client.from("projects").update(updates).eq("id", projectId).eq("org_id", orgId);
+    if (error) throw error;
+  } catch (e) {
+    console.warn("Supabase error saving project tokens and branches:", e);
+    throw e;
+  }
+}
+
+/**
  * Dynamically saves Git configuration for a specific Project in Supabase
  */
 export async function saveProjectGitConfig(
@@ -1365,6 +1442,7 @@ export async function saveProjectGitConfig(
   gitConfig: GitCredentials | null
 ): Promise<void> {
   if (!orgId || !projectId) return;
+  invalidateMetadataCache();
 
   // 1. Update localStorage project caches immediately
   if (typeof window !== "undefined") {
@@ -1638,6 +1716,7 @@ export async function saveProjectSchemas(
   enabledSchemas: string[]
 ): Promise<void> {
   if (!orgId || !projectId || !isSupabaseConfigured) return;
+  invalidateMetadataCache();
   const client = getClient();
   try {
     await client
