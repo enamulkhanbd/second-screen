@@ -156,6 +156,8 @@ export function extensionFromContentType(contentType: string): string {
 export function deriveAssetType(contentType: string = "", filename: string = ""): AssetType {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const mime = contentType.toLowerCase();
+  const lowerName = filename.toLowerCase();
+  if (lowerName.includes("illustration")) return "illustration";
   if (mime.includes("svg") || ext === "svg") return "icon";
   if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "ico", "bmp", "avif"].includes(ext)) return "image";
   if (mime.startsWith("video/") || ["mp4", "webm", "mov", "mkv", "avi"].includes(ext)) return "video";
