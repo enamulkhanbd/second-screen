@@ -2,12 +2,74 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.6.0",
+    releaseDate: "October 5, 2026",
+    title: "Digital Asset Management (DAM), Cloudflare R2, Team Invitations & Workspace Routing",
+    badge: "Major Release",
+    badgeVariant: "default",
+    isLatest: true,
+    summary:
+      "Introduced enterprise Cloudflare R2 Digital Asset Management (DAM), transactional team email invitations with RBAC, universal URL-first workspace routing, and comprehensive network optimization.",
+    highlights: [
+      "Cloudflare R2 Asset Workspace: Added scalable DAM studio with drag-and-drop multi-file uploads, custom collection taxonomies, presigned URL transfers, and full-fidelity vector/media previews.",
+      "Asset Detail Studio & Versioning: High-precision preview canvas (dark/light/grid/checkerboard), vector metadata inspection, perceptual similarity matching, and asset version history tracking.",
+      "Organization Invitations & RBAC: Dedicated Members tab, transactional email invite dispatch via Resend API, secure token acceptance flow, and 4-tier Role-Based Access Control (Owner, Admin, Editor, Viewer).",
+      "Universal URL-First Routing: Complete Next.js App Router dynamic hierarchy (/[workspaceSlug]/[projectSlug]/[tab]) with seamless browser history and store state synchronization.",
+      "Network Streamlining & API Cleanup: Neutralized deprecated Supabase activities queries, strictly isolated invitations to organization-level views, and deferred asset pre-fetching to on-demand navigation.",
+      "High-Performance ZIP Exports: Concurrent binary streaming engine for instant bulk asset downloads.",
+    ],
+    items: [
+      {
+        title: "Digital Asset Management Studio & Cloudflare R2",
+        description:
+          "Integrated Cloudflare R2 object storage with presigned S3 uploads, multi-category organization, color-coded tags, and unified collection management.",
+        category: "feature",
+        tags: ["Assets", "DAM", "Cloudflare R2", "S3"],
+      },
+      {
+        title: "Asset Detail Studio & Media Engine",
+        description:
+          "Engineered an interactive asset inspection studio featuring canvas background toggling, metadata editing, asset similarity analysis, and version history logs.",
+        category: "feature",
+        tags: ["DAM", "Studio", "SVG", "Preview"],
+      },
+      {
+        title: "Workspace Team Members & Email Invitations",
+        description:
+          "Implemented full team collaboration tools with email invitation delivery via Resend, secure landing page token acceptance, and automatic membership resolution.",
+        category: "feature",
+        tags: ["Teams", "Invitations", "RBAC", "Resend"],
+      },
+      {
+        title: "Dynamic Workspace & Project Route Architecture",
+        description:
+          "Refactored routing to a deterministic URL structure supporting deep linking across all workspace views and project token tabs.",
+        category: "enhancement",
+        tags: ["Routing", "Next.js", "App Router"],
+      },
+      {
+        title: "Network Query Optimization & Request Elimination",
+        description:
+          "Eliminated duplicate and orphaned REST API calls across Supabase and Next.js route handlers, ensuring instant page rendering with zero unnecessary network traffic.",
+        category: "enhancement",
+        tags: ["Performance", "Network", "Supabase", "Optimization"],
+      },
+      {
+        title: "Workspace Skeleton Transition Engine",
+        description:
+          "Added responsive skeleton loading states across form, cards, table, list, and documentation layouts for fluid tab transitions.",
+        category: "enhancement",
+        tags: ["UI", "Skeleton", "Animation"],
+      },
+    ],
+  },
+  {
     version: "v1.5.0",
     releaseDate: "September 24, 2026",
     title: "Supabase PostgreSQL Database & Auth Platform",
     badge: "Major Release",
     badgeVariant: "default",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Moved platform data, tenancy, audit logs, and authentication to Supabase PostgreSQL with strict Row Level Security (RLS).",
     highlights: [

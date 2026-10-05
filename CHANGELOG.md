@@ -2,6 +2,66 @@
 
 All notable changes to the Tokens & Asset Management Platform will be documented in this file.
 
+# 1.6.0 `2026-10-05`
+
+● **Major Release — Digital Asset Management (DAM), Cloudflare R2 Storage, Team Email Invitations & Dynamic Workspace Routing**
+
+### 🚀 Highlights & Features
+
+- **Enterprise Cloudflare R2 Digital Asset Management (DAM)**:
+  - Engineered a native digital asset workspace (`components/assets/AssetsWorkspace.tsx`) connected directly to Cloudflare R2 object storage via the AWS S3 SDK.
+  - Implemented multi-file drag-and-drop file ingestion into both root and categorized collections with visual drag states.
+  - Integrated S3 presigned URL generation (`/api/assets/presigned-url` and `/api/assets/upload`) for zero-proxy direct streaming of heavy binaries.
+  - Expanded asset taxonomy supporting 9 semantic media formats: `icon`, `image`, `illustration`, `video`, `audio`, `font`, `lottie`, `document`, and `other`.
+  - Added unified Collections & Folders management with custom metadata fields, allowed asset type restrictions, and color-coded identification.
+  - High-throughput ZIP export engine (`components/ExportsView.tsx`) with concurrent binary streaming for instant bulk asset downloads.
+- **Asset Detail Studio & Media Inspection**:
+  - Built an interactive inspection studio (`AssetDetailStudio`) featuring high-precision canvas background toggling (`dark`, `light`, `grid`, `checkerboard`).
+  - Implemented vector SVG normalization, dimensions and color space metadata extraction, perceptual similarity analysis, and version history logs.
+  - Direct filename/URI copy controls, inline SVG markup preview, and non-destructive asset deletion.
+- **Organization-Level Team Collaboration & Email Invitations**:
+  - Implemented a dedicated team management hub (`components/MembersView.tsx`) displaying active members, role badges, joined timestamps, and pending invitations.
+  - Transactional email dispatch system integrated with Resend API (`/api/invitations/send`) delivering branded invitation emails with direct action links.
+  - Secure token verification and onboarding flow (`/invite/[token]` and `/api/invitations/[token]/accept`) with automatic workspace membership resolution.
+  - Strict 4-Tier Role-Based Access Control (RBAC): `Owner`, `Admin`, `Editor`, and `Viewer`. Enforces universal read visibility across all organization resources while restricting mutating actions (token edits, branch creation, asset uploads, member management) to authorized roles.
+  - Added duplicate membership prevention and atomic revocation of pending invites.
+- **Universal URL-First Routing Architecture**:
+  - Migrated to Next.js App Router dynamic route hierarchy (`/[workspaceSlug]/[projectSlug]/[tab]`).
+  - Organization-level routes: `/[workspaceSlug]/overview`, `/[workspaceSlug]/projects`, `/[workspaceSlug]/members`, `/[workspaceSlug]/settings`.
+  - Project-level routes: `/[workspaceSlug]/[projectSlug]/[tokens|themes|variables|branches|documentation|assets|exports|releases|mcp|project-settings|changelog|extensions]`.
+  - Seamless two-way synchronization between browser URL parameters and Zustand store state without layout shifts or redundant unmounting.
+- **Network Performance & Query Streamlining**:
+  - Neutralized deprecated Supabase `activities` REST calls and removed orphaned activity components.
+  - Isolated organization invitation queries strictly to organization-level views (`MembersView` and `ManageOrgModal`), completely eliminating unnecessary invitation requests during project/token navigation.
+  - Deferred Cloudflare R2 asset metadata listing and configuration checks until the user opens the Assets tab, preventing premature 401 Unauthorized responses.
+  - Added in-flight promise deduplication for concurrent Supabase requests.
+- **UI System Polish & Transition Skeletons**:
+  - Integrated `WorkspaceSkeleton` loading states with dedicated variants for forms, card grids, tables, lists, and documentation blocks.
+  - Added token deprecation badges and status filters across data grids and edit sheets.
+  - Modernized brand identity with official 3-tier isometric geometric monogram token stack as platform logo, favicon, and brand suite.
+
+---
+
+# 1.5.0 `2026-09-24`
+
+● **Major Release — Supabase PostgreSQL Database, Row Level Security (RLS) & Native Cookie Auth**
+
+### 🚀 Highlights & Features
+
+- **Supabase PostgreSQL Multi-Tenant Database Architecture**:
+  - Migrated platform tenancy, project branches, DTCG token trees, activities, and invitations to relational PostgreSQL schemas in Supabase.
+  - Enforced cryptographic Row Level Security (RLS) policies guaranteeing tenant isolation across organizations, members, and projects.
+  - Designed cascade constraints, foreign keys, compound indexes, and atomic transactions.
+- **Native SSR Cookie-Aware Authentication Engine**:
+  - Integrated `@supabase/ssr` with HTTP-only cookies for secure session persistence, token refreshing, and server-side route validation.
+  - Added GitHub OAuth provider integration with graceful cancellation handling.
+- **Companion Plugin Synchronization**:
+  - Migrated Figma Companion PAT pairing sessions and API key registries to PostgreSQL (`pairing_sessions` and `api_keys`).
+- **Lean Application Bundle**:
+  - Removed deprecated legacy backend SDKs and packages, significantly reducing bundle size and initialization latency.
+
+---
+
 # 1.4.1 `2026-09-17`
 
 ● **Patch Release — Universal A-Z, 0-9 Collation Engine, Interactive Table Sorting & Brand Scale Precision**

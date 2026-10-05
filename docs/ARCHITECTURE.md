@@ -66,7 +66,7 @@ d:\GitHub\second-screen/
 │   └── ui/                     # Radix UI + shadcn primitive components
 ├── data/                       # Static catalogs & changelogs
 │   ├── schemaCatalog.ts        # 182-schema catalog master array
-│   └── systemChangelog.ts      # In-app version release history (v1.4.1)
+│   └── systemChangelog.ts      # In-app version release history (v1.6.0)
 ├── plugin/                     # Standalone Figma Companion Plugin
 │   ├── src/code.ts             # Plugin sandbox code (Figma variables API)
 │   ├── src-ui/                 # React UI rendered inside Figma window
