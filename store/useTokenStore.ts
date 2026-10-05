@@ -922,6 +922,29 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   };
 
+  // Large localStorage writes (multi-MB token docs) are coalesced so rapid edits don't block the main thread each time.
+  let pendingCachePersist: { scope: string; run: () => void } | null = null;
+  let cachePersistTimer: ReturnType<typeof setTimeout> | null = null;
+  const flushPendingCachePersist = () => {
+    if (cachePersistTimer) {
+      clearTimeout(cachePersistTimer);
+      cachePersistTimer = null;
+    }
+    const pending = pendingCachePersist;
+    pendingCachePersist = null;
+    if (pending) {
+      try {
+        pending.run();
+      } catch {}
+    }
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", flushPendingCachePersist);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushPendingCachePersist();
+    });
+  }
+
   const updateProjectInMemoryAndCache = (
     updatedBranches?: ProjectBranch[],
     updatedTokens?: RawTokensDocument,
@@ -951,15 +974,27 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     if (typeof window !== "undefined") {
       try {
-        cacheProjectList(currentOrg.id, updatedOrgProjects);
-        if (updatedBranches) {
-          localStorage.setItem(`ts_project_branches_${currentProject.id}`, JSON.stringify(updatedBranches));
-        }
         if (newActiveBranch) {
           localStorage.setItem(`ts_project_branch_${currentProject.id}`, newActiveBranch);
           localStorage.setItem("ts_active_branch", newActiveBranch);
         }
       } catch {}
+
+      const scope = `${currentOrg.id}:${currentProject.id}`;
+      if (pendingCachePersist && pendingCachePersist.scope !== scope) flushPendingCachePersist();
+      const orgId = currentOrg.id;
+      const projectId = currentProject.id;
+      pendingCachePersist = {
+        scope,
+        run: () => {
+          cacheProjectList(orgId, updatedOrgProjects);
+          if (updatedBranches) {
+            localStorage.setItem(`ts_project_branches_${projectId}`, JSON.stringify(updatedBranches));
+          }
+        },
+      };
+      if (cachePersistTimer) clearTimeout(cachePersistTimer);
+      cachePersistTimer = setTimeout(flushPendingCachePersist, 1500);
     }
   };
 
@@ -1236,6 +1271,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setCurrentOrg: async (org) => {
+    flushPendingCachePersist();
     const switchVersion = ++scopeSwitchVersion;
     const previousOrgId = get().currentOrg?.id;
 
@@ -1317,6 +1353,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setCurrentProject: (proj, options) => {
+    flushPendingCachePersist();
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
     const previousState = get();
     const isSameProject = previousState.currentProject?.id === proj?.id;
