@@ -82,8 +82,6 @@ import {
   updateOrganization,
   updateProject,
   saveProjectDocumentation,
-  logOrganizationActivity,
-  getOrganizationActivities,
   saveProjectBranches,
   ensureProjectDefaultBranch,
   sanitizeProjectsForCache,
@@ -1275,9 +1273,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
       }
       set({ orgProjects: finalProjects, isLoadingProjects: false, currentProject: updatedCurrentProject });
-
-      get().loadInvitations(org.id);
-      get().loadOrganizationActivities(org.id);
     }
   },
 
@@ -1289,7 +1284,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     const previousThemeOptionIds = isSameProject ? previousState.activeThemeOptionIds : {};
     const switchVersion = ++scopeSwitchVersion;
     const isProjectSettings = get().sidebarTab === "project-settings" || Boolean(options?.skipHydration);
-    const needsProjectHydration = !options?.skipHydration && !isProjectSettings && Boolean(proj && proj.rawTokens === undefined);
+    const hasGitConfig = Boolean(proj?.gitConfig && proj.gitConfig.repo);
+    const needsProjectHydration = !options?.skipHydration && !isProjectSettings && !hasGitConfig && Boolean(proj && proj.rawTokens === undefined);
 
     set({
       currentProject: proj,
@@ -1597,36 +1593,36 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
 
       if (!isProjectSettings && !options?.skipHydration) {
-        // Hydrate assets from R2
-        loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
-          if (!isScopeActive(proj.orgId, proj.id)) return;
-          set({
-            assets: loadedAssets,
-            isLoadingAssets: false,
-          });
-        });
-
-        // Hydrate asset configs (Git, Figma, Folders) from R2
-        loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
-          if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
-          if (r2Config.assetGitConfig !== undefined) {
-            set({ assetGitConfig: r2Config.assetGitConfig });
-          }
-          if (r2Config.assetFigmaConfig !== undefined) {
-            set({ assetFigmaConfig: r2Config.assetFigmaConfig });
-          }
-          if (r2Config.folders !== undefined) {
+        // Hydrate assets on-demand only if currently on the assets tab (AssetsWorkspace already hydrates on mount)
+        if (get().sidebarTab === "assets") {
+          loadAssetsFromStorage(proj.orgId, proj.id).then((loadedAssets) => {
+            if (!isScopeActive(proj.orgId, proj.id)) return;
             set({
-              assetFolders: r2Config.collections || r2Config.folders,
+              assets: loadedAssets,
+              isLoadingAssets: false,
             });
-          }
-        });
+          });
+
+          loadAssetConfigFromStorage(proj.orgId, proj.id).then((r2Config) => {
+            if (!isScopeActive(proj.orgId, proj.id) || !r2Config) return;
+            if (r2Config.assetGitConfig !== undefined) {
+              set({ assetGitConfig: r2Config.assetGitConfig });
+            }
+            if (r2Config.assetFigmaConfig !== undefined) {
+              set({ assetFigmaConfig: r2Config.assetFigmaConfig });
+            }
+            if (r2Config.folders !== undefined) {
+              set({
+                assetFolders: r2Config.collections || r2Config.folders,
+              });
+            }
+          });
+        }
 
         // 4. Restore scoped localStorage data (releases, targets, config, activities)
         const scopeOrgId = get().currentOrg?.id;
         if (scopeOrgId) {
           restoreScopedProjectData(scopeOrgId, proj.id);
-          get().loadOrganizationActivities(scopeOrgId);
         }
       }
     } else {
@@ -1650,7 +1646,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
       } catch {}
     }
-    if (!project) return;
+    if (!project || get().sidebarTab !== "project-settings") return;
 
     loadAssetConfigFromStorage(project.orgId, project.id).then((config) => {
       const currentTarget = get().syncTargetProject;
@@ -1782,12 +1778,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       // Resolve any pending invitation before the UI decides between a workspace and onboarding.
       try {
         const inviteToken = get().activeInviteToken;
-        const [tokenInv, emailInvs] = await Promise.all([
-          inviteToken ? getInvitationByToken(inviteToken) : Promise.resolve(null),
-          email ? getPendingInvitationsForEmail(email) : Promise.resolve([]),
-        ]);
-        const pendingInv = tokenInv && tokenInv.status === "pending" ? tokenInv : emailInvs[0];
-        if (pendingInv) set({ pendingInvitePrompt: pendingInv });
+        if (inviteToken || orgs.length === 0) {
+          const [tokenInv, emailInvs] = await Promise.all([
+            inviteToken ? getInvitationByToken(inviteToken) : Promise.resolve(null),
+            email ? getPendingInvitationsForEmail(email) : Promise.resolve([]),
+          ]);
+          const pendingInv = tokenInv && tokenInv.status === "pending" ? tokenInv : emailInvs[0];
+          if (pendingInv) set({ pendingInvitePrompt: pendingInv });
+        }
       } catch (inviteErr) {
         console.warn("Failed resolving pending invitations:", inviteErr);
       }
@@ -1865,7 +1863,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             sidebarTab: getSidebarTabWithoutProject(),
           });
         }
-        get().loadInvitations(activeOrg.id);
       } else {
         set({ isLoadingProjects: false });
       }
@@ -5607,40 +5604,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
       return { userActivities: updated };
     });
-
-    // Asynchronously persist remotely for team visibility.
-    const targetOrgId = act.orgId || currentOrg?.id;
-    if (targetOrgId) {
-      logOrganizationActivity(targetOrgId, newActivity).catch(() => {});
-    }
   },
 
-  loadOrganizationActivities: async (orgId: string) => {
-    if (!orgId) return;
-    try {
-      const remoteActs = await getOrganizationActivities(orgId, 80);
-      if (remoteActs && remoteActs.length > 0) {
-        set((state) => {
-          // Merge remote activities with any immediate local-only activities
-          const existingIds = new Set(remoteActs.map((a) => a.id));
-          const localOnly = state.userActivities.filter((a) => !existingIds.has(a.id));
-          const combined = [...localOnly, ...remoteActs]
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-            .slice(0, 100);
-
-          if (typeof window !== "undefined") {
-            try {
-              const key = getScopedKey("ts_user_activities", state.currentOrg?.id, state.currentProject?.id);
-              localStorage.setItem(key, JSON.stringify(combined));
-            } catch {}
-          }
-          return { userActivities: combined };
-        });
-      }
-    } catch (e) {
-      console.warn("Failed to load organization activities:", e);
-    }
-  },
+  loadOrganizationActivities: async () => {},
 
   clearUserActivities: () => {
     if (typeof window !== "undefined") {

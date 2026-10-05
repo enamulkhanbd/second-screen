@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { UserRole, ROLE_DEFINITIONS, OrganizationInvitation } from "@/types/tenant";
-import { UserActivityItem } from "@/types/tokens";
 import { updateOrgMember } from "@/services/organizationService";
 import { InviteEmailPreviewModal } from "@/components/InviteEmailPreviewModal";
 import {
@@ -76,8 +75,6 @@ export const MembersView: React.FC = () => {
     getCurrentUserRole,
     membersSubTab,
     setMembersSubTab,
-    userActivities,
-    clearUserActivities,
     credentials,
   } = useTokenStore();
 
@@ -91,9 +88,6 @@ export const MembersView: React.FC = () => {
   const [memberToRemove, setMemberToRemove] = useState<{ uid: string; displayName: string; email: string } | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
 
-  // Activity tab filters & search
-  const [activityFilter, setActivityFilter] = useState<string>("all");
-  const [activitySearch, setActivitySearch] = useState("");
 
   useEffect(() => {
     if (currentOrg) {
@@ -285,88 +279,6 @@ export const MembersView: React.FC = () => {
     return !["#171717", "#0a0a0a", "#2e9401", "#2d9401", "#6366f1", "neutral"].includes(trimmed);
   }, [currentOrg?.color]);
 
-  // Real workspace activities (no mock fallbacks)
-  const allActivities: UserActivityItem[] = useMemo(() => {
-    return userActivities || [];
-  }, [userActivities]);
-
-  const filteredActivities = useMemo(() => {
-    let list = allActivities;
-    if (activityFilter !== "all") {
-      list = list.filter((a) => a.type === activityFilter);
-    }
-    if (activitySearch.trim()) {
-      const q = activitySearch.toLowerCase();
-      list = list.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.description.toLowerCase().includes(q) ||
-          a.actor?.name?.toLowerCase().includes(q) ||
-          a.actor?.email?.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [allActivities, activityFilter, activitySearch]);
-
-  const formatTimeAgo = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMins / 60);
-      const diffDays = Math.floor(diffHours / 24);
-
-      if (diffMins < 1) return "Just now";
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays === 1) return "Yesterday";
-      if (diffDays < 30) return `${diffDays}d ago`;
-      return date.toLocaleDateString();
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const getActivityIcon = (type: UserActivityItem["type"]) => {
-    switch (type) {
-      case "git":
-        return <GitCommit className="w-4 h-4 text-blue-500" />;
-      case "token":
-        return <Sparkles className="w-4 h-4 text-purple-500" />;
-      case "figma":
-        return <Layers className="w-4 h-4 text-rose-500" />;
-      case "asset":
-        return <ImageIcon className="w-4 h-4 text-indigo-500" />;
-      case "release":
-        return <Package className="w-4 h-4 text-amber-500" />;
-      case "team":
-        return <Users className="w-4 h-4 text-emerald-500" />;
-      case "project":
-        return <FolderGit2 className="w-4 h-4 text-cyan-500" />;
-      default:
-        return <Activity className="w-4 h-4 text-primary" />;
-    }
-  };
-
-  const getActivityBadgeVariant = (type: UserActivityItem["type"]) => {
-    switch (type) {
-      case "git":
-        return "outline";
-      case "token":
-        return "secondary";
-      case "asset":
-        return "secondary";
-      case "figma":
-        return "outline";
-      case "release":
-        return "warning";
-      case "team":
-        return "success";
-      default:
-        return "outline";
-    }
-  };
 
   if (!currentOrg) {
     return (
