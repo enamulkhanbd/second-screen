@@ -1513,7 +1513,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           activeThemeGroupId: activeThemeGroup?.id || "",
           activeThemeOptionId,
           activeThemeOptionIds,
-          originalTokens: JSON.parse(JSON.stringify(initialTokens)),
           isDirty: false,
         });
       } else {

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import { Project } from "@/types/tenant";
 import {
   Home,
@@ -115,7 +116,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
     createOrgAction,
     themeMode,
     setThemeMode,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((state) => ({
+      currentUser: state.currentUser,
+      setCurrentUser: state.setCurrentUser,
+      signOutUser: state.signOutUser,
+      userOrgs: state.userOrgs,
+      currentOrg: state.currentOrg,
+      setCurrentOrg: state.setCurrentOrg,
+      orgProjects: state.orgProjects,
+      isLoadingProjects: state.isLoadingProjects,
+      currentProject: state.currentProject,
+      syncTargetProject: state.syncTargetProject,
+      setCurrentProject: state.setCurrentProject,
+      themeGroups: state.themeGroups,
+      rawTokens: state.rawTokens,
+      figmaResolvedVariables: state.figmaResolvedVariables,
+      sidebarTab: state.sidebarTab,
+      setSidebarTab: state.setSidebarTab,
+      setMembersSubTab: state.setMembersSubTab,
+      credentials: state.credentials,
+      releases: state.releases,
+      documentation: state.documentation,
+      addToast: state.addToast,
+      getCurrentUserRole: state.getCurrentUserRole,
+      canUserEdit: state.canUserEdit,
+      branches: state.branches,
+      activeBranch: state.activeBranch,
+      createOrgAction: state.createOrgAction,
+      themeMode: state.themeMode,
+      setThemeMode: state.setThemeMode,
+    }))
+  );
 
   const [showCreateProj, setShowCreateProj] = useState(false);
   const [showCreateOrg, setShowCreateOrg] = useState(false);
