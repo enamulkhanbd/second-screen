@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   GitBranch,
   ChevronDown,
@@ -34,7 +36,6 @@ import {
 import { CreateBranchModal } from "@/components/CreateBranchModal";
 import { AuthModal } from "@/components/AuthModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
-import { TokenDiffViewer } from "@/components/TokenDiffViewer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { DocumentDiffSummary } from "@/utils/tokenDiff";
+
+const EMPTY_DIFF_SUMMARY: DocumentDiffSummary = {
+  files: [],
+  totalAdded: 0,
+  totalModified: 0,
+  totalDeleted: 0,
+  hasChanges: false,
+};
+
+const TokenDiffViewer = dynamic(
+  () => import("@/components/TokenDiffViewer").then((module) => module.TokenDiffViewer),
+  { ssr: false }
+);
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -69,10 +84,12 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation }) => {
+  const [showPushModal, setShowPushModal] = useState(false);
   const {
     credentials,
     setCredentials,
-    rawTokens,
+    rawTokensForDiff,
+    hasTokens,
     syncMeta,
     currentOrg,
     currentProject,
@@ -115,7 +132,53 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     commitToActiveBranchAction,
     cloudSaveStatus,
     lastCloudSaveTime,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((state) => ({
+      credentials: state.credentials,
+      setCredentials: state.setCredentials,
+      rawTokensForDiff: state.isDirty && showPushModal ? state.rawTokens : null,
+      hasTokens: Object.keys(state.rawTokens).length > 0,
+      syncMeta: state.syncMeta,
+      currentOrg: state.currentOrg,
+      currentProject: state.currentProject,
+      syncTargetProject: state.syncTargetProject,
+      setCurrentProject: state.setCurrentProject,
+      projectSettingsTab: state.projectSettingsTab,
+      setProjectSettingsTab: state.setProjectSettingsTab,
+      themeGroups: state.themeGroups,
+      activeThemeGroupId: state.activeThemeGroupId,
+      setActiveThemeGroup: state.setActiveThemeGroup,
+      isDirty: state.isDirty,
+      viewMode: state.viewMode,
+      setViewMode: state.setViewMode,
+      setSyncStatus: state.setSyncStatus,
+      setRawTokens: state.setRawTokens,
+      resetDirtyState: state.resetDirtyState,
+      addToast: state.addToast,
+      sidebarTab: state.sidebarTab,
+      setSidebarTab: state.setSidebarTab,
+      membersSubTab: state.membersSubTab,
+      setMembersSubTab: state.setMembersSubTab,
+      activeSet: state.activeSet,
+      currentUser: state.currentUser,
+      setCurrentUser: state.setCurrentUser,
+      canUserEdit: state.canUserEdit,
+      figmaVariables: state.figmaVariables,
+      figmaResolvedVariables: state.figmaResolvedVariables,
+      figmaUpdatedAt: state.figmaUpdatedAt,
+      hasRemoteChanges: state.hasRemoteChanges,
+      checkRemoteUpdates: state.checkRemoteUpdates,
+      getDiffSummary: state.getDiffSummary,
+      logUserActivity: state.logUserActivity,
+      setFigmaVariables: state.setFigmaVariables,
+      branches: state.branches,
+      activeBranch: state.activeBranch,
+      switchBranchAction: state.switchBranchAction,
+      commitToActiveBranchAction: state.commitToActiveBranchAction,
+      cloudSaveStatus: state.cloudSaveStatus,
+      lastCloudSaveTime: state.lastCloudSaveTime,
+    }))
+  );
 
   const getProviderIcon = (prov?: string) => {
     switch (prov) {
@@ -134,7 +197,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   const [isCreateBranchOpen, setIsCreateBranchOpen] = useState(false);
   const [showThemeGroupMenu, setShowThemeGroupMenu] = useState(false);
   const [commitMessage, setCommitMessage] = useState("");
-  const [showPushModal, setShowPushModal] = useState(false);
   const [showPullModal, setShowPullModal] = useState(false);
 
   // Branch list state
@@ -142,7 +204,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [branchSearch, setBranchSearch] = useState("");
 
-  const hasTokens = Object.keys(rawTokens).length > 0;
   const activeGroup = useMemo(() => {
     return themeGroups.find((g) => g.id === activeThemeGroupId) || themeGroups[0];
   }, [themeGroups, activeThemeGroupId]);
@@ -356,10 +417,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     return items;
   }, [currentProject, syncTargetProject, currentOrg, sidebarTab, projectSettingsTab, activeGroup, activeSet, setSidebarTab, setCurrentProject, setProjectSettingsTab, credentials.branch, activeBranch, isGitConfigured]);
 
-  // Compute live diff summary between baseline and current state
+  // Diff generation includes full JSON and line comparisons, so defer it until review opens.
   const diffSummary = useMemo(() => {
-    return getDiffSummary();
-  }, [getDiffSummary, rawTokens, isDirty]);
+    return isDirty && showPushModal ? getDiffSummary() : EMPTY_DIFF_SUMMARY;
+  }, [getDiffSummary, rawTokensForDiff, isDirty, showPushModal]);
 
   // Auto-generate commit message when opening push modal
   useEffect(() => {
@@ -587,7 +648,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             credentials,
-            rawTokens,
+            rawTokens: useTokenStore.getState().rawTokens,
             syncMeta,
             commitMessage: userCommitMsg,
           }),
@@ -858,11 +919,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
               <GitCommit className="w-3.5 h-3.5" />
             )}
             <span>{isGitConfigured ? "Push" : "Commit"}</span>
-            {isDirty && (diffSummary.totalAdded + diffSummary.totalModified + diffSummary.totalDeleted > 0) && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20 text-primary-foreground font-semibold">
-                {diffSummary.totalAdded + diffSummary.totalModified + diffSummary.totalDeleted}
-              </span>
-            )}
           </Button>
 
           {/* Branch Pill Dropdown - Native branches + Git remote branches */}

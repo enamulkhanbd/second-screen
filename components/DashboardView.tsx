@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
 import {
@@ -29,29 +30,47 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreateProjectModal } from "@/components/CreateProjectModal";
+import { useShallow } from "zustand/react/shallow";
+
+const CreateProjectModal = dynamic(
+  () => import("@/components/CreateProjectModal").then((module) => module.CreateProjectModal),
+  { ssr: false }
+);
 
 export const DashboardView: React.FC = () => {
   const {
     currentOrg,
-    userOrgs,
     orgProjects,
     currentProject,
     setCurrentProject,
-    resolvedTokens,
-    rawTokens,
-    themeGroups,
-    branches,
-    releases,
     userActivities,
     setSidebarTab,
     setMembersSubTab,
     currentUser,
     getCurrentUserRole,
     addToast,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((state) => ({
+      currentOrg: state.currentOrg,
+      orgProjects: state.orgProjects,
+      currentProject: state.currentProject,
+      setCurrentProject: state.setCurrentProject,
+      userActivities: state.userActivities,
+      setSidebarTab: state.setSidebarTab,
+      setMembersSubTab: state.setMembersSubTab,
+      currentUser: state.currentUser,
+      getCurrentUserRole: state.getCurrentUserRole,
+      addToast: state.addToast,
+    }))
+  );
 
   const [showCreateProj, setShowCreateProj] = useState(false);
+  const [hasOpenedCreateProj, setHasOpenedCreateProj] = useState(false);
+
+  const handleOpenCreateProject = () => {
+    setHasOpenedCreateProj(true);
+    setShowCreateProj(true);
+  };
 
   const userRole = getCurrentUserRole();
   const isOwner = currentOrg?.ownerUid === currentUser?.uid || userRole === "owner";
@@ -177,7 +196,7 @@ export const DashboardView: React.FC = () => {
               </Button>
 
               <Button
-                onClick={() => setShowCreateProj(true)}
+                onClick={handleOpenCreateProject}
                 size="sm"
                 className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer"
               >
@@ -209,7 +228,7 @@ export const DashboardView: React.FC = () => {
                   Create your first design tokens project for {orgName} to get started.
                 </p>
                 <Button
-                  onClick={() => setShowCreateProj(true)}
+                  onClick={handleOpenCreateProject}
                   size="sm"
                   className="mt-4 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer"
                 >
@@ -524,10 +543,12 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Create Project Modal */}
-      <CreateProjectModal
-        isOpen={showCreateProj}
-        onClose={() => setShowCreateProj(false)}
-      />
+      {hasOpenedCreateProj && (
+        <CreateProjectModal
+          isOpen={showCreateProj}
+          onClose={() => setShowCreateProj(false)}
+        />
+      )}
     </div>
   );
 };

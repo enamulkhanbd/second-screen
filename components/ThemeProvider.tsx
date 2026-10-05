@@ -3,23 +3,30 @@
 import { useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { getContrastTextColor, hexToRgb, rgbToHsl, normalizeHexColor } from "@/utils/colorPalettes";
+import { useShallow } from "zustand/react/shallow";
 
 /**
  * Client component that syncs the Zustand themeMode state
  * with the `dark` class on <html>, enabling Tailwind dark mode.
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { themeMode, currentOrg, sidebarTab } = useTokenStore();
+  const { themeMode, isWorkspaces, currentOrgColor } = useTokenStore(
+    useShallow((state) => ({
+      themeMode: state.themeMode,
+      isWorkspaces: state.sidebarTab === "workspaces",
+      currentOrgColor: state.currentOrg?.color,
+    }))
+  );
 
   useEffect(() => {
     const root = document.documentElement;
 
     const applyTheme = () => {
-      const isWorkspaces =
-        sidebarTab === "workspaces" ||
+      const forceDark =
+        isWorkspaces ||
         (typeof window !== "undefined" && window.location.pathname === "/");
       const isDark =
-        isWorkspaces
+        forceDark
           ? true
           : themeMode === "dark"
           ? true
@@ -42,20 +49,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       mediaQuery.addEventListener("change", handler);
       return () => mediaQuery.removeEventListener("change", handler);
     }
-  }, [themeMode, sidebarTab]);
+  }, [themeMode, isWorkspaces]);
 
   useEffect(() => {
     const root = document.documentElement;
 
     // On Workspaces list view, always clear organization color overrides to preserve apps default theme
-    if (sidebarTab === "workspaces") {
+    if (isWorkspaces) {
       root.style.removeProperty("--primary");
       root.style.removeProperty("--primary-foreground");
       root.style.removeProperty("--ring");
       return;
     }
 
-    const rawColor = currentOrg?.color?.trim().toLowerCase();
+    const rawColor = currentOrgColor?.trim().toLowerCase();
     // If color is default brand (#171717, legacy #6366f1, or legacy #2e9401/#2d9401) or not customized, remove inline override so globals.css controls both light & dark mode!
     const isDefaultBrand =
       !rawColor ||
@@ -80,7 +87,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--primary", `${hsl.h * 360} ${hsl.s * 100}% ${hsl.l * 100}%`);
     root.style.setProperty("--primary-foreground", getContrastTextColor(color) === "#ffffff" ? "0 0% 100%" : "0 0% 9%");
     root.style.setProperty("--ring", `${hsl.h * 360} ${hsl.s * 100}% ${hsl.l * 100}%`);
-  }, [currentOrg?.id, currentOrg?.color]);
+  }, [currentOrgColor, isWorkspaces]);
 
   return <>{children}</>;
 }

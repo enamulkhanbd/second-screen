@@ -371,7 +371,7 @@ interface TokenStoreState {
   // Actions
   initializeFromStorage: () => Promise<void> | void;
   fetchLiveTokens: (customCreds?: GitCredentials, options?: { force?: boolean }) => Promise<boolean>;
-  setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta) => void;
+  setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta, options?: { persist?: boolean }) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
   updateSingleToken: (path: string[], newValue: any) => void;
@@ -584,6 +584,18 @@ function getInitialRouteContext(): {
     }
   } catch {}
   return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+}
+
+function yieldToNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    let timeoutId: number;
+    const finish = () => {
+      window.clearTimeout(timeoutId);
+      resolve();
+    };
+    timeoutId = window.setTimeout(finish, 100);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(finish));
+  });
 }
 
 export const useTokenStore = create<TokenStoreState>((set, get) => {
@@ -1544,13 +1556,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // Hydrate Tokens & Themes
       if (initialTokens && Object.keys(initialTokens).length > 0) {
-        get().setRawTokens(initialTokens);
+        get().setRawTokens(initialTokens, undefined, { persist: false });
         set({
           themeGroups: initialThemes,
           activeThemeGroupId: activeThemeGroup?.id || "",
           activeThemeOptionId,
           activeThemeOptionIds,
-          originalTokens: JSON.parse(JSON.stringify(initialTokens)),
           isDirty: false,
         });
       } else {
@@ -1798,6 +1809,8 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
                 if (isSyncSettings) localStorage.removeItem("ts_active_project_id");
                 if (activeProj) {
+                  set({ isLoadingTenant: false, isLoadingProjectData: true });
+                  await yieldToNextPaint();
                   get().setCurrentProject(activeProj);
                 } else if (!routeContext.isProjectRoute) {
                   set({
@@ -1882,7 +1895,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           projects = await getOrgProjectSummaries(activeOrg.id);
         }
 
-        set({ orgProjects: projects, isLoadingProjects: false });
+        set({ orgProjects: projects, isLoadingProjects: true });
         const isSyncSettings = get().sidebarTab === "project-settings" && get().projectSettingsTab === "sync";
         const savedActiveProjectId = typeof window !== "undefined" ? localStorage.getItem("ts_active_project_id") : null;
         const savedSyncTargetId = typeof window !== "undefined"
@@ -1920,7 +1933,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         }
 
         if (activeProj) {
-          get().setCurrentProject(activeProj);
+          const isAlreadyActive = get().currentProject === activeProj;
+          if (!isAlreadyActive) {
+            set({ isLoadingTenant: false, isLoadingProjectData: true });
+            await yieldToNextPaint();
+            get().setCurrentProject(activeProj);
+          }
           const activeCreds = get().credentials;
           if (
             activeProj.rawTokens !== undefined &&
@@ -1936,6 +1954,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           set({
             currentProject: null,
             isLoadingProjectData: false,
+            isLoadingProjects: false,
             sidebarTab: getSidebarTabWithoutProject(),
           });
         }
@@ -4427,7 +4446,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  setRawTokens: (doc, meta) => {
+  setRawTokens: (doc, meta, options) => {
     const { activeSet, activeThemeGroupId } = get();
     const canonical = canonicalizeTokenDocument(doc);
     const groups = extractThemeGroups(canonical);
@@ -4442,7 +4461,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     // Synchronize loaded tokens with the active project and branch.
     const { currentOrg, currentProject, branches, activeBranch, credentials } = get();
-    if (currentOrg && currentProject) {
+    if (options?.persist !== false && currentOrg && currentProject) {
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const effectiveBranch = credentials.branch || activeBranch || "main";
       const hasBranch = projectBranches.some((b) => b.name === effectiveBranch);

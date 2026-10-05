@@ -6,26 +6,62 @@ import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
-import { ThemeMatrix } from "@/components/ThemeMatrix";
-import { TokensWorkspace } from "@/components/TokensWorkspace";
-import { CredentialsModal } from "@/components/CredentialsModal";
-import { WorkspacesProjectsView } from "@/components/WorkspacesProjectsView";
-import { WorkspacesListView } from "@/components/WorkspacesListView";
 import { DashboardView } from "@/components/DashboardView";
-import { VariablesView } from "@/components/VariablesView";
-import { ProjectSettingsView } from "@/components/ProjectSettingsView";
-import { OnboardingWizardModal } from "@/components/OnboardingWizardModal";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
-import { AuthGatewayView } from "@/components/AuthGatewayView";
 import { ToastContainer } from "@/components/Toast";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { WorkspaceSkeleton, type WorkspaceSkeletonVariant } from "@/components/WorkspaceSkeleton";
+import { useShallow } from "zustand/react/shallow";
 
 function WorkspaceLoading({ variant = "form" }: { variant?: WorkspaceSkeletonVariant }) {
   return <WorkspaceSkeleton variant={variant} />;
 }
+
+const TokensWorkspace = dynamic(
+  () => import("@/components/TokensWorkspace").then((module) => module.TokensWorkspace),
+  { ssr: false, loading: () => <WorkspaceLoading variant="table" /> }
+);
+const ThemeMatrix = dynamic(
+  () => import("@/components/ThemeMatrix").then((module) => module.ThemeMatrix),
+  { ssr: false, loading: () => <WorkspaceLoading variant="table" /> }
+);
+const WorkspacesProjectsView = dynamic(
+  () => import("@/components/WorkspacesProjectsView").then((module) => module.WorkspacesProjectsView),
+  { ssr: false, loading: () => <WorkspaceLoading variant="cards" /> }
+);
+const WorkspacesListView = dynamic(
+  () => import("@/components/WorkspacesListView").then((module) => module.WorkspacesListView),
+  { ssr: false, loading: () => <WorkspaceLoading variant="list" /> }
+);
+const VariablesView = dynamic(
+  () => import("@/components/VariablesView").then((module) => module.VariablesView),
+  { ssr: false, loading: () => <WorkspaceLoading variant="table" /> }
+);
+const ProjectSettingsView = dynamic(
+  () => import("@/components/ProjectSettingsView").then((module) => module.ProjectSettingsView),
+  { ssr: false, loading: () => <WorkspaceLoading /> }
+);
+const OnboardingWizardModal = dynamic(
+  () => import("@/components/OnboardingWizardModal").then((module) => module.OnboardingWizardModal),
+  { ssr: false }
+);
+const CredentialsModal = dynamic(
+  () => import("@/components/CredentialsModal").then((module) => module.CredentialsModal),
+  { ssr: false }
+);
+const AuthGatewayView = dynamic(
+  () => import("@/components/AuthGatewayView").then((module) => module.AuthGatewayView),
+  {
+    ssr: false,
+    loading: () => (
+      <main className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <span className="text-xs text-muted-foreground">Loading sign in...</span>
+      </main>
+    ),
+  }
+);
 
 const ReleasesWorkspace = dynamic(
   () => import("@/components/ReleasesWorkspace").then((module) => module.ReleasesWorkspace),
@@ -158,10 +194,7 @@ export default function Home() {
   const [isContextNavOpen, setIsContextNavOpen] = useState(false);
   const {
     initializeFromStorage,
-    viewMode,
     sidebarTab,
-    credentials,
-    rawTokens,
     currentUser,
     currentOrg,
     currentProject,
@@ -177,7 +210,27 @@ export default function Home() {
     setCurrentOrg,
     setCurrentProject,
     setSidebarTab,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((state) => ({
+      initializeFromStorage: state.initializeFromStorage,
+      sidebarTab: state.sidebarTab,
+      currentUser: state.currentUser,
+      currentOrg: state.currentOrg,
+      currentProject: state.currentProject,
+      syncTargetProject: state.syncTargetProject,
+      setSyncTargetProject: state.setSyncTargetProject,
+      setProjectSettingsTab: state.setProjectSettingsTab,
+      isLoadingTenant: state.isLoadingTenant,
+      isLoadingProjects: state.isLoadingProjects,
+      isLoadingProjectData: state.isLoadingProjectData,
+      userOrgs: state.userOrgs,
+      orgProjects: state.orgProjects,
+      pendingInvitePrompt: state.pendingInvitePrompt,
+      setCurrentOrg: state.setCurrentOrg,
+      setCurrentProject: state.setCurrentProject,
+      setSidebarTab: state.setSidebarTab,
+    }))
+  );
 
   const navigateToWorkspaceTab = (tab: WorkspaceNavigationTab) => {
     const targetPath = currentOrg
@@ -422,10 +475,6 @@ export default function Home() {
     setIsPrimaryNavOpen(false);
     setIsContextNavOpen(false);
   }, [sidebarTab]);
-
-  const hasTokens = Object.keys(rawTokens).length > 0;
-  const isGitConnected = Boolean(credentials.owner && credentials.repo);
-  const isConfigured = Boolean(currentUser && (hasTokens || isGitConnected));
 
   const showOnboardingWizard = Boolean(
     currentUser &&
