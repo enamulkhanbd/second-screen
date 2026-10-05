@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Organization } from "@/types/tenant";
-import { getOrgProjectSummaries } from "@/services/organizationService";
+import { getOrgProjectCounts } from "@/services/organizationService";
 import { Plus, Folder, Users, Building2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,32 +50,15 @@ export const WorkspacesListView: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectCounts, setProjectCounts] = useState<Record<string, number>>({});
 
-  // Dynamically load real project counts for all user organizations
+  // One lightweight query for all counts instead of loading full project summaries per workspace
   useEffect(() => {
     if (userOrgs.length === 0) return;
     let isCancelled = false;
 
-    userOrgs.forEach(async (org) => {
-      try {
-        if (typeof window !== "undefined") {
-          const cached = localStorage.getItem(`ts_cached_org_projects_${org.id}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && !isCancelled) {
-              setProjectCounts((prev) => ({ ...prev, [org.id]: parsed.length }));
-            }
-          }
-        }
-        const projects = await getOrgProjectSummaries(org.id);
-        if (!isCancelled && projects) {
-          setProjectCounts((prev) => ({ ...prev, [org.id]: projects.length }));
-          if (typeof window !== "undefined") {
-            try {
-              localStorage.setItem(`ts_cached_org_projects_${org.id}`, JSON.stringify(projects));
-            } catch {}
-          }
-        }
-      } catch {}
+    getOrgProjectCounts(userOrgs.map((org) => org.id)).then((counts) => {
+      if (!isCancelled && Object.keys(counts).length > 0) {
+        setProjectCounts(counts);
+      }
     });
 
     return () => {

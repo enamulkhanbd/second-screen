@@ -983,6 +983,23 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
 }
 
 /**
+ * Returns project counts per organization in one lightweight query (no summaries or integrations).
+ */
+export async function getOrgProjectCounts(orgIds: string[]): Promise<Record<string, number>> {
+  const ids = Array.from(new Set(orgIds.filter(Boolean)));
+  if (ids.length === 0 || !isSupabaseConfigured) return {};
+  try {
+    const { data, error } = await getClient().from("projects").select("org_id").in("org_id", ids);
+    if (error || !data) return {};
+    const counts: Record<string, number> = Object.fromEntries(ids.map((id) => [id, 0]));
+    for (const row of data as { org_id: string }[]) counts[row.org_id] = (counts[row.org_id] || 0) + 1;
+    return counts;
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Dynamically fetches all projects under an Organization from Supabase with in-flight deduplication
  */
 export async function getOrgProjects(orgId: string): Promise<Project[]> {
