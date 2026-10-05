@@ -223,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl" align="start" side="right" sideOffset={8}>
+              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl overflow-x-hidden" align="start" side="right" sideOffset={8}>
                 {/* 1. RECENT PROJECTS SECTION */}
                 <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
                   <span>RECENT PROJECTS</span>
@@ -242,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   )}
                 </div>
 
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 overflow-x-hidden">
                   {orgProjects.map((proj) => {
                     const isSelected = proj.id === sidebarProject?.id;
                     return (
@@ -286,7 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   ) : null}
                 </div>
 
-                <DropdownMenuSeparator className="my-1.5" />
+                <DropdownMenuSeparator className="my-1.5 mx-0" />
 
                 {/* 2. CURRENT WORKSPACE SECTION */}
                 <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
@@ -343,7 +343,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   )}
                   {currentOrg && (
                     <>
-                      <DropdownMenuSeparator className="my-1.5" />
+                      <DropdownMenuSeparator className="my-1.5 mx-0" />
                       <DropdownMenuItem
                         onClick={() => {
                           setCurrentProject(null);
@@ -419,7 +419,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 </button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl" align="start">
+              <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl overflow-x-hidden" align="start">
                 {/* 1. RECENT PROJECTS SECTION */}
                 <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
                   <span>RECENT PROJECTS</span>
@@ -438,7 +438,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   )}
                 </div>
 
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 overflow-x-hidden">
                   {orgProjects.map((proj) => {
                     const isSelected = proj.id === sidebarProject?.id;
                     return (
@@ -482,7 +482,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   ) : null}
                 </div>
 
-                <DropdownMenuSeparator className="my-1.5" />
+                <DropdownMenuSeparator className="my-1.5 mx-0" />
 
                 {/* 2. CURRENT WORKSPACE SECTION */}
                 <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
@@ -501,7 +501,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   </button>
                 </div>
 
-                <div className="space-y-0.5 max-h-[180px] overflow-y-auto">
+                <div className="space-y-0.5 max-h-[180px] overflow-x-hidden overflow-y-auto">
                   {userOrgs.map((org) => {
                     const isSelected = currentOrg?.id === org.id;
                     return (
@@ -539,7 +539,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   )}
                   {currentOrg && (
                     <>
-                      <DropdownMenuSeparator className="my-1.5" />
+                      <DropdownMenuSeparator className="my-1.5 mx-0" />
                       <DropdownMenuItem
                         onClick={() => {
                           setCurrentProject(null);
