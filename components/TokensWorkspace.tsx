@@ -57,8 +57,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { buildTokenGroupTree, TokenGroupNode, getActiveThemeSets } from "@/utils/themeHelpers";
 import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
 import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
@@ -1596,11 +1605,13 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
   };
 
   return (
-    <tr
-      className={`border-b border-border/30 hover:bg-muted/20 transition-colors group ${
-        isSelected ? "bg-primary/5" : ""
-      }`}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <tr
+          className={`border-b border-border/30 hover:bg-muted/20 transition-colors group cursor-default ${
+            isSelected ? "bg-primary/5" : ""
+          }`}
+        >
       {/* 1. Selection Checkbox */}
       <td className="w-10 px-3 py-2.5 text-center border-r border-border/30 align-middle">
         <input
@@ -1749,12 +1760,13 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
               <MoreVertical className="w-3.5 h-3.5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 text-xs">
+          <DropdownMenuContent align="end" className="w-52">
             {isEditable && (
               <>
-                <DropdownMenuItem onClick={onEdit} className="gap-2">
-                  <Edit2 className="w-3.5 h-3.5 text-primary" />
-                  <span className="font-semibold">Edit token</span>
+                <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
+                  <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Edit token</span>
+                  <DropdownMenuShortcut>⌘E</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
@@ -1763,26 +1775,30 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
                       onDuplicate(newName.trim());
                     }
                   }}
-                  className="gap-2"
+                  className="cursor-pointer"
                 >
-                  <CopyPlus className="w-3.5 h-3.5 text-emerald-500" />
+                  <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   <span>Duplicate token</span>
+                  <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
               </>
             )}
             <DropdownMenuItem
               onClick={() => handleCopy(`var(--${token.name.replace(/\./g, "-")})`, "CSS Variable")}
-              className="gap-2"
+              className="cursor-pointer"
             >
-              <Copy className="w-3.5 h-3.5 text-blue-500" />
+              <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Copy CSS Var</span>
+              <DropdownMenuShortcut>⌥C</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleCopy(token.name, "Token Name")}
-              className="gap-2"
+              className="cursor-pointer"
             >
-              <Copy className="w-3.5 h-3.5 text-amber-500" />
+              <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Copy token name</span>
+              <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
             </DropdownMenuItem>
             {isEditable && (
               <>
@@ -1793,10 +1809,11 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
                       onDelete();
                     }
                   }}
-                  className="gap-2 text-destructive focus:text-destructive"
+                  className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
                   <span>Delete token</span>
+                  <DropdownMenuShortcut className="text-destructive">⌫</DropdownMenuShortcut>
                 </DropdownMenuItem>
               </>
             )}
@@ -1804,6 +1821,66 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
         </DropdownMenu>
       </td>
     </tr>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        {isEditable && (
+          <>
+            <ContextMenuItem onClick={onEdit} className="cursor-pointer">
+              <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <span>Edit token</span>
+              <ContextMenuShortcut>⌘E</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
+                if (newName && newName.trim()) {
+                  onDuplicate(newName.trim());
+                }
+              }}
+              className="cursor-pointer"
+            >
+              <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <span>Duplicate token</span>
+              <ContextMenuShortcut>⌘D</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
+        <ContextMenuItem
+          onClick={() => handleCopy(`var(--${token.name.replace(/\./g, "-")})`, "CSS Variable")}
+          className="cursor-pointer"
+        >
+          <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+          <span>Copy CSS Var</span>
+          <ContextMenuShortcut>⌥C</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => handleCopy(token.name, "Token Name")}
+          className="cursor-pointer"
+        >
+          <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+          <span>Copy token name</span>
+          <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+        </ContextMenuItem>
+        {isEditable && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
+                  onDelete();
+                }
+              }}
+              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
+              <span>Delete token</span>
+              <ContextMenuShortcut className="text-destructive">⌫</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
 

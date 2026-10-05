@@ -9,7 +9,7 @@ import {
   ColorSpaceOption,
   CasingOption,
 } from "@/types/exports";
-import { readDeprecation, buildDeprecationNode } from "@/utils/tokenDeprecation";
+import { readDeprecation, buildDeprecationNode } from "./tokenDeprecation";
 
 // ============================================================================
 // Helper Utilities
