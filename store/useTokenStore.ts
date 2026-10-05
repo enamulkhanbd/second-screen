@@ -1863,7 +1863,6 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             sidebarTab: getSidebarTabWithoutProject(),
           });
         }
-        get().loadInvitations(activeOrg.id);
       } else {
         set({ isLoadingProjects: false });
       }
