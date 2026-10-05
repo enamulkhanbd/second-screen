@@ -1,0 +1,72 @@
+{
+  "chip": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Chip unified focus ring halo."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Chip unified focus ring border."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Chip background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Chip background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Chip background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Chip background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Chip border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Chip border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Chip border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Chip foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Chip secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Chip text color — disabled state."
+      }
+    }
+  }
+}

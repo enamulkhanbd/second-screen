@@ -1,0 +1,60 @@
+{
+  "separator": {
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Separator background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Separator background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Separator background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Separator background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Separator border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Separator border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Separator border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Separator foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Separator secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Separator text color — disabled state."
+      }
+    }
+  }
+}

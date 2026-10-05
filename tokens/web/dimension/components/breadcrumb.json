@@ -1,0 +1,101 @@
+{
+  "breadcrumb": {
+    "height": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x32}",
+        "$description": "Breadcrumb small height (32px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x40}",
+        "$description": "Breadcrumb medium height (40px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x48}",
+        "$description": "Breadcrumb large height (48px)"
+      }
+    },
+    "padding-x": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Breadcrumb horizontal padding small (12px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Breadcrumb horizontal padding medium (16px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.lg}",
+        "$description": "Breadcrumb horizontal padding large (24px)"
+      }
+    },
+    "padding-y": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.xs}",
+        "$description": "Breadcrumb vertical padding small (8px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Breadcrumb vertical padding medium (12px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Breadcrumb vertical padding large (16px)"
+      }
+    },
+    "gap": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x6}",
+        "$description": "Breadcrumb internal gap small (6px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x8}",
+        "$description": "Breadcrumb internal gap medium (8px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x10}",
+        "$description": "Breadcrumb internal gap large (10px)"
+      }
+    },
+    "radius": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{radius.md}",
+        "$description": "Breadcrumb default corner radius (6px)"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "{radius.sm}",
+        "$description": "Breadcrumb small corner radius (4px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{radius.lg}",
+        "$description": "Breadcrumb large corner radius (8px)"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "{radius.full}",
+        "$description": "Breadcrumb full pill radius (999px)"
+      }
+    },
+    "border-width": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{border.sm}",
+        "$description": "Breadcrumb standard border width (1px)"
+      }
+    }
+  }
+}

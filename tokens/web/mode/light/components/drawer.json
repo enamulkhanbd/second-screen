@@ -1,0 +1,87 @@
+{
+  "drawer": {
+    "surface": {
+      "$type": "color",
+      "$value": "{elevation.surface.level3}",
+      "$description": "Drawer surface background color."
+    },
+    "backdrop": {
+      "bg": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Drawer backdrop scrim color."
+      },
+      "opacity": {
+        "$type": "opacity",
+        "$value": "{opacity.overlay}",
+        "$description": "Drawer backdrop scrim opacity."
+      }
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.lg}",
+      "$description": "Drawer container elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.modal}",
+      "$description": "Drawer container z-index layer."
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Drawer background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Drawer background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Drawer background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Drawer background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Drawer border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Drawer border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Drawer border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Drawer foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Drawer secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Drawer text color — disabled state."
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "time-picker": {
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Time Picker background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Time Picker background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Time Picker background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Time Picker background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Time Picker border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Time Picker border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Time Picker border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Time Picker foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Time Picker secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Time Picker text color — disabled state."
+      }
+    }
+  }
+}

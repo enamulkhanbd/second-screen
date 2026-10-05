@@ -1,0 +1,101 @@
+{
+  "pattern": {
+    "height": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x32}",
+        "$description": "Pattern small height (32px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x40}",
+        "$description": "Pattern medium height (40px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x48}",
+        "$description": "Pattern large height (48px)"
+      }
+    },
+    "padding-x": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Pattern horizontal padding small (12px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Pattern horizontal padding medium (16px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.lg}",
+        "$description": "Pattern horizontal padding large (24px)"
+      }
+    },
+    "padding-y": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.xs}",
+        "$description": "Pattern vertical padding small (8px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Pattern vertical padding medium (12px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Pattern vertical padding large (16px)"
+      }
+    },
+    "gap": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x6}",
+        "$description": "Pattern internal gap small (6px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x8}",
+        "$description": "Pattern internal gap medium (8px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x10}",
+        "$description": "Pattern internal gap large (10px)"
+      }
+    },
+    "radius": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{radius.md}",
+        "$description": "Pattern default corner radius (6px)"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "{radius.sm}",
+        "$description": "Pattern small corner radius (4px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{radius.lg}",
+        "$description": "Pattern large corner radius (8px)"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "{radius.full}",
+        "$description": "Pattern full pill radius (999px)"
+      }
+    },
+    "border-width": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{border.sm}",
+        "$description": "Pattern standard border width (1px)"
+      }
+    }
+  }
+}

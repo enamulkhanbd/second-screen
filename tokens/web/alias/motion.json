@@ -1,0 +1,43 @@
+{
+  "motion": {
+    "duration": {
+      "fast": {
+        "$type": "duration",
+        "$value": "100ms",
+        "$description": "Fast transitions for micro-interactions, icons, and state toggles (100ms)"
+      },
+      "moderate": {
+        "$type": "duration",
+        "$value": "200ms",
+        "$description": "Standard transitions for dropdowns, tooltips, and small surfaces (200ms)"
+      },
+      "slow": {
+        "$type": "duration",
+        "$value": "350ms",
+        "$description": "Deliberate movement for expand/collapse, drawers, and sheets (350ms)"
+      },
+      "deliberate": {
+        "$type": "duration",
+        "$value": "500ms",
+        "$description": "Complex choreographies, full-screen dialogs, and page transitions (500ms)"
+      }
+    },
+    "easing": {
+      "standard": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.2, 0, 0, 1)",
+        "$description": "Standard ease for elements moving within the screen"
+      },
+      "enter": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0, 0, 0.2, 1)",
+        "$description": "Deceleration curve for elements entering the screen"
+      },
+      "exit": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.4, 0, 1, 1)",
+        "$description": "Acceleration curve for elements exiting the screen"
+      }
+    }
+  }
+}

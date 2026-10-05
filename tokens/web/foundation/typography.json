@@ -1,0 +1,43 @@
+{
+  "tracking": {
+    "normal": {
+      "$type": "letterSpacing",
+      "$value": "0%",
+      "$description": "Default tracking primitive (0%)"
+    },
+    "wide": {
+      "$type": "letterSpacing",
+      "$value": "2%",
+      "$description": "Wide tracking primitive (2% / 0.02em)"
+    }
+  },
+  "leading": {
+    "tight": {
+      "$type": "lineHeights",
+      "$value": "125%",
+      "$description": "1.25 ratio line-height primitive"
+    },
+    "normal": {
+      "$type": "lineHeights",
+      "$value": "150%",
+      "$description": "1.5 ratio line-height primitive"
+    }
+  },
+  "font-weights": {
+    "400": {
+      "$type": "fontWeights",
+      "$value": "Regular",
+      "$description": "Normal regular font weight primitive (400)"
+    },
+    "500": {
+      "$type": "fontWeights",
+      "$value": "Medium",
+      "$description": "Medium font weight primitive (500)"
+    },
+    "600": {
+      "$type": "fontWeights",
+      "$value": "Semi Bold",
+      "$description": "Semi-bold font weight primitive (600)"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "button-group": {
+    "height": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x32}",
+        "$description": "Button Group small height (32px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x40}",
+        "$description": "Button Group medium height (40px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x48}",
+        "$description": "Button Group large height (48px)"
+      }
+    },
+    "padding-x": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Button Group horizontal padding small (12px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Button Group horizontal padding medium (16px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.lg}",
+        "$description": "Button Group horizontal padding large (24px)"
+      }
+    },
+    "padding-y": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.xs}",
+        "$description": "Button Group vertical padding small (8px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Button Group vertical padding medium (12px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Button Group vertical padding large (16px)"
+      }
+    },
+    "gap": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x6}",
+        "$description": "Button Group internal gap small (6px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x8}",
+        "$description": "Button Group internal gap medium (8px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x10}",
+        "$description": "Button Group internal gap large (10px)"
+      }
+    },
+    "radius": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{radius.md}",
+        "$description": "Button Group default corner radius (6px)"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "{radius.sm}",
+        "$description": "Button Group small corner radius (4px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{radius.lg}",
+        "$description": "Button Group large corner radius (8px)"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "{radius.full}",
+        "$description": "Button Group full pill radius (999px)"
+      }
+    },
+    "border-width": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{border.sm}",
+        "$description": "Button Group standard border width (1px)"
+      }
+    }
+  }
+}

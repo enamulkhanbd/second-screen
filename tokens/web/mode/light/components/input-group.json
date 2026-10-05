@@ -1,0 +1,60 @@
+{
+  "input-group": {
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Input Group background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Input Group background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Input Group background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Input Group background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Input Group border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Input Group border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Input Group border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Input Group foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Input Group secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Input Group text color — disabled state."
+      }
+    }
+  }
+}

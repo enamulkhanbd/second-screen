@@ -1,0 +1,101 @@
+{
+  "pagination": {
+    "height": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x32}",
+        "$description": "Pagination small height (32px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x40}",
+        "$description": "Pagination medium height (40px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x48}",
+        "$description": "Pagination large height (48px)"
+      }
+    },
+    "padding-x": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Pagination horizontal padding small (12px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Pagination horizontal padding medium (16px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.lg}",
+        "$description": "Pagination horizontal padding large (24px)"
+      }
+    },
+    "padding-y": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.xs}",
+        "$description": "Pagination vertical padding small (8px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Pagination vertical padding medium (12px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Pagination vertical padding large (16px)"
+      }
+    },
+    "gap": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x6}",
+        "$description": "Pagination internal gap small (6px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x8}",
+        "$description": "Pagination internal gap medium (8px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x10}",
+        "$description": "Pagination internal gap large (10px)"
+      }
+    },
+    "radius": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{radius.md}",
+        "$description": "Pagination default corner radius (6px)"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "{radius.sm}",
+        "$description": "Pagination small corner radius (4px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{radius.lg}",
+        "$description": "Pagination large corner radius (8px)"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "{radius.full}",
+        "$description": "Pagination full pill radius (999px)"
+      }
+    },
+    "border-width": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{border.sm}",
+        "$description": "Pagination standard border width (1px)"
+      }
+    }
+  }
+}

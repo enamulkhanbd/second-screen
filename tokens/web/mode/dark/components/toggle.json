@@ -1,0 +1,72 @@
+{
+  "toggle": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Toggle unified focus ring halo."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Toggle unified focus ring border."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Toggle background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.surface.hover}",
+        "$description": "Toggle background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.checked.bg}",
+        "$description": "Toggle background color — active/checked state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.bg}",
+        "$description": "Toggle background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Toggle border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{interaction.border.selected}",
+        "$description": "Toggle border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.border}",
+        "$description": "Toggle border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Toggle foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Toggle secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Toggle text color — disabled state."
+      }
+    }
+  }
+}

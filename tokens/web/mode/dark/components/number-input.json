@@ -1,0 +1,60 @@
+{
+  "number-input": {
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Number Input background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Number Input background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Number Input background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Number Input background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Number Input border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Number Input border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Number Input border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Number Input foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Number Input secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Number Input text color — disabled state."
+      }
+    }
+  }
+}

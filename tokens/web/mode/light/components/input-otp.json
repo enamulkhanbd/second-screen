@@ -1,0 +1,60 @@
+{
+  "input-otp": {
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Input OTP background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Input OTP background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Input OTP background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Input OTP background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Input OTP border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Input OTP border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Input OTP border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Input OTP foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Input OTP secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Input OTP text color — disabled state."
+      }
+    }
+  }
+}

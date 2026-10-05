@@ -1,0 +1,87 @@
+{
+  "modal": {
+    "surface": {
+      "$type": "color",
+      "$value": "{elevation.surface.level3}",
+      "$description": "Modal surface background color."
+    },
+    "backdrop": {
+      "bg": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Modal backdrop scrim color."
+      },
+      "opacity": {
+        "$type": "opacity",
+        "$value": "{opacity.overlay}",
+        "$description": "Modal backdrop scrim opacity."
+      }
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.lg}",
+      "$description": "Modal container elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.modal}",
+      "$description": "Modal container z-index layer."
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Modal background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Modal background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Modal background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Modal background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Modal border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Modal border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Modal border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Modal foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Modal secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Modal text color — disabled state."
+      }
+    }
+  }
+}

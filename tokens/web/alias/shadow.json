@@ -1,0 +1,844 @@
+{
+  "shadow": {
+    "xs": {
+      "$type": "boxShadow",
+      "$value": [
+        {
+          "color": "{shadow.color.key}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "1",
+          "blur": "3",
+          "spread": "0"
+        },
+        {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "1",
+          "blur": "4",
+          "spread": "1"
+        }
+      ],
+      "$description": "Elevation level 1 - Subtle cards, containers, and items"
+    },
+    "sm": {
+      "$type": "boxShadow",
+      "$value": [
+        {
+          "color": "{shadow.color.subtle}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "1",
+          "blur": "3",
+          "spread": "0"
+        },
+        {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "2",
+          "blur": "7",
+          "spread": "2"
+        }
+      ],
+      "$description": "Elevation level 2 - Hovered cards and tooltips"
+    },
+    "md": {
+      "$type": "boxShadow",
+      "$value": [
+        {
+          "color": "{shadow.color.key}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "1",
+          "blur": "3",
+          "spread": "0"
+        },
+        {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "4",
+          "blur": "8",
+          "spread": "3"
+        }
+      ],
+      "$description": "Elevation level 3 - Dropdowns, menus, and select panels"
+    },
+    "lg": {
+      "$type": "boxShadow",
+      "$value": [
+        {
+          "color": "{shadow.color.key}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "2",
+          "blur": "3",
+          "spread": "0"
+        },
+        {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "6",
+          "blur": "10",
+          "spread": "4"
+        }
+      ],
+      "$description": "Elevation level 4 - Popovers, quick-views, and action bars"
+    },
+    "xl": {
+      "$type": "boxShadow",
+      "$value": [
+        {
+          "color": "{shadow.color.key}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "4",
+          "blur": "4",
+          "spread": "0"
+        },
+        {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "8",
+          "blur": "12",
+          "spread": "6"
+        }
+      ],
+      "$description": "Elevation level 5 - Modals, dialogs, and lightbox overlays"
+    },
+    "corner": {
+      "left": {
+        "xs": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-2",
+            "y": "2",
+            "blur": "4",
+            "spread": "0"
+          }
+        },
+        "sm": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-4",
+            "y": "4",
+            "blur": "6",
+            "spread": "0"
+          }
+        },
+        "md": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-8",
+            "y": "8",
+            "blur": "8",
+            "spread": "0"
+          }
+        },
+        "lg": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-10",
+            "y": "10",
+            "blur": "10",
+            "spread": "0"
+          }
+        },
+        "xl": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-12",
+            "y": "12",
+            "blur": "12",
+            "spread": "0"
+          }
+        }
+      },
+      "right-top": {
+        "xs": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "2",
+            "y": "-2",
+            "blur": "4",
+            "spread": "0"
+          }
+        },
+        "sm": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "4",
+            "y": "-4",
+            "blur": "6",
+            "spread": "0"
+          }
+        },
+        "md": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "8",
+            "y": "-8",
+            "blur": "8",
+            "spread": "0"
+          }
+        },
+        "lg": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "10",
+            "y": "-10",
+            "blur": "10",
+            "spread": "0"
+          }
+        },
+        "xl": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "12",
+            "y": "-12",
+            "blur": "12",
+            "spread": "0"
+          }
+        }
+      },
+      "left-top": {
+        "xs": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-2",
+            "y": "-2",
+            "blur": "4",
+            "spread": "0"
+          }
+        },
+        "sm": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-4",
+            "y": "-4",
+            "blur": "6",
+            "spread": "0"
+          }
+        },
+        "md": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-8",
+            "y": "-8",
+            "blur": "8",
+            "spread": "0"
+          }
+        },
+        "lg": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-10",
+            "y": "-10",
+            "blur": "10",
+            "spread": "0"
+          }
+        },
+        "xl": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "-12",
+            "y": "-12",
+            "blur": "12",
+            "spread": "0"
+          }
+        }
+      },
+      "left-bottom": {
+        "xs": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "2",
+            "y": "2",
+            "blur": "4",
+            "spread": "0"
+          }
+        },
+        "sm": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "4",
+            "y": "4",
+            "blur": "6",
+            "spread": "0"
+          }
+        },
+        "md": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "8",
+            "y": "8",
+            "blur": "8",
+            "spread": "0"
+          }
+        },
+        "lg": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "10",
+            "y": "10",
+            "blur": "10",
+            "spread": "0"
+          }
+        },
+        "xl": {
+          "$type": "boxShadow",
+          "$value": {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "12",
+            "y": "12",
+            "blur": "12",
+            "spread": "0"
+          }
+        }
+      }
+    },
+    "left": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "-2",
+          "y": "0",
+          "blur": "4",
+          "spread": "0"
+        }
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "-4",
+          "y": "0",
+          "blur": "6",
+          "spread": "0"
+        }
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "-8",
+          "y": "0",
+          "blur": "8",
+          "spread": "0"
+        }
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "-10",
+          "y": "0",
+          "blur": "10",
+          "spread": "0"
+        }
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "-12",
+          "y": "0",
+          "blur": "12",
+          "spread": "0"
+        }
+      }
+    },
+    "right": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "2",
+          "y": "0",
+          "blur": "4",
+          "spread": "0"
+        }
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "4",
+          "y": "0",
+          "blur": "6",
+          "spread": "0"
+        }
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "8",
+          "y": "0",
+          "blur": "8",
+          "spread": "0"
+        }
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "10",
+          "y": "0",
+          "blur": "10",
+          "spread": "0"
+        }
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "12",
+          "y": "0",
+          "blur": "12",
+          "spread": "0"
+        }
+      }
+    },
+    "top": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-2",
+          "blur": "4",
+          "spread": "0"
+        }
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-4",
+          "blur": "6",
+          "spread": "0"
+        }
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-8",
+          "blur": "8",
+          "spread": "0"
+        }
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-12",
+          "blur": "12",
+          "spread": "0"
+        }
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-12",
+          "blur": "12",
+          "spread": "0"
+        }
+      }
+    },
+    "bottom": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "2",
+          "blur": "4",
+          "spread": "0"
+        }
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "4",
+          "blur": "6",
+          "spread": "0"
+        }
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "8",
+          "blur": "8",
+          "spread": "0"
+        }
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "10",
+          "blur": "10",
+          "spread": "0"
+        }
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "12",
+          "blur": "12",
+          "spread": "0"
+        }
+      }
+    },
+    "elevate": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "2",
+            "spread": "0"
+          },
+          {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "3",
+            "spread": "1"
+          }
+        ]
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "2",
+            "spread": "0"
+          },
+          {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "4",
+            "spread": "2"
+          }
+        ]
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "3",
+            "spread": "0"
+          },
+          {
+            "color": "{shadow.color.ambient}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "4",
+            "spread": "3"
+          }
+        ]
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.elevated}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "4",
+            "spread": "0"
+          },
+          {
+            "color": "{shadow.color.key}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "8",
+            "spread": "4"
+          }
+        ]
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "4",
+            "spread": "0"
+          },
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "0",
+            "blur": "10",
+            "spread": "6"
+          }
+        ]
+      }
+    },
+    "reverse": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-2",
+          "blur": "4",
+          "spread": "0"
+        }
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-4",
+          "blur": "6",
+          "spread": "0"
+        }
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-8",
+          "blur": "8",
+          "spread": "0"
+        }
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-10",
+          "blur": "10",
+          "spread": "0"
+        }
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.ambient}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "-12",
+          "blur": "12",
+          "spread": "6"
+        }
+      }
+    },
+    "floating": {
+      "xs": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.key}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "3",
+            "blur": "6",
+            "spread": "-3"
+          },
+          {
+            "color": "{shadow.color.floating}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "4",
+            "blur": "12",
+            "spread": "0"
+          }
+        ],
+        "$description": "Floating surface extra-small depth"
+      },
+      "sm": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.key}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "6",
+            "blur": "12",
+            "spread": "-3"
+          },
+          {
+            "color": "{shadow.color.floating}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "8",
+            "blur": "24",
+            "spread": "0"
+          }
+        ],
+        "$description": "Floating surface small depth"
+      },
+      "md": {
+        "$type": "boxShadow",
+        "$value": [
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "8",
+            "blur": "16",
+            "spread": "-4"
+          },
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "4",
+            "blur": "32",
+            "spread": "-4"
+          },
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "24",
+            "blur": "48",
+            "spread": "-12"
+          },
+          {
+            "color": "{shadow.color.subtle}",
+            "type": "dropShadow",
+            "x": "0",
+            "y": "48",
+            "blur": "96",
+            "spread": "-24"
+          }
+        ],
+        "$description": "Floating surface medium depth"
+      },
+      "lg": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.deep}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "40",
+          "blur": "80",
+          "spread": "0"
+        },
+        "$description": "Floating surface large depth"
+      },
+      "xl": {
+        "$type": "boxShadow",
+        "$value": {
+          "color": "{shadow.color.maximum}",
+          "type": "dropShadow",
+          "x": "0",
+          "y": "56",
+          "blur": "112",
+          "spread": "0"
+        },
+        "$description": "Floating surface extra-large depth"
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "pagination": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Pagination button focus ring outline."
+      },
+      "border": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.border}",
+        "$description": "Pagination button focus ring border."
+      }
+    },
+    "selected": {
+      "bg": {
+        "$type": "color",
+        "$value": "{interaction.primary.default}",
+        "$description": "Selected page button background fill."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Selected page button text color."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{interaction.primary.default}",
+        "$description": "Selected page button border color."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Pagination background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Pagination background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Pagination background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Pagination background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Pagination border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Pagination border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Pagination border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Pagination foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Pagination secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Pagination text color — disabled state."
+      }
+    }
+  }
+}

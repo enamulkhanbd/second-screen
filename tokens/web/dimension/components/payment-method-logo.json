@@ -1,0 +1,101 @@
+{
+  "payment-method-logo": {
+    "height": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x32}",
+        "$description": "Payment Method Logo small height (32px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x40}",
+        "$description": "Payment Method Logo medium height (40px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x48}",
+        "$description": "Payment Method Logo large height (48px)"
+      }
+    },
+    "padding-x": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Payment Method Logo horizontal padding small (12px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Payment Method Logo horizontal padding medium (16px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.lg}",
+        "$description": "Payment Method Logo horizontal padding large (24px)"
+      }
+    },
+    "padding-y": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{padding.xs}",
+        "$description": "Payment Method Logo vertical padding small (8px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{padding.sm}",
+        "$description": "Payment Method Logo vertical padding medium (12px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{padding.md}",
+        "$description": "Payment Method Logo vertical padding large (16px)"
+      }
+    },
+    "gap": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "{units.x6}",
+        "$description": "Payment Method Logo internal gap small (6px)"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "{units.x8}",
+        "$description": "Payment Method Logo internal gap medium (8px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{units.x10}",
+        "$description": "Payment Method Logo internal gap large (10px)"
+      }
+    },
+    "radius": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{radius.md}",
+        "$description": "Payment Method Logo default corner radius (6px)"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "{radius.sm}",
+        "$description": "Payment Method Logo small corner radius (4px)"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "{radius.lg}",
+        "$description": "Payment Method Logo large corner radius (8px)"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "{radius.full}",
+        "$description": "Payment Method Logo full pill radius (999px)"
+      }
+    },
+    "border-width": {
+      "default": {
+        "$type": "dimension",
+        "$value": "{border.sm}",
+        "$description": "Payment Method Logo standard border width (1px)"
+      }
+    }
+  }
+}

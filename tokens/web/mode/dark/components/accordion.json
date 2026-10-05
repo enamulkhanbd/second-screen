@@ -1,0 +1,96 @@
+{
+  "accordion": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Accordion header focus ring outline."
+      },
+      "border": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.border}",
+        "$description": "Accordion header focus ring border."
+      }
+    },
+    "motion": {
+      "duration": {
+        "$type": "duration",
+        "$value": "{motion.duration.fast}",
+        "$description": "Accordion expand/collapse animation duration."
+      },
+      "easing": {
+        "$type": "cubicBezier",
+        "$value": "{motion.easing.standard}",
+        "$description": "Accordion expand/collapse easing curve."
+      }
+    },
+    "header": {
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.surface.hover}",
+        "$description": "Accordion header hover fill."
+      },
+      "expanded": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Accordion header expanded state fill."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Accordion background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Accordion background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Accordion background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Accordion background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Accordion border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Accordion border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Accordion border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Accordion foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Accordion secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Accordion text color — disabled state."
+      }
+    }
+  }
+}

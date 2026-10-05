@@ -1,0 +1,60 @@
+{
+  "loading": {
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Loading background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Loading background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Loading background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Loading background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Loading border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Loading border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Loading border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Loading foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Loading secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Loading text color — disabled state."
+      }
+    }
+  }
+}

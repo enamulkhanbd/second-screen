@@ -1,0 +1,94 @@
+{
+  "radio": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Radio unified focus ring halo."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Radio unified focus ring border."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Radio background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.surface.hover}",
+        "$description": "Radio background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.checked.bg}",
+        "$description": "Radio background color — active/checked state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.bg}",
+        "$description": "Radio background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Radio border color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.border.hover}",
+        "$description": "Radio border color — hover state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{interaction.border.selected}",
+        "$description": "Radio border color — focus state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.checked.border}",
+        "$description": "Radio border color — active/checked state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.border}",
+        "$description": "Radio border color — disabled state."
+      }
+    },
+    "dot": {
+      "default": {
+        "$type": "color",
+        "$value": "{interaction.checked.fg}",
+        "$description": "Radio center dot color — checked state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Radio center dot color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Radio foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Radio secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Radio text color — disabled state."
+      }
+    }
+  }
+}

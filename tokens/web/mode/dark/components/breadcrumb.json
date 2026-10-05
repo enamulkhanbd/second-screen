@@ -1,0 +1,91 @@
+{
+  "breadcrumb": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Breadcrumb link focus ring outline."
+      },
+      "border": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.border}",
+        "$description": "Breadcrumb link focus ring border."
+      }
+    },
+    "current": {
+      "text": {
+        "$type": "color",
+        "$value": "{neutral.50}",
+        "$description": "Current breadcrumb step text color — active/current step."
+      }
+    },
+    "separator": {
+      "color": {
+        "$type": "color",
+        "$value": "{neutral.500}",
+        "$description": "Breadcrumb divider separator color."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Breadcrumb background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Breadcrumb background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Breadcrumb background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Breadcrumb background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Breadcrumb border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Breadcrumb border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Breadcrumb border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Breadcrumb foreground text color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Breadcrumb foreground text color — hover state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Breadcrumb secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Breadcrumb text color — disabled state."
+      }
+    }
+  }
+}

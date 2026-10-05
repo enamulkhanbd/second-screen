@@ -1,0 +1,44 @@
+{
+  "layer": {
+    "base": {
+      "$type": "number",
+      "$value": "0",
+      "$description": "Base layer for standard page elements (z-index: 0)"
+    },
+    "raised": {
+      "$type": "number",
+      "$value": "10",
+      "$description": "Raised elements like card hover, elevated controls (z-index: 10)"
+    },
+    "dropdown": {
+      "$type": "number",
+      "$value": "1000",
+      "$description": "Context menus, dropdowns, and select options (z-index: 1000)"
+    },
+    "sticky": {
+      "$type": "number",
+      "$value": "1100",
+      "$description": "Sticky navigation bars, fixed headers (z-index: 1100)"
+    },
+    "overlay": {
+      "$type": "number",
+      "$value": "1200",
+      "$description": "Backdrops and dimmers (z-index: 1200)"
+    },
+    "modal": {
+      "$type": "number",
+      "$value": "1300",
+      "$description": "Modals, dialogs, and slide-in drawers (z-index: 1300)"
+    },
+    "popover": {
+      "$type": "number",
+      "$value": "1400",
+      "$description": "Floating popovers and tooltips above modals (z-index: 1400)"
+    },
+    "toast": {
+      "$type": "number",
+      "$value": "1500",
+      "$description": "System-wide notification snackbars and toasts (z-index: 1500)"
+    }
+  }
+}

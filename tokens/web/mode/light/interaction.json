@@ -1,0 +1,227 @@
+{
+  "interaction": {
+    "primary": {
+      "default": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Primary action resting state background color."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{primary.600}",
+        "$description": "Primary action hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{primary.700}",
+        "$description": "Primary action pressed state background color."
+      }
+    },
+    "secondary": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Secondary action resting state background color."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Secondary action hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Secondary action pressed state background color."
+      }
+    },
+    "subtle": {
+      "default": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Subtle / ghost resting state (transparent background)."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Subtle / ghost hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{neutral.200}",
+        "$description": "Subtle / ghost pressed state background color."
+      }
+    },
+    "error": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.error.500}",
+        "$description": "Destructive / error action resting state background color."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.error.600}",
+        "$description": "Destructive / error action hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.error.700}",
+        "$description": "Destructive / error action pressed state background color."
+      }
+    },
+    "success": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.success.500}",
+        "$description": "Success action resting state background color."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.success.600}",
+        "$description": "Success action hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.success.700}",
+        "$description": "Success action pressed state background color."
+      }
+    },
+    "warning": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.warning.500}",
+        "$description": "Warning action resting state background color."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.warning.600}",
+        "$description": "Warning action hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.warning.700}",
+        "$description": "Warning action pressed state background color."
+      }
+    },
+    "info": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.info.500}",
+        "$description": "Info action resting state background color."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.info.600}",
+        "$description": "Info action hover state background color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.info.700}",
+        "$description": "Info action pressed state background color."
+      }
+    },
+    "disabled": {
+      "bg": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Disabled element background fill in light mode."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Disabled element text/icon foreground color in light mode."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{neutral.200}",
+        "$description": "Disabled element border outline color in light mode."
+      }
+    },
+    "surface": {
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Interactive surface hover state background color."
+      },
+      "selected": {
+        "$type": "color",
+        "$value": "{primary.50}",
+        "$description": "Interactive surface selected state background color."
+      }
+    },
+    "border": {
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.200}",
+        "$description": "Interactive surface hover state border outline color."
+      },
+      "selected": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Interactive surface selected state border outline color."
+      }
+    },
+    "selected": {
+      "surface": {
+        "$type": "color",
+        "$value": "{primary.50}",
+        "$description": "Interactive surface selected/active state background color."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{primary.700}",
+        "$description": "Interactive surface selected/active state foreground text color."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Interactive surface selected/active state border outline color."
+      }
+    },
+    "checked": {
+      "bg": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Checked control background fill color (checkbox, radio, switch)."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Checked control border outline color."
+      },
+      "fg": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Checked control mark or indicator foreground color."
+      }
+    },
+    "indeterminate": {
+      "bg": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Indeterminate state control background fill color."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Indeterminate state control border outline color."
+      },
+      "fg": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Indeterminate state control indicator bar foreground color."
+      }
+    },
+    "loading": {
+      "opacity": {
+        "$type": "other",
+        "$value": "{opacity.disabled}",
+        "$description": "Interactive control container opacity in asynchronous loading state."
+      },
+      "spinner": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Interactive control spinner / progress indicator accent color."
+      }
+    }
+  }
+}

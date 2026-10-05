@@ -1,0 +1,109 @@
+{
+  "checkbox": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Checkbox unified focus ring halo."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Checkbox unified focus ring border."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Checkbox background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.surface.hover}",
+        "$description": "Checkbox background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.checked.bg}",
+        "$description": "Checkbox background color — active/checked state."
+      },
+      "indeterminate": {
+        "$type": "color",
+        "$value": "{interaction.indeterminate.bg}",
+        "$description": "Checkbox background color — indeterminate state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.bg}",
+        "$description": "Checkbox background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Checkbox border color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.border.hover}",
+        "$description": "Checkbox border color — hover state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{interaction.border.selected}",
+        "$description": "Checkbox border color — focus state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.checked.border}",
+        "$description": "Checkbox border color — active/checked state."
+      },
+      "indeterminate": {
+        "$type": "color",
+        "$value": "{interaction.indeterminate.border}",
+        "$description": "Checkbox border color — indeterminate state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.border}",
+        "$description": "Checkbox border color — disabled state."
+      }
+    },
+    "mark": {
+      "default": {
+        "$type": "color",
+        "$value": "{interaction.checked.fg}",
+        "$description": "Checkbox check mark color."
+      },
+      "indeterminate": {
+        "$type": "color",
+        "$value": "{interaction.indeterminate.fg}",
+        "$description": "Checkbox indeterminate bar color."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Checkbox mark color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Checkbox foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Checkbox secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Checkbox text color — disabled state."
+      }
+    }
+  }
+}

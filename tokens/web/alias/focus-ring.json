@@ -1,0 +1,25 @@
+{
+  "focus-ring": {
+    "default": {
+      "$type": "boxShadow",
+      "$value": {
+        "color": "{sys.info.500}",
+        "type": "dropShadow",
+        "x": "0",
+        "y": "0",
+        "blur": "0",
+        "spread": "2"
+      },
+      "$description": "Unified system-wide focus indicator ring (2px solid halo)"
+    },
+    "border": {
+      "$type": "border",
+      "$value": {
+        "color": "{sys.info.500}",
+        "width": "2px",
+        "style": "solid"
+      },
+      "$description": "Unified system-wide focus indicator border"
+    }
+  }
+}

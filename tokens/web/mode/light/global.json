@@ -1,0 +1,264 @@
+{
+  "bg": {
+    "default": {
+      "$type": "color",
+      "$value": "{base.50}"
+    },
+    "canvas": {
+      "$type": "color",
+      "$value": "{base.50}",
+      "$deprecated": {
+        "severity": "warning",
+        "message": "We have renamed this tokens - canvas to default",
+        "replacementToken": "{bg.default}",
+        "removeAfter": "v.3.0.0"
+      }
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{neutral.50}"
+    },
+    "focus": {
+      "$type": "color",
+      "$value": "{neutral.100}"
+    },
+    "vis": {
+      "accent": {
+        "$type": "color",
+        "$value": "{primary.100}"
+      },
+      "hint": {
+        "$type": "color",
+        "$value": "{sys.info.100}"
+      },
+      "caution": {
+        "$type": "color",
+        "$value": "{sys.warning.200}"
+      },
+      "critical": {
+        "$type": "color",
+        "$value": "{sys.error.100}"
+      },
+      "supporting": {
+        "$type": "color",
+        "$value": "{complementary.100}"
+      }
+    },
+    "failure": {
+      "$type": "color",
+      "$value": "{sys.error.200}",
+      "$deprecated": {
+        "severity": "error",
+        "message": "We have remove the token",
+        "removeAfter": "v2.0.11"
+      }
+    }
+  },
+  "text": {
+    "heading": {
+      "$type": "color",
+      "$value": "{neutral.900}"
+    },
+    "title": {
+      "$type": "color",
+      "$value": "{neutral.900}"
+    },
+    "subtitle": {
+      "$type": "color",
+      "$value": "{neutral.700}"
+    },
+    "body": {
+      "$type": "color",
+      "$value": "{neutral.800}"
+    },
+    "caption": {
+      "$type": "color",
+      "$value": "{neutral.400}"
+    },
+    "overline": {
+      "$type": "color",
+      "$value": "{neutral.500}"
+    },
+    "highlighted": {
+      "$type": "color",
+      "$value": "{primary.500}"
+    },
+    "supporting": {
+      "$type": "color",
+      "$value": "{complementary.600}"
+    },
+    "state": {
+      "success": {
+        "$type": "color",
+        "$value": "{sys.success.500}"
+      },
+      "info": {
+        "$type": "color",
+        "$value": "{sys.info.600}"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "{sys.warning.400}"
+      },
+      "error": {
+        "$type": "color",
+        "$value": "{sys.error.600}"
+      }
+    },
+    "inverse": {
+      "heading": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Inverse heading text — use only on images or deep bg colors in light mode."
+      },
+      "title": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Inverse title text — use only on images or deep bg colors in light mode."
+      },
+      "subtitle": {
+        "$type": "color",
+        "$value": "{neutral.200}",
+        "$description": "Inverse subtitle text — use only on images or deep bg colors in light mode."
+      }
+    }
+  },
+  "border": {
+    "default": {
+      "$type": "color",
+      "$value": "{neutral.200}"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{neutral.300}"
+    },
+    "focus": {
+      "$type": "color",
+      "$value": "{neutral.600}"
+    },
+    "vis": {
+      "accent": {
+        "$type": "color",
+        "$value": "{primary.500}"
+      },
+      "hint": {
+        "$type": "color",
+        "$value": "{sys.info.600}"
+      },
+      "caution": {
+        "$type": "color",
+        "$value": "{sys.warning.400}"
+      },
+      "critical": {
+        "$type": "color",
+        "$value": "{sys.error.600}"
+      },
+      "supporting": {
+        "$type": "color",
+        "$value": "{complementary.600}"
+      }
+    }
+  },
+  "icon": {
+    "heading": {
+      "$type": "color",
+      "$value": "{neutral.900}"
+    },
+    "title": {
+      "$type": "color",
+      "$value": "{neutral.900}"
+    },
+    "subtitle": {
+      "$type": "color",
+      "$value": "{neutral.700}"
+    },
+    "body": {
+      "$type": "color",
+      "$value": "{neutral.800}"
+    },
+    "caption": {
+      "$type": "color",
+      "$value": "{neutral.400}"
+    },
+    "overline": {
+      "$type": "color",
+      "$value": "{neutral.500}"
+    },
+    "highlighted": {
+      "$type": "color",
+      "$value": "{primary.500}"
+    },
+    "supporting": {
+      "$type": "color",
+      "$value": "{complementary.600}"
+    },
+    "state": {
+      "success": {
+        "$type": "color",
+        "$value": "{sys.success.500}"
+      },
+      "info": {
+        "$type": "color",
+        "$value": "{sys.info.600}"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "{sys.warning.400}"
+      },
+      "error": {
+        "$type": "color",
+        "$value": "{sys.error.600}"
+      }
+    },
+    "inverse": {
+      "$description": {
+        "$type": "other",
+        "$value": "Inverse icon colors are only used on images or on deep background colors in light mode."
+      },
+      "heading": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Inverse heading icon — use only on images or deep bg colors in light mode."
+      },
+      "title": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Inverse title icon — use only on images or deep bg colors in light mode."
+      },
+      "subtitle": {
+        "$type": "color",
+        "$value": "{neutral.200}",
+        "$description": "Inverse subtitle icon — use only on images or deep bg colors in light mode."
+      }
+    }
+  },
+  "elevation": {
+    "surface": {
+      "level0": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Elevation level 0 surface — base canvas level."
+      },
+      "level1": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Elevation level 1 surface — cards, list items, subtle containers."
+      },
+      "level2": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Elevation level 2 surface — floating controls, active cards."
+      },
+      "level3": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Elevation level 3 surface — dialogs, modals, popovers."
+      },
+      "level4": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Elevation level 4 surface — toasts, snackbars, top-layer alerts."
+      }
+    }
+  }
+}

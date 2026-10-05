@@ -1,0 +1,75 @@
+{
+  "popover": {
+    "surface": {
+      "$type": "color",
+      "$value": "{elevation.surface.level3}",
+      "$description": "Popover surface container color."
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.sm}",
+      "$description": "Popover floating elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.popover}",
+      "$description": "Popover container z-index layer."
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Popover background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Popover background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Popover background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Popover background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Popover border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Popover border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Popover border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Popover foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Popover secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Popover text color — disabled state."
+      }
+    }
+  }
+}

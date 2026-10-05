@@ -1,0 +1,147 @@
+{
+  "font-weight": {
+    "semibold": {
+      "$type": "fontWeights",
+      "$value": "{font-weights.600}",
+      "$description": "Semi-bold font weight (600) for headings and prominent labels"
+    },
+    "medium": {
+      "$type": "fontWeights",
+      "$value": "{font-weights.500}",
+      "$description": "Medium font weight (500) for emphasized text and UI elements"
+    },
+    "normal": {
+      "$type": "fontWeights",
+      "$value": "{font-weights.400}",
+      "$description": "Normal font weight (400) for standard body copy"
+    }
+  },
+  "letter-spacing": {
+    "wide": {
+      "$type": "letterSpacing",
+      "$value": "{tracking.wide}",
+      "$description": "Wide letter spacing tracking (2%)"
+    }
+  },
+  "line-height": {
+    "normal": {
+      "$type": "lineHeights",
+      "$value": "{leading.normal}",
+      "$description": "Normal (1.5) line height ratio for readable multi-line body text"
+    },
+    "tight": {
+      "$type": "lineHeights",
+      "$value": "{leading.tight}",
+      "$description": "Tight (1.25) line height ratio for headings and single-line elements"
+    }
+  },
+  "font-size": {
+    "heading": {
+      "h1": {
+        "$type": "fontSizes",
+        "$value": "{units.x48}",
+        "$description": "Heading 1 font size (48px)"
+      },
+      "h2": {
+        "$type": "fontSizes",
+        "$value": "{units.x40}",
+        "$description": "Heading 2 font size (40px)"
+      },
+      "h4": {
+        "$type": "fontSizes",
+        "$value": "{units.x32}",
+        "$description": "Heading 4 font size (32px)"
+      },
+      "h3": {
+        "$type": "fontSizes",
+        "$value": "{units.x36}",
+        "$description": "Heading 3 font size (36px)"
+      },
+      "h5": {
+        "$type": "fontSizes",
+        "$value": "{units.x28}",
+        "$description": "Heading 5 font size (28px)"
+      },
+      "h6": {
+        "$type": "fontSizes",
+        "$value": "{units.x24}",
+        "$description": "Heading 6 font size (24px)"
+      }
+    },
+    "overline": {
+      "sm": {
+        "$type": "fontSizes",
+        "$value": "{units.x13}",
+        "$description": "Overline SM font size (13px)"
+      },
+      "md": {
+        "$type": "fontSizes",
+        "$value": "{units.x14}",
+        "$description": "Overline MD font size (14px)"
+      }
+    },
+    "caption": {
+      "sm": {
+        "$type": "fontSizes",
+        "$value": "{units.x12}",
+        "$description": "Caption SM font size (12px)"
+      },
+      "md": {
+        "$type": "fontSizes",
+        "$value": "{units.x13}",
+        "$description": "Caption MD font size (13px)"
+      }
+    },
+    "title": {
+      "xl": {
+        "$type": "fontSizes",
+        "$value": "{units.x20}",
+        "$description": "Title XL font size (20px)"
+      },
+      "sm": {
+        "$type": "fontSizes",
+        "$value": "{units.x14}",
+        "$description": "Title SM font size (14px)"
+      },
+      "md": {
+        "$type": "fontSizes",
+        "$value": "{units.x16}",
+        "$description": "Title MD font size (16px)"
+      },
+      "lg": {
+        "$type": "fontSizes",
+        "$value": "{units.x18}",
+        "$description": "Title LG font size (18px)"
+      }
+    },
+    "subtitle": {
+      "sm": {
+        "$type": "fontSizes",
+        "$value": "{units.x14}",
+        "$description": "Subtitle SM font size (14px)"
+      },
+      "md": {
+        "$type": "fontSizes",
+        "$value": "{units.x16}",
+        "$description": "Subtitle MD font size (16px)"
+      }
+    },
+    "body": {
+      "sm": {
+        "$type": "fontSizes",
+        "$value": "{units.x14}",
+        "$description": "Body SM font size (14px)"
+      },
+      "md": {
+        "$type": "fontSizes",
+        "$value": "{units.x16}",
+        "$description": "Body MD font size (16px)"
+      },
+      "lg": {
+        "$type": "fontSizes",
+        "$value": "{units.x18}",
+        "$description": "Body LG font size (18px)"
+      }
+    }
+  }
+}

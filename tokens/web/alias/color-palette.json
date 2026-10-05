@@ -1,0 +1,367 @@
+{
+  "base": {
+    "50": {
+      "$type": "color",
+      "$value": "{white}",
+      "$description": "Lightest base tint for subtle page backgrounds and canvas."
+    },
+    "900": {
+      "$type": "color",
+      "$value": "{black}",
+      "$description": "Deepest base tint for high-contrast page backgrounds and canvas."
+    }
+  },
+  "neutral": {
+    "50": {
+      "$type": "color",
+      "$value": "{gray.50}",
+      "$description": "Lightest neutral tint for subtle page backgrounds and canvas."
+    },
+    "100": {
+      "$type": "color",
+      "$value": "{gray.100}",
+      "$description": "Very light neutral surface fill for cards, panels, and muted backgrounds."
+    },
+    "200": {
+      "$type": "color",
+      "$value": "{gray.200}",
+      "$description": "Light neutral container fill and subtle surface backgrounds."
+    },
+    "300": {
+      "$type": "color",
+      "$value": "{gray.300}",
+      "$description": "Subtle neutral border, dividers, and inactive element backgrounds."
+    },
+    "400": {
+      "$type": "color",
+      "$value": "{gray.400}",
+      "$description": "Medium neutral border, subtle icons, and placeholder text."
+    },
+    "500": {
+      "$type": "color",
+      "$value": "{gray.500}",
+      "$description": "Base mid-tone neutral for disabled states, secondary icons, and borders."
+    },
+    "600": {
+      "$type": "color",
+      "$value": "{gray.600}",
+      "$description": "Secondary neutral text, strong borders, and interactive icons."
+    },
+    "700": {
+      "$type": "color",
+      "$value": "{gray.700}",
+      "$description": "Dark neutral text and interactive elements."
+    },
+    "800": {
+      "$type": "color",
+      "$value": "{gray.800}",
+      "$description": "High-contrast neutral text and strong surfaces."
+    },
+    "900": {
+      "$type": "color",
+      "$value": "{gray.900}",
+      "$description": "Deep neutral for primary high-contrast headings and body text."
+    }
+  },
+  "complementary": {
+    "50": {
+      "$type": "color",
+      "$value": "{purple.50}",
+      "$description": "Lightest complementary tint for subtle accent backgrounds and highlights."
+    },
+    "100": {
+      "$type": "color",
+      "$value": "{purple.100}",
+      "$description": "Very light complementary surface fill for accent cards and badge backgrounds."
+    },
+    "200": {
+      "$type": "color",
+      "$value": "{purple.200}",
+      "$description": "Light complementary container fill and accent tag backgrounds."
+    },
+    "300": {
+      "$type": "color",
+      "$value": "{purple.300}",
+      "$description": "Subtle complementary border and decorative accent elements."
+    },
+    "400": {
+      "$type": "color",
+      "$value": "{purple.400}",
+      "$description": "Medium complementary accent for badges and secondary highlights."
+    },
+    "500": {
+      "$type": "color",
+      "$value": "{purple.500}",
+      "$description": "Base complementary hue for primary accents and featured highlights."
+    },
+    "600": {
+      "$type": "color",
+      "$value": "{purple.600}",
+      "$description": "Interactive hover complementary tone for buttons and links."
+    },
+    "700": {
+      "$type": "color",
+      "$value": "{purple.700}",
+      "$description": "Dark complementary tone for accessible text and prominent accent icons."
+    },
+    "800": {
+      "$type": "color",
+      "$value": "{purple.800}",
+      "$description": "Deep complementary tone for high-contrast accent text."
+    },
+    "900": {
+      "$type": "color",
+      "$value": "{purple.900}",
+      "$description": "Darkest complementary tone for highest contrast accent text and dark mode elements."
+    }
+  },
+  "sys": {
+    "success": {
+      "50": {
+        "$type": "color",
+        "$value": "{lime.50}",
+        "$description": "Lightest success tint for positive notification backgrounds and alert banners."
+      },
+      "100": {
+        "$type": "color",
+        "$value": "{lime.100}",
+        "$description": "Very light success surface fill for confirmation cards and subtle tags."
+      },
+      "200": {
+        "$type": "color",
+        "$value": "{lime.200}",
+        "$description": "Light success container fill and badge backgrounds."
+      },
+      "300": {
+        "$type": "color",
+        "$value": "{lime.300}",
+        "$description": "Subtle success border and indicator outlines."
+      },
+      "400": {
+        "$type": "color",
+        "$value": "{lime.400}",
+        "$description": "Medium success indicator and positive decorative accents."
+      },
+      "500": {
+        "$type": "color",
+        "$value": "{lime.500}",
+        "$description": "Base primary success color for confirmation icons, indicators, and success states."
+      },
+      "600": {
+        "$type": "color",
+        "$value": "{lime.600}",
+        "$description": "Interactive hover tone for success actions and prominent indicators."
+      },
+      "700": {
+        "$type": "color",
+        "$value": "{lime.700}",
+        "$description": "Dark success color for accessible text and strong status icons."
+      },
+      "800": {
+        "$type": "color",
+        "$value": "{lime.800}",
+        "$description": "Deep success color for high-contrast positive messaging and text."
+      },
+      "900": {
+        "$type": "color",
+        "$value": "{lime.900}",
+        "$description": "Darkest success tone for high-contrast success text and dark mode surfaces."
+      }
+    },
+    "info": {
+      "50": {
+        "$type": "color",
+        "$value": "{blue.50}",
+        "$description": "Lightest info tint for informational notification backgrounds and alert banners."
+      },
+      "100": {
+        "$type": "color",
+        "$value": "{blue.100}",
+        "$description": "Very light info surface fill for info cards and callout backgrounds."
+      },
+      "200": {
+        "$type": "color",
+        "$value": "{blue.200}",
+        "$description": "Light info container fill and informational badge backgrounds."
+      },
+      "300": {
+        "$type": "color",
+        "$value": "{blue.300}",
+        "$description": "Subtle info border and indicator outlines."
+      },
+      "400": {
+        "$type": "color",
+        "$value": "{blue.400}",
+        "$description": "Medium info color for decorative elements and informative accents."
+      },
+      "500": {
+        "$type": "color",
+        "$value": "{blue.500}",
+        "$description": "Base primary info color for informational icons, status indicators, and links."
+      },
+      "600": {
+        "$type": "color",
+        "$value": "{blue.600}",
+        "$description": "Interactive hover tone for info actions and buttons."
+      },
+      "700": {
+        "$type": "color",
+        "$value": "{blue.700}",
+        "$description": "Dark info color for accessible text and strong informational icons."
+      },
+      "800": {
+        "$type": "color",
+        "$value": "{blue.800}",
+        "$description": "Deep info color for high-contrast informative text and messaging."
+      },
+      "900": {
+        "$type": "color",
+        "$value": "{blue.900}",
+        "$description": "Darkest info tone for high-contrast info text and dark mode surfaces."
+      }
+    },
+    "warning": {
+      "50": {
+        "$type": "color",
+        "$value": "{amber.50}",
+        "$description": "Lightest warning tint for caution notification backgrounds and alert banners."
+      },
+      "100": {
+        "$type": "color",
+        "$value": "{amber.100}",
+        "$description": "Very light warning surface fill for warning cards and notice callouts."
+      },
+      "200": {
+        "$type": "color",
+        "$value": "{amber.200}",
+        "$description": "Light warning container fill and caution badge backgrounds."
+      },
+      "300": {
+        "$type": "color",
+        "$value": "{amber.300}",
+        "$description": "Subtle warning border and caution indicator outlines."
+      },
+      "400": {
+        "$type": "color",
+        "$value": "{amber.400}",
+        "$description": "Medium warning color for attention indicators and cautionary accents."
+      },
+      "500": {
+        "$type": "color",
+        "$value": "{amber.500}",
+        "$description": "Base primary warning color for caution icons, attention alerts, and status badges."
+      },
+      "600": {
+        "$type": "color",
+        "$value": "{amber.600}",
+        "$description": "Interactive hover tone for warning actions and prominent indicators."
+      },
+      "700": {
+        "$type": "color",
+        "$value": "{amber.700}",
+        "$description": "Dark warning color for accessible text and strong cautionary icons."
+      },
+      "800": {
+        "$type": "color",
+        "$value": "{amber.800}",
+        "$description": "Deep warning color for high-contrast warning text and messaging."
+      },
+      "900": {
+        "$type": "color",
+        "$value": "{amber.900}",
+        "$description": "Darkest warning tone for high-contrast warning text and dark mode surfaces."
+      }
+    },
+    "error": {
+      "50": {
+        "$type": "color",
+        "$value": "{red.50}",
+        "$description": "Lightest error tint for error notification backgrounds and danger alert banners."
+      },
+      "100": {
+        "$type": "color",
+        "$value": "{red.100}",
+        "$description": "Very light error surface fill for error callouts and validation panels."
+      },
+      "200": {
+        "$type": "color",
+        "$value": "{red.200}",
+        "$description": "Light error container fill and error badge backgrounds."
+      },
+      "300": {
+        "$type": "color",
+        "$value": "{red.300}",
+        "$description": "Subtle error border and invalid field outlines."
+      },
+      "400": {
+        "$type": "color",
+        "$value": "{red.400}",
+        "$description": "Medium error indicator and destructive action accents."
+      },
+      "500": {
+        "$type": "color",
+        "$value": "{red.500}",
+        "$description": "Base primary error color for critical alerts, validation errors, and destructive actions."
+      },
+      "600": {
+        "$type": "color",
+        "$value": "{red.600}",
+        "$description": "Interactive hover tone for destructive buttons and error actions."
+      },
+      "700": {
+        "$type": "color",
+        "$value": "{red.700}",
+        "$description": "Dark error color for accessible text and prominent error icons."
+      },
+      "800": {
+        "$type": "color",
+        "$value": "{red.800}",
+        "$description": "Deep error color for high-contrast error messaging and alert text."
+      },
+      "900": {
+        "$type": "color",
+        "$value": "{red.900}",
+        "$description": "Darkest error tone for high-contrast error text and dark mode surfaces."
+      }
+    }
+  },
+  "shadow": {
+    "color": {
+      "ambient": {
+        "$type": "color",
+        "$value": "#0000000a",
+        "$description": "4% opacity ambient shadow color"
+      },
+      "key": {
+        "$type": "color",
+        "$value": "#0000000f",
+        "$description": "6% opacity key directional shadow color"
+      },
+      "subtle": {
+        "$type": "color",
+        "$value": "#00000014",
+        "$description": "8% opacity subtle shadow color"
+      },
+      "elevated": {
+        "$type": "color",
+        "$value": "#0000001a",
+        "$description": "10% opacity elevated shadow color"
+      },
+      "floating": {
+        "$type": "color",
+        "$value": "#0000001f",
+        "$description": "12% opacity floating shadow color"
+      },
+      "deep": {
+        "$type": "color",
+        "$value": "#0000003d",
+        "$description": "24% opacity high elevation modal shadow color"
+      },
+      "maximum": {
+        "$type": "color",
+        "$value": "#00000052",
+        "$description": "32% opacity maximum overlay shadow color"
+      }
+    }
+  }
+}

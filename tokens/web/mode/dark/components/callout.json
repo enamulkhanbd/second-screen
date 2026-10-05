@@ -1,0 +1,150 @@
+{
+  "callout": {
+    "variant": {
+      "info": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.info.900}",
+          "$description": "Info callout container fill — dark mode."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.info.700}",
+          "$description": "Info callout border accent."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.info.100}",
+          "$description": "Info callout message text."
+        },
+        "icon": {
+          "$type": "color",
+          "$value": "{sys.info.300}",
+          "$description": "Info callout icon color."
+        }
+      },
+      "success": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.success.900}",
+          "$description": "Success callout container fill — dark mode."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.success.700}",
+          "$description": "Success callout border accent."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.success.100}",
+          "$description": "Success callout message text."
+        },
+        "icon": {
+          "$type": "color",
+          "$value": "{sys.success.300}",
+          "$description": "Success callout icon color."
+        }
+      },
+      "warning": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.warning.900}",
+          "$description": "Warning callout container fill — dark mode."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.warning.700}",
+          "$description": "Warning callout border accent."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.warning.100}",
+          "$description": "Warning callout message text."
+        },
+        "icon": {
+          "$type": "color",
+          "$value": "{sys.warning.300}",
+          "$description": "Warning callout icon color."
+        }
+      },
+      "error": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.error.900}",
+          "$description": "Error callout container fill — dark mode."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.error.700}",
+          "$description": "Error callout border accent."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.error.100}",
+          "$description": "Error callout message text."
+        },
+        "icon": {
+          "$type": "color",
+          "$value": "{sys.error.300}",
+          "$description": "Error callout icon color."
+        }
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.info.900}",
+        "$description": "Callout background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Callout background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Callout background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Callout background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.info.700}",
+        "$description": "Callout border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Callout border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Callout border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.info.100}",
+        "$description": "Callout foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Callout secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Callout text color — disabled state."
+      }
+    }
+  }
+}

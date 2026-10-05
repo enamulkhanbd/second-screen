@@ -1,0 +1,9 @@
+{
+  "font-families": {
+    "primary": {
+      "$type": "fontFamilies",
+      "$value": "Inter, Arial",
+      "$description": "Primary sans-serif font stack"
+    }
+  }
+}

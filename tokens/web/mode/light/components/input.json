@@ -1,0 +1,72 @@
+{
+  "input": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Input unified focus ring halo."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Input unified focus ring border."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Input background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Input background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Input background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.bg}",
+        "$description": "Input background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Input border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Input border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.border}",
+        "$description": "Input border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Input foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Input secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Input text color — disabled state."
+      }
+    }
+  }
+}

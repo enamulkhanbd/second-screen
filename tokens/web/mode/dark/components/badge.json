@@ -1,0 +1,164 @@
+{
+  "badge": {
+    "variant": {
+      "neutral": {
+        "bg": {
+          "$type": "color",
+          "$value": "{neutral.800}",
+          "$description": "Neutral badge background fill — dark mode."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{neutral.100}",
+          "$description": "Neutral badge label color."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{neutral.700}",
+          "$description": "Neutral badge border color."
+        }
+      },
+      "primary": {
+        "bg": {
+          "$type": "color",
+          "$value": "{primary.900}",
+          "$description": "Primary badge background fill."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{primary.200}",
+          "$description": "Primary badge label color."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{primary.700}",
+          "$description": "Primary badge border color."
+        }
+      },
+      "success": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.success.900}",
+          "$description": "Success badge background fill."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.success.200}",
+          "$description": "Success badge label color."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.success.700}",
+          "$description": "Success badge border color."
+        }
+      },
+      "warning": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.warning.900}",
+          "$description": "Warning badge background fill."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.warning.200}",
+          "$description": "Warning badge label color."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.warning.700}",
+          "$description": "Warning badge border color."
+        }
+      },
+      "error": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.error.900}",
+          "$description": "Error badge background fill."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.error.200}",
+          "$description": "Error badge label color."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.error.700}",
+          "$description": "Error badge border color."
+        }
+      },
+      "info": {
+        "bg": {
+          "$type": "color",
+          "$value": "{sys.info.900}",
+          "$description": "Info badge background fill."
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{sys.info.200}",
+          "$description": "Info badge label color."
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{sys.info.700}",
+          "$description": "Info badge border color."
+        }
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Badge background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Badge background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Badge background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Badge background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Badge border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Badge border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Badge border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Badge foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Badge secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Badge text color — disabled state."
+      }
+    }
+  }
+}

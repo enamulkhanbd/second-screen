@@ -1,0 +1,87 @@
+{
+  "bottom-sheet": {
+    "surface": {
+      "$type": "color",
+      "$value": "{elevation.surface.level3}",
+      "$description": "Bottom sheet surface background color."
+    },
+    "backdrop": {
+      "bg": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Bottom sheet backdrop scrim color."
+      },
+      "opacity": {
+        "$type": "opacity",
+        "$value": "{opacity.overlay}",
+        "$description": "Bottom sheet backdrop scrim opacity."
+      }
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.lg}",
+      "$description": "Bottom sheet elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.modal}",
+      "$description": "Bottom sheet z-index layer."
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Bottom Sheet background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Bottom Sheet background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Bottom Sheet background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Bottom Sheet background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Bottom Sheet border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Bottom Sheet border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Bottom Sheet border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Bottom Sheet foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Bottom Sheet secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Bottom Sheet text color — disabled state."
+      }
+    }
+  }
+}

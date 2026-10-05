@@ -1,0 +1,82 @@
+{
+  "snackbar": {
+    "surface": {
+      "$type": "color",
+      "$value": "{neutral.900}",
+      "$description": "Snackbar floating toast surface color — inverse high-contrast."
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.lg}",
+      "$description": "Snackbar floating elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.toast}",
+      "$description": "Snackbar z-index toast layer."
+    },
+    "action": {
+      "text": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Snackbar action button label color."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.900}",
+        "$description": "Snackbar background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Snackbar background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Snackbar background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.500}",
+        "$description": "Snackbar background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Snackbar border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Snackbar border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Snackbar border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.50}",
+        "$description": "Snackbar foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Snackbar secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.500}",
+        "$description": "Snackbar text color — disabled state."
+      }
+    }
+  }
+}

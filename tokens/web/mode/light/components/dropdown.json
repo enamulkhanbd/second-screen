@@ -1,0 +1,75 @@
+{
+  "dropdown": {
+    "surface": {
+      "$type": "color",
+      "$value": "{elevation.surface.level2}",
+      "$description": "Dropdown floating menu surface color."
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.sm}",
+      "$description": "Dropdown floating elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.dropdown}",
+      "$description": "Dropdown menu z-index layer."
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Dropdown background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{bg.raised}",
+        "$description": "Dropdown background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{bg.focus}",
+        "$description": "Dropdown background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Dropdown background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Dropdown border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{border.focus}",
+        "$description": "Dropdown border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Dropdown border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Dropdown foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Dropdown secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Dropdown text color — disabled state."
+      }
+    }
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "interaction": {
+    "primary": {
+      "default": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Primary action resting state background color in dark mode."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Primary action hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{primary.600}",
+        "$description": "Primary action pressed state background color in dark mode."
+      }
+    },
+    "secondary": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Secondary action resting state background color in dark mode."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.200}",
+        "$description": "Secondary action hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Secondary action pressed state background color in dark mode."
+      }
+    },
+    "subtle": {
+      "default": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Subtle / ghost resting state (transparent background)."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Subtle / ghost hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Subtle / ghost pressed state background color in dark mode."
+      }
+    },
+    "error": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.error.500}",
+        "$description": "Destructive / error action resting state background color in dark mode."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.error.400}",
+        "$description": "Destructive / error action hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.error.600}",
+        "$description": "Destructive / error action pressed state background color in dark mode."
+      }
+    },
+    "success": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.success.500}",
+        "$description": "Success action resting state background color in dark mode."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.success.400}",
+        "$description": "Success action hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.success.600}",
+        "$description": "Success action pressed state background color in dark mode."
+      }
+    },
+    "warning": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.warning.500}",
+        "$description": "Warning action resting state background color in dark mode."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.warning.400}",
+        "$description": "Warning action hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.warning.600}",
+        "$description": "Warning action pressed state background color in dark mode."
+      }
+    },
+    "info": {
+      "default": {
+        "$type": "color",
+        "$value": "{sys.info.500}",
+        "$description": "Info action resting state background color in dark mode."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{sys.info.400}",
+        "$description": "Info action hover state background color in dark mode."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{sys.info.600}",
+        "$description": "Info action pressed state background color in dark mode."
+      }
+    },
+    "disabled": {
+      "bg": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Disabled element background fill in dark mode."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{neutral.500}",
+        "$description": "Disabled element text/icon foreground color in dark mode."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Disabled element border outline color in dark mode."
+      }
+    },
+    "surface": {
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Interactive surface hover state background color in dark mode."
+      },
+      "selected": {
+        "$type": "color",
+        "$value": "{primary.900}",
+        "$description": "Interactive surface selected state background color in dark mode."
+      }
+    },
+    "border": {
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Interactive surface hover state border outline color in dark mode."
+      },
+      "selected": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Interactive surface selected state border outline color in dark mode."
+      }
+    },
+    "selected": {
+      "surface": {
+        "$type": "color",
+        "$value": "{primary.900}",
+        "$description": "Interactive surface selected/active state background color in dark mode."
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{primary.300}",
+        "$description": "Interactive surface selected/active state foreground text color in dark mode."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Interactive surface selected/active state border outline color in dark mode."
+      }
+    },
+    "checked": {
+      "bg": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Checked control background fill color in dark mode."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Checked control border outline color in dark mode."
+      },
+      "fg": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Checked control mark or indicator foreground color in dark mode."
+      }
+    },
+    "indeterminate": {
+      "bg": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Indeterminate state control background fill color in dark mode."
+      },
+      "border": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Indeterminate state control border outline color in dark mode."
+      },
+      "fg": {
+        "$type": "color",
+        "$value": "{base.50}",
+        "$description": "Indeterminate state control indicator bar foreground color in dark mode."
+      }
+    },
+    "loading": {
+      "opacity": {
+        "$type": "other",
+        "$value": "{opacity.disabled}",
+        "$description": "Interactive control container opacity in asynchronous loading state in dark mode."
+      },
+      "spinner": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Interactive control spinner / progress indicator accent color in dark mode."
+      }
+    }
+  }
+}

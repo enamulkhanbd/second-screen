@@ -1,0 +1,29 @@
+{
+  "opacity": {
+    "hover": {
+      "$type": "opacity",
+      "$value": "0.08",
+      "$description": "State layer overlay opacity on hover"
+    },
+    "pressed": {
+      "$type": "opacity",
+      "$value": "0.12",
+      "$description": "State layer overlay opacity when pressed"
+    },
+    "focus": {
+      "$type": "opacity",
+      "$value": "0.12",
+      "$description": "State layer overlay opacity when focused"
+    },
+    "disabled": {
+      "$type": "opacity",
+      "$value": "0.38",
+      "$description": "Disabled element container and content opacity"
+    },
+    "overlay": {
+      "$type": "opacity",
+      "$value": "0.50",
+      "$description": "Modal and drawer backdrop dimmer opacity"
+    }
+  }
+}

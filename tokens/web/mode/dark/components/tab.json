@@ -1,0 +1,77 @@
+{
+  "tab": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Tab unified focus ring halo."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Tab unified focus ring border."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{bg.default}",
+        "$description": "Tab background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{interaction.surface.hover}",
+        "$description": "Tab background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.selected.surface}",
+        "$description": "Tab background color — active/selected state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.bg}",
+        "$description": "Tab background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{border.default}",
+        "$description": "Tab border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{interaction.border.selected}",
+        "$description": "Tab border color — focus / active indicator."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.border}",
+        "$description": "Tab border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{text.body}",
+        "$description": "Tab foreground text color — default state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{interaction.selected.text}",
+        "$description": "Tab foreground text color — active/selected state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{text.supporting}",
+        "$description": "Tab secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.text}",
+        "$description": "Tab text color — disabled state."
+      }
+    }
+  }
+}

@@ -1,0 +1,729 @@
+{
+  "button": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Button unified focus ring halo in dark mode."
+      },
+      "border": {
+        "$type": "border",
+        "$value": "{focus-ring.border}",
+        "$description": "Button unified focus ring border in dark mode."
+      }
+    },
+    "bg": {
+      "filled": {
+        "primary": {
+          "default": {
+            "$type": "color",
+            "$value": "{interaction.primary.default}",
+            "$description": "Filled primary button background — default state."
+          },
+          "hover": {
+            "$type": "color",
+            "$value": "{interaction.primary.hover}",
+            "$description": "Filled primary button background — hover state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{interaction.primary.pressed}",
+            "$description": "Filled primary button background — pressed state."
+          }
+        },
+        "secondary": {
+          "default": {
+            "$type": "color",
+            "$value": "{interaction.secondary.default}",
+            "$description": "Filled secondary button background — default state."
+          },
+          "hover": {
+            "$type": "color",
+            "$value": "{interaction.secondary.hover}",
+            "$description": "Filled secondary button background — hover state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{interaction.secondary.pressed}",
+            "$description": "Filled secondary button background — pressed state."
+          }
+        },
+        "complementary": {
+          "default": {
+            "$type": "color",
+            "$value": "{complementary.700}",
+            "$description": "Filled complementary button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{complementary.900}",
+            "$description": "Filled complementary button background — pressed state."
+          }
+        },
+        "info": {
+          "default": {
+            "$type": "color",
+            "$value": "{interaction.info.default}",
+            "$description": "Filled info button background — default state."
+          },
+          "hover": {
+            "$type": "color",
+            "$value": "{interaction.info.hover}",
+            "$description": "Filled info button background — hover state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{interaction.info.pressed}",
+            "$description": "Filled info button background — pressed state."
+          }
+        },
+        "error": {
+          "default": {
+            "$type": "color",
+            "$value": "{interaction.error.default}",
+            "$description": "Filled error button background — default state."
+          },
+          "hover": {
+            "$type": "color",
+            "$value": "{interaction.error.hover}",
+            "$description": "Filled error button background — hover state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{interaction.error.pressed}",
+            "$description": "Filled error button background — pressed state."
+          }
+        },
+        "warning": {
+          "default": {
+            "$type": "color",
+            "$value": "{interaction.warning.default}",
+            "$description": "Filled warning button background — default state."
+          },
+          "hover": {
+            "$type": "color",
+            "$value": "{interaction.warning.hover}",
+            "$description": "Filled warning button background — hover state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{interaction.warning.pressed}",
+            "$description": "Filled warning button background — pressed state."
+          }
+        },
+        "success": {
+          "default": {
+            "$type": "color",
+            "$value": "{interaction.success.default}",
+            "$description": "Filled success button background — default state."
+          },
+          "hover": {
+            "$type": "color",
+            "$value": "{interaction.success.hover}",
+            "$description": "Filled success button background — hover state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{interaction.success.pressed}",
+            "$description": "Filled success button background — pressed state."
+          }
+        }
+      },
+      "outline": {
+        "primary": {
+          "default": {
+            "$type": "color",
+            "$value": "{primary.50}",
+            "$description": "Outline primary button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{primary.50}",
+            "$description": "Outline primary button background — pressed state."
+          }
+        },
+        "secondary": {
+          "default": {
+            "$type": "color",
+            "$value": "{neutral.50}",
+            "$description": "Outline secondary button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{neutral.50}",
+            "$description": "Outline secondary button background — pressed state."
+          }
+        },
+        "complementary": {
+          "default": {
+            "$type": "color",
+            "$value": "{complementary.50}",
+            "$description": "Outline complementary button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{complementary.50}",
+            "$description": "Outline complementary button background — pressed state."
+          }
+        },
+        "info": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.info.50}",
+            "$description": "Outline info button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.info.50}",
+            "$description": "Outline info button background — pressed state."
+          }
+        },
+        "error": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.error.50}",
+            "$description": "Outline error button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.error.50}",
+            "$description": "Outline error button background — pressed state."
+          }
+        },
+        "warning": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.warning.50}",
+            "$description": "Outline warning button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.warning.50}",
+            "$description": "Outline warning button background — pressed state."
+          }
+        },
+        "success": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.success.50}",
+            "$description": "Outline success button background — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.success.50}",
+            "$description": "Outline success button background — pressed state."
+          }
+        }
+      },
+      "transparent": {
+        "hover": {
+          "$type": "color",
+          "$value": "{interaction.subtle.hover}",
+          "$description": "Transparent button background — hover state."
+        },
+        "pressed": {
+          "$type": "color",
+          "$value": "{interaction.subtle.pressed}",
+          "$description": "Transparent button background — pressed state."
+        }
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{interaction.disabled.bg}",
+        "$description": "Disabled button background for all variants."
+      }
+    },
+    "border": {
+      "outline": {
+        "primary": {
+          "default": {
+            "$type": "color",
+            "$value": "{primary.200}",
+            "$description": "Outline primary button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{primary.200}",
+            "$description": "Outline primary button border — pressed state."
+          }
+        },
+        "secondary": {
+          "default": {
+            "$type": "color",
+            "$value": "{neutral.200}",
+            "$description": "Outline secondary button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{neutral.200}",
+            "$description": "Outline secondary button border — pressed state."
+          }
+        },
+        "complementary": {
+          "default": {
+            "$type": "color",
+            "$value": "{complementary.200}",
+            "$description": "Outline complementary button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{complementary.200}",
+            "$description": "Outline complementary button border — pressed state."
+          }
+        },
+        "info": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.info.100}",
+            "$description": "Outline info button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.info.100}",
+            "$description": "Outline info button border — pressed state."
+          }
+        },
+        "error": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.error.100}",
+            "$description": "Outline error button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.error.100}",
+            "$description": "Outline error button border — pressed state."
+          }
+        },
+        "warning": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.warning.600}",
+            "$description": "Outline warning button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.warning.600}",
+            "$description": "Outline warning button border — pressed state."
+          }
+        },
+        "success": {
+          "default": {
+            "$type": "color",
+            "$value": "{sys.success.200}",
+            "$description": "Outline success button border — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{sys.success.200}",
+            "$description": "Outline success button border — pressed state."
+          }
+        },
+        "disabled": {
+          "$type": "color",
+          "$value": "{neutral.100}",
+          "$description": "Disabled outline button border."
+        }
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.100}",
+        "$description": "Disabled button border for all variants."
+      }
+    },
+    "content": {
+      "text": {
+        "filled": {
+          "primary": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled primary button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled primary button text — pressed state."
+            }
+          },
+          "secondary": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled secondary button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled secondary button text — pressed state."
+            }
+          },
+          "complementary": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled complementary button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled complementary button text — pressed state."
+            }
+          },
+          "info": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled info button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled info button text — pressed state."
+            }
+          },
+          "error": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled error button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled error button text — pressed state."
+            }
+          },
+          "warning": {
+            "default": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Filled warning button text — default state (dark text for contrast on amber)."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.900}",
+              "$description": "Filled warning button text — pressed state."
+            }
+          },
+          "success": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled success button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled success button text — pressed state."
+            }
+          }
+        },
+        "outline": {
+          "primary": {
+            "default": {
+              "$type": "color",
+              "$value": "{primary.500}",
+              "$description": "Outline primary button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{primary.700}",
+              "$description": "Outline primary button text — pressed state."
+            }
+          },
+          "secondary": {
+            "default": {
+              "$type": "color",
+              "$value": "{neutral.900}",
+              "$description": "Outline secondary button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.900}",
+              "$description": "Outline secondary button text — pressed state."
+            }
+          },
+          "complementary": {
+            "default": {
+              "$type": "color",
+              "$value": "{complementary.700}",
+              "$description": "Outline complementary button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{complementary.700}",
+              "$description": "Outline complementary button text — pressed state."
+            }
+          },
+          "info": {
+            "default": {
+              "$type": "color",
+              "$value": "{sys.info.500}",
+              "$description": "Outline info button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{sys.info.500}",
+              "$description": "Outline info button text — pressed state."
+            }
+          },
+          "error": {
+            "default": {
+              "$type": "color",
+              "$value": "{sys.error.500}",
+              "$description": "Outline error button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{sys.error.500}",
+              "$description": "Outline error button text — pressed state."
+            }
+          },
+          "warning": {
+            "default": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Outline warning button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Outline warning button text — pressed state."
+            }
+          },
+          "success": {
+            "default": {
+              "$type": "color",
+              "$value": "{sys.success.700}",
+              "$description": "Outline success button text — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{sys.success.700}",
+              "$description": "Outline success button text — pressed state."
+            }
+          },
+          "disabled": {
+            "$type": "color",
+            "$value": "{interaction.disabled.text}",
+            "$description": "Disabled outline button text."
+          }
+        },
+        "transparent": {
+          "default": {
+            "$type": "color",
+            "$value": "{neutral.900}",
+            "$description": "Transparent button text — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{neutral.700}",
+            "$description": "Transparent button text — pressed state."
+          }
+        },
+        "disabled": {
+          "$type": "color",
+          "$value": "{interaction.disabled.text}",
+          "$description": "Disabled button text for all variants."
+        }
+      },
+      "icon": {
+        "filled": {
+          "primary": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled primary button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled primary button icon — pressed state."
+            }
+          },
+          "secondary": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled secondary button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled secondary button icon — pressed state."
+            }
+          },
+          "complementary": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled complementary button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled complementary button icon — pressed state."
+            }
+          },
+          "info": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled info button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled info button icon — pressed state."
+            }
+          },
+          "error": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled error button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled error button icon — pressed state."
+            }
+          },
+          "warning": {
+            "default": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Filled warning button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.900}",
+              "$description": "Filled warning button icon — pressed state."
+            }
+          },
+          "success": {
+            "default": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled success button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{base.50}",
+              "$description": "Filled success button icon — pressed state."
+            }
+          }
+        },
+        "outline": {
+          "primary": {
+            "default": {
+              "$type": "color",
+              "$value": "{primary.500}",
+              "$description": "Outline primary button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{primary.700}",
+              "$description": "Outline primary button icon — pressed state."
+            }
+          },
+          "secondary": {
+            "default": {
+              "$type": "color",
+              "$value": "{neutral.900}",
+              "$description": "Outline secondary button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.900}",
+              "$description": "Outline secondary button icon — pressed state."
+            }
+          },
+          "complementary": {
+            "default": {
+              "$type": "color",
+              "$value": "{complementary.700}",
+              "$description": "Outline complementary button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{complementary.700}",
+              "$description": "Outline complementary button icon — pressed state."
+            }
+          },
+          "info": {
+            "default": {
+              "$type": "color",
+              "$value": "{sys.info.500}",
+              "$description": "Outline info button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{sys.info.500}",
+              "$description": "Outline info button icon — pressed state."
+            }
+          },
+          "error": {
+            "default": {
+              "$type": "color",
+              "$value": "{sys.error.500}",
+              "$description": "Outline error button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{sys.error.500}",
+              "$description": "Outline error button icon — pressed state."
+            }
+          },
+          "warning": {
+            "default": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Outline warning button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{neutral.800}",
+              "$description": "Outline warning button icon — pressed state."
+            }
+          },
+          "success": {
+            "default": {
+              "$type": "color",
+              "$value": "{sys.success.700}",
+              "$description": "Outline success button icon — default state."
+            },
+            "pressed": {
+              "$type": "color",
+              "$value": "{sys.success.700}",
+              "$description": "Outline success button icon — pressed state."
+            }
+          },
+          "disabled": {
+            "$type": "color",
+            "$value": "{interaction.disabled.text}",
+            "$description": "Disabled outline button icon."
+          }
+        },
+        "transparent": {
+          "default": {
+            "$type": "color",
+            "$value": "{neutral.900}",
+            "$description": "Transparent button icon — default state."
+          },
+          "pressed": {
+            "$type": "color",
+            "$value": "{neutral.700}",
+            "$description": "Transparent button icon — pressed state."
+          }
+        },
+        "disabled": {
+          "$type": "color",
+          "$value": "{interaction.disabled.text}",
+          "$description": "Disabled button icon for all variants."
+        }
+      }
+    }
+  }
+}

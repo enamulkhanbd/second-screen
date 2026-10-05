@@ -1,0 +1,99 @@
+{
+  "link": {
+    "focus-ring": {
+      "default": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.default}",
+        "$description": "Link focus ring outline."
+      },
+      "border": {
+        "$type": "boxShadow",
+        "$value": "{focus-ring.border}",
+        "$description": "Link focus ring border."
+      }
+    },
+    "color": {
+      "default": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Link default foreground color — dark mode accessible brand link."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{primary.300}",
+        "$description": "Link hover foreground color."
+      },
+      "pressed": {
+        "$type": "color",
+        "$value": "{primary.200}",
+        "$description": "Link pressed foreground color."
+      },
+      "visited": {
+        "$type": "color",
+        "$value": "{complementary.400}",
+        "$description": "Link visited foreground color."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Link disabled foreground color."
+      }
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Link background color — default state."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Link background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Link background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Link background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Link border color — default state."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.500}",
+        "$description": "Link border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "transparent",
+        "$description": "Link border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Link foreground text color — default state."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.400}",
+        "$description": "Link secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Link text color — disabled state."
+      }
+    }
+  }
+}

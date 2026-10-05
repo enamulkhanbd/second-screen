@@ -1,0 +1,75 @@
+{
+  "tooltip": {
+    "surface": {
+      "$type": "color",
+      "$value": "{neutral.800}",
+      "$description": "Tooltip elevated surface color — dark mode container."
+    },
+    "shadow": {
+      "$type": "boxShadow",
+      "$value": "{shadow.floating.sm}",
+      "$description": "Tooltip elevation shadow."
+    },
+    "layer": {
+      "$type": "number",
+      "$value": "{layer.popover}",
+      "$description": "Tooltip container z-index layer."
+    },
+    "bg": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Tooltip background color — elevated dark surface."
+      },
+      "hover": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Tooltip background color — hover state."
+      },
+      "active": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Tooltip background color — active state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.800}",
+        "$description": "Tooltip background color — disabled state."
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.600}",
+        "$description": "Tooltip border color — subtle contrast edge."
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{primary.400}",
+        "$description": "Tooltip border color — focus state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.700}",
+        "$description": "Tooltip border color — disabled state."
+      }
+    },
+    "text": {
+      "default": {
+        "$type": "color",
+        "$value": "{neutral.50}",
+        "$description": "Tooltip foreground text color — high-contrast light text."
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "{neutral.300}",
+        "$description": "Tooltip secondary text color — muted state."
+      },
+      "disabled": {
+        "$type": "color",
+        "$value": "{neutral.500}",
+        "$description": "Tooltip text color — disabled state."
+      }
+    }
+  }
+}

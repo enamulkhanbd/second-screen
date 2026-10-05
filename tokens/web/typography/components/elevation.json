@@ -1,0 +1,39 @@
+{
+  "elevation": {
+    "label": {
+      "sm": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font-families.primary}",
+          "fontSize": "{font-size.body.sm}",
+          "fontWeight": "{font-weight.medium}",
+          "lineHeight": "roundTo({font-size.body.sm} * {line-height.tight}, 0)",
+          "letterSpacing": "{tracking.normal}"
+        },
+        "$description": "Elevation label typography small (14px / 500)"
+      },
+      "md": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font-families.primary}",
+          "fontSize": "{font-size.body.md}",
+          "fontWeight": "{font-weight.medium}",
+          "lineHeight": "roundTo({font-size.body.md} * {line-height.tight}, 0)",
+          "letterSpacing": "{tracking.normal}"
+        },
+        "$description": "Elevation label typography medium (16px / 500)"
+      },
+      "lg": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font-families.primary}",
+          "fontSize": "{font-size.body.lg}",
+          "fontWeight": "{font-weight.medium}",
+          "lineHeight": "roundTo({font-size.body.lg} * {line-height.tight}, 0)",
+          "letterSpacing": "{tracking.normal}"
+        },
+        "$description": "Elevation label typography large (18px / 500)"
+      }
+    }
+  }
+}
