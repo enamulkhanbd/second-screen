@@ -44,6 +44,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { ManageOrgModal } from "@/components/ManageOrgModal";
 import { ColorPickerWithShades } from "@/components/ColorPickerWithShades";
 import {
@@ -894,12 +901,13 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                   const isActive = currentProject?.id === proj.id;
 
                   return (
-                    <div
-                      key={proj.id}
-                      className={`relative grid grid-cols-12 items-center px-5 py-3.5 hover:bg-muted/40 transition-colors gap-3 group ${
-                        isActive ? "bg-primary/5" : ""
-                      }`}
-                    >
+                    <ContextMenu key={proj.id}>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          className={`relative grid grid-cols-12 items-center px-5 py-3.5 hover:bg-muted/40 transition-colors gap-3 group cursor-default ${
+                            isActive ? "bg-primary/5" : ""
+                          }`}
+                        >
                       {/* Col 1: Project Identity */}
                       <div className="col-span-8 sm:col-span-7 flex items-center gap-3 min-w-0">
                         <div
@@ -1014,9 +1022,50 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-
                     </div>
-                  );
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48 text-xs font-sans">
+                    <ContextMenuItem
+                      onClick={() => handleOpenProjectInStudio(proj)}
+                      className="gap-2 text-xs cursor-pointer font-semibold"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                      <span>Open Project</span>
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => handleOpenProjectSettings(proj)}
+                      className="gap-2 text-xs cursor-pointer"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Project Settings</span>
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      onClick={() => handleToggleArchiveProject(proj)}
+                      className="gap-2 text-xs cursor-pointer"
+                    >
+                      {proj.isArchived ? (
+                        <>
+                          <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Restore to Active</span>
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Archive Project</span>
+                        </>
+                      )}
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => setDeletingProjectId(proj.id)}
+                      className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Project</span>
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
                 })}
               </div>
             ) : (
@@ -1028,14 +1077,15 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                   const hasGit = Boolean(proj.gitConfig?.repo);
                   const isActive = currentProject?.id === proj.id;
                   return (
-                    <div
-                      key={proj.id}
-                      className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
-                        isActive
-                          ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
-                          : "border-border"
-                      }`}
-                    >
+                    <ContextMenu key={proj.id}>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md cursor-default ${
+                            isActive
+                              ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
+                              : "border-border"
+                          }`}
+                        >
                       <div className="space-y-3">
                         {/* Top: Custom Project Badge & Menu */}
                         <div className="flex items-start justify-between gap-3">
@@ -1165,9 +1215,50 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                           <ArrowRight className="w-3 h-3" />
                         </Button>
                       </div>
-
                     </div>
-                  );
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48 text-xs font-sans">
+                    <ContextMenuItem
+                      onClick={() => handleOpenProjectInStudio(proj)}
+                      className="gap-2 text-xs cursor-pointer font-semibold"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                      <span>Open Studio</span>
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => handleOpenProjectSettings(proj)}
+                      className="gap-2 text-xs cursor-pointer"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Project Settings</span>
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      onClick={() => handleToggleArchiveProject(proj)}
+                      className="gap-2 text-xs cursor-pointer"
+                    >
+                      {proj.isArchived ? (
+                        <>
+                          <ArchiveRestore className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Restore to Active</span>
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>Archive Project</span>
+                        </>
+                      )}
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => setDeletingProjectId(proj.id)}
+                      className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Project</span>
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
                 })}
               </div>
             )}

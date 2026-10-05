@@ -35,6 +35,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -251,101 +258,142 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
 
       return (
         <div key={node.id} className="space-y-0.5">
-          <div
-            onClick={() => toggleFolder(node.id)}
-            className="group flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted/70 text-foreground cursor-pointer font-medium text-xs transition-colors select-none"
-            style={{ paddingLeft: `${Math.max(depth * 12 + 6, 6)}px` }}
-          >
-            <div className="flex items-center gap-1.5 truncate min-w-0 pr-1">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFolder(node.id);
-                }}
-                className="p-0.5 text-muted-foreground group-hover:text-foreground"
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                onClick={() => toggleFolder(node.id)}
+                className="group flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted/70 text-foreground cursor-pointer font-medium text-xs transition-colors select-none"
+                style={{ paddingLeft: `${Math.max(depth * 12 + 6, 6)}px` }}
               >
-                {isCollapsed ? (
-                  <ChevronRight className="size-3" />
-                ) : (
-                  <ChevronDown className="size-3" />
-                )}
-              </button>
+                <div className="flex items-center gap-1.5 truncate min-w-0 pr-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFolder(node.id);
+                    }}
+                    className="p-0.5 text-muted-foreground group-hover:text-foreground"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="size-3" />
+                    ) : (
+                      <ChevronDown className="size-3" />
+                    )}
+                  </button>
 
-              {isCollapsed ? (
-                <Folder className="size-3.5 text-muted-foreground flex-shrink-0" />
-              ) : (
-                <FolderOpen className="size-3.5 text-muted-foreground flex-shrink-0" />
-              )}
+                  {isCollapsed ? (
+                    <Folder className="size-3.5 text-muted-foreground flex-shrink-0" />
+                  ) : (
+                    <FolderOpen className="size-3.5 text-muted-foreground flex-shrink-0" />
+                  )}
 
-              <span className="truncate text-xs font-medium text-foreground">
-                {node.name}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-[11px] font-mono text-muted-foreground">
-                {folderCount}
-              </span>
-
-              {/* Folder Actions Menu */}
-              {isEditable && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                        title="Folder actions"
-                      >
-                        <MoreVertical className="size-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44 text-xs font-sans">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAddSetInitialName(`${node.id}/`);
-                          setIsAddSetOpen(true);
-                        }}
-                        className="gap-2 text-xs cursor-pointer"
-                      >
-                        <FolderPlus className="size-3.5 text-primary" />
-                        <span>Add Set in Folder</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenRename("folder", node.id, node.name);
-                        }}
-                        className="gap-2 text-xs cursor-pointer"
-                      >
-                        <Edit2 className="size-3.5" />
-                        <span>Rename Folder</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDelete(
-                            "folder",
-                            node.id,
-                            node.name,
-                            undefined,
-                            node.children?.length || 0
-                          );
-                        }}
-                        className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                      >
-                        <Trash2 className="size-3.5" />
-                        <span>Delete Folder</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <span className="truncate text-xs font-medium text-foreground">
+                    {node.name}
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    {folderCount}
+                  </span>
+
+                  {/* Folder Actions Menu */}
+                  {isEditable && (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                            title="Folder actions"
+                          >
+                            <MoreVertical className="size-3" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44 text-xs font-sans">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddSetInitialName(`${node.id}/`);
+                              setIsAddSetOpen(true);
+                            }}
+                            className="gap-2 text-xs cursor-pointer"
+                          >
+                            <FolderPlus className="size-3.5 text-primary" />
+                            <span>Add Set in Folder</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenRename("folder", node.id, node.name);
+                            }}
+                            className="gap-2 text-xs cursor-pointer"
+                          >
+                            <Edit2 className="size-3.5" />
+                            <span>Rename Folder</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDelete(
+                                "folder",
+                                node.id,
+                                node.name,
+                                undefined,
+                                node.children?.length || 0
+                              );
+                            }}
+                            className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span>Delete Folder</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ContextMenuTrigger>
+            {isEditable && (
+              <ContextMenuContent className="w-44 text-xs font-sans">
+                <ContextMenuItem
+                  onClick={() => {
+                    setAddSetInitialName(`${node.id}/`);
+                    setIsAddSetOpen(true);
+                  }}
+                  className="gap-2 text-xs cursor-pointer"
+                >
+                  <FolderPlus className="size-3.5 text-primary" />
+                  <span>Add Set in Folder</span>
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() => handleOpenRename("folder", node.id, node.name)}
+                  className="gap-2 text-xs cursor-pointer"
+                >
+                  <Edit2 className="size-3.5" />
+                  <span>Rename Folder</span>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onClick={() =>
+                    handleOpenDelete(
+                      "folder",
+                      node.id,
+                      node.name,
+                      undefined,
+                      node.children?.length || 0
+                    )
+                  }
+                  className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <Trash2 className="size-3.5" />
+                  <span>Delete Folder</span>
+                </ContextMenuItem>
+              </ContextMenuContent>
+            )}
+          </ContextMenu>
 
           {!isCollapsed && node.children && (
             <div className="space-y-0.5">
@@ -366,83 +414,105 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     const themeDots = setThemeMap[node.fullPath] || [];
 
     return (
-      <div
-        key={node.id}
-        className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
-          isSelected
-            ? "bg-muted text-foreground font-semibold shadow-2xs"
-            : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
-        }`}
-        style={{ paddingLeft: `${Math.max(depth * 12 + 20, 20)}px` }}
-        onClick={() => {
-          setActiveSet(node.fullPath);
-          onItemSelected?.();
-        }}
-      >
-        <div className="flex items-center gap-2 truncate min-w-0 pr-1">
-          <span className="truncate">{node.name}</span>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Theme participation indicator dots */}
-          {themeDots.length > 0 && (
-            <div className="flex items-center -space-x-1" title="Assigned to active themes">
-              {themeDots.slice(0, 4).map((col, idx) => (
-                <span
-                  key={idx}
-                  className="size-2 rounded-full border border-background"
-                  style={{ backgroundColor: col }}
-                />
-              ))}
+      <ContextMenu key={node.id}>
+        <ContextMenuTrigger asChild>
+          <div
+            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+              isSelected
+                ? "bg-muted text-foreground font-semibold shadow-2xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+            }`}
+            style={{ paddingLeft: `${Math.max(depth * 12 + 20, 20)}px` }}
+            onClick={() => {
+              setActiveSet(node.fullPath);
+              onItemSelected?.();
+            }}
+          >
+            <div className="flex items-center gap-2 truncate min-w-0 pr-1">
+              <span className="truncate">{node.name}</span>
             </div>
-          )}
 
-          {/* Set token count */}
-          <span className="text-[11px] font-mono text-muted-foreground min-w-[14px] text-right">
-            {tokenCount}
-          </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Theme participation indicator dots */}
+              {themeDots.length > 0 && (
+                <div className="flex items-center -space-x-1" title="Assigned to active themes">
+                  {themeDots.slice(0, 4).map((col, idx) => (
+                    <span
+                      key={idx}
+                      className="size-2 rounded-full border border-background"
+                      style={{ backgroundColor: col }}
+                    />
+                  ))}
+                </div>
+              )}
 
-          {/* Set Actions Menu */}
-          {isEditable && (
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                    title="Set actions"
-                  >
-                    <MoreVertical className="size-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 text-xs font-sans">
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenRename("set", node.fullPath, node.name);
-                    }}
-                    className="gap-2 text-xs cursor-pointer"
-                  >
-                    <Edit2 className="size-3.5" />
-                    <span>Rename Set</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenDelete("set", node.fullPath, node.name);
-                    }}
-                    className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                  >
-                    <Trash2 className="size-3.5" />
-                    <span>Delete Set</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Set token count */}
+              <span className="text-[11px] font-mono text-muted-foreground min-w-[14px] text-right">
+                {tokenCount}
+              </span>
+
+              {/* Set Actions Menu */}
+              {isEditable && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                        title="Set actions"
+                      >
+                        <MoreVertical className="size-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40 text-xs font-sans">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenRename("set", node.fullPath, node.name);
+                        }}
+                        className="gap-2 text-xs cursor-pointer"
+                      >
+                        <Edit2 className="size-3.5" />
+                        <span>Rename Set</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDelete("set", node.fullPath, node.name);
+                        }}
+                        className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span>Delete Set</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </ContextMenuTrigger>
+        {isEditable && (
+          <ContextMenuContent className="w-40 text-xs font-sans">
+            <ContextMenuItem
+              onClick={() => handleOpenRename("set", node.fullPath, node.name)}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Edit2 className="size-3.5" />
+              <span>Rename Set</span>
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={() => handleOpenDelete("set", node.fullPath, node.name)}
+              className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Delete Set</span>
+            </ContextMenuItem>
+          </ContextMenuContent>
+        )}
+      </ContextMenu>
     );
   };
 
@@ -586,87 +656,110 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                 const isGroupActive = activeThemeGroupId === grp.id;
                 return (
                   <div key={grp.id} className="space-y-1">
-                    <div
-                      onClick={() => {
-                        setActiveThemeGroup(grp.id);
-                        if (grp.options.length > 0) {
-                          setActiveThemeOption(grp.options[0].id);
-                        }
-                        onItemSelected?.();
-                      }}
-                      className={`group flex items-center justify-between text-xs font-semibold rounded-md px-2 py-1.5 cursor-pointer transition-colors ${
-                        isGroupActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate min-w-0 pr-1">
-                        <Folder className="size-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate text-xs font-semibold">
-                          {grp.name}
-                        </span>
-                      </div>
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          onClick={() => {
+                            setActiveThemeGroup(grp.id);
+                            if (grp.options.length > 0) {
+                              setActiveThemeOption(grp.options[0].id);
+                            }
+                            onItemSelected?.();
+                          }}
+                          className={`group flex items-center justify-between text-xs font-semibold rounded-md px-2 py-1.5 cursor-pointer transition-colors ${
+                            isGroupActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate min-w-0 pr-1">
+                            <Folder className="size-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate text-xs font-semibold">
+                              {grp.name}
+                            </span>
+                          </div>
 
-                      {/* Colored option dots indicator on right */}
-                      <div className="flex items-center gap-1 shrink-0 ml-auto mr-1.5">
-                        {grp.options.slice(0, 4).map((opt) => (
-                          <span
-                            key={opt.id}
-                            className="size-1.5 rounded-full"
-                            style={{ backgroundColor: opt.color || grp.color || "hsl(var(--primary))" }}
-                          />
-                        ))}
-                      </div>
+                          {/* Colored option dots indicator on right */}
+                          <div className="flex items-center gap-1 shrink-0 ml-auto mr-1.5">
+                            {grp.options.slice(0, 4).map((opt) => (
+                              <span
+                                key={opt.id}
+                                className="size-1.5 rounded-full"
+                                style={{ backgroundColor: opt.color || grp.color || "hsl(var(--primary))" }}
+                              />
+                            ))}
+                          </div>
 
-                      {isEditable && (
-                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAddModalGroupId(grp.id);
-                            }}
-                            className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                            title="Add Theme Option"
-                          >
-                            <Plus className="size-3" />
-                          </button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          {isEditable && (
+                            <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddModalGroupId(grp.id);
+                                }}
                                 className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                                title="Group options"
+                                title="Add Theme Option"
                               >
-                                <MoreVertical className="size-3" />
+                                <Plus className="size-3" />
                               </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40 text-xs">
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditGroupId(grp.id);
-                                }}
-                                className="gap-2 text-xs cursor-pointer"
-                              >
-                                <Edit2 className="size-3.5" />
-                                <span>Edit / Rename</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenDelete("group", grp.id, grp.name);
-                                }}
-                                className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                              >
-                                <Trash2 className="size-3.5" />
-                                <span>Delete Group</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                                    title="Group options"
+                                  >
+                                    <MoreVertical className="size-3" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40 text-xs">
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditGroupId(grp.id);
+                                    }}
+                                    className="gap-2 text-xs cursor-pointer"
+                                  >
+                                    <Edit2 className="size-3.5" />
+                                    <span>Edit / Rename</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenDelete("group", grp.id, grp.name);
+                                    }}
+                                    className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                    <span>Delete Group</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
                         </div>
+                      </ContextMenuTrigger>
+                      {isEditable && (
+                        <ContextMenuContent className="w-40 text-xs">
+                          <ContextMenuItem
+                            onClick={() => setEditGroupId(grp.id)}
+                            className="gap-2 text-xs cursor-pointer"
+                          >
+                            <Edit2 className="size-3.5" />
+                            <span>Edit / Rename</span>
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            onClick={() => handleOpenDelete("group", grp.id, grp.name)}
+                            className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span>Delete Group</span>
+                          </ContextMenuItem>
+                        </ContextMenuContent>
                       )}
-                    </div>
+                    </ContextMenu>
 
                     {/* Indented Theme Options List */}
                     <div className="pl-5 space-y-0.5">
@@ -674,62 +767,84 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                         const isCurrentGroup = activeThemeGroupId === grp.id;
                         const isSelected = isCurrentGroup && (activeThemeOptionId === opt.id || (!activeThemeOptionId && opt.id === grp.options[0]?.id));
                         return (
-                          <div
-                            key={opt.id}
-                            onClick={() => {
-                              setActiveThemeGroup(grp.id);
-                              setActiveThemeOption(opt.id);
-                              onItemSelected?.();
-                            }}
-                            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
-                              isSelected
-                                ? "bg-muted text-foreground font-semibold shadow-2xs"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
-                            }`}
-                          >
-                            <span className="truncate pr-1">{opt.name}</span>
+                          <ContextMenu key={opt.id}>
+                            <ContextMenuTrigger asChild>
+                              <div
+                                onClick={() => {
+                                  setActiveThemeGroup(grp.id);
+                                  setActiveThemeOption(opt.id);
+                                  onItemSelected?.();
+                                }}
+                                className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-muted text-foreground font-semibold shadow-2xs"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"
+                                }`}
+                              >
+                                <span className="truncate pr-1">{opt.name}</span>
 
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {isEditable && (
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                      <button
-                                        type="button"
-                                        className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                                        title="Option actions"
-                                      >
-                                        <MoreVertical className="size-3" />
-                                      </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-40 text-xs">
-                                      <DropdownMenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenRename("option", opt.id, opt.name, grp.id);
-                                        }}
-                                        className="gap-2 text-xs cursor-pointer"
-                                      >
-                                        <Edit2 className="size-3.5" />
-                                        <span>Rename Option</span>
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenDelete("option", opt.id, opt.name, grp.id);
-                                        }}
-                                        className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                                      >
-                                        <Trash2 className="size-3.5" />
-                                        <span>Delete Option</span>
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {isEditable && (
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                          <button
+                                            type="button"
+                                            className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                            title="Option actions"
+                                          >
+                                            <MoreVertical className="size-3" />
+                                          </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-40 text-xs">
+                                          <DropdownMenuItem
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleOpenRename("option", opt.id, opt.name, grp.id);
+                                            }}
+                                            className="gap-2 text-xs cursor-pointer"
+                                          >
+                                            <Edit2 className="size-3.5" />
+                                            <span>Rename Option</span>
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleOpenDelete("option", opt.id, opt.name, grp.id);
+                                            }}
+                                            className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                                          >
+                                            <Trash2 className="size-3.5" />
+                                            <span>Delete Option</span>
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          </div>
+                              </div>
+                            </ContextMenuTrigger>
+                            {isEditable && (
+                              <ContextMenuContent className="w-40 text-xs">
+                                <ContextMenuItem
+                                  onClick={() => handleOpenRename("option", opt.id, opt.name, grp.id)}
+                                  className="gap-2 text-xs cursor-pointer"
+                                >
+                                  <Edit2 className="size-3.5" />
+                                  <span>Rename Option</span>
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onClick={() => handleOpenDelete("option", opt.id, opt.name, grp.id)}
+                                  className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                  <span>Delete Option</span>
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                            )}
+                          </ContextMenu>
                         );
                       })}
                     </div>

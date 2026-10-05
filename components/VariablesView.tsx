@@ -50,6 +50,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -574,10 +581,11 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                   const isCopied = copiedId === item.id;
 
                   return (
-                    <Card
-                      key={item.id}
-                      className="border-border transition-all shadow-xs group flex flex-col justify-between"
-                    >
+                    <ContextMenu key={item.id}>
+                      <ContextMenuTrigger asChild>
+                        <Card
+                          className="border-border transition-all shadow-xs group flex flex-col justify-between cursor-default"
+                        >
                       <CardHeader className="p-3.5 pb-2 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <Badge variant="outline" className="text-[9px] font-mono uppercase px-1.5 py-0">
@@ -670,7 +678,37 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                         )}
                       </CardContent>
                     </Card>
-                  );
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-40 text-xs font-sans">
+                    <ContextMenuItem
+                      onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id, "Value")}
+                      className="cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5 mr-2" />
+                      <span>Copy Value</span>
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => handleCopyCssVar(item.name, item.id)}
+                      className="cursor-pointer"
+                    >
+                      <Code2 className="w-3.5 h-3.5 mr-2" />
+                      <span>Copy CSS Var</span>
+                    </ContextMenuItem>
+                    {canUserEdit() && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          onClick={() => setVariableToDelete(item)}
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-2" />
+                          <span>Delete Variable</span>
+                        </ContextMenuItem>
+                      </>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
                 })}
               </div>
             ) : (
@@ -750,70 +788,102 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                       const isColor = item.type === "color";
 
                       return (
-                        <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
-                          <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground">
-                            {item.setName}
-                          </td>
-                          <td className="py-2.5 px-4 border-r border-border/30 font-mono font-medium text-foreground truncate max-w-[200px]">
-                            {item.name}
-                          </td>
-                          <td className="py-2.5 px-4 border-r border-border/30">
-                            {isColor ? (
-                              <div
-                                className="w-4 h-4 rounded-full border border-black/15 shadow-2xs"
-                                style={{ backgroundColor: typeof (item.resolvedValue || item.rawValue) === "string" ? (item.resolvedValue || item.rawValue) : undefined }}
-                              />
-                            ) : (
-                              <span className="font-mono text-[11px] text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-4 border-r border-border/30 font-mono text-foreground">
-                            {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
-                          </td>
-                          <td className="py-2.5 px-4 border-r border-border/30 font-sans text-xs text-muted-foreground lowercase">
-                            {item.type}
-                          </td>
-                          <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground truncate max-w-[150px]">
-                            {item.isAlias ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
-                                {typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")}
-                              </span>
-                            ) : "—"}
-                          </td>
-                          <td className="py-2.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleCopyCssVar(item.name, item.id)}
-                                title="Copy CSS Variable"
-                                className="h-7 w-7"
-                              >
-                                <Code2 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id)}
-                                title="Copy Value"
-                                className="h-7 w-7"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </Button>
-                              {canUserEdit() && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                        <ContextMenu key={item.id}>
+                          <ContextMenuTrigger asChild>
+                            <tr className="hover:bg-muted/30 transition-colors group cursor-default">
+                              <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground">
+                                {item.setName}
+                              </td>
+                              <td className="py-2.5 px-4 border-r border-border/30 font-mono font-medium text-foreground truncate max-w-[200px]">
+                                {item.name}
+                              </td>
+                              <td className="py-2.5 px-4 border-r border-border/30">
+                                {isColor ? (
+                                  <div
+                                    className="w-4 h-4 rounded-full border border-black/15 shadow-2xs"
+                                    style={{ backgroundColor: typeof (item.resolvedValue || item.rawValue) === "string" ? (item.resolvedValue || item.rawValue) : undefined }}
+                                  />
+                                ) : (
+                                  <span className="font-mono text-[11px] text-muted-foreground">—</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 border-r border-border/30 font-mono text-foreground">
+                                {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
+                              </td>
+                              <td className="py-2.5 px-4 border-r border-border/30 font-sans text-xs text-muted-foreground lowercase">
+                                {item.type}
+                              </td>
+                              <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground truncate max-w-[150px]">
+                                {item.isAlias ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+                                    {typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")}
+                                  </span>
+                                ) : "—"}
+                              </td>
+                              <td className="py-2.5 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleCopyCssVar(item.name, item.id)}
+                                    title="Copy CSS Variable"
+                                    className="h-7 w-7"
+                                  >
+                                    <Code2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id)}
+                                    title="Copy Value"
+                                    className="h-7 w-7"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                  </Button>
+                                  {canUserEdit() && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setVariableToDelete(item)}
+                                      title="Delete Variable"
+                                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent className="w-40 text-xs font-sans">
+                            <ContextMenuItem
+                              onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id, "Value")}
+                              className="cursor-pointer"
+                            >
+                              <Copy className="w-3.5 h-3.5 mr-2" />
+                              <span>Copy Value</span>
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={() => handleCopyCssVar(item.name, item.id)}
+                              className="cursor-pointer"
+                            >
+                              <Code2 className="w-3.5 h-3.5 mr-2" />
+                              <span>Copy CSS Var</span>
+                            </ContextMenuItem>
+                            {canUserEdit() && (
+                              <>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
                                   onClick={() => setVariableToDelete(item)}
-                                  title="Delete Variable"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  className="text-destructive focus:text-destructive cursor-pointer"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                  <span>Delete Variable</span>
+                                </ContextMenuItem>
+                              </>
+                            )}
+                          </ContextMenuContent>
+                        </ContextMenu>
                       );
                     })}
                   </tbody>
