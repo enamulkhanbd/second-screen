@@ -294,11 +294,27 @@ function fileToBase64(file: File): Promise<string> {
  * Determines the semantic AssetType (icon, image, video, document, other)
  * from asset metadata, MIME contentType, and filename.
  */
-export function getInferredAssetType(asset: ProjectAsset): AssetType {
+export function getInferredAssetType(asset: ProjectAsset, folderName?: string): AssetType {
   if (asset.assetType) return asset.assetType;
   const mime = (asset.contentType || "").toLowerCase();
   const name = asset.name.toLowerCase();
+  const title = (asset.title || "").toLowerCase();
   const url = (asset.url || "").toLowerCase();
+  const folder = (folderName || "").toLowerCase();
+  const path = (asset.path || "").toLowerCase();
+  const category = (asset.category || "").toLowerCase();
+
+  // If inside an illustrations folder, category, path, or named as illustration
+  if (
+    folder.includes("illustration") ||
+    category.includes("illustration") ||
+    path.includes("illustration") ||
+    name.includes("illustration") ||
+    title.includes("illustration")
+  ) {
+    return "illustration";
+  }
+
   if (mime.includes("svg") || name.endsWith(".svg") || url.endsWith(".svg")) return "icon";
   if (mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|ico|bmp|avif)$/i.test(name) || /\.(png|jpe?g|webp|gif|ico)$/i.test(url)) return "image";
   if (mime.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(name) || /\.(mp4|webm|mov)$/i.test(url)) return "video";
@@ -333,11 +349,46 @@ async function getImageDimensions(file: Blob, contentType = file.type): Promise<
   return { width, height, aspect: `${width / left}:${height / left}` };
 }
 
-function hasFixedSvgVariant(asset: ProjectAsset): boolean {
-  const fixedVariantPattern = /(^|[^a-z])(color(?:ed|ful)?|colour(?:ed|ful)?|full[-_ ]?color|multi[-_ ]?color|mono(?:chrome|chromic|chromatic)?|duo[-_ ]?tone|two[-_ ]?tone|twotone)(?=$|[^a-z])/i;
-  return [asset.type, asset.category, asset.tag, asset.name, asset.title].some(
-    (value) => !!value && fixedVariantPattern.test(value)
-  );
+export function isColorSvgAsset(asset: ProjectAsset, folderName?: string): boolean {
+  // 1. Semantic asset type
+  const itemType = asset.assetType || getInferredAssetType(asset, folderName);
+  if (itemType === "illustration" || itemType === "image") return true;
+
+  // 2. Folder / Collection context
+  const folder = (folderName || "").toLowerCase();
+  if (/(illustration|logo|brand|graphic|badge|color)/i.test(folder)) return true;
+
+  // 3. Inspect metadata, names, tags, types with camelCase / PascalCase boundary splitting
+  const rawFields = [asset.type, asset.category, asset.tag, asset.name, asset.title, asset.path].filter(Boolean) as string[];
+  const normalizedText = rawFields
+    .map((str) => str.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase())
+    .join(" ");
+
+  const colorKeywordPattern = /\b(color|colour|colored|coloured|fullcolor|full[-_ ]?color|multicolor|multi[-_ ]?color|duotone|duo[-_ ]?tone|twotone|two[-_ ]?tone|brand|logo|badge|illustration|visa|paypal|mastercard|google|slack|discord|youtube|twitter|facebook|twitch|whatsapp|telegram|instagram)\b/i;
+  if (colorKeywordPattern.test(normalizedText)) {
+    return true;
+  }
+
+  // 4. Inline SVG markup inspection
+  if (asset.svg) {
+    if (/<(linearGradient|radialGradient|pattern|image)/i.test(asset.svg)) return true;
+    const colorMatches = asset.svg.match(/(?:fill|stroke)=["']([^"']+)["']/gi) || [];
+    const nonNeutralColors = new Set<string>();
+    for (const match of colorMatches) {
+      const val = match.replace(/^(?:fill|stroke)=["']|["']$/gi, "").trim().toLowerCase();
+      if (!val || ["none", "currentcolor", "inherit", "transparent", "#000", "#000000", "#fff", "#ffffff", "black", "white"].includes(val)) {
+        continue;
+      }
+      nonNeutralColors.add(val);
+    }
+    if (nonNeutralColors.size > 0) return true;
+  }
+
+  return false;
+}
+
+function hasFixedSvgVariant(asset: ProjectAsset, folderName?: string): boolean {
+  return isColorSvgAsset(asset, folderName);
 }
 
 /**
@@ -432,8 +483,9 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   const previewStyle = getCanvasPreviewStyle("subtle");
 
-  // Unclassified SVGs follow the active theme; named variants keep their authored colors.
-  const shouldThemeSvg = isSvgAsset(icon) && !hasFixedSvgVariant(icon);
+  // Monochrome SVGs invert in dark mode for contrast; colored SVGs and illustrations keep their authored colors.
+  const isColored = isColorSvgAsset(icon);
+  const shouldInvertMonochrome = isSvgAsset(icon) && !isColored;
   const shouldInvertInDarkMode =
     !isSvgAsset(icon) &&
     icon.source === "git" &&
@@ -456,7 +508,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
         </div>
       ) : icon.svg ? (
         <div
-          className={`max-h-14 max-w-[85%] flex items-center justify-center [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14 ${shouldThemeSvg ? "brightness-0 dark:invert" : ""}`}
+          className={`max-h-14 max-w-[85%] flex items-center justify-center [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-14 ${shouldInvertMonochrome ? "dark:invert dark:opacity-90" : ""}`}
           dangerouslySetInnerHTML={{ __html: icon.svg }}
         />
       ) : icon.url ? (
@@ -468,9 +520,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           className={`max-h-14 max-w-[85%] object-contain transition-opacity duration-150 ${
             isLoaded ? "opacity-100" : "opacity-0"
           } ${
-            shouldThemeSvg
-              ? "brightness-0 dark:invert"
-              : shouldInvertInDarkMode
+            shouldInvertMonochrome || shouldInvertInDarkMode
               ? "dark:invert dark:opacity-90"
               : ""
           }`}
@@ -1025,6 +1075,15 @@ export const AssetsWorkspace: React.FC = () => {
         const resolvedType = matchedMeta?.type || derivedType || undefined;
         const resolvedCategory = matchedMeta?.category || (derivedCategory && derivedCategory !== "general" ? derivedCategory : undefined) || (selectedCategory !== "all" ? selectedCategory : undefined);
 
+        const collection = effectiveFolderId ? assetFolders.find((f) => f.id === effectiveFolderId) : null;
+        const isIllustrationContext = Boolean(
+          collection?.name.toLowerCase().includes("illustration") ||
+          (effectiveFolderId && effectiveFolderId.toLowerCase().includes("illustration")) ||
+          stem.toLowerCase().includes("illustration") ||
+          item.path.toLowerCase().includes("illustration")
+        );
+        const resolvedAssetType: AssetType = isIllustrationContext ? "illustration" : "icon";
+
         newAssets.push({
           name: matchedMeta?.name || stem,
           title: matchedMeta?.title || stem,
@@ -1032,7 +1091,7 @@ export const AssetsWorkspace: React.FC = () => {
           tag: matchedMeta?.tag || undefined,
           category: resolvedCategory,
           folderId: effectiveFolderId,
-          assetType: "icon",
+          assetType: resolvedAssetType,
           svg: cleanedSvg,
           content: cleanedSvg,
           contentType: "image/svg+xml",
@@ -1224,7 +1283,14 @@ export const AssetsWorkspace: React.FC = () => {
         const fileName = parts.pop() || file.name;
         const name = fileName.replace(/\.[^/.]+$/, "");
         const contentType = file.type || detectContentType(file.name);
-        const assetType = deriveAssetType(contentType, file.name);
+        const isIllustrationFolder = Boolean(
+          collection?.name.toLowerCase().includes("illustration") ||
+          (collectionId && collectionId.toLowerCase().includes("illustration")) ||
+          normalizedPath.toLowerCase().includes("illustration")
+        );
+        const assetType: AssetType = isIllustrationFolder && (contentType.includes("svg") || file.name.endsWith(".svg"))
+          ? "illustration"
+          : deriveAssetType(contentType, file.name);
         const folderCategory = parts.join("-").toLowerCase();
         return {
           file,
@@ -2028,9 +2094,13 @@ export const AssetsWorkspace: React.FC = () => {
     const isCopied = copiedId === icon.id;
     const isSelected = selectedAssetIds.has(icon.id);
     const displayTitle = icon.title || icon.name;
-    const itemType = getInferredAssetType(icon);
+    const folder = (icon.folderId || icon.collectionId)
+      ? assetFolders.find((f) => f.id === (icon.folderId || icon.collectionId))
+      : null;
+    const folderName = folder?.name || currentActiveFolder?.name || "";
+    const itemType = getInferredAssetType(icon, folderName);
     const isSvg = itemType === "icon" || isSvgAsset(icon);
-    const shouldThemeSvg = isSvgAsset(icon) && !hasFixedSvgVariant(icon);
+    const isColoredSvg = isColorSvgAsset(icon, folderName);
     const handleCardClick = () => {
       setDetailAsset(icon);
     };
@@ -2217,11 +2287,18 @@ export const AssetsWorkspace: React.FC = () => {
               className="max-h-full max-w-full object-contain"
               loading="lazy"
             />
+          ) : itemType === "illustration" ? (
+            <img
+              src={icon.url || (icon.svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon.svg)}` : undefined)}
+              alt={displayTitle}
+              className="max-h-[85%] max-w-[85%] object-contain"
+              loading="lazy"
+            />
           ) : (
             <img
               src={icon.url || (icon.svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon.svg)}` : undefined)}
               alt={displayTitle}
-              className={`max-h-[60%] max-w-[60%] object-contain ${shouldThemeSvg ? "brightness-0 dark:invert" : ""}`}
+              className={`max-h-[60%] max-w-[60%] object-contain ${!isColoredSvg ? "dark:invert dark:opacity-90" : ""}`}
               loading="lazy"
             />
           )}
@@ -2827,73 +2904,45 @@ export const AssetsWorkspace: React.FC = () => {
 
         {/* Right Content Area: Top Type Filter Bar + Separated Category Sections */}
         <main className="flex-1 flex flex-col overflow-hidden bg-background">
-          {/* Active Folder Header Banner (if folder is selected) */}
-          {currentActiveFolder && (
-            <div className="px-6 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between text-xs flex-shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-muted text-foreground flex items-center justify-center border border-border/60">
-                  {React.createElement(getFolderIconComponent(currentActiveFolder.icon), { className: "w-3.5 h-3.5 text-muted-foreground" })}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground">{currentActiveFolder.name}</span>
-                    <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5">
-                      {folderCountMap.get(currentActiveFolder.id) || 0} items
-                    </Badge>
-                  </div>
-                  {currentActiveFolder.description && (
-                    <p className="text-[11px] text-muted-foreground">{currentActiveFolder.description}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Top Subheader: Filter Pills & Canvas Background Switcher */}
-          {displayAssets.length > 0 && (
+          {/* Top Subheader: Filter Pills */}
+          {displayAssets.length > 0 && iconTypes.length > 0 && (
             <div className="px-6 py-2 border-b border-border bg-muted/15 flex items-center justify-between gap-3 text-xs flex-shrink-0">
-              {iconTypes.length > 0 ? (
-                <div className="flex items-center gap-2 overflow-x-auto">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1 flex items-center gap-1">
-                    <span>Type:</span>
-                  </span>
-                  <button
-                    onClick={() => setSelectedType("all")}
-                    className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
-                      selectedType === "all"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                        : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                    }`}
-                  >
-                    All Types ({displayAssets.length})
-                  </button>
-                  {iconTypes.map((t) => {
-                    const count = displayAssets.filter((a) => a.type?.toLowerCase() === t).length;
-                    const isSelected = selectedType === t;
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => setSelectedType(t)}
-                        className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
-                          isSelected
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                            : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                        }`}
-                      >
-                        <span>{formatCategoryName(t) || t}</span>
-                        <span className={`text-[10px] ${isSelected ? "text-sidebar-accent-foreground/80 font-semibold" : "text-muted-foreground"}`}>
-                          ({count})
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-[11px] text-muted-foreground font-medium">
-                  {currentActiveFolder ? `${currentActiveFolder.name} folder` : "Assets overview"}
-                </div>
-              )}
-
+              <div className="flex items-center gap-2 overflow-x-auto">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1 flex items-center gap-1">
+                  <span>Type:</span>
+                </span>
+                <button
+                  onClick={() => setSelectedType("all")}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
+                    selectedType === "all"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                  }`}
+                >
+                  All Types ({displayAssets.length})
+                </button>
+                {iconTypes.map((t) => {
+                  const count = displayAssets.filter((a) => a.type?.toLowerCase() === t).length;
+                  const isSelected = selectedType === t;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setSelectedType(t)}
+                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                          : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                      }`}
+                    >
+                      <span>{formatCategoryName(t) || t}</span>
+                      <span className={`text-[10px] ${isSelected ? "text-sidebar-accent-foreground/80 font-semibold" : "text-muted-foreground"}`}>
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -3216,41 +3265,12 @@ export const AssetsWorkspace: React.FC = () => {
                 )}
               </div>
             ) : (
-              /* Separated Icon Groups directly by Type (Stroke, Two Tone, Solid, etc.) */
-              <div className="space-y-8 animate-in fade-in duration-200">
-                {groupedAssetsByType.map(({ typeName, icons }) => {
-                  const formattedType = formatCategoryName(typeName);
-
-                  return (
-                    <section key={typeName} className="space-y-3">
-                      {/* Type Section Header */}
-                      {(groupedAssetsByType.length > 1 || selectedType === "all") && (
-                        <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/70" />
-                            <h3 className="text-xs font-bold text-foreground tracking-tight">
-                              {formattedType}
-                            </h3>
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] font-mono py-0 px-1.5 h-4 text-muted-foreground font-normal"
-                            >
-                              {(() => {
-                                const totalForType = totalCountByType.get(typeName) || icons.length;
-                                return icons.length < totalForType ? `${icons.length} of ${totalForType}` : icons.length;
-                              })()}
-                            </Badge>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Icon Cards Grid for this Type */}
-                      <div className="flex flex-wrap gap-4">
-                        {icons.map((icon) => renderIconCard(icon))}
-                      </div>
-                    </section>
-                  );
-                })}
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {groupedAssetsByType.map(({ typeName, icons }) => (
+                  <div key={typeName} className="flex flex-wrap gap-4">
+                    {icons.map((icon) => renderIconCard(icon))}
+                  </div>
+                ))}
 
                 {/* Progressive Loading Skeleton Grid with Sentinel */}
                 {filteredAssets.length > visibleCount && (
