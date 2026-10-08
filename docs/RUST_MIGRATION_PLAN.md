@@ -3,36 +3,43 @@
 > **Scope:** Move the **Second Screen / Tokens Platform** to a Rust backend and a Rust frontend runtime.
 > **Unchanged:** Supabase (PostgreSQL + Auth), Cloudflare R2 (asset storage / CDN), Figma Companion Plugin sandbox (TypeScript).
 > **Branch:** `upgrade/rust`
-> **Status:** Proposal, v1.0 (2026-10-07)
+> **Status:** Proposal, **v1.1 (2026-10-08)**, re-baselined against the current codebase
+
+### Revision history
+
+| Version | Date | Change |
+|---|---|---|
+| 1.0 | 2026-10-07 | Initial plan, based on `PERFORMANCE_AUDIT_REPORT.md` |
+| **1.1** | **2026-10-08** | Codebase re-audit: 7 of 11 audit findings already fixed in TS (see [§1.4](#14-audit-remediation-status)). Phase 0 shrunk to verify + baseline. **Token engine + WASM moved earlier** (now Phases 2–3) because main-thread compute is the #1 remaining bottleneck. Credential handling corrected (plaintext today, not encrypted). Asset metadata dual-source documented. Metrics re-based. |
 
 ---
 
 ## Table of Contents
 
 0. [Executive Verdict](#0-executive-verdict)
-1. [Current-State Baseline](#1-current-state-baseline)
-2. [Honest Assessment: What Rust Fixes and What It Doesn't](#2-honest-assessment)
+1. [Current-State Baseline (verified 2026-10-08)](#1-current-state-baseline)
+2. [Honest Assessment](#2-honest-assessment)
 3. [Target Architecture](#3-target-architecture)
 4. [Repository Layout](#4-repository-layout)
-5. [Technology Choices (Crates & Tools)](#5-technology-choices)
-6. [Phase 0: Stabilize & Baseline](#phase-0)
+5. [Technology Choices](#5-technology-choices)
+6. [Phase 0: Verify, Baseline & Quick Wins](#phase-0)
 7. [Phase 1: Rust Foundation & CI](#phase-1)
-8. [Phase 2: Data Layer Evolution (Supabase)](#phase-2)
-9. [Phase 3: Rust Token Engine (Core Crate)](#phase-3)
-10. [Phase 4: WASM Bridge into the Current Frontend](#phase-4)
-11. [Phase 5: Rust API Service (Axum), Core Routes](#phase-5)
-12. [Phase 6: Integrations Port (Git, Figma, R2, Email)](#phase-6)
+8. [Phase 2: Rust Token Engine (Core Crate)](#phase-2)
+9. [Phase 3: WASM Engine in the Current Frontend](#phase-3)
+10. [Phase 4: Data Layer Evolution (Supabase)](#phase-4)
+11. [Phase 5: Rust API Service, Core Routes](#phase-5)
+12. [Phase 6: Integrations Port & Credential Custody](#phase-6)
 13. [Phase 7: Client Data-Access Consolidation](#phase-7)
 14. [Phase 8: Backend Cutover & Decommission](#phase-8)
 15. [Phase 9: Frontend Go / No-Go Gate](#phase-9)
-16. [Phase 10: Rust Frontend (Leptos), Optional Track](#phase-10)
+16. [Phase 10: Rust Frontend (Leptos), Optional](#phase-10)
 17. [Phase 11: Figma Plugin Alignment](#phase-11)
 18. [Testing Strategy](#testing-strategy)
 19. [Rollout, Feature Flags & Rollback](#rollout)
 20. [Risk Register](#risk-register)
 21. [Timeline & Effort](#timeline)
 22. [Success Metrics](#success-metrics)
-23. [Governance Updates (`AGENTS.md`)](#governance)
+23. [Governance & Docs Updates](#governance)
 24. [Appendix A: Route Migration Matrix](#appendix-a)
 25. [Appendix B: Reference Code Sketches](#appendix-b)
 26. [Appendix C: Per-Phase Exit Checklists](#appendix-c)
@@ -44,113 +51,140 @@
 
 | Layer | Move to Rust? | Verdict |
 |---|---|---|
-| **Token compute** (alias resolution, math, theme matrix, diff, exporters) | ✅ **Yes, highest value** | CPU-bound work on 13,000+ tokens. Rust compiled to WASM (browser) and native (server) gives one engine with no main-thread freezes. |
-| **Backend API** (`app/api/*`, 25+ routes) | ✅ **Yes, good move** | Gives you a single binary, low memory use, no serverless cold starts or timeouts, long-running Git sync jobs, strong typing at the DB boundary. |
-| **Frontend UI** (≈45k LOC React + Radix + Tailwind) | ⚠️ **Not yet, gated** | No Rust equivalent of Radix's accessibility primitives. It's a full rewrite of the most complex UI (Tokens grid, Flow canvas, Doc editor, Assets studio), and the UI isn't what makes the app slow. Decide at [Phase 9](#phase-9) using measured data. |
-| **Figma plugin sandbox** | ❌ **No** | Figma's plugin sandbox is a JS environment. The plugin **UI** iframe can use the WASM engine. |
+| **Token compute** (alias resolution, math, theme matrix, diff, exporters) | ✅ **Yes, the #1 priority** | Now the **main remaining bottleneck**: every edit re-resolves the whole document synchronously on the main thread (25 call sites, no Web Worker anywhere). Rust → WASM in a worker, with **incremental** re-resolution, fixes this directly. |
+| **Backend API** (`app/api/*`, 25+ routes) | ✅ **Yes, good move** | No serverless timeouts for Git/Figma sync. Server-side custody of Git PATs (they currently pass through the browser). Typed DB access. Low memory. |
+| **Frontend UI** (≈45k LOC React + Radix + Tailwind) | ⚠️ **Not yet, gated** | No Rust equivalent of Radix accessibility primitives, and it's a full rewrite of the most complex UI. Decide at [Phase 9](#phase-9) with measured data. |
+| **Figma plugin sandbox** | ❌ **No** | Figma's sandbox is JS-only. The plugin **UI** iframe can use the WASM engine. |
 
-**Recommended path:** do a **Rust core + Rust backend first, then a gated Rust frontend.**
-Phases 0–8 deliver most of the performance and reliability gains with low risk.
-Phase 10 (Leptos) only runs if the [Phase 9](#phase-9) go/no-go criteria are met.
+**Recommended order:** Rust **token engine first** (ships user-visible speed in ~2.5 months) → Rust **backend** → **gated** Rust frontend.
 
-> [!IMPORTANT]
-> The biggest slowdowns in [`PERFORMANCE_AUDIT_REPORT.md`](../PERFORMANCE_AUDIT_REPORT.md) are **logic and data-model bugs**, not language speed:
-> phantom auto-save PATCH loops (19.7 MB/session), a duplicate 25-second `/api/v1/tokens` fetch,
-> an unpaginated 952 KB asset list, and a rate-limited `r2.dev` image storm.
-> Porting these bugs to Rust won't make them go away. **Phase 0 fixes them first** so that Rust's gains can be measured honestly.
+> [!NOTE]
+> **What changed since v1.0:** The team has already fixed most network-level findings in the old audit:
+> phantom auto-save, the Variables tab 25s fetch, Git refetch on every tab, `check-updates` polling, duplicate asset list/config calls,
+> metadata re-queries, and the unnecessary member PATCH. See [§1.4](#14-audit-remediation-status).
+> What remains is **CPU on the main thread**, **whole-document writes**, **asset metadata storage**, and **credential handling**.
+> Rust and the planned schema changes are well suited to all four.
 
 ---
 
 <a id="1-current-state-baseline"></a>
-## 1. Current-State Baseline
+## 1. Current-State Baseline (verified 2026-10-08)
 
-### 1.1 Inventory (measured from the repo)
+### 1.1 Inventory
 
 | Area | Location | Size | Notes |
 |---|---|---|---|
-| Global store | `store/useTokenStore.ts` | 6,688 LOC | Zustand, holds all project state and calls Supabase directly. |
-| Assets workspace | `components/assets/AssetsWorkspace.tsx` | 4,688 LOC | Monolithic component. |
-| Tenancy service | `services/organizationService.ts` | 1,750 LOC | Used from **both** browser (store) and server (API routes). |
-| Token engine (TS) | `utils/transformTokens.ts`, `themeHelpers.ts`, `releaseCompiler.ts`, `exportsCompiler.ts`, `tokenDiff.ts`, `colorPalettes.ts`, `colorModifier.ts`, `accessibility.ts`, `tokenFlowBuilder.ts` | ≈6,500 LOC | Pure functions, the prime Rust candidates. |
-| Schema catalog | `data/schemaCatalog.ts` | 1,506 LOC | 182 Draft 2020-12 schemas, self-hosted. |
+| Global store | [`store/useTokenStore.ts`](../store/useTokenStore.ts) | 6,689 LOC | Zustand, calls Supabase directly, holds all project state. |
+| Assets workspace | [`components/assets/AssetsWorkspace.tsx`](../components/assets/AssetsWorkspace.tsx) | 4,688 LOC | Monolithic. Progressive batch rendering (48) + lazy images. |
+| Tenancy service | [`services/organizationService.ts`](../services/organizationService.ts) | 1,750 LOC | Used by **browser and server**. 30s metadata cache + in-flight dedupe. |
+| Token engine (TS) | `utils/transformTokens.ts`, `themeHelpers.ts`, `releaseCompiler.ts`, `exportsCompiler.ts`, `tokenDiff.ts`, `colorPalettes.ts`, `colorModifier.ts`, `accessibility.ts`, `tokenFlowBuilder.ts`, `tokenDeprecation.ts` | ≈6,500 LOC | Pure functions, the Rust candidates. |
+| Schema catalog | [`data/schemaCatalog.ts`](../data/schemaCatalog.ts) | 1,506 LOC | 182 Draft 2020-12 schemas, self-hosted. |
 | API routes | `app/api/**` | 25+ handlers | Thin I/O: Supabase, GitHub/Azure/GitLab, Figma, R2, Resend. |
-| R2 client | `lib/r2.ts` | 618 LOC | AWS SDK v3, presign, metadata index stored **as a JSON blob in R2**. |
-| Figma plugin | `plugin/code.ts`, `plugin/src-ui/App.tsx` | ≈2,000 LOC | Vite single-file build. |
-| Tests | `utils/**/*.test.ts`, `pair/*.test.ts` | 6 files | Vitest; these become parity oracles. |
+| R2 client | [`lib/r2.ts`](../lib/r2.ts) | 618 LOC | AWS SDK v3. **Asset metadata index stored as `metadata.json` in R2.** |
+| Figma plugin | [`plugin/code.ts`](../plugin/code.ts), [`plugin/src-ui/App.tsx`](../plugin/src-ui/App.tsx) | ≈2,000 LOC | Vite single-file build. |
+| Tests | 6 Vitest files | | Parity oracles for Rust. |
 | **Total TS/TSX** | | **≈72,500 LOC** | |
 
 ### 1.2 Data model hot spots (Supabase)
-
-- `projects.raw_tokens JSONB`, `projects.branches JSONB` (each branch embeds its own `rawTokens`), and `projects.figma_variables JSONB`.
-  - Every save rewrites a ~565 KB row. There are no partial updates and no per-branch concurrency.
-- Asset metadata lives in an R2 JSON index (`buildMetadataKey`), not Postgres, so you can't paginate, filter or join it.
-- RLS is built on `is_org_member`, `is_org_admin`, `is_org_editor` and `is_org_owner` (`SECURITY DEFINER`).
-- The browser calls PostgREST directly with the anon key + user JWT (RLS enforced). The server uses the service role for admin operations.
+- `projects.raw_tokens`, `projects.theme_groups`, `projects.branches` (each branch **embeds a full `rawTokens` copy**), and `projects.figma_variables`, all JSONB on one row.
+- `getProject()` uses `select("*")` ([organizationService.ts#L843-L880](../services/organizationService.ts#L843-L880)), so opening a project downloads every branch's full document.
+- Integration configs (Git PAT, Figma token) live in `project_integrations` (RLS: editors only). A trigger blocks writing them to `projects` ([`20260927_security_hardening.sql`](../supabase/migrations/20260927_security_hardening.sql)).
 
 ### 1.3 Runtime topology today
 
 ```mermaid
 flowchart LR
   B["Browser (Next.js client, Zustand)"] -->|"PostgREST + JWT (RLS)"| SB[("Supabase Postgres")]
-  B -->|"fetch /api/*"| N["Next.js API routes (serverless)"]
+  B -->|"fetch /api/* (Git PAT in body)"| N["Next.js API routes (serverless)"]
   N -->|"service role"| SB
   N --> GH["GitHub / Azure DevOps / GitLab"]
   N --> FG["Figma REST"]
-  N --> R2[("Cloudflare R2")]
+  N -->|"metadata.json read-modify-write"| R2[("Cloudflare R2")]
   B -->|"public r2.dev URLs"| R2
   P["Figma Plugin"] -->|"PAT / pairing"| N
 ```
+
+<a id="14-audit-remediation-status"></a>
+### 1.4 Audit remediation status
+
+Each item from [`PERFORMANCE_AUDIT_REPORT.md`](./PERFORMANCE_AUDIT_REPORT.md) (historical), checked against the code:
+
+| # | Audit finding | Status | Evidence in code | Residual / where the plan handles it |
+|---|---|---|---|---|
+| 1 | Phantom `PATCH /projects` auto-save (35×) | ✅ **Fixed** | `setRawTokens` skips cloud save when content is unchanged ([useTokenStore.ts#L4464-L4516](../store/useTokenStore.ts#L4464-L4516)), plus a `persist: false` option | Real edits still send the **full** `raw_tokens` + `theme_groups` + **all branches** on every edit with no debounce ([L1001-L1026](../store/useTokenStore.ts#L1001-L1026), [organizationService.ts#L1426](../services/organizationService.ts#L1426)). The "unchanged" check runs 3× `JSON.stringify` on the full doc on the main thread. → [Phase 0 quick win](#phase-0), [Phase 4](#phase-4), [Phase 7](#phase-7) |
+| 2 | Variables tab 25s duplicate `/api/v1/tokens` | ✅ **Fixed** | `fetchVariables` runs only on manual Refresh ([VariablesView.tsx#L120-L138](../components/VariablesView.tsx#L120-L138), [L338](../components/VariablesView.tsx#L338)) | Endpoint still resolves `"ALL"` server-side for PAT consumers. → [Phase 5](#phase-5) (native engine + ETag) |
+| 3 | 80-image R2 storm | 🟡 **Mostly fixed** | `ASSET_BATCH_SIZE = 48`, IntersectionObserver, `loading="lazy"` ([AssetsWorkspace.tsx#L114](../components/assets/AssetsWorkspace.tsx#L114), [L923-L988](../components/assets/AssetsWorkspace.tsx#L923-L988)) | `R2_PUBLIC_URL` still points at `*.r2.dev` (rate-limited, not for production). No thumbnails. → [Phase 0](#phase-0), [Phase 6](#phase-6) |
+| 4 | `git/fetch` on every tab | ✅ **Fixed** | In-flight dedupe, 60s TTL, server `unchanged` SHA short-circuit ([useTokenStore.ts#L4116-L4162](../store/useTokenStore.ts#L4116-L4162), [git/fetch/route.ts#L342-L346](../app/api/git/fetch/route.ts#L342-L346)) | Fetch is still synchronous inside a serverless request, so big repos risk a timeout. → [Phase 6](#phase-6) (jobs) |
+| 5 | Monolithic `/api/assets/list` fired twice | 🟡 **Partially** | Fired once now (in-flight map + SWR cache, [useTokenStore.ts#L596-L597](../store/useTokenStore.ts#L596-L597), [L725-L736](../store/useTokenStore.ts#L725-L736)) | Still returns **all** assets. Metadata is a single R2 `metadata.json` rewritten on every change, so concurrent uploads can overwrite each other. → [Phase 4](#phase-4) (`assets` table) |
+| 6 | `/api/assets/config` fired twice | ✅ **Fixed** | `inFlightAssetConfigs` ([L597](../store/useTokenStore.ts#L597), [L856-L862](../store/useTokenStore.ts#L856-L862)) | — |
+| 7 | `check-updates` on every navigation | ✅ **Fixed** | 30s throttle + 10-min backoff ([L4075-L4092](../store/useTokenStore.ts#L4075-L4092)), focus throttle ([Header.tsx#L446-L465](../components/Header.tsx#L446-L465)) | — |
+| 8 | Org/project/members re-queried per tab | ✅ **Fixed** | `METADATA_CACHE_TTL_MS = 30000`, in-flight dedupe, lightweight summaries/counts ([organizationService.ts#L131-L146](../services/organizationService.ts#L131-L146)) | — |
+| 9 | `PATCH organization_members` on read | ✅ **Fixed** | Only runs when an email-matched row is unlinked ([L193-L203](../services/organizationService.ts#L193-L203)) | — |
+| 10 | Synchronous alias resolution on the main thread | ❌ **Open** | `resolveTokensWithActiveThemes` → `flattenAndResolveTokens` called from **25** sites in the store ([L466-L474](../store/useTokenStore.ts#L466-L474)). Every `updateSingleToken` re-resolves the whole doc + `extractThemeGroups`. **No Web Worker in the codebase.** | → **[Phase 2](#phase-2) + [Phase 3](#phase-3)** (core reason for Rust) |
+| 11 | Theme matrix Cartesian product on the main thread | ❌ **Open** | `useMemo(buildThemeMatrix…)` ([ThemeMatrix.tsx#L206-L209](../components/ThemeMatrix.tsx#L206-L209)), memoized but synchronous | → [Phase 2](#phase-2) + [Phase 3](#phase-3) |
+
+**Score:** 7 fixed · 2 partial · 2 open. The open and partial items are exactly what this plan targets.
+
+### 1.5 Other findings from the deep check (they shape the plan)
+
+| Finding | Impact | Plan response |
+|---|---|---|
+| **Git PATs are stored in plaintext** in `project_integrations` JSONB (RLS: editors). The browser holds them and sends them in the request body to `/api/git/*`. `TOKENS_PLATFORM_SECRET_KEY` is defined in `.env.example` but **unused**. | Security: any editor session (or an XSS) can read repo tokens. | [Phase 6.1](#phase-6): server-side custody + AES-256-GCM encryption at rest. The browser never sees PATs. |
+| **Two sources of asset metadata:** R2 `metadata.json` / `config.json` ([lib/r2.ts#L90-L100](../lib/r2.ts#L90-L100)) **and** `projects.extra_data.assets` / `assetFolders` / `assetsCount` | Drift, no pagination, write races | [Phase 4](#phase-4): single `assets` + `asset_collections` tables in Postgres |
+| `getProject` loads the full row, including every branch's embedded document | Large payload on project open | [Phase 4](#phase-4) normalization + [Phase 7](#phase-7) lazy per-branch loads |
+| localStorage project caches with coalesced writes (`d5775c4`) | Good. Keep it. | Kept in the React track. Leptos track uses the same cache keys. |
+| Stale docs: `docs/ARCHITECTURE.md` references `services/gitSyncService.ts`, `services/figmaSyncService.ts`, `plugin/src/code.ts` (none exist). `AGENTS.md` links use `d:/GitHub/...` paths and `plugin/src/code.ts`. | Misleads contributors and AI agents | [Phase 0.5](#phase-0) docs refresh |
 
 ---
 
 <a id="2-honest-assessment"></a>
 ## 2. Honest Assessment
 
-### 2.1 What Rust genuinely improves
+### 2.1 What Rust genuinely improves (for this codebase, today)
 
 | Benefit | Where it shows up |
 |---|---|
-| **Predictable CPU performance** | `flattenAndResolveTokens`, `buildThemeMatrix` (Cartesian product), `computeTokensDiff`, exporters on 13k+ tokens. Expect 3–10× speedups. More importantly, the work moves **off the main thread** via a WASM worker. |
-| **One engine, three runtimes** | The same crate runs in the server (native), browser (WASM worker) and Figma plugin UI (WASM). No more TS-server vs TS-client drift. |
-| **No serverless limits** | Git fetch/push and Figma asset sync become background jobs with progress streaming, with no function timeout. |
-| **Memory and cost** | An Axum service idles at ~20–40 MB RSS, while a Node SSR instance typically uses 150–300 MB. |
-| **Type-checked SQL** | `sqlx` checks queries against the real schema at compile time. |
-| **Security posture** | Memory safety, explicit error handling, and a smaller dependency tree than `node_modules`. |
+| **Off-main-thread, incremental compute** | Replaces the full re-resolution on every edit (25 call sites) with `engine.apply(edits)`, which re-resolves only the affected alias subgraph inside a worker. |
+| **Raw speed** | 3–10× on resolve, theme matrix, diff and exporters for 13k+ tokens (native and WASM). |
+| **One engine, three runtimes** | Server (native), browser (WASM worker), Figma plugin UI (WASM). No drift between TS copies. |
+| **Content hashing in the engine** | Replaces 3× `JSON.stringify` deep-compare with a cheap hash per token set, which also enables partial saves. |
+| **No serverless limits** | Git fetch/push and Figma asset sync become jobs with progress streaming. |
+| **Security** | Server-side credential custody, encryption at rest, memory safety, smaller dependency surface. |
+| **Type-checked SQL** | `sqlx` compile-time checks against the real schema. |
 
-### 2.2 What Rust does not fix
+### 2.2 Already solved in TypeScript (don't re-solve)
 
-| Problem | Real fix (language-agnostic) |
-|---|---|
-| 35× phantom `PATCH /projects` | Gate saves on real `isDirty`; diff-based partial writes. |
-| 25s Variables tab | Don't refetch data that's already in the store. |
-| 41s asset image storm | Virtualization, pagination, lazy images, **custom R2 domain** (`r2.dev` is rate-limited and not meant for production). |
-| Refetch on every tab | Client caching with stale-while-revalidate. |
-| 565 KB row rewrites | Normalize token storage (Phase 2). |
+Network deduplication, TTL caches, SHA short-circuit, polling throttles, progressive rendering (`INITIAL_BATCH_SIZE = 100` in Tokens, `48` in Assets), and dynamic imports are done. **Port these behaviours as-is.** They're regression requirements, not new work.
 
-### 2.3 Why a Rust frontend is high-risk *right now*
+### 2.3 Remaining non-language work (schema/infra, needed regardless of Rust)
 
-1. **Rewrite size:** ≈45k LOC of UI, including a virtualized token grid, drag-and-drop flow canvas, block doc editor, color pickers, and Radix dialogs, menus, popovers and selects.
-2. **Accessibility primitives:** Radix gives you focus traps, roving tabindex, dismissable layers, typeahead and ARIA wiring for free. Rust UI libraries (e.g. Thaw, leptos-use) are useful but not at parity. You'd need to **budget time to build headless primitives yourself.**
-3. **Bundle and startup:** A Leptos WASM bundle is typically 300 KB–1.5 MB gzipped before code splitting. Code splitting in Rust/WASM is still maturing compared with Next.js dynamic imports.
-4. **Iteration speed:** Rust compile + hot reload is slower than Vite/Next HMR for UI tweaking.
-5. **Hiring and AI tooling:** There are far fewer Leptos engineers and much less example code than for React.
-6. **The UI isn't the bottleneck.** Once compute moves to a WASM worker (Phase 4), the React UI only renders the 100-row batches it already renders.
+| Problem | Fix | Phase |
+|---|---|---|
+| Whole-document writes per edit | Normalize into `project_branches` + `token_sets`, send changed sets only | 4, 7 |
+| Asset metadata in R2 JSON + `extra_data` | `assets` table, keyset pagination | 4, 5 |
+| `r2.dev` public URL | R2 custom domain + cache rules | 0 |
 
-**Conclusion:** Rust everywhere is achievable. The **order** matters: core → backend → (gate) → frontend.
+### 2.4 Why a Rust frontend is still high-risk
+
+1. **Rewrite size:** ≈45k LOC: virtualized token grid, flow canvas, block doc editor, color pickers, Radix dialogs, menus and selects.
+2. **Accessibility:** Radix gives you focus traps, roving tabindex, dismissable layers and typeahead. Rust UI libraries (e.g. Thaw, leptos-use) aren't at parity, so budget time to build headless primitives yourself.
+3. **Bundle/startup:** a Leptos WASM app is typically 300 KB–1.5 MB gzipped. Code splitting is less mature than Next dynamic imports, which this app already uses heavily.
+4. **Iteration speed:** Rust compile + reload is slower than Next HMR for UI work.
+5. **The UI isn't the bottleneck.** After Phase 3, React only renders 100-row batches from a worker.
 
 ---
 
 <a id="3-target-architecture"></a>
 ## 3. Target Architecture
 
-### 3.1 End-state after Phase 8 (recommended baseline)
+### 3.1 End state after Phase 8 (recommended baseline)
 
 ```mermaid
 flowchart TB
   subgraph Browser
     UI["React UI (Next.js or Vite SPA)"]
     W["Web Worker: token-engine.wasm"]
-    UI <-->|"postMessage / Comlink"| W
+    UI <-->|"Comlink"| W
   end
 
   subgraph Edge["Cloudflare"]
@@ -160,79 +194,73 @@ flowchart TB
   subgraph RustAPI["Rust API service (Axum, container)"]
     MW["Auth middleware: Supabase JWT (JWKS) + PAT"]
     RT["Routes: /api/v1/*"]
+    VAULT["Credential custody (AES-256-GCM)"]
     JOBS["Job runner: git / figma sync"]
     ENG["token-engine (native)"]
     MW --> RT --> ENG
-    RT --> JOBS
+    RT --> JOBS --> VAULT
   end
 
-  UI -->|"HTTPS + Bearer JWT"| MW
+  UI -->|"HTTPS + Bearer JWT (no PATs)"| MW
   UI -->|"Auth only (supabase-js)"| SBA["Supabase Auth"]
   RT -->|"sqlx (RLS via SET LOCAL ROLE)"| PG[("Supabase Postgres")]
   JOBS --> GIT["GitHub / Azure / GitLab"]
   JOBS --> FIG["Figma REST"]
   RT -->|"aws-sdk-s3"| R2[("R2 bucket")]
   UI --> CDN --> R2
-  PL["Figma Plugin (TS sandbox + UI w/ WASM)"] -->|"PAT"| MW
+  PL["Figma Plugin (TS sandbox + UI with WASM)"] -->|"PAT"| MW
 ```
 
-### 3.2 End-state after optional Phase 10 (full Rust)
+### 3.2 End state after optional Phase 10 (full Rust)
 
 ```mermaid
 flowchart LR
   BR["Browser: Leptos hydrated app (WASM)"] -->|"server fns / REST"| AX["Axum: Leptos SSR + API + jobs"]
   AX --> PG[("Supabase Postgres")]
   AX --> R2[("R2")]
-  BR -->|"Auth (supabase REST / PKCE)"| SBA["Supabase Auth"]
+  BR -->|"Auth (Supabase REST / PKCE)"| SBA["Supabase Auth"]
   BR --> CDN["R2 custom domain"]
 ```
 
-### 3.3 Architectural principles
-
-1. **Supabase is the source of truth for schema.** Migrations stay in `supabase/migrations/`, and `sqlx` reads from them. Rust never owns DDL.
-2. **RLS stays authoritative.** User-initiated queries run as the `authenticated` role with the user's JWT claims. The service role is only for explicitly-admin operations, and those are audited.
-3. **Strangler fig.** Every route can be served by either Next or Rust, switched by a flag. No big-bang cutover.
-4. **Contract-first.** OpenAPI (generated by `utoipa`) is the contract. TS clients are generated from it, so the React UI stays type-safe against Rust.
-5. **Self-hosted schemas (AGENTS.md Rule 1).** The Rust registry resolves `$id` and `$schema` URLs from the request origin. **Never** `registry.tokens.studio`.
+### 3.3 Principles
+1. **Supabase owns the schema.** Migrations stay in `supabase/migrations/`. Rust never owns DDL.
+2. **RLS stays authoritative.** User queries run as `authenticated` with the user's JWT claims. The service role is used only through an audited wrapper.
+3. **Strangler fig.** Any route can be served by Next or Rust, switched by a flag.
+4. **Contract-first.** `utoipa` OpenAPI generates the TS client.
+5. **Self-hosted schemas (AGENTS.md Rule 1).** `$id`/`$schema` URLs resolve from the request origin. **Never** `registry.tokens.studio`.
+6. **Preserve the existing perf behaviours** listed in [§2.2](#22-already-solved-in-typescript-dont-re-solve).
 
 ---
 
 <a id="4-repository-layout"></a>
 ## 4. Repository Layout
 
-A monorepo. The Rust workspace sits next to the existing Next app until cutover.
-
 ```
 second-screen/
 ├── app/ components/ store/ ...        # existing Next.js app (kept through Phase 8)
-├── plugin/                            # Figma plugin (TS)
-├── supabase/migrations/               # schema source of truth (unchanged location)
+├── plugin/                            # Figma plugin (code.ts sandbox + src-ui)
+├── supabase/migrations/               # schema source of truth
 ├── rust/
 │   ├── Cargo.toml                     # [workspace]
 │   ├── rust-toolchain.toml            # pinned stable + wasm32-unknown-unknown
-│   ├── deny.toml                      # cargo-deny licenses/advisories
+│   ├── deny.toml
 │   ├── crates/
-│   │   ├── token-engine/              # pure Rust, no I/O, no tokio
-│   │   │   ├── src/{model,parse,alias,math,color,flatten,theme,diff,validate}/
+│   │   ├── token-engine/              # pure Rust, no I/O
+│   │   │   ├── src/{model,parse,alias,math,color,flatten,theme,diff,hash,validate,graph}/
 │   │   │   ├── src/export/{css,scss,ts,tailwind,flutter,style_dictionary,dtcg,figma}.rs
-│   │   │   ├── benches/               # criterion
-│   │   │   └── tests/golden/          # fixtures captured from TS (Phase 0)
+│   │   │   ├── benches/
+│   │   │   └── tests/golden/          # captured from TS in Phase 0
 │   │   ├── token-engine-wasm/         # wasm-bindgen facade, handle-based API
-│   │   ├── schema-registry/           # 182 schemas embedded via include_str!
-│   │   ├── domain/                    # Org, Project, Member, Branch, Asset, ApiKey types (serde)
+│   │   ├── schema-registry/           # 182 schemas via include_str!
+│   │   ├── domain/                    # Org, Project, Member, Branch, TokenSet, Asset, ApiKey
 │   │   ├── db/                        # sqlx repositories, RLS session helper
-│   │   ├── integrations/
-│   │   │   ├── git/                   # github, azure_devops, gitlab
-│   │   │   ├── figma/
-│   │   │   ├── r2/
-│   │   │   └── email/                 # Resend
 │   │   ├── auth/                      # Supabase JWT (JWKS/HS256), PAT, pairing
-│   │   ├── jobs/                      # background sync jobs
-│   │   └── api/                       # Axum binary (main.rs), routes, OpenAPI
-│   └── apps/
-│       └── web-leptos/                # ONLY created in Phase 10
-├── packages/
-│   └── api-client/                    # TS client generated from OpenAPI
+│   │   ├── vault/                     # credential encryption (AES-256-GCM)
+│   │   ├── integrations/{git,figma,r2,email}/
+│   │   ├── jobs/
+│   │   └── api/                       # Axum binary
+│   └── apps/web-leptos/               # ONLY in Phase 10
+├── packages/api-client/               # TS client generated from OpenAPI
 └── docs/RUST_MIGRATION_PLAN.md
 ```
 
@@ -241,296 +269,201 @@ second-screen/
 <a id="5-technology-choices"></a>
 ## 5. Technology Choices
 
-| Concern | Choice | Why / notes |
+| Concern | Choice | Notes |
 |---|---|---|
-| HTTP server | **axum** + tokio + tower-http | De-facto standard; tower middleware (CORS, compression, tracing, timeouts). |
-| DB | **sqlx** (postgres, runtime-tokio, tls-rustls) | Compile-time checked queries, offline mode (`.sqlx/`) for CI. |
-| Supabase pooling | Direct connection or **Supavisor session mode (5432)** | ⚠️ Transaction mode (6543) breaks sqlx prepared statements unless you disable statement caching. A long-lived server doesn't need it anyway. |
-| Auth JWT | **jsonwebtoken** + JWKS cache | Supports Supabase asymmetric signing keys (`/auth/v1/.well-known/jwks.json`) and legacy HS256 secret. |
-| PAT hashing | **sha2** + `subtle` (constant-time compare) | Matches current `utils/patAuth.ts` SHA-256 hashes, so existing keys keep working. |
-| R2 | **aws-sdk-s3** (custom endpoint `https://<acct>.r2.cloudflarestorage.com`, region `auto`) | Presigned PUT/GET supported. |
-| HTTP client | **reqwest** (rustls) | GitHub/Azure/GitLab/Figma/Resend. Optional `octocrab` for GitHub. |
-| Serialization | **serde**, serde_json (`preserve_order`, `arbitrary_precision` as needed) | `preserve_order` keeps DTCG key order stable, which matters for diffs and Git output. |
-| JSON Schema | **jsonschema** crate (Draft 2020-12) | Validates tokens against the self-hosted registry. |
-| Color math | **palette** or hand-rolled (match TS output exactly) | Exact parity with `toHexFast`/`colorModifier` beats library elegance. |
-| Expression math | Custom Pratt parser | Reproduce `evaluateTokenMath` semantics exactly (units, rounding). |
-| Diff | **similar** | Line diff for `computeLineDiff` / side-by-side hunks. |
-| ZIP | **zip** crate | Release and export bundles, plugin download. |
-| OpenAPI | **utoipa** + utoipa-swagger-ui | Then `openapi-typescript` → `packages/api-client`. |
-| Errors | **thiserror** (libs), **anyhow** (bin) | Map to RFC 7807 problem+json. |
-| Observability | **tracing**, tracing-subscriber, OpenTelemetry OTLP | Request IDs, spans per DB/integration call. |
-| Config | **figment** or `envy` | Reads the same env names as `.env.example`. |
-| Jobs | tokio tasks + Postgres `jobs` table (SKIP LOCKED) | No extra infra (Redis not required). `apalis` is an alternative. |
-| WASM | **wasm-bindgen**, wasm-pack, `serde-wasm-bindgen`, `wasm-opt` | Worker-hosted engine. |
-| Rust frontend (Phase 10) | **Leptos** (latest stable) + cargo-leptos + leptos_router | SSR + hydration on the same Axum server. Dioxus is the alternative. |
-| Testing | cargo-nextest, insta (snapshots), proptest, criterion, wiremock | |
+| HTTP | **axum** + tokio + tower-http | CORS, compression, tracing, timeouts, body limits |
+| DB | **sqlx** (postgres, rustls) | Offline mode (`.sqlx/`) for CI |
+| Supabase connection | Direct, or **Supavisor session mode (5432)** | ⚠️ Transaction mode (6543) breaks sqlx prepared statements |
+| JWT | **jsonwebtoken** + JWKS cache | Asymmetric signing keys + legacy HS256 fallback |
+| PAT hashing | **sha2** + `subtle` | Matches [`utils/patAuth.ts`](../utils/patAuth.ts) SHA-256, so existing keys keep working |
+| Credential encryption | **aes-gcm** + `zeroize` | Key from `TOKENS_PLATFORM_SECRET_KEY` (currently unused) or Supabase Vault |
+| R2 | **aws-sdk-s3** (endpoint `https://<acct>.r2.cloudflarestorage.com`, region `auto`) | Presigned PUT/GET |
+| HTTP client | **reqwest** (rustls), optional `octocrab` | |
+| JSON | **serde_json** (`preserve_order`) + **ryu-js** | Key order + JS-identical number formatting |
+| Hashing | **blake3** or sha256 | Token-set content hashes |
+| JSON Schema | **jsonschema** (2020-12) | |
+| Diff | **similar** | |
+| ZIP | **zip** | |
+| OpenAPI | **utoipa** → `openapi-typescript` | |
+| Errors | thiserror / anyhow | |
+| Observability | tracing + OpenTelemetry | |
+| Jobs | Postgres `jobs` table + `SKIP LOCKED` | No Redis needed |
+| WASM | wasm-bindgen, wasm-pack, wasm-opt, Comlink (TS side) | |
+| Templates | **askama** | Invite email, optional SSR docs page |
+| Rust UI (Phase 10) | **Leptos** + cargo-leptos | Dioxus is the alternative |
+| Testing | nextest, insta, proptest, criterion, wiremock, cargo-fuzz | |
 
 ---
 
 <a id="phase-0"></a>
-## Phase 0: Stabilize & Baseline (TypeScript)
+## Phase 0: Verify, Baseline & Quick Wins
 
-**Goal:** Remove known non-language bottlenecks, freeze behaviour, and capture what "correct" looks like.
-**Duration:** ~2 weeks. **Risk:** Low.
+**Goal:** Lock in the TS fixes as regression requirements, capture correctness oracles, measure today's real numbers, and land two cheap wins.
+**Duration:** ~1 week (was 2 in v1.0). **Risk:** Low.
 
-### 0.1 Fix audit bugs in the current app
+### 0.1 Fresh measurement (replaces the old audit numbers)
+Repeat the audit's 4-minute session (Tokens → Themes → Variables → Assets) on the **enterprise 13k-token project** and record the results in `docs/RUST_BASELINE.md`:
 
-| # | Task | File(s) | Acceptance |
+| Metric | Tool |
+|---|---|
+| Total requests / bytes up / bytes down per session | Chrome DevTools HAR |
+| Main-thread long tasks (> 50 ms) per minute, INP | Performance panel, web-vitals |
+| `updateSingleToken` → UI settled (ms) | `performance.mark` around the store action |
+| `flattenAndResolveTokens` 13k (p50/p95) | Vitest bench |
+| `buildThemeMatrix`, all exporters, `computeTokensDiff` | Vitest bench |
+| Bytes per single-token save | HAR (`PATCH /rest/v1/projects`) |
+| Project open payload (`getProject`) | HAR |
+| `/api/v1/tokens` and `/api/git/fetch` latency | k6 / autocannon |
+| Asset list payload and image p95 | HAR |
+
+### 0.2 Quick wins (small and safe, worth doing before Rust)
+
+| # | Task | File | Acceptance |
 |---|---|---|---|
-| 0.1.1 | Gate cloud save on genuine user edits; merge `raw_tokens` + `branches` into one PATCH | `store/useTokenStore.ts` | 0 PATCH calls during a 4-min read-only session |
-| 0.1.2 | Remove auto `fetchVariables()` on mount; read from the store | `components/VariablesView.tsx` | Variables tab < 200 ms |
-| 0.1.3 | Stop `git/fetch` + `check-updates` on sibling-tab navigation | `app/page.tsx`, store | 1 fetch per project open |
-| 0.1.4 | Paginate `/api/assets/list` (temporary cursor over the R2 index) | `app/api/assets/list/route.ts` | Payload < 60 KB per page |
-| 0.1.5 | Virtualize the asset grid + `loading="lazy"` | `components/assets/AssetsWorkspace.tsx` | ≤ 20 image requests on open |
-| 0.1.6 | Move R2 public URL from `*.r2.dev` to a **custom domain** with Cloudflare cache rules | Cloudflare dashboard, `R2_PUBLIC_URL` | p95 image < 300 ms |
-| 0.1.7 | Remove the unnecessary `PATCH organization_members` during reads | `services/organizationService.ts` | No write on load |
+| 0.2.1 | **R2 custom domain** + Cloudflare cache rule; set `R2_PUBLIC_URL` | Cloudflare dashboard, env | No `*.r2.dev` URLs in prod. Image p95 < 300 ms. |
+| 0.2.2 | **Coalesce cloud saves**: debounce `persistTokensChange` (~800 ms trailing, flush on `beforeunload`/project switch) | [`useTokenStore.ts#L1001`](../store/useTokenStore.ts#L1001) | 10 rapid edits → 1 PATCH |
+| 0.2.3 | *(Optional)* Replace the 3× `JSON.stringify` compare in `setRawTokens` with a single cached hash | [`useTokenStore.ts#L4464-L4473`](../store/useTokenStore.ts#L4464-L4473) | Fewer main-thread ms on hydrate |
 
-### 0.2 Capture golden fixtures (the parity oracle for Rust)
+> [!NOTE]
+> **Deliberately NOT done in TS:** asset list pagination over the R2 `metadata.json`. That would be throwaway work. Phase 4 moves asset metadata into Postgres with real keyset pagination.
 
-1. Export 3 real token documents (small ~200, medium ~2k, enterprise **13k+**), anonymized if needed.
-2. Write `scripts/capture-golden.mjs`. For each fixture it writes JSON outputs to `rust/crates/token-engine/tests/golden/<fixture>/`:
-   - `flattenAndResolveTokens` → `flatten.json`
-   - `buildTokenLookupIndex` → `index.json`
-   - `extractThemeGroups` / theme matrix → `themes.json`
-   - `computeTokensDiff` (fixture A vs A′) → `diff.json`
-   - Every exporter (CSS, SCSS, TS, Tailwind, Flutter, Style Dictionary, DTCG, Figma Variables) → `export/<format>/*`
-   - `evaluateTokenMath` edge cases → `math.json`
-   - Color conversions (`toHexFast`, palettes, modifiers, contrast) → `color.json`
-3. Commit the fixtures. **Any intentional behaviour change must regenerate them in a reviewed PR.**
+### 0.3 Golden fixtures (parity oracle for Rust)
+1. Export 3 token documents: small (~200), medium (~2k), enterprise (**13k+**). Anonymize if needed.
+2. Write `scripts/capture-golden.mjs`, which writes into `rust/crates/token-engine/tests/golden/<fixture>/`:
+   `flatten.json`, `index.json`, `themes.json`, `theme_matrix.json`, `diff.json`, `math.json`, `color.json`, and `export/<format>/*` for CSS, SCSS, TS, Tailwind, Flutter, Style Dictionary, DTCG and Figma Variables.
+3. Commit them. Intentional behaviour changes regenerate them in a reviewed PR.
 
-### 0.3 Capture API contracts
+### 0.4 API contracts
+- Record request/response pairs for every route in [Appendix A](#appendix-a) (secrets scrubbed) → `rust/crates/api/tests/contracts/`.
+- Hand-write `openapi.yaml` v0 for the current routes.
 
-1. Record request and response pairs for every route in [Appendix A](#appendix-a) (dev environment, scrubbed secrets) into `rust/crates/api/tests/contracts/*.json`.
-2. Write a hand-authored `openapi.yaml` v0 describing the current routes. This becomes the Rust target.
+### 0.5 Docs refresh
+- Add a "Superseded, see RUST_MIGRATION_PLAN §1.4" banner to `docs/PERFORMANCE_AUDIT_REPORT.md`.
+- Fix `docs/ARCHITECTURE.md`: remove `gitSyncService.ts` / `figmaSyncService.ts`, change `plugin/src/code.ts` → `plugin/code.ts`, document `project_integrations` and the R2 `metadata.json`.
+- Fix `AGENTS.md` key file map paths (`d:/GitHub/...` → repo-relative, `plugin/code.ts`).
 
-### 0.4 Performance baseline
+### 0.6 Regression guards for existing fixes
+Add Playwright/Vitest checks so nothing regresses during migration:
+- 0 `PATCH /projects` during a read-only session.
+- ≤ 1 `/api/git/fetch` per project open, none on sibling-tab switches.
+- ≤ 1 `/api/assets/list` and `/api/assets/config` per project open.
+- Variables tab makes no network calls on mount.
 
-| Metric | How | Record |
-|---|---|---|
-| Resolve 13k tokens | Vitest bench / `performance.now()` | ms (p50/p95) |
-| Theme matrix build | same | ms |
-| Export all formats | same | ms |
-| Tokens tab TTI | Chrome DevTools / Lighthouse | s |
-| `/api/v1/tokens` latency | k6 / autocannon | p50/p95 |
-| Main-thread long tasks | Performance panel | count > 50 ms |
-| Server memory & cold start | host metrics | MB, ms |
+### 0.7 Feature-freeze policy
+During Phases 2–8, new token semantics go **only into the Rust engine**. New backend features go only into Rust routes.
 
-### 0.5 Feature freeze policy
-- During Phases 3–8, new features land **only** in Rust (backend) or behind the engine facade (frontend). That way nothing has to be written twice.
-
-**Exit criteria:** audit issues closed, golden fixtures and contracts committed, baseline table filled in [`docs/RUST_BASELINE.md`].
+**Exit:** `RUST_BASELINE.md` filled, quick wins live, fixtures + contracts committed, regression guards in CI, docs refreshed.
 
 ---
 
 <a id="phase-1"></a>
 ## Phase 1: Rust Foundation & CI
 
-**Goal:** Set up a buildable, tested, deployable empty Rust workspace.
 **Duration:** 1–2 weeks. **Risk:** Low.
 
-### 1.1 Workspace bootstrap
-1. `rust/Cargo.toml` with `[workspace] resolver = "2"`, shared `[workspace.dependencies]`, `[profile.release] lto = "thin", codegen-units = 1`.
-2. `rust-toolchain.toml`: pinned stable, components `rustfmt`, `clippy`; target `wasm32-unknown-unknown`.
-3. Create crates (empty, compiling): `token-engine`, `token-engine-wasm`, `schema-registry`, `domain`, `db`, `auth`, `integrations`, `jobs`, `api`.
-4. `api` binary: `/healthz` (liveness), `/readyz` (DB ping + R2 head bucket), graceful shutdown on SIGTERM.
+### 1.1 Workspace
+1. `rust/Cargo.toml`: `resolver = "2"`, shared `[workspace.dependencies]`, release `lto = "thin"`, `codegen-units = 1`.
+2. `rust-toolchain.toml`: pinned stable, `rustfmt`, `clippy`, target `wasm32-unknown-unknown`.
+3. Empty compiling crates from [§4](#4-repository-layout).
+4. `api` binary with `/healthz`, `/readyz` (DB ping + R2 `HeadBucket`), graceful SIGTERM shutdown.
 
-### 1.2 Config & secrets
-- Read the **same env names** already in `.env.example`: `NEXT_PUBLIC_SUPABASE_URL` → also accept `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TOKENS_PLATFORM_SECRET_KEY`, `RESEND_API_KEY`, `INVITE_FROM_EMAIL`, `R2_*`.
-- New: `DATABASE_URL` (direct/session pooler), `SUPABASE_JWKS_URL` (default derived), `SUPABASE_JWT_SECRET` (legacy fallback), `APP_ORIGIN`, `RUST_LOG`, `OTEL_EXPORTER_OTLP_ENDPOINT`.
-- Fail fast at startup with a readable error listing missing variables.
+### 1.2 Config
+- Reuse existing env names: `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TOKENS_PLATFORM_SECRET_KEY`, `RESEND_API_KEY`, `INVITE_FROM_EMAIL`, `R2_*`.
+- New: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_JWT_SECRET` (legacy), `APP_ORIGIN`, `RUST_LOG`, `OTEL_EXPORTER_OTLP_ENDPOINT`.
+- Fail fast at startup and list every missing variable.
 
-### 1.3 CI pipeline (GitHub Actions)
+### 1.3 CI (GitHub Actions)
 
-| Job | Commands |
+| Job | Command |
 |---|---|
 | fmt | `cargo fmt --all --check` |
 | lint | `cargo clippy --workspace --all-targets -- -D warnings` |
-| test | `cargo nextest run --workspace` (with `SQLX_OFFLINE=true`) |
-| db-test | Ephemeral Postgres + apply `supabase/migrations/*` + `sqlx` integration tests |
-| wasm | `wasm-pack build crates/token-engine-wasm --target web --release` + size budget check |
-| deny | `cargo deny check` (licenses, advisories, bans) |
+| test | `cargo nextest run --workspace` (`SQLX_OFFLINE=true`) |
+| db-test | Ephemeral Postgres + `supabase/migrations/*` + sqlx integration tests |
+| wasm | `wasm-pack build crates/token-engine-wasm --target web --release` + size budget |
+| deny | `cargo deny check` |
 | existing | `npx tsc --noEmit`, `npm run build`, `npm test` (unchanged, per AGENTS.md) |
 
 ### 1.4 Container & hosting
-- Multi-stage Dockerfile: `cargo-chef` for dependency caching → `gcr.io/distroless/cc` runtime. Target image < 40 MB.
-- Host **close to the Supabase region** (latency to Postgres matters more than anything else). Options: Fly.io, Railway, Google Cloud Run (min instances = 1), Render, or a VPS with Docker.
-- Put Cloudflare in front (TLS, WAF, caching of `/api/v1/schemas/*`).
+- `cargo-chef` multi-stage → distroless runtime image (< 40 MB).
+- Host **in the same region as Supabase** (Fly.io, Railway, Cloud Run with min instances = 1, Render, or a VPS). Cloudflare in front.
 
 > [!NOTE]
-> Cloudflare Workers (`workers-rs`) is tempting because R2 is native there. But the Workers CPU and runtime limits, plus Postgres driver constraints, make it a poor fit for long Git sync jobs and `sqlx`. Use a container.
+> Cloudflare Workers (`workers-rs`) is a poor fit: its CPU/runtime limits and Postgres driver constraints rule out long Git syncs and sqlx.
 
-**Exit criteria:** `main` builds the Rust workspace in CI, a container is deployed to staging, `/readyz` is green against staging Supabase + R2.
+**Exit:** CI green, staging container up, `/readyz` green against staging Supabase + R2.
 
 ---
 
 <a id="phase-2"></a>
-## Phase 2: Data Layer Evolution (Supabase)
+## Phase 2: Rust Token Engine (Core Crate)
 
-**Goal:** Make the schema friendly to partial updates, pagination and typed access, without breaking the running TS app.
-**Duration:** 2–3 weeks. **Risk:** Medium. **Pattern:** Expand → Migrate → Contract.
-
-### 2.1 New tables (expand, additive only)
-
-```sql
--- 2.1.a Branches as rows instead of projects.branches JSONB
-CREATE TABLE public.project_branches (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id   TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-  org_id       TEXT NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  name         TEXT NOT NULL,
-  title        TEXT,
-  is_default   BOOLEAN NOT NULL DEFAULT false,
-  head_sha     TEXT,
-  version      BIGINT NOT NULL DEFAULT 1,      -- optimistic concurrency
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (project_id, name)
-);
-
--- 2.1.b Token sets per branch (unit of partial save)
-CREATE TABLE public.token_sets (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  branch_id    UUID NOT NULL REFERENCES public.project_branches(id) ON DELETE CASCADE,
-  org_id       TEXT NOT NULL,
-  set_path     TEXT NOT NULL,                  -- e.g. "core/colors"
-  sort_index   INT  NOT NULL DEFAULT 0,
-  content      JSONB NOT NULL,                 -- DTCG subtree
-  content_hash TEXT NOT NULL,                  -- sha256, skip no-op writes
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (branch_id, set_path)
-);
-
--- 2.1.c Assets metadata in Postgres (replaces R2 JSON index)
-CREATE TABLE public.assets (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id        TEXT NOT NULL,
-  project_id    TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-  r2_key        TEXT NOT NULL UNIQUE,
-  name          TEXT NOT NULL,
-  asset_type    TEXT NOT NULL,
-  content_type  TEXT NOT NULL,
-  size_bytes    BIGINT,
-  width INT, height INT,
-  collection_id UUID,
-  tags          TEXT[] NOT NULL DEFAULT '{}',
-  source        TEXT,                           -- upload | git | figma
-  checksum      TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX ON public.assets (project_id, created_at DESC, id);   -- keyset pagination
-CREATE INDEX ON public.assets USING gin (tags);
-
--- 2.1.d Background jobs (git/figma sync)
-CREATE TABLE public.jobs (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id      TEXT NOT NULL,
-  project_id  TEXT,
-  kind        TEXT NOT NULL,                    -- git_fetch | git_push | figma_assets | ...
-  status      TEXT NOT NULL DEFAULT 'queued',   -- queued|running|succeeded|failed|cancelled
-  payload     JSONB NOT NULL DEFAULT '{}',
-  progress    JSONB NOT NULL DEFAULT '{}',
-  error       TEXT,
-  attempts    INT NOT NULL DEFAULT 0,
-  run_after   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by  TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX ON public.jobs (status, run_after);
-```
-
-### 2.2 RLS for new tables
-- Enable RLS on all four tables.
-- SELECT: `public.is_org_member(org_id)`. INSERT/UPDATE/DELETE: `public.is_org_editor(org_id)` (or admin, matching current project policies).
-- `jobs`: SELECT for members; writes **only** via service role (Rust job runner).
-- Add pgTAP or SQL tests that assert a viewer cannot write and a non-member cannot read.
-
-### 2.3 Backfill (migrate)
-1. One-off Rust CLI `rust/crates/api/src/bin/backfill.rs` (service role):
-   - For each project: split `branches[*].rawTokens` (or `raw_tokens`) into `project_branches` + `token_sets` by top-level set key.
-   - Read each project's R2 metadata JSON index → insert `assets` rows.
-2. Run it idempotently (upsert on unique keys). Verify with a checksum: re-assemble the document from `token_sets` and compare it to the original JSONB (must be byte-equivalent after canonical JSON).
-
-### 2.4 Dual-write window
-- The TS app keeps writing to `projects.*` JSONB. A Postgres trigger **or** the Rust API mirrors writes into the new tables until Phase 7 flips reads.
-- Simplest safe option: the Rust API is the only writer of the new tables. A nightly reconciliation job reports drift.
-
-### 2.5 Contract (deferred to Phase 8)
-- Drop `projects.raw_tokens`, `projects.branches`, the R2 metadata index files and asset config blobs only after 30 days with zero reads (verify with logs).
-
-**Exit criteria:** new tables live in prod with RLS, backfill verified with 100% checksum match, the TS app is unaffected.
-
----
-
-<a id="phase-3"></a>
-## Phase 3: Rust Token Engine (Core Crate)
-
-**Goal:** A pure-Rust, I/O-free engine with **byte-for-byte parity** with the TS utilities.
+**Goal:** A pure-Rust engine with **byte-for-byte parity** with the TS utilities, plus **incremental** re-resolution.
 **Duration:** 4–6 weeks. **Risk:** Medium (semantic parity).
 
-### 3.1 Module map (TS → Rust)
+### 2.1 Module map
 
 | TS source | Rust module | Key functions |
 |---|---|---|
-| `utils/transformTokens.ts` | `model`, `parse`, `alias`, `math`, `flatten`, `mutate`, `sort` | `is_token_leaf`, `count_tokens`, `get_leaf_type`, `build_lookup_index`, `resolve_alias`, `evaluate_math`, `flatten_and_resolve`, `set/create/delete_token_at_key_path`, natural sort comparators |
-| `utils/themeHelpers.ts` | `theme` | `extract_theme_groups`, `themes_array`, `metadata_object`, `build_theme_matrix` |
-| `utils/tokenDiff.ts` | `diff` | `compute_line_diff`, `compute_tokens_diff`, `side_by_side`, `parse_unified_patch` |
-| `utils/releaseCompiler.ts` | `export::{flutter, react_ts, tailwind, css, scss, style_dictionary}` | `format_token_name`, `token_to_css_var`, all `compile_*` |
-| `utils/exportsCompiler.ts` | `export::{css, scss, ts, raw_json, dtcg, figma}` | `format_color_value`, `transform_casing`, `generate_*_export_files` |
-| `utils/colorPalettes.ts`, `colorModifier.ts` | `color` | palettes, modifiers, `to_hex_fast` (LRU) |
-| `utils/accessibility.ts` | `color::contrast` | WCAG contrast, APCA if present |
-| `utils/tokenFlowBuilder.ts` | `graph` | alias dependency graph for Flow canvas |
+| `utils/transformTokens.ts` | `model`, `parse`, `alias`, `math`, `flatten`, `mutate`, `sort` | `is_token_leaf`, `count_tokens`, `get_leaf_type`, `build_lookup_index`, `resolve_alias`, `evaluate_math`, `flatten_and_resolve`, `set/create/delete_token_at_key_path`, natural sort |
+| `utils/themeHelpers.ts` + store `resolveTokensWithActiveThemes` / `getActiveThemeSets` / `canonicalizeTokenDocument` | `theme` | `extract_theme_groups`, `active_theme_sets`, `canonicalize`, `build_theme_matrix` |
+| `utils/tokenDiff.ts` | `diff` | `line_diff`, `tokens_diff`, `side_by_side`, `parse_unified_patch` |
+| `utils/releaseCompiler.ts` | `export::*` | `format_token_name`, `token_to_css_var`, all `compile_*` |
+| `utils/exportsCompiler.ts` | `export::*` | `format_color_value`, `transform_casing`, `generate_*_export_files` |
+| `utils/colorPalettes.ts`, `colorModifier.ts`, `accessibility.ts` | `color` | palettes, modifiers, `to_hex_fast` (LRU), WCAG contrast |
+| `utils/tokenFlowBuilder.ts` | `graph` | alias dependency graph for the Flow canvas |
 | `utils/tokenDeprecation.ts` | `deprecation` | |
-| `data/schemaCatalog.ts` | `schema-registry` crate | embedded catalog + `validate(doc, schema_id)` |
+| `data/schemaCatalog.ts` | `schema-registry` | embedded catalog + `validate` |
 
-### 3.2 Core data structures
-- `TokenDocument`: `IndexMap<String, Node>` (order-preserving).
-- `Node::Group { meta, children } | Node::Leaf(TokenLeaf)`.
-- `TokenLeaf { value: serde_json::Value, ty: Option<TokenType>, description, extensions }`. Keep `$extensions` opaque to preserve round-trips.
-- `TokenGraph`: interned paths (`lasso` or `string-interner`), `Vec<NodeId>` adjacency for aliases, cycle detection with Tarjan SCC → explicit `ResolveError::Cycle(path)`.
-- Resolution cache: memoized per `NodeId`, invalidated by **dirty-subgraph propagation** on edits (O(affected) instead of O(all)).
+### 2.2 Core structures
+- `TokenDocument`: `IndexMap<String, Node>` (order-preserving). `$extensions` is kept opaque so documents round-trip unchanged.
+- `TokenGraph`: interned paths, alias adjacency (forward + reverse), Tarjan SCC cycle detection → `ResolveError::Cycle`.
+- **Incremental resolution:** `apply(edits)` marks edited nodes dirty, walks **reverse** alias edges to find dependents, and re-resolves only that subgraph. This replaces the current full re-resolve on every edit.
+- **Content hashing:** a blake3 hash per token set and per document. Used for no-op save detection (replacing `JSON.stringify` compare) and later for partial saves and ETags.
 
-### 3.3 Parity rules
-1. Number formatting must match JS `Number.prototype.toString()`. Use the `ryu-js` crate.
-2. Sorting must match `naturalCompareTokenKeys` exactly, including locale-free comparisons.
-3. Unknown/malformed input returns the **same fallback** TS returns (e.g., raw string), not a hard error, unless strict mode is on.
-4. JSON output uses the same key order and indentation (2 spaces) as `JSON.stringify(x, null, 2)`.
+### 2.3 Parity rules
+1. Number → string via `ryu-js`, matching JS `Number#toString`.
+2. Sorting matches `naturalCompareTokenKeys` and `compareTokens` exactly.
+3. Malformed input returns the same fallback as TS (non-strict mode).
+4. JSON output matches `JSON.stringify(x, null, 2)` key order and indentation.
 
-### 3.4 Testing
-- `tests/golden.rs`: for each fixture × function, assert equality with the Phase 0 output (`insta` snapshots when reviewing diffs).
-- `proptest`: random DTCG trees → `flatten(parse(serialize(doc))) == flatten(doc)`. Aliases never resolve to themselves. Cycles are always reported.
-- Fuzz (`cargo-fuzz`) for the math parser and alias parser.
-- `criterion` benches on the 13k fixture: resolve, theme matrix, diff, all exporters. Target **≥ 3× faster** than the TS baseline (native).
+### 2.4 Testing
+- Golden: every fixture × function equals the Phase 0 output.
+- Incremental: for random edit sequences, `apply(edits)` must equal a full re-resolve from scratch (proptest).
+- Fuzz the math and alias parsers.
+- Criterion on 13k: resolve, single-edit apply, theme matrix, diff, exports. Target **≥ 3× faster** full resolve and **≥ 20× faster** single-edit apply than the TS baseline.
 
-### 3.5 Public API (stable surface)
+### 2.5 Public API
 
 ```rust
-pub struct Engine { /* graph, caches */ }
+pub struct Engine { /* graph, caches, hashes */ }
 impl Engine {
     pub fn load(doc: TokenDocument, opts: EngineOptions) -> Result<Self, LoadError>;
-    pub fn apply(&mut self, edits: &[Edit]) -> Result<ChangeSet, EditError>;   // incremental
-    pub fn flatten(&self, filter: &Filter) -> Vec<ResolvedToken>;
-    pub fn page(&self, filter: &Filter, offset: usize, limit: usize) -> Page<ResolvedToken>; // Rule 4 batching
-    pub fn theme_matrix(&self, groups: &[ThemeGroup]) -> ThemeMatrix;
+    pub fn set_active_themes(&mut self, active: &ActiveThemes) -> ChangeSet;
+    pub fn apply(&mut self, edits: &[Edit]) -> Result<ChangeSet, EditError>;      // incremental
+    pub fn page(&self, filter: &Filter, offset: usize, limit: usize) -> Page<ResolvedToken>; // Rule 4
+    pub fn theme_groups(&self) -> Vec<ThemeGroup>;
+    pub fn theme_matrix(&self, group: &str, active: &ActiveThemes) -> ThemeMatrix;
     pub fn diff(&self, other: &Engine) -> TokensDiff;
     pub fn export(&self, target: ExportTarget, cfg: &ExportConfig) -> Vec<GeneratedFile>;
     pub fn validate(&self, registry: &SchemaRegistry) -> Vec<Diagnostic>;
+    pub fn set_hashes(&self) -> IndexMap<String, Hash>;                            // per token set
     pub fn to_document(&self) -> TokenDocument;
 }
 ```
 
-**Exit criteria:** 100% golden parity across all fixtures, benchmarks recorded, no `unsafe`, `clippy -D warnings` clean.
+**Exit:** 100% golden parity, incremental ≡ full proven by proptest, benchmarks recorded, no `unsafe`, clippy clean.
 
 ---
 
-<a id="phase-4"></a>
-## Phase 4: WASM Bridge into the Current Frontend
+<a id="phase-3"></a>
+## Phase 3: WASM Engine in the Current Frontend
 
-**Goal:** The React app uses the Rust engine in a Web Worker. Main-thread long tasks drop to near zero.
+**Goal:** The first user-visible Rust win: the main thread is free during edits, theme switches and matrix builds.
 **Duration:** 2–3 weeks. **Risk:** Low–Medium.
 
-### 4.1 Build
-- `token-engine-wasm` exposes a **handle-based** API. The 13k-token document stays inside WASM memory, so it isn't re-serialized on every call:
+### 3.1 Build
+Use a handle-based API so the document stays in WASM memory:
 
 ```rust
 #[wasm_bindgen]
@@ -539,256 +472,346 @@ pub struct EngineHandle(Engine);
 #[wasm_bindgen]
 impl EngineHandle {
     #[wasm_bindgen(constructor)]
-    pub fn new(doc_json: &str) -> Result<EngineHandle, JsError>;
-    pub fn apply_edits(&mut self, edits_json: &str) -> Result<String, JsError>; // returns ChangeSet JSON
+    pub fn new(doc_json: &str, opts_json: &str) -> Result<EngineHandle, JsError>;
+    pub fn apply_edits(&mut self, edits_json: &str) -> Result<String, JsError>;      // ChangeSet JSON
+    pub fn set_active_themes(&mut self, active_json: &str) -> Result<String, JsError>;
     pub fn page(&self, filter_json: &str, offset: u32, limit: u32) -> Result<String, JsError>;
-    pub fn theme_matrix(&self, groups_json: &str) -> Result<String, JsError>;
+    pub fn theme_matrix(&self, group: &str, active_json: &str) -> Result<String, JsError>;
     pub fn export(&self, target: &str, cfg_json: &str) -> Result<js_sys::Array, JsError>;
+    pub fn set_hashes(&self) -> Result<String, JsError>;
+    pub fn document(&self) -> Result<String, JsError>;
 }
 ```
 
-- Passing JSON **strings** across the boundary is often faster than `serde-wasm-bindgen` for big payloads. Benchmark both and pick per call.
-- `wasm-opt -O3`, `opt-level = "z"` for the wasm crate. **Budget: ≤ 400 KB gzipped.**
+- Benchmark JSON strings against `serde-wasm-bindgen` for each call.
+- `opt-level = "z"`, `wasm-opt -O3`. **Budget ≤ 400 KB gzipped.**
 
-### 4.2 Integration
-1. `lib/engine/worker.ts`: loads the WASM and exposes methods via **Comlink**.
-2. `lib/engine/index.ts`: a facade with the **same function signatures** as the TS utilities, async.
-3. Feature flag `NEXT_PUBLIC_ENGINE=ts|wasm` (and a per-user override in localStorage for QA).
-4. Replace call sites incrementally, starting with the heaviest: `flattenAndResolveTokens` (store) → `buildThemeMatrix` (`ThemeMatrix.tsx`) → `computeTokensDiff` (`TokenDiffViewer.tsx`, releases) → exporters (`ExportsHub`, release publish) → `tokenFlowBuilder` (`TokenFlow.tsx`).
-5. Keep progressive rendering (AGENTS.md Rule 4): the UI asks `page(offset, 100)`, it doesn't get everything at once.
-6. Keep React Rules of Hooks (Rule 2): async engine calls go in `useEffect` / a `useEngineQuery` hook, never before hooks.
+### 3.2 Store integration (the 25 call sites)
+1. `lib/engine/worker.ts` (Comlink) and `lib/engine/index.ts` (async facade).
+2. Introduce `engineSlice` in the store: holds `engineReady`, a `resolvedPage` cache, and the last `ChangeSet`.
+3. Migrate in this order:
+   1. `updateSingleToken` and the other mutating actions → `engine.applyEdits()` (no full re-resolve).
+   2. `setRawTokens` → `engine.load()` + `setHashes()` (replaces the 3× `JSON.stringify`).
+   3. Theme option switches → `engine.setActiveThemes()`.
+   4. `ThemeMatrix.tsx` → `engine.themeMatrix()`.
+   5. `TokenDiffViewer`, releases → `engine.diff()`.
+   6. `ExportsHub`, `ExportsView`, release publish → `engine.export()`.
+   7. `TokenFlow.tsx` → engine graph.
+4. Keep **Rule 4** batching (`page(offset, 100)`) and **Rule 2** hook ordering (`useEngineQuery` hook; no early returns before hooks).
+5. Flag: `NEXT_PUBLIC_ENGINE=ts|wasm` + localStorage override for QA.
 
-### 4.3 Dual-run verification
-- In staging, run TS and WASM side by side for 1 week and log any output mismatch (hash compare) to the console/telemetry.
+### 3.3 Dual-run
+In staging, run both engines for 1 week and log hash mismatches to telemetry.
 
-**Exit criteria:** WASM is the default in prod, TS engine retained behind the flag for 2 releases, long tasks > 50 ms on the Tokens tab reduced by ≥ 80%.
+**Exit:** WASM is the default in prod. Long tasks on the Tokens tab reduced ≥ 80% versus the Phase 0 baseline. Edit → UI settled < 50 ms on 13k tokens. TS engine kept behind the flag for 2 releases.
+
+---
+
+<a id="phase-4"></a>
+## Phase 4: Data Layer Evolution (Supabase)
+
+**Goal:** Partial writes, paginated assets, a single asset source of truth, and job tracking. No downtime.
+**Duration:** 2–3 weeks. **Risk:** Medium. **Pattern:** expand → migrate → contract.
+
+### 4.1 New tables (additive)
+
+```sql
+CREATE TABLE public.project_branches (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id  TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  org_id      TEXT NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  title       TEXT,
+  description TEXT,
+  is_default  BOOLEAN NOT NULL DEFAULT false,
+  theme_groups JSONB NOT NULL DEFAULT '[]',
+  head_sha    TEXT,                      -- last synced remote SHA
+  meta        JSONB NOT NULL DEFAULT '{}', -- commits, comments (existing ProjectBranch fields)
+  version     BIGINT NOT NULL DEFAULT 1, -- optimistic concurrency
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, name)
+);
+
+CREATE TABLE public.token_sets (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  branch_id    UUID NOT NULL REFERENCES public.project_branches(id) ON DELETE CASCADE,
+  org_id       TEXT NOT NULL,
+  set_path     TEXT NOT NULL,
+  sort_index   INT  NOT NULL DEFAULT 0,
+  content      JSONB NOT NULL,
+  content_hash TEXT NOT NULL,            -- engine blake3; skip no-op writes, ETag
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (branch_id, set_path)
+);
+
+CREATE TABLE public.asset_collections (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        TEXT NOT NULL,
+  project_id    TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  parent_id     UUID REFERENCES public.asset_collections(id) ON DELETE CASCADE,
+  allowed_types TEXT[] NOT NULL DEFAULT '{}',
+  metadata_schema JSONB NOT NULL DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.assets (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        TEXT NOT NULL,
+  project_id    TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  collection_id UUID REFERENCES public.asset_collections(id) ON DELETE SET NULL,
+  r2_key        TEXT NOT NULL UNIQUE,
+  name          TEXT NOT NULL,
+  asset_type    TEXT NOT NULL,
+  content_type  TEXT NOT NULL,
+  size_bytes    BIGINT,
+  width INT, height INT,
+  tags          TEXT[] NOT NULL DEFAULT '{}',
+  custom_meta   JSONB NOT NULL DEFAULT '{}',
+  source        TEXT,                    -- upload | git | figma
+  checksum      TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ON public.assets (project_id, created_at DESC, id);
+CREATE INDEX ON public.assets USING gin (tags);
+
+CREATE TABLE public.jobs (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id     TEXT NOT NULL,
+  project_id TEXT,
+  kind       TEXT NOT NULL,              -- git_fetch | git_push | git_assets | figma_variables | figma_assets
+  status     TEXT NOT NULL DEFAULT 'queued',
+  payload    JSONB NOT NULL DEFAULT '{}',
+  progress   JSONB NOT NULL DEFAULT '{}',
+  error      TEXT,
+  attempts   INT NOT NULL DEFAULT 0,
+  run_after  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ON public.jobs (status, run_after);
+```
+
+> Align `asset_collections` columns with the collection types in [`ASSETS_TAB_UPGRADE_PLAN.md`](./ASSETS_TAB_UPGRADE_PLAN.md) §3.1 before writing the migration.
+
+### 4.2 RLS
+- SELECT: `is_org_member(org_id)`. Writes: `is_org_editor(org_id)`. `jobs` writes are service-role only.
+- RLS test matrix (viewer / editor / admin / owner / non-member) for every new table.
+
+### 4.3 Backfill (Rust CLI, idempotent)
+1. `projects.branches[*]` (+ `raw_tokens` fallback) → `project_branches` + `token_sets` (split by top-level set). Use the **engine** canonicalizer and hashes.
+2. Assets: merge R2 `metadata.json` + `config.json` **and** `projects.extra_data.assets` / `assetFolders`. Resolve conflicts by `r2_key`, latest `updated_at` wins, and log every conflict.
+3. Verify: re-assembled documents equal the originals byte-for-byte after canonical JSON. Asset counts match `listProjectAssetKeys`.
+
+### 4.4 Dual-write window
+- The TS app keeps writing legacy columns. The Rust API (Phase 5) is the only writer of the new tables.
+- A nightly reconciliation job reports drift. The target is 0.
+
+### 4.5 Contract (in Phase 8)
+After 30 days with zero reads, drop `projects.raw_tokens`, `branches`, `theme_groups`, `extra_data.assets*`, R2 `metadata.json` and `config.json`.
+
+**Exit:** tables + RLS in prod, backfill 100% verified, TS app unaffected.
 
 ---
 
 <a id="phase-5"></a>
 ## Phase 5: Rust API Service, Core Routes
 
-**Goal:** Serve Waves 1–3 of [Appendix A](#appendix-a) from Axum behind a per-route switch.
 **Duration:** 4–6 weeks. **Risk:** Medium.
 
-### 5.1 Routing & strangler mechanism
-- Next.js `rewrites()` in `next.config.mjs` proxies migrated paths to `RUST_API_ORIGIN`, controlled by an env allow-list:
-  `RUST_ROUTES="/api/v1/schemas,/api/v1/plugin/download,..."`.
-- Or route at Cloudflare (Worker/Rules): `/api/*` → Rust if the path is in the KV allow-list, else Next. **Rollback = remove the path from the list.**
-- Keep URLs **identical** so the Figma plugin and external PAT consumers don't notice.
+### 5.1 Strangler routing
+- `next.config.mjs` `rewrites()` driven by a `RUST_ROUTES` allow-list, **or** Cloudflare routing with a KV allow-list. Rollback = remove the path.
+- URLs stay identical, so the Figma plugin and PAT consumers don't notice.
 
-### 5.2 Authentication middleware (`auth` crate)
-
-Order of evaluation per request:
-1. `Authorization: Bearer sb_…` / Supabase access token → verify JWT
-   - Asymmetric: fetch JWKS from `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`, cache it (10 min, refresh on unknown `kid`).
-   - Legacy: HS256 with `SUPABASE_JWT_SECRET`.
-   - Check `exp`, `aud = "authenticated"`, `iss`. Extract `sub`, `email`, `role`.
-2. `Authorization: Bearer <PAT>` → SHA-256 → lookup `api_keys.key_hash` (constant-time compare), check `expires_at` and scopes (`read:tokens`, `write:tokens`), update `last_used_at` asynchronously.
-3. Cookie fallback (only for browser navigations): parse the `@supabase/ssr` cookie `sb-<ref>-auth-token` (may be **chunked** `.0`, `.1`, … and `base64-` prefixed) → access token → step 1.
+### 5.2 Auth middleware
+1. Bearer Supabase JWT → JWKS (cached 10 min, refresh on unknown `kid`) or HS256 legacy. Validate `exp`, `aud = authenticated`, `iss`.
+2. Bearer PAT → SHA-256 → `api_keys.key_hash` (constant-time). Check expiry and scopes (`read:tokens`/`write:tokens`). Update `last_used_at` asynchronously.
+3. Cookie fallback: `@supabase/ssr` `sb-<ref>-auth-token` (chunked `.0/.1…`, `base64-` prefix).
 
 > [!TIP]
-> Prefer having the React app send `Authorization: Bearer <access_token>` (from `supabase.auth.getSession()`) to the Rust API. Then cookie parsing is only an edge case.
+> Have React send `Authorization: Bearer <access_token>` from `supabase.auth.getSession()`. Then cookie parsing is only an edge case.
 
-Output: `AuthContext { principal: User | Pat, user_id, email, scopes, org_scope, project_scope }` injected as an Axum extractor.
-
-### 5.3 RLS-preserving DB access (`db` crate)
-- **User-scoped transaction:** for every request from a user JWT:
-  ```sql
-  BEGIN;
-  SELECT set_config('request.jwt.claims', $1, true);  -- full claims JSON
-  SET LOCAL ROLE authenticated;
-  -- queries here are subject to existing RLS policies (auth.uid(), auth.jwt())
-  COMMIT;
-  ```
-- **Service-scoped:** a separate pool or code path, used only for: PAT lookup, pairing sessions, invitations acceptance, backfill, jobs. Each call site is annotated `#[service_role(reason = "...")]` (a custom attribute or wrapper fn) and logged.
-- PAT requests: use the service role **plus explicit org/project checks** (`authorizeProjectRequest` parity), because PATs have no Supabase JWT.
+### 5.3 RLS-preserving DB access
+- User requests run inside `BEGIN; set_config('request.jwt.claims', …, true); SET LOCAL ROLE authenticated; …; COMMIT;`.
+- Service-role access goes only through an audited wrapper (PAT lookup, pairing, invitation accept, backfill, jobs, vault).
+- PAT requests use service role **plus** explicit org/project checks (parity with `authorizeProjectRequest` in [`utils/auth.ts`](../utils/auth.ts)).
 
 ### 5.4 Cross-cutting
-- CORS parity with `utils/cors.ts` (plugin origin `null`, app origin).
-- `tower-http`: `CompressionLayer` (br/gzip), which by itself fixes the "2.24 MB uncompressed JSON" finding. Also `TimeoutLayer`, `RequestBodyLimitLayer` (asset uploads larger), `TraceLayer`, `SetRequestIdLayer`.
-- Rate limiting (`tower_governor`) on `/api/v1/auth/pair` and invitations.
-- Errors: `{ "success": false, "error": "…" }` (current shape) for v1 compatibility. Add `code` and `requestId` fields.
-- ETag / `If-None-Match` on token reads, keyed by `token_sets.content_hash`, so clients get cheap 304s.
+- CORS parity with [`utils/cors.ts`](../utils/cors.ts) (plugin origin `null`).
+- `CompressionLayer` (br/gzip), `TimeoutLayer`, `RequestBodyLimitLayer`, `TraceLayer`, request IDs.
+- `tower_governor` rate limits on pairing and invitations.
+- v1 error shape `{ success: false, error }` + `code` + `requestId`.
+- **ETag** on token reads from `token_sets.content_hash` → cheap 304s.
 
-### 5.5 Route waves in this phase
-- **Wave 1 (read-only, no/low auth):** schemas registry, plugin download.
-- **Wave 2 (authenticated reads):** `/api/v1/user/orgs`, `/api/v1/tokens` (GET), `/api/v1/tokens/branches`, `/api/v1/auth/pat` (list/create/revoke), `/api/organizations/[orgId]/members/[userId]`.
-- **Wave 3 (writes & flows):** `/api/v1/tokens` (POST/PUT, partial set writes via `token_sets`), `/api/v1/releases` + `/publish` (export via native engine), `/api/assets/*` (backed by the `assets` table + presigned R2), `/api/invitations/*`, `/api/v1/auth/pair`.
+### 5.5 Waves
+- **Wave 1:** schemas registry, plugin download.
+- **Wave 2:** `user/orgs`, `tokens` GET, `tokens/branches`, `auth/pat`, org members.
+- **Wave 3:** `tokens` writes (**per-set partial**), releases + publish (native exporters), `assets/*` (Postgres + paginated + presigned R2), invitations, pairing.
 
-### 5.6 Verification per route
-1. Contract test: replay the Phase 0 captured requests → responses must match (ignoring timestamps/IDs).
-2. **Shadow mode** for GET routes: Next keeps serving, and also fires the same request to Rust asynchronously and logs diffs for 3–7 days.
-3. Flip the route, watch error rate and latency for 48 h, then move to the next route.
+### 5.6 Per-route verification
+Contract replay → **shadow mode** for GETs (3–7 days of diff logging) → flip → watch for 48 h → next route.
 
-**Exit criteria:** Waves 1–3 served by Rust in prod, error rate ≤ the Next baseline, p95 latency improved, OpenAPI published at `/api/docs`.
+**Exit:** Waves 1–3 on Rust, error rate ≤ baseline, p95 improved, OpenAPI at `/api/docs`.
 
 ---
 
 <a id="phase-6"></a>
-## Phase 6: Integrations Port
+## Phase 6: Integrations Port & Credential Custody
 
-**Goal:** Git, Figma, R2 and email run in Rust, with long operations as background jobs.
-**Duration:** 4–6 weeks. **Risk:** Medium–High (most complex routes: `git/fetch` 771 LOC, `git/fetch-assets` 500, `figma/fetch-assets` 464).
+**Duration:** 4–6 weeks. **Risk:** Medium–High (`git/fetch` 771 LOC, `git/fetch-assets` 500, `figma/fetch-assets` 464).
 
-### 6.1 Git providers (`integrations::git`)
-- Trait-based so all providers share behaviour:
-  ```rust
-  #[async_trait]
-  pub trait GitProvider {
-      async fn list_branches(&self, repo: &RepoRef) -> Result<Vec<Branch>>;
-      async fn head_sha(&self, repo: &RepoRef, branch: &str) -> Result<String>;
-      async fn read_tree(&self, repo: &RepoRef, sha: &str, path_prefix: &str) -> Result<Vec<TreeEntry>>;
-      async fn read_blobs(&self, repo: &RepoRef, shas: &[String]) -> Result<Vec<Blob>>; // bounded concurrency
-      async fn commit_files(&self, repo: &RepoRef, branch: &str, files: &[FileChange], msg: &str) -> Result<CommitInfo>;
-  }
-  ```
-- Implementations: `GitHub` (REST trees/blobs/commits, or GraphQL for batch), `AzureDevOps` (pushes API), `GitLab` (repository files/commits).
-- Concurrency: `futures::stream::iter(..).buffer_unordered(8)` with retry + jittered backoff on 403/429 (respect `Retry-After`, `X-RateLimit-Reset`).
-- **Caching:** store `head_sha` per branch in `project_branches.head_sha`. `check-updates` becomes a cheap SHA compare, and `fetch` short-circuits when nothing changed. This fixes the "fetch on every tab" finding on the server side as well.
-- Credentials: keep the current storage model (see `20260927_security_hardening.sql` → `project_integrations` and the trigger preventing raw storage). Decrypt using `TOKENS_PLATFORM_SECRET_KEY` with the **same algorithm** as the TS code (verify and write a cross-language test vector).
+### 6.1 Credential custody (security upgrade)
+**Current state (verified):** Git PATs and Figma tokens are **plaintext JSONB** in `project_integrations` (RLS: editors can read them). The browser loads them into `credentials.pat` and posts them to `/api/git/*`. `TOKENS_PLATFORM_SECRET_KEY` is unused.
 
-### 6.2 Jobs & progress
-- `POST /api/git/fetch` → enqueues a `jobs` row → returns `202 { jobId }` (compat mode: if the client sends `Prefer: wait=30`, the server waits up to 30 s and returns the result inline, so older clients keep working).
-- `GET /api/jobs/{id}` and **SSE** `GET /api/jobs/{id}/events` stream progress (files read, blobs fetched, tokens parsed).
-- Runner: N tokio workers polling `SELECT … FOR UPDATE SKIP LOCKED`, heartbeat, max attempts, cancellation via a status flag.
+**Target:**
+1. `vault` crate: AES-256-GCM, a random 96-bit nonce per secret, ciphertext stored as `{v:1, alg:"A256GCM", kid, nonce, ct}`. The key is derived from `TOKENS_PLATFORM_SECRET_KEY` with HKDF (or held in Supabase Vault). `kid` allows key rotation.
+2. New write endpoint `PUT /api/v1/projects/{id}/integrations` encrypts server-side. Reads return only **masked** values (`ghp_…a1b2`) and a `configured: true` flag.
+3. Git/Figma routes take `projectId` only. The Rust service loads and decrypts credentials server-side, so **PATs never reach the browser again**.
+4. Migration: a backfill encrypts existing plaintext rows. Then tighten RLS on `project_integrations` (SELECT for service role only, or a view that exposes masked columns to editors).
+5. Zeroize decrypted secrets after use. Never log them (a `tracing` field filter enforces this).
 
-### 6.3 Figma (`integrations::figma`)
-- `fetch-variables`: Figma Variables REST → normalize via engine → `projects.figma_variables` (later its own table if size demands).
-- `fetch-assets`: export node images in batches (Figma `images` endpoint), stream into R2 (`put_object` with content-type), insert `assets` rows, generate thumbnails (optional `image` crate, or Cloudflare Image Resizing at the CDN).
+### 6.2 Git providers
+```rust
+#[async_trait]
+pub trait GitProvider {
+    async fn list_branches(&self, repo: &RepoRef) -> Result<Vec<Branch>>;
+    async fn head_sha(&self, repo: &RepoRef, branch: &str) -> Result<String>;
+    async fn read_tree(&self, repo: &RepoRef, sha: &str, prefix: &str) -> Result<Vec<TreeEntry>>;
+    async fn read_blobs(&self, repo: &RepoRef, shas: &[String]) -> Result<Vec<Blob>>;
+    async fn commit_files(&self, repo: &RepoRef, branch: &str, files: &[FileChange], msg: &str) -> Result<CommitInfo>;
+}
+```
+- GitHub, Azure DevOps, GitLab implementations. `buffer_unordered(8)`, backoff on 403/429 (`Retry-After`, `X-RateLimit-Reset`).
+- **Port the existing SHA short-circuit** ([git/fetch/route.ts#L342-L346](../app/api/git/fetch/route.ts#L342-L346)), backed by `project_branches.head_sha` instead of client state.
 
-### 6.4 R2 (`integrations::r2`)
-- Port `lib/r2.ts` 1:1: `build_asset_key`, `upload`, `delete(s)`, `list_project_keys`, `presign_put/get`, `exists`.
-- Use the **custom domain** for public URLs. Set `Cache-Control: public, max-age=31536000, immutable` on content-addressed keys.
-- Port `scripts/r2-cli.mjs` as a Rust `xtask` subcommand (optional).
+### 6.3 Jobs & progress
+- `POST /api/git/fetch` → `202 { jobId }`. Compat: `Prefer: wait=30` returns inline for old clients.
+- `GET /api/jobs/{id}` + **SSE** `/api/jobs/{id}/events`.
+- Runner: tokio workers, `FOR UPDATE SKIP LOCKED`, heartbeat, retries, cancel.
 
-### 6.5 Email (`integrations::email`)
-- Resend REST via reqwest. Port the template from `lib/inviteEmail.ts` using **askama** (compile-time templates).
+### 6.4 Figma
+- `fetch-variables` → normalize via the engine → `projects.figma_variables` (or its own table if large).
+- `fetch-assets` → batched image export → stream to R2 → `assets` rows → thumbnails (Cloudflare Image Resizing or the `image` crate).
 
-**Exit criteria:** Wave 4 routes served by Rust, Git sync for a 13k-token repo completes without timeouts, SSE progress visible in the UI.
+### 6.5 R2
+- Port [`lib/r2.ts`](../lib/r2.ts) **minus** the metadata/config JSON functions (replaced by Postgres).
+- Content-addressed keys + `Cache-Control: public, max-age=31536000, immutable`. Public URLs use the custom domain.
+
+### 6.6 Email
+Resend via reqwest, template from [`lib/inviteEmail.ts`](../lib/inviteEmail.ts) ported to askama.
+
+**Exit:** Wave 4 on Rust, PATs no longer in browser memory or request bodies, 13k-token repo sync completes without timeout, SSE progress visible.
 
 ---
 
 <a id="phase-7"></a>
 ## Phase 7: Client Data-Access Consolidation
 
-**Goal:** The browser stops writing large JSONB directly to PostgREST. All domain writes go through the Rust API.
 **Duration:** 2–3 weeks. **Risk:** Medium.
 
-1. Generate `packages/api-client` from OpenAPI (`openapi-typescript` + `openapi-fetch`).
-2. Replace write paths in `store/useTokenStore.ts` and `services/organizationService.ts`:
-   - `saveProjectTokens`, `saveProjectTokensAndBranches` → `PATCH /api/v1/projects/{id}/branches/{name}/sets` with **only changed sets** (engine `ChangeSet` → set paths → content hashes).
-   - `saveProjectGitConfig`, `saveProjectFigmaVariables`, `saveProjectDocumentation`, `saveProjectSchemas`, `createProject`, `updateProject`, `deleteProject`, org and member mutations → Rust endpoints.
-3. Reads: either keep direct PostgREST for simple lists (orgs, members, which are fine under RLS) **or** move them too for one consistent client. Recommendation: move them, and add client caching (TanStack Query, `staleTime` 5 min) at the same time.
-4. Optimistic concurrency: send `If-Match: <branch.version>`. On `409`, show a merge/refresh prompt.
-5. Remove `NEXT_PUBLIC_SUPABASE_ANON_KEY` usage for data, but **keep it for Auth only** (`supabase.auth.*`).
-6. Flip reads to the normalized tables. Stop dual-writing to `projects.raw_tokens`/`branches`.
+1. Generate `packages/api-client` (`openapi-typescript` + `openapi-fetch`).
+2. Replace writes:
+   - `persistTokensChange` / `saveProjectTokensAndBranches` → `PATCH /api/v1/projects/{id}/branches/{name}/sets` with **only changed sets** (engine `ChangeSet` → set paths → hashes). Keep the Phase 0 debounce.
+   - Branch create/merge/delete actions ([useTokenStore.ts#L6190-L6611](../store/useTokenStore.ts#L6190-L6611)) → branch endpoints (server-side copy, no client upload of whole docs).
+   - Git config, Figma variables, documentation, schemas, project CRUD, org/member mutations → Rust endpoints.
+3. Reads: per-branch lazy loading (`GET /branches/{name}/sets`) replaces `getProject` `select("*")`. Keep the existing 30s metadata cache semantics (or TanStack Query with an equivalent `staleTime`).
+4. Optimistic concurrency with `If-Match: <branch.version>`. On `409`, show a refresh/merge prompt.
+5. Supabase anon key in the browser is used **for Auth only**.
+6. Flip reads to the normalized tables. Stop legacy dual-writes.
 
-**Exit criteria:** a save of a single token edit sends < 5 KB, there are no direct PostgREST writes from the browser, Phase 0 network audit re-run shows ≥ 70% fewer requests.
+**Exit:** a single-token edit sends < 5 KB, no direct PostgREST writes from the browser, project open loads only the active branch.
 
 ---
 
 <a id="phase-8"></a>
 ## Phase 8: Backend Cutover & Decommission
 
-**Goal:** Rust is the only backend. Next.js (if kept) is frontend-only.
-**Duration:** 1–2 weeks. **Risk:** Low (everything already flipped).
+**Duration:** 1–2 weeks. **Risk:** Low.
 
-1. Migrate the remaining route: `/auth/callback` (OAuth PKCE code exchange). Either:
-   - keep it in the frontend (supabase-js `exchangeCodeForSession` client-side), **recommended for the React track**, or
-   - port it to Rust (POST to `/auth/v1/token?grant_type=pkce`, set cookies), **required for the Leptos track**.
-2. Delete `app/api/**`, `lib/r2.ts`, `lib/supabase/admin.ts`, server-only utils. Remove `@aws-sdk/*` and server deps from `package.json`.
-3. Optional frontend simplification: since nearly all views use `dynamic(..., { ssr: false })`, consider **Next static export or Vite SPA** served from Cloudflare Pages. Keep SSR only for `/docs/[orgSlug]/[projectSlug]` (SEO); that page can be server-rendered by Axum (askama) or kept on Next.
-4. Contract migration (Phase 2.5): drop legacy JSONB columns and R2 index files after the 30-day zero-read window.
-5. Update `docs/ARCHITECTURE.md`, `AGENTS.md`, `README.md`, `.env.example`.
+1. `/auth/callback`: keep client-side PKCE exchange (React track) or port it to Rust (Leptos track).
+2. Delete `app/api/**`, `lib/r2.ts`, `lib/supabase/admin.ts`, server-only utils, `@aws-sdk/*`.
+3. Optional: Next static export or a Vite SPA on Cloudflare Pages (almost all views are already `ssr: false`). Keep SSR for `/docs/[orgSlug]/[projectSlug]`, either via askama in Axum or by keeping Next for it.
+4. Run the Phase 4.5 contract migration.
+5. Update `ARCHITECTURE.md`, `AGENTS.md`, `README.md`, `.env.example`.
 
-**Exit criteria:** `npm run build` produces a frontend-only app, the Rust service handles 100% of API traffic, legacy columns dropped.
+**Exit:** the frontend build has no server code, Rust serves 100% of the API, legacy columns are dropped.
 
 ---
 
 <a id="phase-9"></a>
 ## Phase 9: Frontend Go / No-Go Gate
 
-Decide **with data** whether to rewrite the UI in Rust.
-
 | Criterion | GO if… | NO-GO if… |
 |---|---|---|
-| UI performance after Phase 4/7 | Main-thread long tasks still > 10/min or INP > 200 ms on Tokens tab | INP ≤ 200 ms, long tasks rare |
-| Team | ≥ 1 engineer comfortable with Leptos signals and WASM debugging | React-only team |
-| Product roadmap | No major UI features for 6+ months | Heavy UI roadmap (rewriting while shipping doubles the cost) |
-| Leptos prototype (2-week spike) | Tokens grid (13k, virtualized) + one Radix-style dialog are accessible and ≤ 1.5 MB gz | Prototype misses accessibility or size budget |
-| Strategic value | Single-language codebase is a hard requirement (hiring, security review, embedded/desktop via Tauri) | "Nice to have" |
+| UI perf after Phase 3/7 | INP > 200 ms or long tasks > 10/min still on Tokens | INP ≤ 200 ms, long tasks rare |
+| Team | ≥ 1 engineer fluent in Leptos/WASM | React-only team |
+| Roadmap | ≥ 6 months without major UI features | Heavy UI roadmap (e.g. the Assets DAM plan in flight) |
+| 2-week Leptos spike | Virtualized 13k grid + accessible dialog/menu/tooltip, ≤ 1.5 MB gz | Misses a11y or size |
+| Strategy | Single-language codebase is a hard requirement | Nice to have |
 
-**2-week spike scope (mandatory before GO):**
-1. `apps/web-leptos` with SSR + hydration on the existing Axum server.
-2. Port **TokenTable** (virtualized, 13k rows via the engine `page()` API).
-3. Port **one dialog + dropdown + tooltip** with full keyboard and screen-reader support (NVDA/VoiceOver checked).
-4. Measure: bundle size, TTI, INP, dev-loop time. Compare with the React baseline.
+**Spike scope:** `apps/web-leptos` on the existing Axum server; port TokenTable via the engine `page()` API; one dialog + dropdown + tooltip with NVDA/VoiceOver checks; measure bundle size, TTI, INP and dev-loop time.
 
 ---
 
 <a id="phase-10"></a>
-## Phase 10: Rust Frontend (Leptos), Optional Track
+## Phase 10: Rust Frontend (Leptos), Optional
 
-**Duration:** 6–9 months (1–2 engineers). **Risk:** High.
-Only start after a GO in Phase 9.
+**Duration:** 6–9 months (1–2 engineers). **Risk:** High. Only after a GO.
 
 ### 10.1 Stack
-- **Leptos** (latest stable) with `cargo-leptos`, SSR + hydration via `leptos_axum` on the **same** Axum service.
-- **Routing:** `leptos_router`, mirroring current paths: `/[workspaceSlug]/[[...path]]`, `/docs/[org]/[project]`, `/invite/[token]`, `/connect`.
-- **Styling:** keep **Tailwind** (the Tailwind CLI scans `.rs` files via `content: ["./src/**/*.rs"]`), reuse `tailwind.config.ts` tokens and `app/globals.css` variables. That keeps the look identical.
-- **Icons:** `lucide` SVGs via `leptos_icons` or inline SVG components generated at build time.
-- **State:** Zustand slices → Leptos `RwSignal`/`Store` contexts per domain (`AuthCtx`, `OrgCtx`, `ProjectCtx`, `EngineCtx`). Engine runs in a Web Worker (same WASM crate) via `gloo-worker`.
-- **Data:** Leptos `Resource`s + server functions (`#[server]`) that call the same `db`/`integrations` crates directly, so there's no HTTP hop for SSR.
-- **Auth:** Supabase Auth via REST (`/auth/v1/token`, `/auth/v1/authorize` PKCE), session cookie set by Axum (HttpOnly, Secure, SameSite=Lax). There is no official Rust supabase-js equivalent, so it's implemented in the `auth` crate.
+- Leptos + `cargo-leptos`, SSR + hydration via `leptos_axum` on the same service.
+- `leptos_router` mirroring `/[workspaceSlug]/[[...path]]`, `/docs/[org]/[project]`, `/invite/[token]`, `/connect`.
+- Tailwind with `content: ["./src/**/*.rs"]`, reusing `tailwind.config.ts` and `app/globals.css` tokens so the look stays identical.
+- Lucide SVGs as generated components.
+- State: Zustand slices → `RwSignal`/`Store` contexts (`AuthCtx`, `OrgCtx`, `ProjectCtx`, `EngineCtx`). Engine in a worker via `gloo-worker` (same WASM crate).
+- Data: `Resource`s + `#[server]` fns calling the `db`/`integrations` crates directly.
+- Auth: Supabase Auth REST + PKCE, HttpOnly session cookie set by Axum.
+- Keep the same localStorage cache keys as the React app so caches survive the switch.
 
-### 10.2 Headless primitives library (`crates/ui-primitives`)
-Build this **before** porting screens. Each primitive must pass keyboard and ARIA tests:
+### 10.2 `crates/ui-primitives` (build before any screens)
 
 | Primitive | Replaces | Must support |
 |---|---|---|
-| Dialog / Sheet / Drawer | `@radix-ui/react-dialog`, `vaul` | Focus trap, scroll lock, Esc, return focus, portal, `aria-modal` |
-| DropdownMenu / ContextMenu | Radix menus | Roving tabindex, typeahead, submenus, collision-aware positioning |
-| Popover / Tooltip | Radix popover/tooltip | Floating positioning (port a minimal floating-ui), delay groups |
-| Select | Radix select | Listbox semantics, typeahead, virtualized options |
-| Tabs, Switch, Collapsible, Avatar, Separator, Label | Radix | ARIA roles & states |
-| VirtualList / VirtualGrid | custom batching | Fixed and variable row heights, overscan, 13k+ rows |
-| Toast | `components/Toast` | Live region announcements |
+| Dialog / Sheet / Drawer | Radix dialog, `vaul` | Focus trap, scroll lock, Esc, return focus, portal |
+| DropdownMenu / ContextMenu | Radix menus | Roving tabindex, typeahead, submenus, collision positioning |
+| Popover / Tooltip | Radix | Floating positioning, delay groups |
+| Select | Radix select | Listbox semantics, typeahead, virtualized |
+| Tabs, Switch, Collapsible, Avatar, Separator, Label | Radix | ARIA roles/states |
+| VirtualList / VirtualGrid | current batching | 13k+ rows, overscan |
+| Toast | `components/Toast` | Live region |
 
-### 10.3 Screen migration order (route-level strangler)
-Axum serves Leptos for migrated paths and proxies everything else to the React app. Both share the Supabase session cookie on the same domain. State is **not** shared across apps, so migrate whole routes.
+### 10.3 Migration order (route-level strangler, shared Supabase cookie)
 
-| Order | Screen(s) | Why this order |
+| # | Screens | Why |
 |---|---|---|
-| 1 | `/docs/[org]/[project]` public docs | Read-only, SEO benefits from SSR, isolated |
-| 2 | `/invite/[token]`, `/connect` (pairing), Auth gateway | Small, isolated flows |
-| 3 | Org settings, Members, Project settings, API keys | Forms + dialogs, exercises primitives |
-| 4 | Dashboard, Workspaces list/projects | Lists, cards |
-| 5 | **Tokens workspace** (TokensWorkspace, TokenTable, EditTokenDrawer, AddTokenModal, BulkActions) | Core value, uses engine `page()` |
-| 6 | Theme Matrix, Variables, Branches, Diff viewer | Heavy compute already in engine |
-| 7 | Releases, Exports hub | Engine exporters |
-| 8 | Sync providers, Credentials | Job/SSE integration |
-| 9 | Assets workspace + Asset studio | Largest component (4.7k LOC). Split it first. |
-| 10 | Token Flow canvas, Documentation block editor | Pointer-heavy interactions, highest effort |
+| 1 | `/docs/[org]/[project]` | Read-only, SSR/SEO, isolated |
+| 2 | `/invite/[token]`, `/connect`, auth gateway | Small flows |
+| 3 | Org settings, Members, Project settings, API keys | Forms + primitives |
+| 4 | Dashboard, Workspaces | Lists/cards |
+| 5 | **Tokens workspace** | Core value, engine `page()` |
+| 6 | Theme matrix, Variables, Branches, Diff | Engine-backed |
+| 7 | Releases, Exports | Engine exporters |
+| 8 | Sync providers, Credentials | Jobs/SSE + vault |
+| 9 | Assets workspace + studio | 4.7k LOC; split it first |
+| 10 | Token Flow canvas, Doc block editor | Pointer-heavy, highest effort |
 
-### 10.4 Per-screen definition of done
-- Visual parity (Playwright screenshot diff ≤ 0.1%).
-- Keyboard parity (Playwright + axe-core: 0 serious/critical violations).
-- Performance ≥ the React version (INP, TTI).
-- E2E flows green against staging.
+### 10.4 Done per screen
+Screenshot diff ≤ 0.1%, axe-core 0 serious/critical, INP/TTI ≥ React, E2E green.
 
 ### 10.5 Decommission
-Remove the Next.js app, `node_modules`-based build, React deps. Keep Node only for the Figma plugin build.
+Remove Next.js and React. Node remains only for the Figma plugin build.
 
 ---
 
 <a id="phase-11"></a>
 ## Phase 11: Figma Plugin Alignment
 
-1. **Sandbox (`plugin/code.ts`) stays TypeScript.** It runs in Figma's restricted JS sandbox.
-2. **Plugin UI (`plugin/src-ui`)** can load `token-engine.wasm` (inlined as base64 by `vite-plugin-singlefile`) for local alias resolution and export previews. Check the size budget, and check whether Figma's UI iframe allows `WebAssembly.instantiate` with the plugin's CSP.
-3. Plugin → Rust API: no URL changes (same `/api/v1/*`), PAT and pairing flows already ported in Phase 5.
-4. Add `/api/v1/plugin/download` (Rust) packaging with the `zip` crate (Wave 1).
+1. `plugin/code.ts` (sandbox) stays TypeScript.
+2. `plugin/src-ui` may load the WASM engine (inlined by `vite-plugin-singlefile`). Check size and confirm `WebAssembly.instantiate` is allowed in the plugin iframe.
+3. No URL changes. PAT and pairing were ported in Phase 5.
+4. Plugin download is packaged by Rust (`zip` crate) in Wave 1.
 
 ---
 
@@ -797,92 +820,95 @@ Remove the Next.js app, `node_modules`-based build, React deps. Keep Node only f
 
 | Layer | Tooling | Gate |
 |---|---|---|
-| Engine unit + golden | cargo-nextest, insta | 100% fixture parity |
-| Engine properties | proptest, cargo-fuzz | No panics in 1M cases, no cycles missed |
-| DB + RLS | sqlx test fixtures on ephemeral Postgres with Supabase migrations; pgTAP | Viewer/editor/admin/owner matrix per table |
-| API contract | Replayed Phase 0 captures; `schemathesis` against OpenAPI | 0 contract breaks |
-| Integrations | `wiremock` for GitHub/Azure/GitLab/Figma/Resend; R2 via MinIO in CI | All happy + rate-limit + 5xx paths |
-| Frontend (React track) | Existing Vitest + new Playwright E2E | Core flows green |
-| Frontend (Leptos track) | `wasm-bindgen-test`, Playwright, axe-core | Parity + a11y |
-| Load | k6 against staging: 50 rps token reads, 5 concurrent git syncs | p95 < 300 ms reads, 0 timeouts |
-| Security | `cargo audit`, `cargo deny`, OWASP ZAP baseline, manual RLS review | No high findings |
+| Engine golden + incremental | nextest, insta, proptest | 100% parity; incremental ≡ full |
+| Engine robustness | cargo-fuzz | No panics |
+| DB + RLS | sqlx tests on ephemeral Postgres + Supabase migrations, pgTAP | Role matrix per table |
+| Vault | Known-answer tests, rotation test | Decrypt(old kid) after rotation |
+| API contract | Phase 0 replay, `schemathesis` | 0 breaks |
+| Integrations | wiremock (GitHub/Azure/GitLab/Figma/Resend), MinIO for R2 | Happy + 429 + 5xx paths |
+| Perf regression guards | Playwright network assertions ([Phase 0.6](#phase-0)) | No regressions of fixed audit items |
+| Frontend (React) | Vitest + Playwright | Core flows |
+| Frontend (Leptos) | wasm-bindgen-test, Playwright, axe-core | Parity + a11y |
+| Load | k6: 50 rps token reads, 5 concurrent git syncs | p95 < 300 ms, 0 timeouts |
+| Security | cargo audit/deny, ZAP baseline, RLS review | No high findings |
 
 ---
 
 <a id="rollout"></a>
 ## Rollout, Feature Flags & Rollback
 
-| Flag | Scope | Default progression |
+| Flag | Scope | Progression |
 |---|---|---|
-| `NEXT_PUBLIC_ENGINE=ts\|wasm` | Browser engine | staging wasm → 10% users → 100% |
-| `RUST_ROUTES` allow-list | Per API route | shadow → staging → prod per route |
-| `JOBS_ASYNC=on\|off` | Git/Figma async jobs | off (inline compat) → on |
-| `DATA_READS=legacy\|normalized` | Token storage reads | legacy → normalized after backfill verified |
-| `LEPTOS_ROUTES` allow-list | Per page (Phase 10) | per screen |
+| `NEXT_PUBLIC_ENGINE=ts\|wasm` | Browser engine | staging → 10% → 100% |
+| `RUST_ROUTES` | Per API route | shadow → staging → prod |
+| `JOBS_ASYNC` | Git/Figma jobs | inline compat → async |
+| `DATA_READS=legacy\|normalized` | Token/asset reads | after backfill verified |
+| `CREDENTIALS_SERVER_SIDE` | PAT custody | on per project after encryption backfill |
+| `LEPTOS_ROUTES` | Per page (Phase 10) | per screen |
 
-**Rollback playbook:**
-1. Remove the route from `RUST_ROUTES` (takes effect within seconds at the proxy).
-2. Flip `DATA_READS=legacy`. Legacy JSONB is kept in sync until Phase 8.
-3. Never run a destructive migration in the same release as a code flip.
+**Rollback:** remove the route from `RUST_ROUTES` → flip `DATA_READS=legacy` (legacy stays in sync until Phase 8). Never ship a destructive migration in the same release as a code flip.
 
 ---
 
 <a id="risk-register"></a>
 ## Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
+| # | Risk | L | I | Mitigation |
 |---|---|---|---|---|
-| R1 | Semantic drift between TS and Rust engines (number formatting, sort order) | High | High | Golden fixtures, `ryu-js`, dual-run in staging |
-| R2 | RLS bypass via service role misuse in Rust | Medium | Critical | `SET LOCAL ROLE authenticated` default, audited service-role wrapper, RLS test matrix |
-| R3 | Supavisor transaction pooler breaks prepared statements | Medium | Medium | Use direct/session mode; document in config |
-| R4 | `@supabase/ssr` cookie format changes | Low | Medium | Prefer Bearer header; cookie parser covered by tests |
-| R5 | Git provider rate limits during bulk fetch | Medium | Medium | SHA short-circuit, bounded concurrency, backoff, jobs |
-| R6 | Credential decryption mismatch (TS vs Rust crypto) | Medium | High | Cross-language test vectors before Wave 4 |
-| R7 | WASM bundle too large for plugin/web | Medium | Low | `opt-level=z`, `wasm-opt`, feature-gate exporters |
-| R8 | Leptos rewrite stalls feature delivery | High | High | Phase 9 gate, route-level strangler, feature freeze only per migrated screen |
-| R9 | Accessibility regressions without Radix | High (Phase 10) | High | Build and test `ui-primitives` first, axe-core gates |
-| R10 | Data loss during normalization | Low | Critical | Expand/contract, checksummed backfill, 30-day retention, PITR backups enabled in Supabase |
-| R11 | Single-developer bus factor on Rust | Medium | High | ADRs in `docs/adr/`, pairing, rich module docs |
+| R1 | TS/Rust engine semantic drift | High | High | Golden fixtures, `ryu-js`, dual-run |
+| R2 | Incremental resolution misses a dependent | Medium | High | Proptest: incremental ≡ full; reverse-edge index tests |
+| R3 | RLS bypass via service-role misuse | Medium | Critical | `SET LOCAL ROLE` default, audited wrapper, role matrix tests |
+| R4 | Supavisor transaction mode vs prepared statements | Medium | Medium | Direct/session connection |
+| R5 | Git rate limits | Medium | Medium | SHA short-circuit, bounded concurrency, backoff, jobs |
+| R6 | Credential encryption migration locks users out of Git sync | Medium | High | Flagged per project, keep plaintext until verified decrypt, key-rotation tests, secret backup |
+| R7 | Asset backfill conflicts (R2 JSON vs `extra_data`) | Medium | Medium | Conflict log, latest-wins by `r2_key`, manual review report |
+| R8 | WASM bundle too large | Medium | Low | `opt-level=z`, feature-gated exporters |
+| R9 | Regressing already-fixed audit items | Medium | Medium | Phase 0.6 regression guards in CI |
+| R10 | Leptos rewrite stalls features | High | High | Phase 9 gate, route-level strangler |
+| R11 | A11y regressions without Radix | High (P10) | High | `ui-primitives` first, axe gates |
+| R12 | Data loss in normalization | Low | Critical | Expand/contract, checksums, 30-day retention, Supabase PITR |
+| R13 | Single-developer bus factor | Medium | High | ADRs in `docs/adr/`, module docs |
 
 ---
 
 <a id="timeline"></a>
 ## Timeline & Effort
 
-Estimates assume **one experienced full-stack engineer** with moderate Rust experience. Two engineers cut the backend track by ~40%.
+One experienced engineer with moderate Rust experience. Phases 2–3 (engine) and 4 (data) can run in parallel with two engineers.
 
-| Phase | Duration | Cumulative |
-|---|---|---|
-| 0: Stabilize & baseline | 2 wks | 2 wks |
-| 1: Foundation & CI | 1–2 wks | 4 wks |
-| 2: Data layer evolution | 2–3 wks | 7 wks |
-| 3: Token engine | 4–6 wks | 13 wks |
-| 4: WASM bridge | 2–3 wks | 16 wks |
-| 5: API core routes | 4–6 wks | 22 wks |
-| 6: Integrations | 4–6 wks | 28 wks |
-| 7: Client consolidation | 2–3 wks | 31 wks |
-| 8: Cutover | 1–2 wks | **≈ 7–8 months** |
-| 9: Go/No-Go spike | 2 wks | |
-| 10: Leptos frontend (optional) | 24–36 wks | **+6–9 months** |
-| 11: Plugin alignment | 1 wk (parallel) | |
+| Phase | Duration | Cumulative | User-visible outcome |
+|---|---|---|---|
+| 0: Verify, baseline, quick wins | 1 wk | 1 wk | Faster images (custom domain), coalesced saves |
+| 1: Foundation & CI | 1–2 wks | 3 wks | — |
+| 2: Token engine | 4–6 wks | 9 wks | — |
+| 3: WASM in frontend | 2–3 wks | **~12 wks** | **No main-thread freezes on edit/theme/matrix** |
+| 4: Data layer | 2–3 wks | 15 wks | — |
+| 5: API core | 4–6 wks | 21 wks | Paginated assets, compressed + ETag token API |
+| 6: Integrations + vault | 4–6 wks | 27 wks | No sync timeouts, PATs off the browser |
+| 7: Client consolidation | 2–3 wks | 30 wks | Tiny saves, lighter project open |
+| 8: Cutover | 1–2 wks | **≈ 7 months** | Single Rust backend |
+| 9: Gate spike | 2 wks | | Decision |
+| 10: Leptos (optional) | 24–36 wks | **+6–9 months** | Full-Rust UI |
+| 11: Plugin | 1 wk (parallel) | | WASM in plugin UI |
 
 ```mermaid
 gantt
   dateFormat  YYYY-MM-DD
-  title Rust Migration (single engineer, indicative)
-  section Backend Track
-  P0 Stabilize          :p0, 2026-10-12, 14d
-  P1 Foundation         :p1, after p0, 10d
-  P2 Data layer         :p2, after p1, 18d
-  P3 Token engine       :p3, after p1, 35d
-  P4 WASM bridge        :p4, after p3, 18d
-  P5 API core           :p5, after p2, 35d
-  P6 Integrations       :p6, after p5, 35d
-  P7 Client consolidate :p7, after p6, 18d
-  P8 Cutover            :p8, after p7, 10d
-  section Frontend Track
-  P9 Gate spike         :p9, after p8, 14d
-  P10 Leptos (optional) :p10, after p9, 200d
+  title Rust Migration v1.1 (single engineer, indicative)
+  section Core first
+  P0 Verify and baseline :p0, 2026-10-12, 7d
+  P1 Foundation          :p1, after p0, 10d
+  P2 Token engine        :p2, after p1, 35d
+  P3 WASM in frontend    :p3, after p2, 18d
+  section Backend
+  P4 Data layer          :p4, after p3, 18d
+  P5 API core            :p5, after p4, 35d
+  P6 Integrations+vault  :p6, after p5, 35d
+  P7 Client consolidate  :p7, after p6, 18d
+  P8 Cutover             :p8, after p7, 10d
+  section Frontend (gated)
+  P9 Gate spike          :p9, after p8, 14d
+  P10 Leptos (optional)  :p10, after p9, 200d
 ```
 
 ---
@@ -890,30 +916,39 @@ gantt
 <a id="success-metrics"></a>
 ## Success Metrics
 
-| Metric | Baseline (audit) | Target after Phase 8 |
-|---|---|---|
-| Requests per 4-min browse session | 289 | < 60 |
-| Upload bytes per read-only session | 19.7 MB | ~0 |
-| Variables tab open | 20–29 s | < 200 ms |
-| Assets tab first paint | up to 41 s | < 1 s |
-| `/api/v1/tokens` p95 (13k tokens) | ~25 s | < 400 ms (compressed + ETag) |
-| Resolve 13k tokens | (Phase 0 value) | ≥ 3× faster, off main thread |
-| Single-token save payload | ~565 KB | < 5 KB |
-| API server memory | (Phase 0 value) | < 80 MB RSS steady |
-| Git sync of 13k-token repo | can time out | completes, with progress |
+"Audit" values are **historical** (before the TS fixes). "Now" gets filled in during [Phase 0.1](#phase-0).
+
+| Metric | Audit (historical) | Now (Phase 0) | Target after Phase 8 |
+|---|---|---|---|
+| Requests per 4-min browse session | 289 | _measure_ | < 60 |
+| Upload bytes, read-only session | 19.7 MB | ~0 (fixed) | 0, guarded by regression test |
+| Variables tab open | 20–29 s | instant (fixed) | instant, guarded |
+| Assets tab first paint | up to 41 s | _measure_ | < 1 s |
+| Asset list payload | 952 KB | _measure (still full list)_ | < 60 KB/page |
+| Bytes per single-token save | ~565 KB | _measure (full doc + all branches)_ | **< 5 KB** |
+| Edit → UI settled (13k tokens) | n/a | _measure_ | **< 50 ms**, 0 long tasks |
+| Long tasks > 50 ms/min (Tokens tab) | n/a | _measure_ | −80% |
+| `/api/v1/tokens` p95 (13k) | ~25 s | _measure_ | < 400 ms (compressed + ETag) |
+| Project open payload | n/a | _measure (all branches)_ | active branch only |
+| Git sync of 13k-token repo | could time out | _measure_ | completes, with progress |
+| PATs visible to the browser | yes | yes | **no** |
 
 ---
 
 <a id="governance"></a>
-## Governance Updates (`AGENTS.md`)
+## Governance & Docs Updates
 
-Changes to propose when the relevant phases land:
-1. **§1 Tech Stack:** add the Rust workspace (Axum, sqlx, token-engine, WASM worker).
-2. **Rule 1 (self-hosted schemas):** applies to `crates/schema-registry`. The origin is resolved from the `Host`/`X-Forwarded-Host` header in Axum.
-3. **Rule 4 (high-scale rendering):** the engine exposes `page(offset, limit)`. UIs must not request unbounded result sets.
-4. **New Rule 6, RLS by default:** Rust DB access must use the user-scoped transaction helper. Service-role access requires the audited wrapper and a justification.
-5. **New Rule 7, engine parity:** any change to token semantics must update golden fixtures in the same PR.
-6. **Verification checklist:** add `cargo fmt --check`, `cargo clippy -D warnings`, `cargo nextest run`, `wasm-pack build` alongside `npx tsc --noEmit` and `npm run build`.
+**`AGENTS.md`** (as phases land):
+1. §1 Tech Stack: add the Rust workspace, WASM worker and vault.
+2. Rule 1: applies to `crates/schema-registry` (origin from `Host`/`X-Forwarded-Host`).
+3. Rule 4: the engine `page(offset, limit)` is mandatory, with no unbounded result sets.
+4. **New Rule 6, RLS by default:** user-scoped transaction helper. Service role only through the audited wrapper.
+5. **New Rule 7, engine parity:** token-semantics changes update golden fixtures in the same PR.
+6. **New Rule 8, no secrets client-side:** integration credentials never leave the Rust service in plaintext.
+7. Verification checklist: add `cargo fmt --check`, `cargo clippy -D warnings`, `cargo nextest run`, `wasm-pack build`.
+8. Fix the key-file-map paths (`d:/GitHub/...`, `plugin/src/code.ts`).
+
+**Docs:** mark `PERFORMANCE_AUDIT_REPORT.md` superseded, refresh `ARCHITECTURE.md` (Phase 0.5, then again in Phase 8), add `RUST_BASELINE.md` and `docs/adr/`.
 
 ---
 
@@ -922,56 +957,58 @@ Changes to propose when the relevant phases land:
 
 | Current route | Purpose | Rust module | Wave | Auth | Risk |
 |---|---|---|---|---|---|
-| `GET /api/v1/schemas` | Schema catalog index | `schema-registry` | 1 | none | Low |
-| `GET /api/v1/schemas/[...path]` | Individual schema JSON | `schema-registry` | 1 | none | Low |
-| `GET /api/v1/plugin/download` | Zip Figma plugin | `api::plugin` | 1 | none/user | Low |
-| `GET /api/v1/user/orgs` | User orgs + project summaries | `api::orgs` | 2 | JWT/PAT | Low |
+| `GET /api/v1/schemas` | Schema catalog | `schema-registry` | 1 | none | Low |
+| `GET /api/v1/schemas/[...path]` | Schema JSON | `schema-registry` | 1 | none | Low |
+| `GET /api/v1/plugin/download` | Zip plugin | `api::plugin` | 1 | none/user | Low |
+| `GET /api/v1/user/orgs` | Orgs + summaries | `api::orgs` | 2 | JWT/PAT | Low |
 | `GET /api/v1/tokens` | Resolved tokens + themes | `api::tokens` + engine | 2 | JWT/PAT | Medium |
 | `GET /api/v1/tokens/branches` | Branch discovery | `api::tokens` | 2 | JWT/PAT | Low |
-| `* /api/v1/auth/pat` | PAT create/list/revoke | `auth::pat` | 2 | JWT | Medium |
-| `* /api/organizations/[orgId]/members/[userId]` | Member role/removal | `api::members` | 2 | JWT (admin) | Medium |
-| `POST/PUT /api/v1/tokens` | Write tokens / figma variables | `api::tokens` | 3 | JWT/PAT write | High |
+| `* /api/v1/auth/pat` | PAT CRUD | `auth::pat` | 2 | JWT | Medium |
+| `* /api/organizations/[orgId]/members/[userId]` | Member role/removal | `api::members` | 2 | JWT admin | Medium |
+| `POST/PUT /api/v1/tokens` | Token / figma variable writes (**per set**) | `api::tokens` | 3 | JWT/PAT write | High |
 | `GET /api/v1/releases` | Release list | `api::releases` | 3 | JWT/PAT | Low |
-| `POST /api/v1/releases/publish` | Compile + publish release | `api::releases` + engine export | 3 | JWT | Medium |
-| `GET /api/assets/config` | Asset config | `api::assets` | 3 | JWT | Low |
-| `GET /api/assets/list` | Asset list (paginate!) | `api::assets` (`assets` table) | 3 | JWT | Medium |
-| `GET /api/assets/content` | Raw asset content proxy | `api::assets` + r2 | 3 | JWT | Low |
-| `POST /api/assets/upload` | Upload asset | `api::assets` + r2 | 3 | JWT editor | Medium |
+| `POST /api/v1/releases/publish` | Compile + publish | `api::releases` + engine | 3 | JWT | Medium |
+| `GET /api/assets/config` | Asset config (→ collections) | `api::assets` | 3 | JWT | Low |
+| `GET /api/assets/list` | **Paginated** asset list | `api::assets` | 3 | JWT | Medium |
+| `GET /api/assets/content` | Raw content proxy | `api::assets` + r2 | 3 | JWT | Low |
+| `POST /api/assets/upload` | Upload | `api::assets` + r2 | 3 | JWT editor | Medium |
 | `POST /api/assets/presigned-url` | Presigned PUT/GET | `integrations::r2` | 3 | JWT editor | Low |
-| `DELETE /api/assets/delete` | Delete asset(s) | `api::assets` | 3 | JWT editor | Medium |
-| `POST /api/invitations/send` | Create + email invite | `api::invitations` + email | 3 | JWT admin | Medium |
+| `DELETE /api/assets/delete` | Delete | `api::assets` | 3 | JWT editor | Medium |
+| `POST /api/invitations/send` | Invite + email | `api::invitations` + email | 3 | JWT admin | Medium |
 | `GET /api/invitations/[token]` | Invite lookup | `api::invitations` | 3 | none/JWT | Low |
-| `POST /api/invitations/[token]/accept` | Accept invite | `api::invitations` | 3 | JWT | Medium |
-| `POST /api/v1/auth/pair` | 6-digit pairing for plugin | `auth::pairing` | 3 | mixed | Medium |
-| `POST /api/v1/auth/signout` | Session sign-out | `auth` | 4 | cookie | Low |
-| `POST /api/git/branches` | Remote branches | `integrations::git` | 4 | JWT | Medium |
-| `POST /api/git/check-updates` | Remote SHA compare | `integrations::git` | 4 | JWT | Low |
-| `POST /api/git/fetch` | Pull tokens from repo | `jobs` + git + engine | 4 | JWT | **High** |
-| `POST /api/git/fetch-assets` | Pull assets from repo → R2 | `jobs` + git + r2 | 4 | JWT | **High** |
-| `POST /api/git/push` | Commit tokens to repo | `jobs` + git + engine | 4 | JWT editor | **High** |
-| `POST /api/figma/fetch-variables` | Figma variables import | `integrations::figma` | 4 | JWT | Medium |
-| `POST /api/figma/fetch-assets` | Figma assets → R2 | `jobs` + figma + r2 | 4 | JWT | **High** |
-| `GET /auth/callback` | OAuth PKCE exchange | frontend (React) / `auth` (Leptos) | 5 | — | Medium |
+| `POST /api/invitations/[token]/accept` | Accept | `api::invitations` | 3 | JWT | Medium |
+| `POST /api/v1/auth/pair` | Plugin pairing | `auth::pairing` | 3 | mixed | Medium |
+| `POST /api/v1/auth/signout` | Sign-out | `auth` | 4 | cookie | Low |
+| `POST /api/git/branches` | Remote branches (**creds server-side**) | `integrations::git` + vault | 4 | JWT | Medium |
+| `POST /api/git/check-updates` | SHA compare vs `head_sha` | `integrations::git` | 4 | JWT | Low |
+| `POST /api/git/fetch` | Pull tokens (job) | `jobs` + git + engine | 4 | JWT | **High** |
+| `POST /api/git/fetch-assets` | Repo assets → R2 (job) | `jobs` + git + r2 | 4 | JWT | **High** |
+| `POST /api/git/push` | Commit tokens (job) | `jobs` + git + engine | 4 | JWT editor | **High** |
+| `POST /api/figma/fetch-variables` | Figma variables | `integrations::figma` + vault | 4 | JWT | Medium |
+| `POST /api/figma/fetch-assets` | Figma assets → R2 (job) | `jobs` + figma + r2 | 4 | JWT | **High** |
+| *(new)* `PUT /api/v1/projects/{id}/integrations` | Encrypted credential write | `vault` | 4 | JWT editor | Medium |
+| *(new)* `GET /api/jobs/{id}`, `/events` | Job status + SSE | `jobs` | 4 | JWT | Low |
+| `GET /auth/callback` | OAuth PKCE | frontend (React) / `auth` (Leptos) | 5 | — | Medium |
 
 ---
 
 <a id="appendix-b"></a>
 ## Appendix B: Reference Code Sketches
 
-### B.1 Axum app skeleton
-
+### B.1 Axum skeleton
 ```rust
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cfg = Config::from_env()?;
     telemetry::init(&cfg)?;
-    let state = AppState::new(&cfg).await?; // pg pool, jwks cache, r2 client, engine registry
+    let state = AppState::new(&cfg).await?; // pg pool, jwks cache, r2, vault, engine registry
 
     let app = Router::new()
         .nest("/api/v1/schemas", schemas::router())
         .nest("/api/v1/tokens", tokens::router())
         .nest("/api/assets", assets::router())
         .nest("/api/git", git::router())
+        .nest("/api/jobs", jobs::router())
         .route("/healthz", get(|| async { "ok" }))
         .route("/readyz", get(ready))
         .merge(openapi::swagger())
@@ -991,8 +1028,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-### B.2 RLS-scoped transaction helper
-
+### B.2 RLS-scoped transaction
 ```rust
 pub async fn with_user_tx<T, F>(pool: &PgPool, claims: &serde_json::Value, f: F) -> Result<T, DbError>
 where
@@ -1009,29 +1045,37 @@ where
 }
 ```
 
-### B.3 Supabase JWT extractor
-
+### B.3 Vault (credential encryption)
 ```rust
-#[async_trait]
-impl FromRequestParts<AppState> for AuthUser {
-    type Rejection = ApiError;
-    async fn from_request_parts(parts: &mut Parts, st: &AppState) -> Result<Self, Self::Rejection> {
-        let token = bearer(parts).or_else(|| supabase_cookie(parts)).ok_or(ApiError::Unauthorized)?;
-        if token.starts_with(PAT_PREFIX) {
-            return st.auth.verify_pat(&token).await.map(AuthUser::Pat);
-        }
-        let header = jsonwebtoken::decode_header(&token)?;
-        let key = st.jwks.key_for(header.kid.as_deref()).await?;           // cached JWKS or HS256 secret
-        let mut v = Validation::new(header.alg);
-        v.set_audience(&["authenticated"]);
-        let data = jsonwebtoken::decode::<SupabaseClaims>(&token, &key, &v)?;
-        Ok(AuthUser::Session { claims: data.claims, raw: token })
+pub struct Vault { keys: HashMap<String, Key<Aes256Gcm>>, active_kid: String }
+
+impl Vault {
+    pub fn seal(&self, plaintext: &[u8]) -> Sealed {
+        let cipher = Aes256Gcm::new(&self.keys[&self.active_kid]);
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+        let ct = cipher.encrypt(&nonce, plaintext).expect("encrypt");
+        Sealed { v: 1, alg: "A256GCM".into(), kid: self.active_kid.clone(), nonce: b64(&nonce), ct: b64(&ct) }
+    }
+    pub fn open(&self, s: &Sealed) -> Result<Zeroizing<Vec<u8>>, VaultError> {
+        let cipher = Aes256Gcm::new(self.keys.get(&s.kid).ok_or(VaultError::UnknownKid)?);
+        Ok(Zeroizing::new(cipher.decrypt(&unb64(&s.nonce)?.into(), unb64(&s.ct)?.as_ref())?))
     }
 }
 ```
 
-### B.4 Keyset-paginated assets list
+### B.4 Incremental apply (engine)
+```rust
+pub fn apply(&mut self, edits: &[Edit]) -> Result<ChangeSet, EditError> {
+    let mut dirty = Vec::new();
+    for e in edits { dirty.push(self.graph.apply_edit(e)?); }   // updates node + alias edges
+    let affected = self.graph.reverse_closure(&dirty);          // dependents via reverse edges
+    for id in self.graph.topo_order(&affected) { self.cache.recompute(id, &self.graph)?; }
+    self.hashes.update_sets_for(&affected);
+    Ok(ChangeSet::from(affected))
+}
+```
 
+### B.5 Keyset-paginated assets
 ```sql
 SELECT id, name, r2_key, asset_type, content_type, size_bytes, width, height, tags, created_at
 FROM public.assets
@@ -1041,8 +1085,7 @@ ORDER BY created_at DESC, id DESC
 LIMIT $4;
 ```
 
-### B.5 React facade over the WASM worker
-
+### B.6 React facade over the WASM worker
 ```ts
 // lib/engine/index.ts
 import * as Comlink from "comlink";
@@ -1053,10 +1096,13 @@ const worker = Comlink.wrap<EngineWorker>(
 );
 
 export const engine = {
-  load: (doc: RawTokensDocument) => worker.load(JSON.stringify(doc)),
+  load: (doc: RawTokensDocument, opts: EngineOptions) => worker.load(JSON.stringify(doc), JSON.stringify(opts)),
+  applyEdits: (edits: TokenEdit[]) => worker.applyEdits(JSON.stringify(edits)),
+  setActiveThemes: (ids: Record<string, string>) => worker.setActiveThemes(JSON.stringify(ids)),
   page: (filter: TokenFilter, offset = 0, limit = 100) => worker.page(JSON.stringify(filter), offset, limit),
-  themeMatrix: (groups: ThemeGroup[]) => worker.themeMatrix(JSON.stringify(groups)),
+  themeMatrix: (groupId: string, ids: Record<string, string>) => worker.themeMatrix(groupId, JSON.stringify(ids)),
   exportFiles: (target: ExportTarget, cfg: ExportConfig) => worker.exportFiles(target, JSON.stringify(cfg)),
+  setHashes: () => worker.setHashes(),
 };
 ```
 
@@ -1065,15 +1111,15 @@ export const engine = {
 <a id="appendix-c"></a>
 ## Appendix C: Per-Phase Exit Checklists
 
-- [ ] **P0:** Audit fixes merged · golden fixtures committed · contracts captured · `RUST_BASELINE.md` filled · R2 custom domain live
-- [ ] **P1:** Workspace builds · CI green (fmt/clippy/test/wasm/deny) · staging container `/readyz` green
-- [ ] **P2:** New tables + RLS in prod · RLS test matrix green · backfill checksum 100% · drift report = 0
-- [ ] **P3:** Golden parity 100% · proptest/fuzz clean · criterion ≥ 3× baseline
-- [ ] **P4:** WASM default in prod · ≤ 400 KB gz · long tasks −80% · TS fallback flag kept
-- [ ] **P5:** Waves 1–3 on Rust · shadow diffs resolved · OpenAPI published · error rate ≤ baseline
-- [ ] **P6:** Wave 4 on Rust · jobs + SSE live · crypto test vectors pass · 13k repo sync no timeout
-- [ ] **P7:** No browser PostgREST writes · single-edit save < 5 KB · requests/session −70%
-- [ ] **P8:** `app/api` deleted · legacy columns dropped · docs and `AGENTS.md` updated
-- [ ] **P9:** Spike report written · GO/NO-GO decision recorded in `docs/adr/`
+- [ ] **P0:** `RUST_BASELINE.md` filled · R2 custom domain live · save debounce live · golden fixtures + contracts committed · regression guards in CI · audit report marked superseded · ARCHITECTURE/AGENTS paths fixed
+- [ ] **P1:** Workspace builds · CI green (fmt/clippy/test/wasm/deny) · staging `/readyz` green
+- [ ] **P2:** Golden parity 100% · incremental ≡ full (proptest) · fuzz clean · criterion targets met
+- [ ] **P3:** WASM default in prod · ≤ 400 KB gz · long tasks −80% · edit → settled < 50 ms · TS fallback flag kept
+- [ ] **P4:** New tables + RLS in prod · role matrix green · backfill 100% · asset conflict report reviewed · drift = 0
+- [ ] **P5:** Waves 1–3 on Rust · shadow diffs resolved · OpenAPI published · assets paginated
+- [ ] **P6:** Wave 4 on Rust · vault live, plaintext PATs migrated · PATs absent from browser · jobs + SSE live
+- [ ] **P7:** No browser PostgREST writes · single-edit save < 5 KB · active-branch-only project load
+- [ ] **P8:** `app/api` deleted · legacy columns/R2 JSON dropped · docs + `AGENTS.md` updated
+- [ ] **P9:** Spike report · GO/NO-GO ADR recorded
 - [ ] **P10 (if GO):** `ui-primitives` a11y-tested · screens migrated in order · Next.js removed
-- [ ] **P11:** Plugin UI uses WASM (if CSP allows) · pairing/PAT unchanged for users
+- [ ] **P11:** Plugin UI uses WASM (if allowed) · pairing/PAT unchanged for users
