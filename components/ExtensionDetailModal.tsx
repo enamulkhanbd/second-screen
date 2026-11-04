@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { SchemaItem } from "@/data/schemaCatalog";
+import { SchemaItem, resolveSchemaUrl } from "@/data/schemaCatalog";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Dialog,
@@ -33,14 +33,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
   const isEditable = canUserEdit();
 
   const fullSchemaUrl = React.useMemo(() => {
-    if (!item?.schemaUrl) return "";
-    if (typeof window !== "undefined") {
-      const origin = window.location.origin;
-      return item.schemaUrl.startsWith("http")
-        ? item.schemaUrl
-        : `${origin}${item.schemaUrl.startsWith("/") ? "" : "/"}${item.schemaUrl}`;
-    }
-    return item.schemaUrl;
+    return resolveSchemaUrl(item?.schemaUrl || "");
   }, [item?.schemaUrl]);
 
   if (!item) return null;

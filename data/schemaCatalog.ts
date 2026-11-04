@@ -9,6 +9,8 @@ export interface SchemaItem {
   description: string;
   schemaUrl: string;
   isCoreDefault?: boolean;
+  version?: string;
+  dtcgCompliant?: boolean;
   schema?: Record<string, any>;
 }
 
@@ -1504,3 +1506,54 @@ export const SCHEMA_CATALOG: SchemaItem[] = [
 ];
 
 export const DEFAULT_ENABLED_SCHEMA_IDS = SCHEMA_CATALOG.filter((s) => s.isCoreDefault).map((s) => s.id);
+
+
+// In-memory lookup indices for O(1) resolution
+const schemaByIdCache = new Map<string, SchemaItem>();
+const schemaByPathCache = new Map<string, SchemaItem>();
+
+SCHEMA_CATALOG.forEach((item) => {
+  schemaByIdCache.set(item.id.toLowerCase(), item);
+  schemaByIdCache.set(item.name.toLowerCase().replace(/\s+/g, "-"), item);
+
+  const norm = item.schemaUrl.toLowerCase();
+  schemaByPathCache.set(norm, item);
+  const withoutLeadingSlash = norm.replace(/^\//, "");
+  schemaByPathCache.set(withoutLeadingSlash, item);
+});
+
+/**
+ * Retrieves a schema item by its unique ID or kebab-case name.
+ */
+export function getSchemaById(id: string): SchemaItem | undefined {
+  if (!id) return undefined;
+  return schemaByIdCache.get(id.toLowerCase());
+}
+
+/**
+ * Retrieves a schema item matching a relative URL path or segment.
+ */
+export function getSchemaByPath(path: string): SchemaItem | undefined {
+  if (!path) return undefined;
+  const norm = path.toLowerCase();
+  const cached = schemaByPathCache.get(norm) || schemaByPathCache.get(norm.replace(/^\//, ""));
+  if (cached) return cached;
+
+  return SCHEMA_CATALOG.find((item) => {
+    const itemUrl = item.schemaUrl.toLowerCase();
+    return itemUrl.includes(norm) || norm.includes(item.id.toLowerCase());
+  });
+}
+
+/**
+ * Dynamically resolves a schema URL against the application origin (100% self-hosted).
+ */
+export function resolveSchemaUrl(schemaUrl: string, origin?: string): string {
+  if (!schemaUrl) return "";
+  if (schemaUrl.startsWith("http://") || schemaUrl.startsWith("https://")) {
+    return schemaUrl;
+  }
+  const base = origin || (typeof window !== "undefined" ? window.location.origin : "");
+  const normalized = schemaUrl.startsWith("/") ? schemaUrl : `/${schemaUrl}`;
+  return base ? `${base}${normalized}` : normalized;
+}

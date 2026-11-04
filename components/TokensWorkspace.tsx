@@ -1512,11 +1512,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   );
 };
 
-TokenTableRow.displayName = "TokenTableRow";
 
 // -------------------------------------------------------------
 // TABLE ROW COMPONENT (Matches Video Frames 011, 015, 016, 020, 025)
-TokenTableRow.displayName = "TokenTableRow";
 
 // -------------------------------------------------------------
 interface TokenTableRowProps {
@@ -1533,7 +1531,7 @@ interface TokenTableRowProps {
   latestVersion?: string;
 }
 
-const TokenTableRow = React.memo<TokenTableRowProps>(({
+const TokenTableRow = React.memo(function TokenTableRow({
   token,
   isSelected,
   onToggleSelect,
@@ -1544,7 +1542,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
   isEditable = true,
   onCopy,
   latestVersion,
-}) => {
+}: TokenTableRowProps) {
   const dialogs = useDialogs();
   const handleCopy = (text: string, label: string) => {
     if (onCopy) {
@@ -1989,7 +1987,7 @@ interface WorkspaceGroupNodeProps {
   latestVersion?: string;
 }
 
-const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
+const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
   node,
   collapsedGroups,
   onToggleGroup,
@@ -2004,7 +2002,7 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
   isEditable = true,
   onCopy,
   latestVersion,
-}) => {
+}: WorkspaceGroupNodeProps) {
   if (node.isRoot) {
     return (
       <React.Fragment>

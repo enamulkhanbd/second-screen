@@ -4,7 +4,7 @@
 **Auditor**: Jules / Antigravity (AI Software Engineer)
 **Repository**: Second Screen / Tokens Platform (`tokens-platform`)
 **Target Branch**: `ux-ui-phases-0-7`
-**Status**: COMPLETE / PHASE 1 HIGH-SCALE PERFORMANCE UPGRADES APPLIED
+**Status**: COMPLETE / PHASE 1 & PHASE 2 (DTCG SCHEMA REGISTRY) UPGRADES VERIFIED
 
 ---
 
@@ -12,17 +12,21 @@
 
 A comprehensive frontend technical audit was performed across the entire application codebase (Next.js 14 App Router, React 18, TypeScript, Tailwind CSS, Radix UI primitives, and Zustand state store).
 
-Following the initial audit, **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and code quality recommendations were implemented and verified.
+Both **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and **Phase 2: Self-Hosted DTCG Schema Registry & Strict Compliance (P0)** have been implemented, tested, and verified against production constraints.
 
 ### Overall Status
 * **TypeScript Compilation**: ✅ PASSED (`npx tsc --noEmit` exited with code 0, 0 type errors).
 * **Next.js Production Build**: ✅ PASSED (`npm run build` generated all static and dynamic routes cleanly).
 * **Next.js ESLint / Hook Safety**: ✅ PASSED (`npm run lint` passes with 0 errors via automated `.eslintrc.json`).
-* **Schema Self-Hosting Rule**: ✅ COMPLIANT (0 external `registry.tokens.studio` links found in application code).
+* **Schema Self-Hosting Rule**: ✅ 100% COMPLIANT:
+  - 0 external `registry.tokens.studio` links exist in application code.
+  - All schemas resolve dynamically to current origin via self-hosted `/api/v1/schemas/[...path]` endpoints.
+  - Added `utils/dtcgSchemaGenerator.ts` providing full JSON Schema Draft 2020-12 & DTCG 2025.10 token specification schemas (`$type`, `$value`, `$description`, `$extensions`, `$deprecated`).
+  - Implemented wildcard CORS (`GET`, `HEAD`, `OPTIONS`) and caching headers (`public, max-age=86400, s-maxage=86400`) for Figma plugin and IDE tool consumption.
 * **High-Scale Token Performance**: ✅ COMPLIANT & OPTIMIZED:
   - `TokensWorkspace.tsx` uses `useShallow` from `zustand/react/shallow` to isolate re-renders from unrelated store mutations.
   - Eliminated per-row store subscriptions and version scanning loops across token rows (`latestVersion` computed once at top-level).
-  - All token row and group handlers (`handleToggleSelect`, `handleEditToken`, `handleDuplicateToken`, `handleDeleteToken`, `toggleGroup`, `handleCopy`, `startResizing`) are wrapped in stable `useCallback` references, ensuring `React.memo` on `TokenTableRow` and `WorkspaceGroupNode` is never defeated during parent renders.
+  - All token row and group handlers are wrapped in stable `useCallback` references, ensuring `React.memo` on `TokenTableRow` and `WorkspaceGroupNode` is never defeated during parent renders.
 * **Tailwind Class Merging**: ✅ COMPLIANT: Replaced all `!` prefixed width overrides in `app/page.tsx` `SheetContent` with standard classes and inline `style={{ width: "min(20rem, calc(100vw - 2rem))" }}` per AGENTS.md Rule 3.
 
 ---
@@ -47,10 +51,11 @@ Following the initial audit, **Phase 1: High-Scale Token Rendering & Virtualizat
 
 ### 2.1 Rule 1: Zero External Schema Registry Links
 * **Requirement**: All schema URLs must be 100% self-hosted under `/api/v1/schemas/...` resolving dynamically to application origin (`req.nextUrl.origin` / `window.location.origin`). No hardcoded `https://registry.tokens.studio` links.
-* **Audit Findings**:
-  * Executed global search across repository: `grep -rn "registry.tokens.studio" .`
-  * Result: **0 occurrences** in production code (only mentioned in `AGENTS.md` guidelines).
-  * `data/schemaCatalog.ts` and `app/api/v1/schemas/route.ts` correctly dynamically build schema URLs.
+* **Audit & Phase 2 Upgrades**:
+  * Executed global search across repository: `grep -rn "registry.tokens.studio" .` -> **0 occurrences** in application code.
+  * `data/schemaCatalog.ts` provides `getSchemaById`, `getSchemaByPath`, and `resolveSchemaUrl` with in-memory lookup caching.
+  * `app/api/v1/schemas/[...path]/route.ts` generates fully typed Draft 2020-12 / DTCG 2025.10 token validation schemas with origin-relative `$id`.
+  * Support for preflight `OPTIONS` and `HEAD` requests ensures the Figma Companion Plugin and IDE extensions can consume schemas seamlessly.
 
 ### 2.2 Rule 2: Strict React Hooks Ordering
 * **Requirement**: Never place early returns (`if (...) return ...;`) prior to hook calls (`useState`, `useMemo`, `useEffect`, `useCallback`).
@@ -101,6 +106,7 @@ Following the initial audit, **Phase 1: High-Scale Token Rendering & Virtualizat
 | Priority | Category | Finding / Item | Status | Action Taken |
 | :--- | :--- | :--- | :--- | :--- |
 | **P0** | High-Scale Perf | Unmemoized callbacks & per-row store subscriptions in `TokensWorkspace` | ✅ Completed | Adopted `useShallow`, hoisted `latestVersion` calculation, memoized callbacks (`useCallback`), and converted memoized rows to named functions |
+| **P0** | Standards & Schemas | Generic placeholder schema payload in schema registry API | ✅ Completed | Implemented `utils/dtcgSchemaGenerator.ts` with Draft 2020-12 & DTCG 2025.10 type definitions, CORS (`OPTIONS`/`HEAD`/`GET`), and origin resolution |
 | **Low** | Code Quality | `!` prefix in `app/page.tsx` `SheetContent` styling | ✅ Completed | Replaced `!w-[min(...)]` with inline `style={{ width: "min(20rem, calc(100vw - 2rem))" }}` |
 | **Low** | CI Automation | ESLint configuration prompt | ✅ Completed | Created `.eslintrc.json` extending `next/core-web-vitals` and installed `eslint` + `eslint-config-next` |
 
@@ -108,4 +114,4 @@ Following the initial audit, **Phase 1: High-Scale Token Rendering & Virtualizat
 
 ## Conclusion
 
-The frontend codebase is in a **healthy, robust, and production-ready state**. All critical constraints outlined in `AGENTS.md` and Phase 1 performance requirements are completed and verified, with zero TypeScript or Next.js build errors.
+The frontend codebase is in a **healthy, robust, and production-ready state**. Phase 1 (High-Scale Performance) and Phase 2 (DTCG 2025.10 Self-Hosted Schema Registry) have been successfully implemented and verified with zero TypeScript or build errors.
