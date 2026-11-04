@@ -546,7 +546,8 @@ export default function Home() {
           <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
             <SheetContent
               side="left"
-              className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
+              className="p-0 lg:hidden"
+              style={{ width: "min(20rem, calc(100vw - 2rem))" }}
             >
               <SheetTitle className="sr-only">Primary navigation</SheetTitle>
               <Sidebar
@@ -583,7 +584,8 @@ export default function Home() {
             <Sheet open={isContextNavOpen} onOpenChange={setIsContextNavOpen}>
               <SheetContent
                 side="left"
-                className="!w-[min(20rem,calc(100vw-2rem))] p-0 xl:hidden"
+                className="p-0 xl:hidden"
+                style={{ width: "min(20rem, calc(100vw - 2rem))" }}
               >
                 <SheetTitle className="sr-only">
                   {sidebarTab === "tokens" ? "Token sets" : "Theme groups"}

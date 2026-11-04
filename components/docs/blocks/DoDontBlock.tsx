@@ -48,7 +48,7 @@ export const DoDontBlock: React.FC<DoDontBlockProps> = ({
             className="flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-3 w-3" />
-            <span>Remove Do's & Don'ts</span>
+            <span>Remove Do&apos;s &amp; Don&apos;ts</span>
           </button>
         </div>
       )}

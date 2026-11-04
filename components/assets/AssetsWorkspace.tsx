@@ -4197,7 +4197,7 @@ export const AssetsWorkspace: React.FC = () => {
               <span>Remove Figma Source Link</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Choose what happens to icons synced from <strong>"{sourceToRemove?.name}"</strong>.
+              Choose what happens to icons synced from <strong>&ldquo;{sourceToRemove?.name}&rdquo;</strong>.
             </DialogDescription>
           </DialogHeader>
 

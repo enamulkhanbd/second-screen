@@ -486,7 +486,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
               Delete Theme Group
             </DialogTitle>
             <DialogDescription>
-              Delete <span className="font-semibold text-foreground">"{activeGroup.name}"</span> and
+              Delete <span className="font-semibold text-foreground">&ldquo;{activeGroup.name}&rdquo;</span> and
               all {activeGroup.options.length} options in this group?
             </DialogDescription>
           </DialogHeader>

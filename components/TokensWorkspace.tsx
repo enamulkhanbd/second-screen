@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   TokenRawValueCell,
   TokenVisualPreviewCell,
@@ -107,7 +108,30 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     activeThemeOptionIds,
     setSidebarTab,
     addNewToken,
-  } = useTokenStore();
+    releases,
+  } = useTokenStore(
+    useShallow((state) => ({
+      rawTokens: state.rawTokens,
+      resolvedTokens: state.resolvedTokens,
+      activeSet: state.activeSet,
+      updateSingleToken: state.updateSingleToken,
+      updateSetJson: state.updateSetJson,
+      renameSet: state.renameSet,
+      deleteSet: state.deleteSet,
+      duplicateToken: state.duplicateToken,
+      deleteToken: state.deleteToken,
+      tokensViewMode: state.tokensViewMode,
+      setTokensViewMode: state.setTokensViewMode,
+      credentials: state.credentials,
+      canUserEdit: state.canUserEdit,
+      addToast: state.addToast,
+      themeGroups: state.themeGroups,
+      activeThemeOptionIds: state.activeThemeOptionIds,
+      setSidebarTab: state.setSidebarTab,
+      addNewToken: state.addNewToken,
+      releases: state.releases,
+    }))
+  );
   const dialogs = useDialogs();
 
   const allSetKeys = useMemo(() => {
@@ -116,9 +140,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   const currentSetKey = activeSet && activeSet !== "ALL" ? activeSet : allSetKeys[0] || "";
 
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   // PREVIEW MODE STATE & FILTERING
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeprecatedOnly, setShowDeprecatedOnly] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -148,11 +176,14 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     } catch {}
   }, []);
 
-  const startResizing = (colKey: keyof typeof colWidths, e: React.MouseEvent) => {
+  const colWidthsRef = useRef(colWidths);
+  colWidthsRef.current = colWidths;
+
+  const startResizing = useCallback((colKey: keyof typeof colWidths, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
-    const startWidth = colWidths[colKey];
+    const startWidth = colWidthsRef.current[colKey];
     const minW = colKey === "type" ? 60 : colKey === "set" ? 80 : 100;
     let currentNewWidth = startWidth;
 
@@ -204,7 +235,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
     window.addEventListener("mousemove", onMouseMove, { passive: false });
     window.addEventListener("mouseup", onMouseUp);
-  };
+  }, []);
 
   const activeThemeInfo = useMemo(() => {
     return getActiveThemeSets(themeGroups, activeThemeOptionIds, rawTokens);
@@ -264,7 +295,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const isEditable = canUserEdit();
-  const handleCopy = (text: string, label: string) => {
+  const handleCopy = useCallback((text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text);
       addToast({
@@ -273,7 +304,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
         message: `${label}: ${text}`,
       });
     }
-  };
+  }, [addToast]);
 
   // Progressive Infinite Scrolling state for high performance with 10,000+ tokens
   const INITIAL_BATCH_SIZE = 100;
@@ -353,14 +384,37 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     }
   };
 
-  const toggleSelectToken = (id: string) => {
+  // Compute latestVersion once across all rows to avoid redundant loops
+  const latestVersion = useMemo(() => {
+    let latest: { version: string; createdAt: string } | undefined;
+    for (const r of releases || []) {
+      if (!latest || r.createdAt > latest.createdAt) latest = r;
+    }
+    return latest?.version;
+  }, [releases]);
+
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedTokenIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
+
+  const handleEditToken = useCallback((token: FlattenedToken) => {
+    setEditingToken(token);
+  }, []);
+
+  const handleDuplicateToken = useCallback((token: FlattenedToken, newName: string) => {
+    duplicateToken(token.setName, token.name.split("."), newName);
+  }, [duplicateToken]);
+
+  const handleDeleteToken = useCallback((token: FlattenedToken) => {
+    deleteToken(token.setName, token.name.split("."));
+  }, [deleteToken]);
+
+  const toggleSelectToken = handleToggleSelect;
 
   const toggleSelectAll = () => {
     if (selectedTokenIds.size === displayedTokens.length && displayedTokens.length > 0) {
@@ -372,12 +426,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   const allSelected = displayedTokens.length > 0 && selectedTokenIds.size === displayedTokens.length;
 
-  const toggleGroup = (groupId: string) => {
+  const toggleGroup = useCallback((groupId: string) => {
     setCollapsedGroups((prev) => ({
       ...prev,
       [groupId]: !prev[groupId],
     }));
-  };
+  }, []);
 
   const expandAllGroups = () => {
     setCollapsedGroups({});
@@ -524,9 +578,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [selectedTokenIds]);
 
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   // JSON CODE EDITOR STATE
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   const [code, setCode] = useState<string>("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
@@ -653,7 +711,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
           <span>Add set</span>
         </Button>
         {!isEditable && (
-          <p className="text-[11px] text-muted-foreground mt-2">Viewers can't add token sets.</p>
+          <p className="text-[11px] text-muted-foreground mt-2">Viewers can&apos;t add token sets.</p>
         )}
         <AddSetModal isOpen={isAddSetOpen} onClose={() => setIsAddSetOpen(false)} />
       </div>
@@ -1254,18 +1312,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         onToggleGroup={toggleGroup}
                         groupDepth={groupDepth}
                         selectedTokenIds={selectedTokenIds}
-                        onToggleSelect={toggleSelectToken}
-                        onEdit={setEditingToken}
+                        onToggleSelect={handleToggleSelect}
+                        onEdit={handleEditToken}
                         onUpdate={updateSingleToken}
-                        onDuplicate={(setName, nameSegments, newName) =>
-                          duplicateToken(setName, nameSegments, newName)
-                        }
-                        onDelete={(setName, nameSegments) =>
-                          deleteToken(setName, nameSegments)
-                        }
+                        onDuplicate={handleDuplicateToken}
+                        onDelete={handleDeleteToken}
                         startResizing={startResizing}
                         isEditable={isEditable}
                         onCopy={handleCopy}
+                        latestVersion={latestVersion}
                       />
                     ))
                   : visibleFlatTokens.map((token) => (
@@ -1273,18 +1328,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         key={token.id}
                         token={token}
                         isSelected={selectedTokenIds.has(token.id)}
-                        onToggleSelect={() => toggleSelectToken(token.id)}
-                        onEdit={() => setEditingToken(token)}
+                        onToggleSelect={handleToggleSelect}
+                        onEdit={handleEditToken}
                         onUpdate={updateSingleToken}
-                        onDuplicate={(newName) =>
-                          duplicateToken(token.setName, token.name.split("."), newName)
-                        }
-                        onDelete={() =>
-                          deleteToken(token.setName, token.name.split("."))
-                        }
+                        onDuplicate={handleDuplicateToken}
+                        onDelete={handleDeleteToken}
                         startResizing={startResizing}
                         isEditable={isEditable}
                         onCopy={handleCopy}
+                        latestVersion={latestVersion}
                       />
                     ))}
 
@@ -1466,17 +1518,18 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 interface TokenTableRowProps {
   token: FlattenedToken;
   isSelected: boolean;
-  onToggleSelect: () => void;
-  onEdit: () => void;
+  onToggleSelect: (id: string) => void;
+  onEdit: (token: FlattenedToken) => void;
   onUpdate: (path: string[], newValue: any) => void;
-  onDuplicate: (newName: string) => void;
-  onDelete: () => void;
+  onDuplicate: (token: FlattenedToken, newName: string) => void;
+  onDelete: (token: FlattenedToken) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
   isEditable?: boolean;
   onCopy?: (text: string, label: string) => void;
+  latestVersion?: string;
 }
 
-const TokenTableRow = React.memo<TokenTableRowProps>(({
+const TokenTableRow = React.memo(function TokenTableRow({
   token,
   isSelected,
   onToggleSelect,
@@ -1486,7 +1539,9 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
   startResizing,
   isEditable = true,
   onCopy,
-}) => {
+  latestVersion,
+}: TokenTableRowProps) {
+
   const dialogs = useDialogs();
   const handleCopy = (text: string, label: string) => {
     if (onCopy) {
@@ -1509,14 +1564,6 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     String(token.resolvedValue).includes("unresolved") ||
     String(token.rawValue).includes("unresolved");
 
-  const releases = useTokenStore((s) => s.releases);
-  const latestVersion = useMemo(() => {
-    let latest: { version: string; createdAt: string } | undefined;
-    for (const r of releases || []) {
-      if (!latest || r.createdAt > latest.createdAt) latest = r;
-    }
-    return latest?.version;
-  }, [releases]);
   const isRemovalDue = token.deprecated
     ? isDeprecationOverdue(token.deprecatedRemoveAfter, { currentVersion: latestVersion })
     : false;
@@ -1543,7 +1590,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     if (rawValueStr.startsWith("{") && rawValueStr.endsWith("}")) {
       return (
         <span
-          onClick={onEdit}
+          onClick={() => onEdit(token)}
           className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground cursor-pointer transition-colors"
         >
           {rawValueStr}
@@ -1555,7 +1602,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     if (rawValueStr.includes("{") && rawValueStr.includes("}")) {
       const parts = rawValueStr.split(/(\{.*?\})/g);
       return (
-        <span onClick={onEdit} className="cursor-pointer hover:text-primary transition-colors">
+        <span onClick={() => onEdit(token)} className="cursor-pointer hover:text-primary transition-colors">
           {parts.map((part, i) => {
             if (part.startsWith("{") && part.endsWith("}")) {
               return (
@@ -1575,7 +1622,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
 
     return (
       <span
-        onClick={onEdit}
+        onClick={() => onEdit(token)}
         className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
       >
         {rawValueStr}
@@ -1633,7 +1680,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={onToggleSelect}
+          onChange={() => onToggleSelect(token.id)}
           className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
         />
       </td>
@@ -1645,7 +1692,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
       )}>
         <div className="flex items-center gap-1.5 min-w-0">
           <span
-            onClick={onEdit}
+            onClick={() => onEdit(token)}
             className="font-medium text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
             title={token.name}
           >
@@ -1782,7 +1829,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
           <DropdownMenuContent align="end" className="w-52">
             {isEditable && (
               <>
-                <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => onEdit(token)} className="cursor-pointer">
                   <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   <span>Edit token</span>
                 </DropdownMenuItem>
@@ -1795,7 +1842,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
                       confirmLabel: "Duplicate",
                     });
                     if (newName) {
-                      onDuplicate(newName);
+                      onDuplicate(token, newName);
                     }
                   }}
                   className="cursor-pointer"
@@ -1832,7 +1879,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
                       destructive: true,
                     });
                     if (confirmed) {
-                      onDelete();
+                      onDelete(token);
                     }
                   }}
                   className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -1850,7 +1897,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
       <ContextMenuContent className="w-52">
         {isEditable && (
           <>
-            <ContextMenuItem onClick={onEdit} className="cursor-pointer">
+            <ContextMenuItem onClick={() => onEdit(token)} className="cursor-pointer">
               <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Edit token</span>
             </ContextMenuItem>
@@ -1863,7 +1910,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
                   confirmLabel: "Duplicate",
                 });
                 if (newName) {
-                  onDuplicate(newName);
+                  onDuplicate(token, newName);
                 }
               }}
               className="cursor-pointer"
@@ -1900,7 +1947,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
                   destructive: true,
                 });
                 if (confirmed) {
-                  onDelete();
+                  onDelete(token);
                 }
               }}
               className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -1927,14 +1974,15 @@ interface WorkspaceGroupNodeProps {
   onToggleSelect: (id: string) => void;
   onEdit: (token: FlattenedToken) => void;
   onUpdate: (path: string[], newValue: any) => void;
-  onDuplicate: (setName: string, nameSegments: string[], newName: string) => void;
-  onDelete: (setName: string, nameSegments: string[]) => void;
+  onDuplicate: (token: FlattenedToken, newName: string) => void;
+  onDelete: (token: FlattenedToken) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
   isEditable?: boolean;
   onCopy?: (text: string, label: string) => void;
+  latestVersion?: string;
 }
 
-const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
+const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
   node,
   collapsedGroups,
   onToggleGroup,
@@ -1948,7 +1996,9 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
   startResizing,
   isEditable = true,
   onCopy,
-}) => {
+  latestVersion,
+}: WorkspaceGroupNodeProps) {
+
   if (node.isRoot) {
     return (
       <React.Fragment>
@@ -1957,16 +2007,15 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
             key={token.id}
             token={token}
             isSelected={selectedTokenIds.has(token.id)}
-            onToggleSelect={() => onToggleSelect(token.id)}
-            onEdit={() => onEdit(token)}
+            onToggleSelect={onToggleSelect}
+            onEdit={onEdit}
             onUpdate={onUpdate}
-            onDuplicate={(newName) =>
-              onDuplicate(token.setName, token.name.split("."), newName)
-            }
-            onDelete={() => onDelete(token.setName, token.name.split("."))}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
             startResizing={startResizing}
             isEditable={isEditable}
             onCopy={onCopy}
+            latestVersion={latestVersion}
           />
         ))}
       </React.Fragment>
@@ -2024,6 +2073,7 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
               startResizing={startResizing}
               isEditable={isEditable}
               onCopy={onCopy}
+              latestVersion={latestVersion}
             />
           ))}
           {node.items.map((token) => (
@@ -2031,16 +2081,15 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
               key={token.id}
               token={token}
               isSelected={selectedTokenIds.has(token.id)}
-              onToggleSelect={() => onToggleSelect(token.id)}
-              onEdit={() => onEdit(token)}
+              onToggleSelect={onToggleSelect}
+              onEdit={onEdit}
               onUpdate={onUpdate}
-              onDuplicate={(newName) =>
-                onDuplicate(token.setName, token.name.split("."), newName)
-              }
-              onDelete={() => onDelete(token.setName, token.name.split("."))}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
               startResizing={startResizing}
               isEditable={isEditable}
               onCopy={onCopy}
+              latestVersion={latestVersion}
             />
           ))}
         </>
