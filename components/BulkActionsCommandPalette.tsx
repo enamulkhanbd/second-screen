@@ -15,7 +15,7 @@ import {
   ArrowLeft,
   Check,
 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDialogs } from "@/components/DialogProvider";
@@ -169,6 +169,7 @@ export const BulkActionsCommandPalette: React.FC<BulkActionsCommandPaletteProps>
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden border border-border shadow-2xl rounded-xl">
+        <DialogTitle className="sr-only">Bulk Token Actions</DialogTitle>
         {subView === "main" && (
           <div className="flex flex-col select-none">
             {/* Search Input Bar */}

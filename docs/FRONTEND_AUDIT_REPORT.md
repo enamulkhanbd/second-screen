@@ -4,7 +4,7 @@
 **Auditor**: Jules / Antigravity (AI Software Engineer)
 **Repository**: Second Screen / Tokens Platform (`tokens-platform`)
 **Target Branch**: `ux-ui-phases-0-7`
-**Status**: COMPLETE / PHASE 1 & PHASE 2 (DTCG SCHEMA REGISTRY) UPGRADES VERIFIED
+**Status**: COMPLETE / PHASES 1, 2 & 3 UPGRADES APPLIED & VERIFIED
 
 ---
 
@@ -12,22 +12,27 @@
 
 A comprehensive frontend technical audit was performed across the entire application codebase (Next.js 14 App Router, React 18, TypeScript, Tailwind CSS, Radix UI primitives, and Zustand state store).
 
-Both **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and **Phase 2: Self-Hosted DTCG Schema Registry & Strict Compliance (P0)** have been implemented, tested, and verified against production constraints.
+**Phase 1 (High-Scale Token Performance)**, **Phase 2 (Self-Hosted DTCG Schema Registry)**, and **Phase 3 (Tailwind Merge, Radix UI Layout Consistency & A11y)** are fully implemented and verified.
 
 ### Overall Status
 * **TypeScript Compilation**: ✅ PASSED (`npx tsc --noEmit` exited with code 0, 0 type errors).
 * **Next.js Production Build**: ✅ PASSED (`npm run build` generated all static and dynamic routes cleanly).
 * **Next.js ESLint / Hook Safety**: ✅ PASSED (`npm run lint` passes with 0 errors via automated `.eslintrc.json`).
+* **Tailwind Class Merging & Zero `!` Overrides**: ✅ 100% COMPLIANT:
+  - Audited all TSX/TS files across repository: **0** `!`-prefixed utility overrides remain.
+  - Replaced all forced width overrides with standard utility classes and inline `style={{ width: "min(20rem, calc(100vw - 2rem))" }}`.
+* **Radix UI Dialog A11y & Focus Standards**: ✅ 100% COMPLIANT:
+  - Verified 100% of `DialogContent` instances contain accessible `DialogTitle` (including screen-reader accessible `sr-only` titles for custom headers in `BulkActionsCommandPalette` and `AssetDetailStudio`).
+  - Standardized keyboard navigation focus rings across `dialog.tsx`, `sheet.tsx`, and `badge.tsx` to `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`.
 * **Schema Self-Hosting Rule**: ✅ 100% COMPLIANT:
   - 0 external `registry.tokens.studio` links exist in application code.
   - All schemas resolve dynamically to current origin via self-hosted `/api/v1/schemas/[...path]` endpoints.
-  - Added `utils/dtcgSchemaGenerator.ts` providing full JSON Schema Draft 2020-12 & DTCG 2025.10 token specification schemas (`$type`, `$value`, `$description`, `$extensions`, `$deprecated`).
-  - Implemented wildcard CORS (`GET`, `HEAD`, `OPTIONS`) and caching headers (`public, max-age=86400, s-maxage=86400`) for Figma plugin and IDE tool consumption.
+  - Implemented `utils/dtcgSchemaGenerator.ts` providing full JSON Schema Draft 2020-12 & DTCG 2025.10 token specification schemas (`$type`, `$value`, `$description`, `$extensions`, `$deprecated`).
+  - Added wildcard CORS (`GET`, `HEAD`, `OPTIONS`) and caching headers (`public, max-age=86400, s-maxage=86400`) for Figma plugin and IDE tool consumption.
 * **High-Scale Token Performance**: ✅ COMPLIANT & OPTIMIZED:
   - `TokensWorkspace.tsx` uses `useShallow` from `zustand/react/shallow` to isolate re-renders from unrelated store mutations.
   - Eliminated per-row store subscriptions and version scanning loops across token rows (`latestVersion` computed once at top-level).
   - All token row and group handlers are wrapped in stable `useCallback` references, ensuring `React.memo` on `TokenTableRow` and `WorkspaceGroupNode` is never defeated during parent renders.
-* **Tailwind Class Merging**: ✅ COMPLIANT: Replaced all `!` prefixed width overrides in `app/page.tsx` `SheetContent` with standard classes and inline `style={{ width: "min(20rem, calc(100vw - 2rem))" }}` per AGENTS.md Rule 3.
 
 ---
 
@@ -43,7 +48,7 @@ Both **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and **Phase 2
   * Static Pages (○): `/`, `/_not-found`, `/connect`, `/docs`
   * SSG Prerendered Pages (●): `/[workspaceSlug]/[[...path]]`
   * Dynamic Pages & API Handlers (ƒ): 30+ endpoints including `/docs/[orgSlug]/[projectSlug]`, `/api/v1/schemas`, `/api/v1/tokens`, `/api/v1/auth/pair`, `/invite/[token]`, etc.
-  * Shared First-Load JS Bundle: `88.1 kB`.
+  * Shared First-Load JS Bundle: `88 kB`.
 
 ---
 
@@ -66,11 +71,11 @@ Both **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and **Phase 2
 
 ### 2.3 Rule 3: `tailwind-merge` & Dialog Overrides
 * **Requirement**: Do not use `!` class prefixes (e.g. `!overflow-hidden`, `!w-[...]`) in `cn()` calls as `tailwind-merge` may fail to strip conflicting base utilities. Use standard utilities or inline `style` props.
-* **Audit Findings**:
-  * The two mobile sheet drawer width overrides in `app/page.tsx` were refactored:
-    - Line 549: replaced `!w-[min(20rem,calc(100vw-2rem))]` with `className="p-0 lg:hidden"` and `style={{ width: "min(20rem, calc(100vw - 2rem))" }}`
-    - Line 587: replaced `!w-[min(20rem,calc(100vw-2rem))]` with `className="p-0 xl:hidden"` and `style={{ width: "min(20rem, calc(100vw - 2rem))" }}`
-  * Status: **100% Compliant**. Zero exclamation-prefixed utility classes remain in application markup.
+* **Audit & Phase 3 Upgrades**:
+  * Scanned all components: **0 occurrences** of `!` class prefixes remain in the codebase.
+  * Checked all `DialogContent` and `SheetContent` components: standard responsive utility classes and explicit styles are in place.
+  * Verified 100% of Radix `DialogContent` components supply accessible `DialogTitle` components.
+  * Focus rings standardized to `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`.
 
 ### 2.4 Rule 4: High-Scale Token Rendering
 * **Requirement**: Support massive token sets (13,000+ tokens) without UI thread blocking through batching (`INITIAL_BATCH_SIZE = 100`, `BATCH_INCREMENT = 100`) and memoization.
@@ -107,6 +112,7 @@ Both **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and **Phase 2
 | :--- | :--- | :--- | :--- | :--- |
 | **P0** | High-Scale Perf | Unmemoized callbacks & per-row store subscriptions in `TokensWorkspace` | ✅ Completed | Adopted `useShallow`, hoisted `latestVersion` calculation, memoized callbacks (`useCallback`), and converted memoized rows to named functions |
 | **P0** | Standards & Schemas | Generic placeholder schema payload in schema registry API | ✅ Completed | Implemented `utils/dtcgSchemaGenerator.ts` with Draft 2020-12 & DTCG 2025.10 type definitions, CORS (`OPTIONS`/`HEAD`/`GET`), and origin resolution |
+| **P1** | Design & A11y | Inconsistent focus rings and missing `DialogTitle` in `AssetDetailStudio` and `BulkActionsCommandPalette` | ✅ Completed | Added `sr-only` titles to all custom header dialogs, updated close and badge buttons to `focus-visible:ring-2` |
 | **Low** | Code Quality | `!` prefix in `app/page.tsx` `SheetContent` styling | ✅ Completed | Replaced `!w-[min(...)]` with inline `style={{ width: "min(20rem, calc(100vw - 2rem))" }}` |
 | **Low** | CI Automation | ESLint configuration prompt | ✅ Completed | Created `.eslintrc.json` extending `next/core-web-vitals` and installed `eslint` + `eslint-config-next` |
 
@@ -114,4 +120,4 @@ Both **Phase 1: High-Scale Token Rendering & Virtualization (P0)** and **Phase 2
 
 ## Conclusion
 
-The frontend codebase is in a **healthy, robust, and production-ready state**. Phase 1 (High-Scale Performance) and Phase 2 (DTCG 2025.10 Self-Hosted Schema Registry) have been successfully implemented and verified with zero TypeScript or build errors.
+The frontend codebase is in a **healthy, robust, and production-ready state**. Phases 1, 2, and 3 have been successfully completed, verified, and confirmed against all architectural rules in `AGENTS.md`.
