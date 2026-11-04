@@ -1512,8 +1512,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   );
 };
 
+TokenTableRow.displayName = "TokenTableRow";
+
 // -------------------------------------------------------------
 // TABLE ROW COMPONENT (Matches Video Frames 011, 015, 016, 020, 025)
+TokenTableRow.displayName = "TokenTableRow";
+
 // -------------------------------------------------------------
 interface TokenTableRowProps {
   token: FlattenedToken;
@@ -1529,7 +1533,7 @@ interface TokenTableRowProps {
   latestVersion?: string;
 }
 
-const TokenTableRow = React.memo(function TokenTableRow({
+const TokenTableRow = React.memo<TokenTableRowProps>(({
   token,
   isSelected,
   onToggleSelect,
@@ -1540,8 +1544,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
   isEditable = true,
   onCopy,
   latestVersion,
-}: TokenTableRowProps) {
-
+}) => {
   const dialogs = useDialogs();
   const handleCopy = (text: string, label: string) => {
     if (onCopy) {
@@ -1962,8 +1965,12 @@ const TokenTableRow = React.memo(function TokenTableRow({
   );
 });
 
+TokenTableRow.displayName = "TokenTableRow";
+
 // -------------------------------------------------------------
 // WORKSPACE GROUP NODE COMPONENT (For nested groupings)
+TokenTableRow.displayName = "TokenTableRow";
+
 // -------------------------------------------------------------
 interface WorkspaceGroupNodeProps {
   node: TokenGroupNode<FlattenedToken>;
@@ -1982,7 +1989,7 @@ interface WorkspaceGroupNodeProps {
   latestVersion?: string;
 }
 
-const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
+const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
   node,
   collapsedGroups,
   onToggleGroup,
@@ -1997,8 +2004,7 @@ const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
   isEditable = true,
   onCopy,
   latestVersion,
-}: WorkspaceGroupNodeProps) {
-
+}) => {
   if (node.isRoot) {
     return (
       <React.Fragment>
