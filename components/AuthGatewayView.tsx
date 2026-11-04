@@ -222,7 +222,7 @@ export const AuthGatewayView: React.FC = () => {
       </header>
 
       {/* Main Authentication Hero Container */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center p-6 sm:p-12 gap-12 max-w-6xl mx-auto w-full z-10">
+      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col lg:flex-row items-center justify-center p-6 sm:p-12 gap-12 max-w-6xl mx-auto w-full z-10 focus:outline-none">
         {/* Left Column: Product Value Proposition */}
         <div className="flex-1 space-y-6 max-w-lg text-center lg:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
@@ -276,10 +276,10 @@ export const AuthGatewayView: React.FC = () => {
             <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                <span>Tenant Isolation</span>
+                <span>Private workspaces</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Secure multi-org workspaces with role-based member permissions.
+                Secure workspaces with role-based member permissions.
               </p>
             </div>
           </div>
@@ -288,15 +288,48 @@ export const AuthGatewayView: React.FC = () => {
         {/* Right Column: Dedicated Auth Card */}
         <div className="w-full max-w-md">
           <div className="bg-card border border-border/80 rounded-2xl p-6 sm:p-8 shadow-xl backdrop-blur-xl relative space-y-5">
+            <div
+              role="group"
+              aria-label="Account action"
+              className="grid grid-cols-2 rounded-lg border border-border bg-muted/50 p-1"
+            >
+              <button
+                type="button"
+                aria-pressed={!isSignUp}
+                onClick={() => {
+                  setIsSignUp(false);
+                  setError(null);
+                }}
+                className={`h-8 rounded-md text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  !isSignUp ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                aria-pressed={isSignUp}
+                onClick={() => {
+                  setIsSignUp(true);
+                  setError(null);
+                }}
+                className={`h-8 rounded-md text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  isSignUp ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Create account
+              </button>
+            </div>
+
             {/* Card Header */}
             <div className="text-center space-y-1.5">
               <h2 className="text-xl font-bold tracking-tight text-foreground">
-                {isSignUp ? "Create Workspace Account" : "Sign in to Tokens Platform"}
+                {isSignUp ? "Create your account" : "Sign in"}
               </h2>
               <p className="text-xs text-muted-foreground">
                 {isSignUp
-                  ? "Get started with your free multi-project design system"
-                  : "Enter your credentials or continue with Google or GitHub to access your workspaces"}
+                  ? "Set up your workspace and first project."
+                  : "Continue to your workspaces with email, Google, or GitHub."}
               </p>
             </div>
 
@@ -372,7 +405,7 @@ export const AuthGatewayView: React.FC = () => {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border/60" />
               </div>
-              <span className="relative px-3 bg-card text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              <span className="relative px-3 bg-card text-[11px] font-medium text-muted-foreground tracking-wider">
                 or with email
               </span>
             </div>
@@ -389,6 +422,7 @@ export const AuthGatewayView: React.FC = () => {
                     <Input
                       id="name"
                       type="text"
+                      autoComplete="name"
                       placeholder="e.g. Jane Doe"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -408,6 +442,8 @@ export const AuthGatewayView: React.FC = () => {
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="email"
+                    spellCheck={false}
                     placeholder="name@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -426,6 +462,7 @@ export const AuthGatewayView: React.FC = () => {
                   <Input
                     id="password"
                     type="password"
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -446,27 +483,6 @@ export const AuthGatewayView: React.FC = () => {
               </Button>
             </form>
 
-            {/* Toggle Mode */}
-            <div className="text-center pt-2 border-t border-border/50">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError(null);
-                }}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-              >
-                {isSignUp ? (
-                  <span>
-                    Already have an account? <strong className="text-primary font-semibold">Sign In</strong>
-                  </span>
-                ) : (
-                  <span>
-                    Don&apos;t have an account? <strong className="text-primary font-semibold">Create one for free</strong>
-                  </span>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       </main>

@@ -5,6 +5,8 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  /** Rendered above the title, e.g. a back link. */
+  leading?: React.ReactNode;
   className?: string;
 }
 
@@ -12,6 +14,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   description,
   actions,
+  leading,
   className,
 }) => (
   <header
@@ -21,6 +24,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     )}
   >
     <div className="min-w-0">
+      {leading}
       <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
       {description && (
         <p className="mt-1 text-xs text-muted-foreground">{description}</p>

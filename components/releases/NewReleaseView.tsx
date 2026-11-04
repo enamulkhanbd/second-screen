@@ -375,7 +375,7 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTag(patchVer)}
-                className={`text-[11px] font-mono px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                className={`text-[11px] font-mono px-2.5 py-1                 rounded-md border transition-colors cursor-pointer ${
                   tag === patchVer
                     ? "bg-primary/10 border-primary text-primary font-semibold"
                     : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -387,7 +387,7 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTag(minorVer)}
-                className={`text-[11px] font-mono px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                className={`text-[11px] font-mono px-2.5 py-1                 rounded-md border transition-colors cursor-pointer ${
                   tag === minorVer
                     ? "bg-primary/10 border-primary text-primary font-semibold"
                     : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -399,7 +399,7 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTag(majorVer)}
-                className={`text-[11px] font-mono px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                className={`text-[11px] font-mono px-2.5 py-1                 rounded-md border transition-colors cursor-pointer ${
                   tag === majorVer
                     ? "bg-primary/10 border-primary text-primary font-semibold"
                     : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted"

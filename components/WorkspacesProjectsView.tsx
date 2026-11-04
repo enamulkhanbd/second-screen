@@ -558,7 +558,7 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                 setActiveTab("projects");
                 setIsWorkspaceFormOpen(false);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                 activeTab === "projects"
                   ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -573,7 +573,7 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                 setActiveTab("workspaces");
                 setIsProjectFormOpen(false);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                 activeTab === "workspaces"
                   ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -745,7 +745,7 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setProjectStatusFilter("active")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                     projectStatusFilter === "active"
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -765,7 +765,7 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
 
                 <button
                   onClick={() => setProjectStatusFilter("archived")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                     projectStatusFilter === "archived"
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -1080,7 +1080,7 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                     <ContextMenu key={proj.id}>
                       <ContextMenuTrigger asChild>
                         <div
-                          className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md cursor-default ${
+                          className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition duration-200 bg-card hover:shadow-md cursor-default ${
                             isActive
                               ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
                               : "border-border"
@@ -1672,7 +1672,7 @@ export const WorkspacesProjectsView: React.FC<WorkspacesProjectsViewProps> = ({
                   return (
                     <div
                       key={org.id}
-                      className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
+                      className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition duration-200 bg-card hover:shadow-md ${
                         isActive
                           ? "border-primary/60 ring-1 ring-primary/40 shadow-xs"
                           : "border-border"

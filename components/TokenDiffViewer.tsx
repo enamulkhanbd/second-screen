@@ -91,7 +91,7 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("semantic")}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md             transition cursor-pointer ${
               activeTab === "semantic"
                 ? "bg-background text-foreground font-semibold shadow-2xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -104,7 +104,7 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("side-by-side")}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md             transition cursor-pointer ${
               activeTab === "side-by-side"
                 ? "bg-background text-foreground font-semibold shadow-2xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -117,7 +117,7 @@ export const TokenDiffViewer: React.FC<TokenDiffViewerProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("inline")}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md             transition cursor-pointer ${
               activeTab === "inline"
                 ? "bg-background text-foreground font-semibold shadow-2xs"
                 : "text-muted-foreground hover:text-foreground"

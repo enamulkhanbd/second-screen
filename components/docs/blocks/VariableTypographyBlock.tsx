@@ -120,7 +120,7 @@ export const VariableTypographyBlock: React.FC<VariableTypographyBlockProps> = (
 
               <div className="min-w-0 flex-1 overflow-hidden">
                 <p
-                  className="truncate text-foreground font-sans transition-all"
+                  className="truncate text-foreground font-sans transition-[font-size]"
                   style={{ fontSize: sizeStyle }}
                 >
                   The quick brown fox jumps over the lazy dog

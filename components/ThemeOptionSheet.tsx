@@ -47,7 +47,7 @@ function TokenSetStatusToggle({
           type="button"
           onClick={() => onChange(item)}
           className={cn(
-            "px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer capitalize",
+            "px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer capitalize",
             status === item
               ? "bg-background text-foreground font-semibold shadow-2xs"
               : "text-muted-foreground hover:text-foreground"

@@ -66,8 +66,18 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
   * {
     border-color: hsl(var(--border));
+  }
+  [role="button"][tabindex="0"]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
   body {
     background-color: hsl(var(--background));
@@ -106,4 +116,3 @@
     scroll-behavior: auto !important;
   }
 }
-

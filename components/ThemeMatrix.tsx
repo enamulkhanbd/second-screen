@@ -147,8 +147,8 @@ const MatrixTokenRow = React.memo(function MatrixTokenRow({
   onOpenCell: (token: FlattenedToken) => void;
 }) {
   return (
-    <tr className="border-b border-border/40 hover:bg-muted/20">
-      <td className="py-2 px-4 font-mono text-xs text-foreground whitespace-nowrap border-r border-border/30">
+    <tr className="group border-b border-border/40 hover:bg-muted/20">
+      <td className="sticky left-0 z-[5] bg-background group-hover:bg-muted py-2 px-4 font-mono text-xs text-foreground whitespace-nowrap border-r border-border/30">
         {row.tokenKey}
       </td>
       {options.map((option) => (
@@ -170,7 +170,6 @@ const MatrixTokenRow = React.memo(function MatrixTokenRow({
 });
 
 export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
-  onOpenSettings,
   onOpenContextNavigation,
 }) => {
   const {
@@ -184,6 +183,8 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
     addThemeOption,
     deleteThemeGroup,
     canUserEdit,
+    setSidebarTab,
+    createLightDarkThemes,
   } = useTokenStore();
 
   const isEditable = canUserEdit();
@@ -234,15 +235,13 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
   if (!hasTokens) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background">
-        <h2 className="text-base font-bold">No Tokens Loaded</h2>
+        <h2 className="text-base font-bold">Add tokens before creating themes</h2>
         <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-          Load a project with token sets to compare themes in the matrix.
+          Themes map the same tokens to Light, Dark, or a brand. Add a token set first, then come back to set up themes.
         </p>
-        {onOpenSettings && (
-          <Button className="mt-4 text-xs" size="sm" onClick={onOpenSettings}>
-            Open settings
-          </Button>
-        )}
+        <Button className="mt-4 text-xs" size="sm" onClick={() => setSidebarTab("tokens")}>
+          Go to Tokens
+        </Button>
       </div>
     );
   }
@@ -250,14 +249,25 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
   if (!activeGroup) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background">
-        <h2 className="text-base font-bold">No Theme Groups Defined</h2>
+        <h2 className="text-base font-bold">Create your first theme</h2>
         <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-          Theme groups organize modes and brand variants. Create an option to get started.
+          Themes map the same tokens to Light, Dark, or a brand.
         </p>
-        <Button className="mt-4 text-xs" size="sm" onClick={() => setOptionSheet({ mode: "add" })}>
-          <Plus className="size-3.5 mr-1.5" />
-          Add option
-        </Button>
+        <div className="mt-4 flex items-center gap-2">
+          <Button className="text-xs" size="sm" disabled={!isEditable} onClick={createLightDarkThemes}>
+            Create Light and Dark
+          </Button>
+          <Button
+            className="text-xs"
+            size="sm"
+            variant="outline"
+            disabled={!isEditable}
+            onClick={() => setOptionSheet({ mode: "add" })}
+          >
+            <Plus className="size-3.5 mr-1.5" />
+            Add theme
+          </Button>
+        </div>
         <ThemeOptionSheet
           mode="add"
           open={optionSheet?.mode === "add"}
@@ -298,6 +308,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                 type="button"
                 className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                 title="Group options"
+                aria-label="Group options"
               >
                 <MoreVertical className="size-3.5" />
               </button>
@@ -352,7 +363,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
           <table className="w-full min-w-max text-left border-collapse">
             <thead className="sticky top-0 z-10 bg-background border-b border-border">
               <tr>
-                <th className="py-2.5 px-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/30 min-w-[220px]">
+                <th className="sticky left-0 z-20 bg-background py-2.5 px-4 text-xs font-semibold text-muted-foreground border-r border-border/30 min-w-[220px]">
                   Token
                 </th>
                 {activeGroup.options.map((option) => (
@@ -367,7 +378,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                         onClick={() => setActiveThemeOption(option.id)}
                       >
                         <GripVertical className="size-3.5 text-muted-foreground/70 shrink-0" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground truncate">
+                        <span className="text-xs font-semibold text-foreground truncate">
                           {option.name}
                         </span>
                       </button>
@@ -375,7 +386,8 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                            aria-label={`${option.name} options`}
+                            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                           >
                             <MoreHorizontal className="size-3.5" />
                           </button>

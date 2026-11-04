@@ -284,9 +284,9 @@ export const MembersView: React.FC = () => {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
         <Users className="w-12 h-12 text-muted-foreground/40 mb-3" />
-        <h2 className="text-base font-bold text-foreground">No Organization Selected</h2>
+        <h2 className="text-base font-bold text-foreground">No workspace selected</h2>
         <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-          Please select or create an organization to view team members.
+          Select or create a workspace to view its members.
         </p>
       </div>
     );
@@ -321,7 +321,7 @@ export const MembersView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl font-bold tracking-tight text-foreground">
-                  Members &amp; Access
+                  Workspace members
                 </h1>
                 <Badge variant="outline" className="text-[10px] font-mono capitalize px-2 py-0.5 text-muted-foreground border-border/80">
                   {currentOrg.name}
@@ -329,6 +329,9 @@ export const MembersView: React.FC = () => {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Manage team members, roles, and pending invitations for this workspace.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Everyone here can access all projects in this workspace.
               </p>
             </div>
           </div>
@@ -373,13 +376,16 @@ export const MembersView: React.FC = () => {
               <div className="p-6 space-y-4">
                 {/* Colleague Email */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">
+                  <Label htmlFor="invite-email" className="text-xs font-semibold text-foreground">
                     Colleague Email <span className="text-destructive">*</span>
                   </Label>
                   <Input
+                    id="invite-email"
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
+                    autoComplete="email"
+                    spellCheck={false}
                     placeholder="designer@company.com"
                     required
                     autoFocus
@@ -389,12 +395,12 @@ export const MembersView: React.FC = () => {
 
                 {/* Role */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Role</Label>
+                  <Label htmlFor="invite-role" className="text-xs font-semibold text-foreground">Role</Label>
                   <Select
                     value={inviteRole}
                     onValueChange={(val: any) => setInviteRole(val as UserRole)}
                   >
-                    <SelectTrigger className="h-9 text-xs">
+                    <SelectTrigger id="invite-role" className="h-9 text-xs">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -452,7 +458,7 @@ export const MembersView: React.FC = () => {
             <button
               type="button"
               onClick={() => setMembersSubTab("members")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                 membersSubTab !== "invites"
                   ? "bg-primary text-primary-foreground shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -474,7 +480,7 @@ export const MembersView: React.FC = () => {
             <button
               type="button"
               onClick={() => setMembersSubTab("invites")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                 membersSubTab === "invites"
                   ? "bg-primary text-primary-foreground shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"

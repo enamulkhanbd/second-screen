@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDialogs } from "@/components/DialogProvider";
 import { shallow } from "zustand/shallow";
 import { ProjectAsset, AssetFolder, AssetCollection, AssetType, AssetGitConfig, FigmaSourceLink } from "@/types/tenant";
 import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
@@ -493,7 +494,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   return (
     <div
-      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-all duration-200"
+      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-colors duration-200"
       style={previewStyle}
     >
       {!isLoaded && !hasError && icon.url && (
@@ -547,7 +548,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   return (
     <div
-      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-all duration-200 p-2"
+      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-colors duration-200 p-2"
       style={previewStyle}
     >
       {!isLoaded && !hasError && (
@@ -576,6 +577,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 ImagePreviewThumbnail.displayName = "ImagePreviewThumbnail";
 
 export const AssetsWorkspace: React.FC = () => {
+  const dialogs = useDialogs();
   const {
     currentOrg,
     currentProject,
@@ -2124,7 +2126,7 @@ export const AssetsWorkspace: React.FC = () => {
       >
         {/* Preview Area */}
         <div
-          className={`relative w-full aspect-square rounded-2xl border overflow-hidden flex items-center justify-center transition-all duration-200 ${
+          className={`relative w-full aspect-square rounded-2xl border overflow-hidden flex items-center justify-center transition duration-200 ${
             isSelected
               ? "border-primary ring-2 ring-primary/20 bg-muted/30"
               : "border-border/60 bg-muted/20"
@@ -2352,9 +2354,9 @@ export const AssetsWorkspace: React.FC = () => {
     >
       {/* Full-surface drag-and-drop visual dropzone indicator */}
       {isDragOver && !isUnfilteredEmptyCollection && (
-        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary flex flex-col items-center justify-center pointer-events-none transition-all animate-in fade-in duration-150">
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary flex flex-col items-center justify-center pointer-events-none transition animate-in fade-in duration-150">
           <div className="bg-card border border-primary/30 shadow-2xl rounded-2xl p-6 flex flex-col items-center gap-3 text-center max-w-sm pointer-events-none">
-            <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center animate-bounce">
+            <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center motion-safe:animate-bounce">
               <UploadCloud className="w-7 h-7" />
             </div>
             <div>
@@ -2671,7 +2673,7 @@ export const AssetsWorkspace: React.FC = () => {
                     e.preventDefault();
                     handleProcessIncomingFiles(e.dataTransfer.files, undefined);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer group ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg                   text-xs transition cursor-pointer group ${
                     activeFolderId === null
                       ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                       : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
@@ -2723,7 +2725,7 @@ export const AssetsWorkspace: React.FC = () => {
                         setDragTargetFolderId(null);
                         handleProcessIncomingFiles(e.dataTransfer.files, folder.id);
                       }}
-                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg                       text-xs transition cursor-pointer ${
                         isSelected
                           ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                           : isDropTarget
@@ -2867,7 +2869,7 @@ export const AssetsWorkspace: React.FC = () => {
                       <button
                         key={cat}
                         onClick={() => setSelectedCategory(isSelected ? "all" : cat)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer group ${
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg                         text-xs transition cursor-pointer group ${
                           isSelected
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
                             : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
@@ -2993,10 +2995,10 @@ export const AssetsWorkspace: React.FC = () => {
                     <ImageIcon className="w-6 h-6" />
                   </div>
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
-                    No Vector Assets in Project
+                    Add your first icons
                   </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Upload SVG vector icons, folders, or ZIP archives, connect multiple Figma component frames &amp; sections, or synchronize automatically from any Git repository.
+                    Upload SVGs, a folder, or a ZIP, or import them from Figma or a Git repository.
                   </p>
                 </div>
 
@@ -3019,7 +3021,7 @@ export const AssetsWorkspace: React.FC = () => {
                         <UploadCloud className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-foreground">Upload SVG, Folder, or ZIP</h3>
+                        <h3 className="text-sm font-bold text-foreground">Upload files</h3>
                         <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                           Drag and drop nested type folders (e.g. <code className="font-mono text-primary">stroke/</code>, <code className="font-mono text-primary">twotone/</code>), a <code className="font-mono text-primary">.zip</code> archive, or <code className="font-mono text-primary">metadata.json</code>.
                         </p>
@@ -3065,7 +3067,7 @@ export const AssetsWorkspace: React.FC = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-foreground">Connect Figma Links</h3>
+                          <h3 className="text-sm font-bold text-foreground">Import from Figma</h3>
                           <Badge variant="outline" className="text-[9px] font-mono border-violet-500/30 text-violet-600 dark:text-violet-400">
                             Multi-Link
                           </Badge>
@@ -3109,7 +3111,7 @@ export const AssetsWorkspace: React.FC = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-foreground">Connect Git Folder</h3>
+                          <h3 className="text-sm font-bold text-foreground">Import from Git</h3>
                           <Badge variant="outline" className="text-[9px] font-mono border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                             Independent
                           </Badge>
@@ -3520,7 +3522,7 @@ export const AssetsWorkspace: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerActiveTab("figma")}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs                 font-semibold transition cursor-pointer ${
                   drawerActiveTab === "figma"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -3538,7 +3540,7 @@ export const AssetsWorkspace: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerActiveTab("git")}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs                 font-semibold transition cursor-pointer ${
                   drawerActiveTab === "git"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -3767,7 +3769,7 @@ export const AssetsWorkspace: React.FC = () => {
                         return (
                           <div
                             key={src.id}
-                            className={`p-3.5 rounded-2xl border text-xs transition-all ${
+                            className={`p-3.5 rounded-2xl border text-xs transition ${
                               isSrcPaused
                                 ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
                                 : "border-border bg-card shadow-2xs"
@@ -3961,7 +3963,13 @@ export const AssetsWorkspace: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={async () => {
-                          if (confirm("Are you sure you want to disconnect and remove this Git configuration?")) {
+                          const confirmed = await dialogs.confirm({
+                            title: "Disconnect Git?",
+                            description: "This removes the Git configuration for this project's assets.",
+                            confirmLabel: "Disconnect",
+                            destructive: true,
+                          });
+                          if (confirmed) {
                             await disconnectAssetGit();
                           }
                         }}
@@ -3982,7 +3990,7 @@ export const AssetsWorkspace: React.FC = () => {
                         key={p}
                         type="button"
                         onClick={() => setGitProvider(p)}
-                        className={`px-2 py-2.5 rounded-xl border text-xs font-medium capitalize transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                        className={`px-2 py-2.5 rounded-xl border text-xs font-medium capitalize transition cursor-pointer flex flex-col items-center gap-1 ${
                           gitProvider === p
                             ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
                             : "border-border bg-card text-muted-foreground hover:text-foreground"
@@ -4433,7 +4441,7 @@ export const AssetsWorkspace: React.FC = () => {
                         key={iconKey}
                         type="button"
                         onClick={() => setFolderFormIcon(iconKey)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition cursor-pointer ${
                           isSelected
                             ? "border-primary bg-primary text-primary-foreground shadow-2xs"
                             : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"

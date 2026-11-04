@@ -124,6 +124,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
   const projectFigmaConfig = syncProject?.assetFigmaConfig ?? assetFigmaConfig;
 
   const [activeSyncTab, setActiveSyncTab] = useState<"git" | "figma" | "webhooks" | "history">("git");
+  const [showPipelineDetails, setShowPipelineDetails] = useState(false);
 
   const userRole = getCurrentUserRole();
   const canEdit = userRole === "owner" || userRole === "admin" || userRole === "editor";
@@ -660,27 +661,27 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border w-fit">
           <button
             onClick={() => setActiveSyncTab("git")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition  cursor-pointer ${
               activeSyncTab === "git"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <FolderGit2 className="w-3.5 h-3.5 text-primary" />
-            <span>Git Version Control</span>
+            <span>Git</span>
             {isGitConnected && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
           </button>
 
           <button
             onClick={() => setActiveSyncTab("figma")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
               activeSyncTab === "figma"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-500" />
-            <span>Figma Companion Plugin</span>
+            <span>Figma</span>
             {figmaResolvedVariables.length > 0 && (
               <Badge variant="violet" className="text-[9px] py-0 px-1 font-mono">
                 {figmaResolvedVariables.length}
@@ -688,17 +689,19 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
             )}
           </button>
 
-          <button
-            onClick={() => setActiveSyncTab("webhooks")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeSyncTab === "webhooks"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5 text-blue-500" />
-            <span>Webhooks &amp; CI/CD</span>
-          </button>
+          {isGitConnected && (
+            <button
+              onClick={() => setActiveSyncTab("webhooks")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                activeSyncTab === "webhooks"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5 text-blue-500" />
+              <span>Automation</span>
+            </button>
+          )}
         </div>
 
         {/* ------------------------------------------------------------- */}
@@ -706,18 +709,26 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         {/* ------------------------------------------------------------- */}
         {activeSyncTab === "git" && (
           <div className="space-y-6">
-            {/* Storage & Architecture Overview */}
-            <div className="p-5 rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Storage &amp; Sync Architecture</span>
+            {/* Short explainer; full pipeline details are behind a disclosure */}
+            <div className="p-5 rounded-2xl border border-border/80 bg-card shadow-xs space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">How saving works</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Your tokens are saved in this workspace automatically. Git is an optional backup that mirrors them to a repository.
+                  </p>
                 </div>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  3-Tier Token Pipeline
-                </span>
+                <button
+                  type="button"
+                  aria-expanded={showPipelineDetails}
+                  onClick={() => setShowPipelineDetails((open) => !open)}
+                  className="shrink-0 text-xs font-medium text-primary hover:underline cursor-pointer"
+                >
+                  {showPipelineDetails ? "Hide details" : "Show details"}
+                </button>
               </div>
 
+              {showPipelineDetails && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                 {/* Tier 1: Supabase Cloud DB */}
                 <div className="p-3.5 rounded-xl border border-border/60 bg-background/60 flex flex-col justify-between">
@@ -782,7 +793,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                           <span
                             className={cn(
                               "font-mono font-medium text-foreground",
-                              shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                              shieldMode && "filter blur-xs select-none                               hover:blur-none transition cursor-pointer"
                             )}
                             title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
                           >
@@ -792,7 +803,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                           <span
                             className={cn(
                               "font-mono font-medium text-foreground",
-                              shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                              shieldMode && "filter blur-xs select-none                               hover:blur-none transition cursor-pointer"
                             )}
                             title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
                           >
@@ -808,11 +819,12 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                   <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
                     <span>Codebase bridge</span>
                     <span className={isGitConnected ? "font-mono text-emerald-500" : "font-mono text-muted-foreground"}>
-                      {isGitConnected ? "● Linked" : "○ Cloud Only"}
+                      {isGitConnected ? "● Linked" : "○ Not connected"}
                     </span>
                   </div>
                 </div>
               </div>
+              )}
             </div>
 
             {/* Git Status Card */}
@@ -828,7 +840,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     <span
                       className={cn(
                         "font-bold text-sm text-foreground",
-                        shieldMode && isGitConnected && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                        shieldMode && isGitConnected && "filter blur-xs select-none hover:blur-none transition cursor-pointer"
                       )}
                       title={shieldMode && isGitConnected ? "Shield Mode: Hover to unmask" : undefined}
                     >
@@ -851,7 +863,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                         <span
                           className={cn(
                             "font-mono font-medium text-foreground",
-                            shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                            shieldMode && "filter blur-xs select-none                             hover:blur-none transition cursor-pointer"
                           )}
                           title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
                         >
@@ -861,7 +873,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                         <span
                           className={cn(
                             "font-mono font-medium text-foreground",
-                            shieldMode && "filter blur-xs select-none hover:blur-none transition-all cursor-pointer"
+                            shieldMode && "filter blur-xs select-none                             hover:blur-none transition cursor-pointer"
                           )}
                           title={shieldMode ? "Shield Mode: Hover to unmask" : undefined}
                         >
@@ -923,8 +935,9 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                   <button
                     type="button"
                     onClick={toggleShieldMode}
+                    aria-pressed={shieldMode}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-2xs",
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer shadow-2xs",
                       shieldMode
                         ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25"
                         : "bg-muted/60 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -932,7 +945,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     title={shieldMode ? "Shield Mode Active: Click to show details" : "Enable Shield Mode to blur sensitive info for screen sharing"}
                   >
                     {shieldMode ? <ShieldOff className="w-3.5 h-3.5 text-emerald-500" /> : <Shield className="w-3.5 h-3.5 text-primary" />}
-                    <span>{shieldMode ? "Disable Shield" : "Privacy Shield"}</span>
+                    <span>{shieldMode ? "Show details" : "Hide details for screen sharing"}</span>
                   </button>
 
                   <a
@@ -953,7 +966,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
                     <span>
-                      <strong>Presentation Shield Mode Active:</strong> Organization, repository, and branch paths are obscured to protect your infrastructure during demos, video calls, and screen shares. Hover over any field to unblur.
+                      <strong>Details are hidden for screen sharing.</strong> Owner, repository, and branch values are blurred. Focus a field or choose Show details to read them.
                     </span>
                   </div>
                   <button
@@ -961,7 +974,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     onClick={toggleShieldMode}
                     className="text-xs underline hover:no-underline font-medium shrink-0 ml-3 cursor-pointer"
                   >
-                    Turn Off
+                    Show details
                   </button>
                 </div>
               )}
@@ -973,7 +986,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     key={p.id}
                     type="button"
                     onClick={() => setProvider(p.id)}
-                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition cursor-pointer ${
                       provider === p.id
                         ? "border-primary bg-primary/10 text-primary font-bold shadow-xs"
                         : "border-border bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground"
@@ -989,7 +1002,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">
+                    <Label htmlFor="git-owner" className="text-xs font-semibold">
                       {provider === "azure" ? "Azure Organization" : "Repository Owner / Org *"}
                     </Label>
                     {shieldMode && (
@@ -997,12 +1010,13 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     )}
                   </div>
                   <Input
+                    id="git-owner"
                     placeholder="e.g. acme-corp or username"
                     value={owner}
                     onChange={(e) => setOwner(e.target.value)}
                     required
                     className={cn(
-                      "text-xs h-9 transition-all duration-200",
+                      "text-xs h-9 transition duration-200",
                       shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
                     )}
                     title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
@@ -1012,18 +1026,19 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                 {provider === "azure" && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold">Azure Project Name *</Label>
+                      <Label htmlFor="git-project" className="text-xs font-semibold">Azure Project Name *</Label>
                       {shieldMode && (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
                       )}
                     </div>
                     <Input
+                      id="git-project"
                       placeholder="e.g. DesignSystem"
                       value={gitProject}
                       onChange={(e) => setGitProject(e.target.value)}
                       required
                       className={cn(
-                        "text-xs h-9 transition-all duration-200",
+                        "text-xs h-9 transition duration-200",
                         shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
                       )}
                       title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
@@ -1033,18 +1048,19 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Repository Name *</Label>
+                    <Label htmlFor="git-repo" className="text-xs font-semibold">Repository Name *</Label>
                     {shieldMode && (
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
                     )}
                   </div>
                   <Input
+                    id="git-repo"
                     placeholder="e.g. design-tokens or brand-ui"
                     value={repo}
                     onChange={(e) => setRepo(e.target.value)}
                     required
                     className={cn(
-                      "text-xs h-9 transition-all duration-200",
+                      "text-xs h-9 transition duration-200",
                       shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
                     )}
                     title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
@@ -1053,17 +1069,18 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Target Branch</Label>
+                    <Label htmlFor="git-branch" className="text-xs font-semibold">Target Branch</Label>
                     {shieldMode && (
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
                     )}
                   </div>
                   <Input
+                    id="git-branch"
                     placeholder="main or develop"
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
                     className={cn(
-                      "text-xs h-9 transition-all duration-200",
+                      "text-xs h-9 transition duration-200",
                       shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
                     )}
                     title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
@@ -1072,17 +1089,18 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">File / Directory Path in Repo</Label>
+                    <Label htmlFor="git-file-path" className="text-xs font-semibold">File / Directory Path in Repo</Label>
                     {shieldMode && (
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Obscured</span>
                     )}
                   </div>
                   <Input
+                    id="git-file-path"
                     placeholder="e.g. tokens.json or tokens/"
                     value={filePath}
                     onChange={(e) => setFilePath(e.target.value)}
                     className={cn(
-                      "text-xs h-9 font-mono transition-all duration-200",
+                      "text-xs h-9 font-mono transition duration-200",
                       shieldMode && "filter blur-sm select-none hover:blur-none focus:blur-none cursor-pointer"
                     )}
                     title={shieldMode ? "Shield Mode: Hover or click to reveal" : undefined}
@@ -1093,7 +1111,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                 {hasConfiguredGitPat && !isReplacingGitPat ? (
                   <div className="space-y-1.5 sm:col-span-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                      <Label htmlFor="git-pat" className="text-xs font-semibold flex items-center gap-1.5">
                         <Lock className="w-3.5 h-3.5 text-emerald-500" />
                         <span>Personal Access Token (PAT)</span>
                       </Label>
@@ -1173,6 +1191,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     </div>
                     <div className="relative">
                       <Input
+                        id="git-pat"
                         type={showNewGitPat ? "text" : "password"}
                         placeholder={hasConfiguredGitPat ? "Paste new token to rotate credentials..." : activeProvider.patPlaceholder}
                         value={newGitPatInput}
@@ -1184,6 +1203,8 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                       <button
                         type="button"
                         onClick={() => setShowNewGitPat(!showNewGitPat)}
+                        aria-pressed={showNewGitPat}
+                        aria-label={showNewGitPat ? "Hide token" : "Show token"}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                         title={showNewGitPat ? "Hide token" : "Show token while typing"}
                       >
@@ -1259,7 +1280,7 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                     {/* Saved project credential status */}
                     {activePluginKey ? (
                       <Badge variant="success" className="gap-1.5 text-[10px] px-2 py-0.5 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
                         <span>Credential Saved</span>
                       </Badge>
                     ) : (
@@ -1525,6 +1546,8 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
                         <button
                           type="button"
                           onClick={() => setShowNewFigmaPat(!showNewFigmaPat)}
+                          aria-pressed={showNewFigmaPat}
+                          aria-label={showNewFigmaPat ? "Hide token" : "Show token"}
                           className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
                         >
                           {showNewFigmaPat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1595,11 +1618,11 @@ export const SyncProvidersView: React.FC<{ embedded?: boolean }> = ({ embedded =
         {/* ------------------------------------------------------------- */}
         {/* TAB 3: WEBHOOKS & CI/CD */}
         {/* ------------------------------------------------------------- */}
-        {activeSyncTab === "webhooks" && (
+        {activeSyncTab === "webhooks" && isGitConnected && (
           <div className="space-y-6">
             <div className="p-6 rounded-2xl border border-border bg-card shadow-xs space-y-5">
               <div className="border-b border-border/80 pb-3">
-                <h2 className="text-sm font-bold text-foreground">Automated Webhooks &amp; Build Triggers</h2>
+                <h2 className="text-sm font-bold text-foreground">Webhooks and build triggers</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Trigger automated Style Dictionary builds, NPM publishing, and iOS/Android pipelines on token publish.
                 </p>

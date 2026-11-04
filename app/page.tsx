@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
+import { CommandPalette } from "@/components/CommandPalette";
 import { DashboardView } from "@/components/DashboardView";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { ToastContainer } from "@/components/Toast";
@@ -56,8 +57,8 @@ const AuthGatewayView = dynamic(
   {
     ssr: false,
     loading: () => (
-      <main className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <span className="text-xs text-muted-foreground">Loading sign in...</span>
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <span className="text-xs text-muted-foreground">Loading sign in…</span>
       </main>
     ),
   }
@@ -162,6 +163,8 @@ const PROJECT_ROUTE_TABS = new Set([
   "system-docs",
 ]);
 
+const ONBOARDING_DISMISSED_KEY = "ts_onboarding_dismissed";
+
 export default function Home() {
   const pathname = usePathname();
   const router = useRouter();
@@ -190,6 +193,22 @@ export default function Home() {
   const previousPathname = useRef(pathname);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWizardDismissed, setIsWizardDismissed] = useState(false);
+
+  // Honor an earlier dismissal so the setup modal doesn't reappear on every reload.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(ONBOARDING_DISMISSED_KEY) === "1") {
+        setIsWizardDismissed(true);
+      }
+    } catch {}
+  }, []);
+
+  const dismissOnboardingWizard = () => {
+    setIsWizardDismissed(true);
+    try {
+      localStorage.setItem(ONBOARDING_DISMISSED_KEY, "1");
+    } catch {}
+  };
   const [isPrimaryNavOpen, setIsPrimaryNavOpen] = useState(false);
   const [isContextNavOpen, setIsContextNavOpen] = useState(false);
   const {
@@ -487,23 +506,23 @@ export default function Home() {
   // Model A: Dedicated Sign In / Welcome Gateway for signed-out users
   if (!currentUser && !isLoadingTenant) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground">
         <AuthGatewayView />
         <AcceptInviteModal />
         <ToastContainer />
-      </main>
+      </div>
     );
   }
 
   // Loading Screen while resolving authentication & tenancy
   if (isLoadingTenant) {
     return (
-      <main className="h-screen w-screen flex flex-col items-center justify-center bg-background text-foreground space-y-3 select-none font-sans">
-        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center animate-pulse">
+      <main id="main-content" tabIndex={-1} className="h-screen w-screen flex flex-col items-center justify-center bg-background text-foreground space-y-3 select-none font-sans">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center motion-safe:animate-pulse">
           <div className="w-5 h-5 rounded-md bg-primary" />
         </div>
-        <span className="text-xs font-mono text-muted-foreground animate-pulse">
-          Loading Tokens Platform...
+        <span className="text-xs font-mono text-muted-foreground motion-safe:animate-pulse" role="status">
+          Loading Tokens Platform…
         </span>
       </main>
     );
@@ -512,13 +531,7 @@ export default function Home() {
   const isWorkspacesView = sidebarTab === "workspaces" || pathname === "/";
 
   return (
-    <main
-      className={`flex h-screen overflow-hidden ${
-        isWorkspacesView
-          ? "bg-[#09090d] text-zinc-100"
-          : "bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100"
-      }`}
-    >
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* 1. Primary Navigation Sidebar - Full height to top */}
       {!isWorkspacesView && (
         <>
@@ -558,8 +571,8 @@ export default function Home() {
           />
         )}
 
-        {/* Main Workspace */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Main Workspace (skip-link target) */}
+        <main id="main-content" tabIndex={-1} className="flex-1 flex overflow-hidden focus:outline-none">
 
         {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
         {(sidebarTab === "tokens" || sidebarTab === "themes") && (
@@ -633,14 +646,13 @@ export default function Home() {
             onOpenContextNavigation={() => setIsContextNavOpen(true)}
           />
         ) : null}
-      </div>
+      </main>
       </div>
 
       {/* Onboarding Wizard Modal for fresh accounts */}
       <OnboardingWizardModal
         isOpen={showOnboardingWizard}
-        onClose={() => setIsWizardDismissed(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onClose={dismissOnboardingWizard}
       />
 
       {/* Accept Team Invitation Modal for invited members */}
@@ -651,7 +663,8 @@ export default function Home() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+      <CommandPalette />
       <ToastContainer />
-    </main>
+    </div>
   );
 }

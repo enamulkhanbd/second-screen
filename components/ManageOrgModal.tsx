@@ -28,6 +28,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useDialogs } from "@/components/DialogProvider";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -45,6 +46,7 @@ interface ManageOrgModalProps {
 }
 
 export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose }) => {
+  const dialogs = useDialogs();
   const {
     currentOrg,
     currentUser,
@@ -315,8 +317,14 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                if (confirm(`Remove ${member.email} from ${currentOrg.name}?`)) {
+                              onClick={async () => {
+                                const confirmed = await dialogs.confirm({
+                                  title: `Remove ${member.email}?`,
+                                  description: `They will lose access to ${currentOrg.name}.`,
+                                  confirmLabel: "Remove member",
+                                  destructive: true,
+                                });
+                                if (confirmed) {
                                   removeMemberAction(member.uid || member.email);
                                 }
                               }}

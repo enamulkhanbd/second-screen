@@ -128,7 +128,7 @@ export const TokenFlow: React.FC = () => {
                   <button
                     key={opt.id}
                     onClick={() => setActiveThemeOption(opt.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
                       isSel
                         ? "bg-background text-foreground shadow-xs font-semibold"
                         : "text-muted-foreground hover:text-foreground"
@@ -162,7 +162,7 @@ export const TokenFlow: React.FC = () => {
         <div className="h-9 px-6 border-b border-border bg-muted/30 flex items-center gap-1.5 overflow-x-auto z-10">
           <button
             onClick={() => setSelectedType("all")}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
               selectedType === "all"
                 ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -179,7 +179,7 @@ export const TokenFlow: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedType(cat)}
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
                   isSel
                     ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -407,7 +407,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
               Raw / Alias Value
             </label>
             {val !== token.rawValue && (
-              <Badge variant="warning" className="text-xs font-semibold animate-pulse">Unsaved</Badge>
+              <Badge variant="warning" className="text-xs font-semibold motion-safe:animate-pulse">Unsaved</Badge>
             )}
           </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import { Project } from "@/types/tenant";
@@ -56,6 +57,12 @@ import { Input } from "@/components/ui/input";
 import { getValidTokenSetNames } from "@/utils/themeHelpers";
 import { cn } from "@/lib/utils";
 import { TokensPlatformMark } from "@/components/TokensPlatformLogo";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function FigmaVariableIcon({ className }: { className?: string }) {
   return (
@@ -75,6 +82,81 @@ function FigmaVariableIcon({ className }: { className?: string }) {
       <path d="M12 3 20 7.5v9L12 21 4 16.5v-9L12 3Z" />
       <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
     </svg>
+  );
+}
+
+interface SidebarNavItemProps {
+  href: string;
+  label: string;
+  active: boolean;
+  collapsed: boolean;
+  icon: React.ReactNode;
+  count?: number;
+  badge?: string;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+function SidebarNavItem({
+  href,
+  label,
+  active,
+  collapsed,
+  icon,
+  count,
+  badge,
+  onClick,
+}: SidebarNavItemProps) {
+  const link = (
+    <Link
+      href={href}
+      aria-label={collapsed ? label : undefined}
+      title={collapsed ? undefined : label}
+      onClick={(event) => {
+        if (
+          event.button === 0 &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.shiftKey &&
+          !event.altKey
+        ) {
+          if (onClick) {
+            event.preventDefault();
+            onClick(event);
+          }
+        }
+      }}
+      className={cn(
+        "w-full flex items-center rounded-lg text-xs transition-colors",
+        collapsed ? "justify-center px-2 py-2.5" : "justify-between gap-2.5 px-2.5 py-2",
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+          : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+      )}
+    >
+      <span className="flex items-center gap-2.5 min-w-0">
+        {icon}
+        {!collapsed && <span className="truncate">{label}</span>}
+      </span>
+      {!collapsed && count !== undefined && (
+        <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+          {count}
+        </span>
+      )}
+      {!collapsed && badge && (
+        <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
+          {badge}
+        </Badge>
+      )}
+    </Link>
+  );
+
+  if (!collapsed) return link;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{link}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -182,8 +264,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
       if (org) {
         addToast({
           type: "success",
-          title: "Organization Created",
-          message: `Created organization "${org.name}".`,
+          title: "Workspace Created",
+          message: `Created workspace "${org.name}".`,
         });
         setNewOrgName("");
         setShowCreateOrg(false);
@@ -191,7 +273,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
     } catch (err: any) {
       addToast({
         type: "error",
-        title: "Failed to Create Organization",
+        title: "Failed to Create Workspace",
         message: err.message || "An error occurred.",
       });
     }
@@ -207,14 +289,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
   };
 
   return (
+    <TooltipProvider>
     <aside
-      className={cn(`flex-shrink-0 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col h-full select-none text-xs font-sans transition-all duration-200 ${mode === "drawer" ? "w-full" : isCollapsed ? "w-16" : "w-[18rem]"
+      className={cn(`flex-shrink-0 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col h-full select-none text-xs font-sans transition-[width] duration-200 ${mode === "drawer" ? "w-full" : isCollapsed ? "w-16" : "w-[18rem]"
         }`, className)}
     >
       {/* 1. Header: Workspace & Project Selector + Collapse/Expand Toggle */}
       <div
         className={cn(
-          "border-b border-sidebar-border flex flex-shrink-0 transition-all",
+          "border-b border-sidebar-border flex flex-shrink-0 transition-[padding,height]",
           isCollapsed
             ? "py-3 px-2 flex-col items-center justify-center gap-2"
             : "h-14 px-2.5 items-center justify-between gap-1.5"
@@ -224,41 +307,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
           /* Collapsed View Header */
           <div className="w-full flex flex-col items-center gap-2">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:opacity-90 transition-opacity cursor-pointer overflow-hidden"
-                  style={
-                    sidebarProject
-                      ? (sidebarProject.logoUrl
-                          ? undefined
-                          : sidebarProject.color
-                          ? { backgroundColor: sidebarProject.color, color: "#fff" }
-                          : isCustomOrgColor
-                          ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
-                          : { backgroundColor: "#ecfdf5", color: "#15803d" })
-                      : (currentOrg?.logoUrl
-                          ? undefined
-                          : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
-                  }
-                  title={sidebarProject ? `${sidebarProject.name} · ${currentOrg?.name || "Workspace"}` : (currentOrg?.name || "Workspace")}
-                >
-                  {sidebarProject ? (
-                    sidebarProject.logoUrl ? (
-                      <img src={sidebarProject.logoUrl} alt={sidebarProject.name} className="w-full h-full object-cover rounded-xl" />
-                    ) : (
-                      <span>{sidebarProject.icon || sidebarProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
-                    )
-                  ) : currentOrg?.logoUrl ? (
-                    <img src={currentOrg.logoUrl} alt={currentOrg.name} className="w-full h-full object-cover rounded-xl" />
-                  ) : (
-                    <span>{currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "🏢"}</span>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      aria-label={sidebarProject?.name || currentOrg?.name || "Workspace"}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs hover:opacity-90 transition-opacity cursor-pointer overflow-hidden"
+                      style={
+                        sidebarProject
+                          ? (sidebarProject.logoUrl
+                              ? undefined
+                              : sidebarProject.color
+                              ? { backgroundColor: sidebarProject.color, color: "#fff" }
+                              : isCustomOrgColor
+                              ? { backgroundColor: `${currentOrg?.color}20`, color: currentOrg?.color }
+                              : { backgroundColor: "#ecfdf5", color: "#15803d" })
+                          : (currentOrg?.logoUrl
+                              ? undefined
+                              : { backgroundColor: currentOrg?.color || "hsl(var(--primary))", color: currentOrg?.color ? "#fff" : "hsl(var(--primary-foreground))" })
+                      }
+                    >
+                      {sidebarProject ? (
+                        sidebarProject.logoUrl ? (
+                          <img src={sidebarProject.logoUrl} alt={sidebarProject.name} className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <span>{sidebarProject.icon || sidebarProject.name?.charAt(0)?.toUpperCase() || "P"}</span>
+                        )
+                      ) : currentOrg?.logoUrl ? (
+                        <img src={currentOrg.logoUrl} alt={currentOrg.name} className="w-full h-full object-cover rounded-xl" />
+                      ) : (
+                        <span>{currentOrg?.icon || currentOrg?.name?.charAt(0)?.toUpperCase() || "W"}</span>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {sidebarProject?.name || currentOrg?.name || "Workspace"}
+                </TooltipContent>
+              </Tooltip>
               <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl overflow-x-hidden" align="start" side="right" sideOffset={8}>
-                {/* 1. RECENT PROJECTS SECTION */}
-                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                  <span>RECENT PROJECTS</span>
+                {/* Projects section */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground tracking-wider select-none">
+                  <span>Projects</span>
                   {canUserEdit() && (
                     <button
                       type="button"
@@ -266,8 +356,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                         e.stopPropagation();
                         setShowCreateProj(true);
                       }}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      title="Create Project"
+                      className="p-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      aria-label="Create project"
                     >
                       <Plus className="size-3.5" />
                     </button>
@@ -320,9 +410,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
 
                 <DropdownMenuSeparator className="my-1.5 mx-0" />
 
-                {/* 2. CURRENT WORKSPACE SECTION */}
-                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                  <span>CURRENT WORKSPACE</span>
+                {/* Workspaces section */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground tracking-wider select-none">
+                  <span>Workspaces</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -331,7 +421,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                       setSidebarTab("workspaces");
                     }}
                     className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="Go to Workspaces List"
+                    aria-label="Go to workspaces list"
                   >
                     <ArrowLeftRight className="size-3.5" />
                   </button>
@@ -393,21 +483,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             </DropdownMenu>
 
             {/* Expand Button */}
-            <button
-              onClick={() => setIsCollapsed(false)}
-              className="size-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors cursor-pointer"
-              title="Expand Sidebar"
-            >
-              <PanelLeftOpen className="size-4" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setIsCollapsed(false)}
+                  aria-label="Expand sidebar"
+                  className="size-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors cursor-pointer"
+                >
+                  <PanelLeftOpen className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expand sidebar</TooltipContent>
+            </Tooltip>
           </div>
         ) : (
           /* Expanded View Header */
           <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent transition-all text-left flex-1 min-w-0 group cursor-pointer">
-                  {/* Organization/Project Avatar */}
+                <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent transition-colors text-left flex-1 min-w-0 group cursor-pointer">
+                  {/* Workspace/Project Avatar */}
                   <div
                     className="flex size-7 items-center justify-center rounded-lg font-bold text-xs flex-shrink-0 overflow-hidden bg-muted/40"
                     style={
@@ -452,9 +547,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
               </DropdownMenuTrigger>
 
               <DropdownMenuContent className="w-64 rounded-xl p-1.5 font-sans shadow-xl overflow-x-hidden" align="start">
-                {/* 1. RECENT PROJECTS SECTION */}
-                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                  <span>RECENT PROJECTS</span>
+                {/* Projects section */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground tracking-wider select-none">
+                  <span>Projects</span>
                   {canUserEdit() && (
                     <button
                       type="button"
@@ -462,8 +557,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                         e.stopPropagation();
                         setShowCreateProj(true);
                       }}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      title="Create Project"
+                      className="p-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      aria-label="Create project"
                     >
                       <Plus className="size-3.5" />
                     </button>
@@ -516,9 +611,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
 
                 <DropdownMenuSeparator className="my-1.5 mx-0" />
 
-                {/* 2. CURRENT WORKSPACE SECTION */}
-                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                  <span>CURRENT WORKSPACE</span>
+                {/* Workspaces section */}
+                <div className="px-2 py-1.5 flex items-center justify-between text-[10px] font-bold text-muted-foreground tracking-wider select-none">
+                  <span>Workspaces</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -592,8 +687,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             {mode === "docked" && (
               <button
                 onClick={() => setIsCollapsed(true)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors flex-shrink-0"
-                title="Collapse Sidebar"
+                aria-label="Collapse sidebar"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors flex-shrink-0"
               >
                 <PanelLeftClose className="size-4" />
               </button>
@@ -604,324 +699,139 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
 
       {/* 2. Main Navigation Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4 font-sans">
-        {/* ============================================================= */}
-        {/* 1. WORKSPACE SECTION — Visible for workspace routes and sync setup */}
-        {/* ============================================================= */}
+        {/* Workspace navigation */}
         {isWorkspaceNavigation && (
           <div className="space-y-0.5">
             {!isCollapsed && (
-              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                WORKSPACE
+              <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+                Workspace
               </div>
             )}
-
-            {/* Overview */}
-            <button
+            <SidebarNavItem
+              href={currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : "/"}
+              label="Overview"
+              active={sidebarTab === "dashboard"}
+              collapsed={isCollapsed}
+              icon={<Home className="size-4 shrink-0" />}
               onClick={() => onNavigateWorkspaceTab("dashboard")}
-              title="Overview"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "dashboard"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Home className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Overview</span>}
-            </button>
-
-            {/* Projects */}
-            <button
+            />
+            <SidebarNavItem
+              href={currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/projects` : "/"}
+              label="Projects"
+              active={sidebarTab === "projects" || sidebarTab === "project-settings"}
+              collapsed={isCollapsed}
+              icon={<FolderGit2 className="size-4 shrink-0" />}
+              count={orgProjects.length || undefined}
               onClick={() => onNavigateWorkspaceTab("projects")}
-              title="Projects"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${(sidebarTab === "projects" || sidebarTab === "project-settings")
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <FolderGit2 className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Projects</span>}
-              </div>
-              {!isCollapsed && orgProjects && orgProjects.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {orgProjects.length}
-                </span>
-              )}
-            </button>
-
-            {/* Members */}
-            <button
+            />
+            <SidebarNavItem
+              href={currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/members` : "/"}
+              label="Members"
+              active={sidebarTab === "members"}
+              collapsed={isCollapsed}
+              icon={<Users className="size-4 shrink-0" />}
+              count={currentOrg?.members?.length || undefined}
               onClick={() => {
                 onNavigateWorkspaceTab("members");
                 setMembersSubTab("members");
               }}
-              title="Members"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "members"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <Users className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Members</span>}
-              </div>
-              {!isCollapsed && currentOrg?.members && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {currentOrg.members.length}
-                </span>
-              )}
-            </button>
-
-            {/* Settings (Workspace / Org Settings) */}
-            <button
+            />
+            <SidebarNavItem
+              href={currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/settings` : "/"}
+              label="Workspace settings"
+              active={sidebarTab === "org-settings"}
+              collapsed={isCollapsed}
+              icon={<Settings className="size-4 shrink-0" />}
               onClick={() => onNavigateWorkspaceTab("org-settings")}
-              title="Workspace Settings"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "org-settings"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Settings className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Workspace Settings</span>}
-            </button>
+            />
           </div>
         )}
 
-        {/* ============================================================= */}
-        {/* 2. STUDIO SECTION — Hidden during workspace-level sync setup */}
-        {/* ============================================================= */}
+        {/* Project navigation */}
         {!isWorkspaceNavigation && currentProject && (
-          <div className="space-y-0.5">
-            {!isCollapsed && (
-              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                STUDIO
-              </div>
-            )}
-
-            {/* Tokens */}
-            <button
-              onClick={() => setSidebarTab("tokens")}
-              title="Tokens"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "tokens"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <Layers className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Tokens</span>}
-              </div>
-              {!isCollapsed && allSetNames.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {allSetNames.length}
-                </span>
-              )}
-            </button>
-
-            {/* Themes */}
-            <button
-              onClick={() => setSidebarTab("themes")}
-              title="Themes"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "themes"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <Palette className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Themes</span>}
-              </div>
-              {!isCollapsed && themeGroups.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {themeGroups.length}
-                </span>
-              )}
-            </button>
-
-            {/* Variables */}
-            <button
-              onClick={() => setSidebarTab("variables")}
-              title="Variables"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "variables"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <FigmaVariableIcon className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Variables</span>}
-              </div>
-            </button>
-
-            {/* Assets */}
-            <button
-              onClick={() => setSidebarTab("assets")}
-              title="Assets"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "assets"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <ImageIcon className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Assets</span>}
-              </div>
-              {!isCollapsed && (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
-                  Beta
-                </Badge>
-              )}
-            </button>
-
-            {/* Documentation */}
-            <button
-              onClick={() => setSidebarTab("documentation")}
-              title="Documentation"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "documentation"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <FileText className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Documentation</span>}
-              </div>
-              {!isCollapsed && (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-muted-foreground">
-                  Beta
-                </Badge>
-              )}
-            </button>
-
-            {/* Schema Marketplace */}
-            <button
-              onClick={() => setSidebarTab("extensions")}
-              title="Schema Marketplace"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "extensions"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Lightbulb className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Schema Marketplace</span>}
-            </button>
-
-            {/* Exports */}
-            <button
-              onClick={() => setSidebarTab("exports")}
-              title="Exports"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "exports"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Download className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>Exports</span>}
-            </button>
-
-            {/* Branches (Only visible when native branch mode is active / no Git provider configured) */}
-            {!isGitConfigured && (
-              <button
-                onClick={() => setSidebarTab("branches")}
-                title="Branches"
-                className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "branches"
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                  }`}
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <GitBranch className="size-4 flex-shrink-0" />
-                  {!isCollapsed && <span>Branches</span>}
-                </div>
-                {!isCollapsed && (
-                  <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                    {branches.length > 0 ? branches.length : 1}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Releases */}
-            <button
-              onClick={() => setSidebarTab("releases")}
-              title="Releases"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "releases"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <Package className="size-4 flex-shrink-0" />
-                {!isCollapsed && <span>Releases</span>}
-              </div>
-              {!isCollapsed && releases.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
-                  {releases.length}
-                </span>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* ============================================================= */}
-        {/* 3. SETTINGS SECTION — Only visible when a project is selected */}
-        {/* ============================================================= */}
-        {!isWorkspaceNavigation && currentProject && (
-          <div className="space-y-0.5 pt-2 border-t border-sidebar-border">
-            {!isCollapsed && (
-              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                SETTINGS
-              </div>
-            )}
-
-            {/* MCP & CLI */}
-            <button
-              onClick={() => setSidebarTab("mcp")}
-              title="MCP & CLI"
-              className={`w-full flex items-center ${isCollapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2"} rounded-lg text-xs transition-all cursor-pointer ${sidebarTab === "mcp"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                }`}
-            >
-              <Code2 className="size-4 flex-shrink-0" />
-              {!isCollapsed && <span>MCP &amp; CLI</span>}
-            </button>
+          <div className="space-y-4">
+            {(() => {
+              const projectHref = (tab: string) =>
+                currentOrg
+                  ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${tab}`
+                  : "/";
+              const groupTitle = "px-2.5 py-1 text-[10px] font-bold text-muted-foreground";
+              return (
+                <>
+                  <section className="space-y-0.5" aria-label="Design">
+                    {!isCollapsed && <div className={groupTitle}>Design</div>}
+                    <SidebarNavItem href={projectHref("tokens")} label="Tokens" active={sidebarTab === "tokens"} collapsed={isCollapsed} icon={<Layers className="size-4 shrink-0" />} count={allSetNames.length || undefined} />
+                    <SidebarNavItem href={projectHref("themes")} label="Themes" active={sidebarTab === "themes"} collapsed={isCollapsed} icon={<Palette className="size-4 shrink-0" />} count={themeGroups.length || undefined} />
+                  </section>
+                  <section className="space-y-0.5" aria-label="Connect">
+                    {!isCollapsed && <div className={groupTitle}>Connect</div>}
+                    <SidebarNavItem href={projectHref("variables")} label="Figma Variables" active={sidebarTab === "variables"} collapsed={isCollapsed} icon={<FigmaVariableIcon className="size-4 shrink-0" />} />
+                    <SidebarNavItem href={projectHref("branches")} label="Branches" active={sidebarTab === "branches"} collapsed={isCollapsed} icon={<GitBranch className="size-4 shrink-0" />} count={branches.length || 1} />
+                  </section>
+                  <section className="space-y-0.5" aria-label="Publish">
+                    {!isCollapsed && <div className={groupTitle}>Publish</div>}
+                    <SidebarNavItem href={projectHref("documentation")} label="Documentation" active={sidebarTab === "documentation"} collapsed={isCollapsed} icon={<FileText className="size-4 shrink-0" />} badge="Beta" />
+                    <SidebarNavItem href={projectHref("assets")} label="Assets" active={sidebarTab === "assets"} collapsed={isCollapsed} icon={<ImageIcon className="size-4 shrink-0" />} badge="Beta" />
+                    <SidebarNavItem href={projectHref("exports")} label="Exports" active={sidebarTab === "exports"} collapsed={isCollapsed} icon={<Download className="size-4 shrink-0" />} />
+                    <SidebarNavItem href={projectHref("releases")} label="Releases" active={sidebarTab === "releases"} collapsed={isCollapsed} icon={<Package className="size-4 shrink-0" />} count={releases.length || undefined} />
+                  </section>
+                  <section className="space-y-0.5" aria-label="Advanced">
+                    {!isCollapsed && <div className={groupTitle}>Advanced</div>}
+                    <SidebarNavItem href={projectHref("extensions")} label="Extensions" active={sidebarTab === "extensions"} collapsed={isCollapsed} icon={<Lightbulb className="size-4 shrink-0" />} />
+                    <SidebarNavItem href={projectHref("mcp")} label={"Developers (MCP & CLI)"} active={sidebarTab === "mcp"} collapsed={isCollapsed} icon={<Code2 className="size-4 shrink-0" />} />
+                  </section>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
 
-      {/* 3. Support & Utility Links */}
+      {/* Help */}
       <div className="px-2 py-1 space-y-0.5 text-xs text-muted-foreground border-t border-sidebar-border mt-auto">
-        <button
-          onClick={() => setSidebarTab("system-docs")}
-          title="System Guidelines & Docs"
-          className={`w-full flex items-center ${isCollapsed ? "justify-center p-2" : "gap-2.5 px-2.5 py-1.5"} rounded-lg transition-colors text-left cursor-pointer ${sidebarTab === "system-docs"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-              : "hover:text-foreground hover:bg-sidebar-accent/50"
-            }`}
-        >
-          <BookOpen className="size-4 flex-shrink-0" />
-          {!isCollapsed && <span>Docs</span>}
-        </button>
-
-        <button
-          onClick={() => setSidebarTab("changelog")}
-          title="Changelog"
-          className={`w-full flex items-center ${isCollapsed ? "justify-center p-2" : "gap-2.5 px-2.5 py-1.5"} rounded-lg transition-colors text-left cursor-pointer ${sidebarTab === "changelog"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-              : "hover:text-foreground hover:bg-sidebar-accent/50"
-            }`}
-        >
-          <Sparkles className="size-4 flex-shrink-0" />
-          {!isCollapsed && <span>Changelog</span>}
-        </button>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={isCollapsed ? "Help" : undefined}
+                  className={cn(
+                    "w-full flex items-center rounded-lg transition-colors text-left cursor-pointer hover:text-foreground hover:bg-sidebar-accent/50",
+                    isCollapsed ? "justify-center p-2" : "gap-2.5 px-2.5 py-1.5"
+                  )}
+                >
+                  <BookOpen className="size-4 shrink-0" />
+                  {!isCollapsed && <span>Help</span>}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            {isCollapsed && <TooltipContent side="right">Help</TooltipContent>}
+          </Tooltip>
+          <DropdownMenuContent side={isCollapsed ? "right" : "top"} align={isCollapsed ? "end" : "start"}>
+            <DropdownMenuItem onClick={() => setSidebarTab("system-docs")} className="gap-2 cursor-pointer">
+              <BookOpen className="size-4" />
+              <span>Product docs</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSidebarTab("changelog")} className="gap-2 cursor-pointer">
+              <Sparkles className="size-4" />
+              <span>Changelog</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* 4. Footer: User Account */}
       <div className="p-2 border-t border-sidebar-border">
         {currentUser ? (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={`w-full flex items-center ${isCollapsed ? "justify-center p-1" : "gap-2.5 p-2"} rounded-lg hover:bg-sidebar-accent transition-colors text-left group cursor-pointer`}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    aria-label={isCollapsed ? "Account menu" : undefined}
+                    className={`w-full flex items-center ${isCollapsed ? "justify-center p-1" : "gap-2.5 p-2"} rounded-lg hover:bg-sidebar-accent transition-colors text-left group cursor-pointer`}
+                  >
                 <div className="size-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {currentUser.displayName
                     ? currentUser.displayName
@@ -950,8 +860,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                     <ChevronsUpDown className="ml-auto size-4 text-muted-foreground group-hover:text-sidebar-foreground flex-shrink-0" />
                   </>
                 )}
-              </button>
-            </DropdownMenuTrigger>
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Account menu</TooltipContent>}
+            </Tooltip>
             <DropdownMenuContent
               className={cn(
                 "rounded-xl p-1.5 font-sans shadow-xl",
@@ -991,8 +904,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
 
               {/* Theme Section (Vertical list matching design) */}
               <div className="py-1">
-                <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground tracking-wider uppercase select-none">
-                  THEME
+                <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground tracking-wider select-none">
+                  Theme
                 </div>
                 <DropdownMenuItem
                   onClick={() => setThemeMode("light")}
@@ -1070,5 +983,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
         onClose={() => setShowCreateProj(false)}
       />
     </aside>
+    </TooltipProvider>
   );
 };

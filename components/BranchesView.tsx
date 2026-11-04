@@ -239,10 +239,10 @@ export const BranchesView: React.FC = () => {
           <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary mx-auto flex items-center justify-center">
             <GitBranch className="w-6 h-6" />
           </div>
-          <h2 className="text-base font-bold text-foreground">Sync Provider Active</h2>
+          <h2 className="text-base font-bold text-foreground">Branches live in Git</h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
             This project is connected to <span className="font-mono font-semibold text-foreground">{credentials.repo}</span> ({credentials.provider}).
-            Branches and token versioning are managed directly through your external sync provider.
+            Switch branches from the branch menu in the header, and manage them in your repository.
           </p>
           <div className="pt-2 flex items-center justify-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setSidebarTab("tokens")}>
@@ -606,7 +606,7 @@ export const BranchesView: React.FC = () => {
               <span>Branches</span>
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Manage and review your token branches, track commit history, and collaborate on design systems.
+              Project versions stored with this workspace. Try changes safely, review them, then merge back to main.
             </p>
           </div>
 
@@ -697,14 +697,18 @@ export const BranchesView: React.FC = () => {
               return (
                 <div
                   key={b.id}
-                  onClick={() => setSelectedBranchName(b.name)}
-                  className={`bg-card border rounded-xl p-4 flex items-center justify-between transition-all cursor-pointer group shadow-xs ${
+                  className={`bg-card border rounded-xl p-4 flex items-center justify-between transition-colors group shadow-xs ${
                     isCurrent
                       ? "border-emerald-500/40"
                       : "border-border hover:bg-muted/30"
                   }`}
                 >
-                  <div className="min-w-0 flex-1 pr-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranchName(b.name)}
+                    aria-label={`View ${b.name} branch details`}
+                    className="min-w-0 flex-1 pr-4 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
                       <GitBranch className={`w-4 h-4 ${isCurrent ? "text-emerald-500" : "text-muted-foreground"}`} />
                       <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors font-mono">
@@ -750,10 +754,10 @@ export const BranchesView: React.FC = () => {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
 
                   {/* Right Side Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {!isCurrent ? (
                       <Button
                         size="sm"

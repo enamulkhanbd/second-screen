@@ -104,7 +104,7 @@ export default function PublicDocsReaderPage() {
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-xs text-muted-foreground font-mono">Loading documentation...</p>
+          <p className="text-xs text-muted-foreground font-mono">Loading documentation…</p>
         </div>
       </div>
     );
@@ -217,7 +217,7 @@ export default function PublicDocsReaderPage() {
 
               return (
                 <div key={folder.id} className="space-y-1">
-                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                     <Folder className="h-3 w-3" />
                     <span>{folder.title}</span>
                   </div>
@@ -248,7 +248,28 @@ export default function PublicDocsReaderPage() {
         </aside>
 
         {/* Reader Canvas */}
-        <main className="flex-1 overflow-y-auto">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto focus:outline-none">
+          {/* Compact page picker where the sidebar is hidden */}
+          <div className="md:hidden sticky top-0 z-10 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur">
+            <label htmlFor="mobile-page-picker" className="sr-only">
+              Choose a page
+            </label>
+            <select
+              id="mobile-page-picker"
+              value={activePage?.id ?? ""}
+              onChange={(event) => setActivePageId(event.target.value)}
+              className="h-9 w-full rounded-lg border border-border/60 bg-background px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+            >
+              {publishedPages.map((page) => {
+                const folder = folders.find((f) => f.id === page.folderId);
+                return (
+                  <option key={page.id} value={page.id}>
+                    {folder ? `${folder.title} / ${page.title}` : page.title}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
           {activePage ? (
             <div>
               {/* Header Banner */}

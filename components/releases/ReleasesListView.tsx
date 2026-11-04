@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { buttonProps } from "@/utils/a11y";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ReleasePackage } from "@/types/tokens";
 import {
@@ -71,7 +72,7 @@ export const ReleasesListView: React.FC<ReleasesListViewProps> = ({
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">Releases</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Manage and review your project releases
+            A release is a version of this project&apos;s tokens, with an optional docs snapshot.
           </p>
         </div>
 
@@ -81,7 +82,7 @@ export const ReleasesListView: React.FC<ReleasesListViewProps> = ({
             className="gap-2 text-xs font-semibold px-4 h-9 shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>New Release</span>
+            <span>New release</span>
           </Button>
         )}
       </header>
@@ -120,16 +121,16 @@ export const ReleasesListView: React.FC<ReleasesListViewProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-3">
               <Package className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-semibold text-foreground">No Releases Found</h3>
+            <h3 className="text-sm font-semibold text-foreground">{searchQuery ? "No matching releases" : "No releases yet"}</h3>
             <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
               {searchQuery
                 ? `No releases matched "${searchQuery}". Try clearing the search filter.`
-                : "No release packages created yet for this project."}
+                : "Create a release when your tokens are ready to hand to developers."}
             </p>
             {isEditable && (
               <Button onClick={onCreateRelease} size="sm" className="gap-1.5 text-xs font-semibold">
                 <Plus className="w-3.5 h-3.5" />
-                <span>Create First Release</span>
+                <span>Create first release</span>
               </Button>
             )}
           </div>
@@ -143,8 +144,8 @@ export const ReleasesListView: React.FC<ReleasesListViewProps> = ({
               return (
                 <div
                   key={release.id}
-                  onClick={() => onSelectRelease(release.id)}
-                  className="group w-full p-4 rounded-xl border border-border bg-card hover:bg-card/80 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
+                  {...buttonProps(() => onSelectRelease(release.id))}
+                  className="group w-full p-4 rounded-xl border border-border bg-card hover:bg-card/80 transition-colors cursor-pointer shadow-xs flex items-center justify-between gap-4"
                 >
                   <div className="min-w-0 space-y-1 flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -194,7 +195,7 @@ export const ReleasesListView: React.FC<ReleasesListViewProps> = ({
                       {hasChanges ? `+${changes}` : "0"}
                     </div>
 
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all opacity-60 group-hover:opacity-100" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition opacity-60 group-hover:opacity-100" />
                   </div>
                 </div>
               );

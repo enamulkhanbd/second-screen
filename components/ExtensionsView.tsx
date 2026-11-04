@@ -12,8 +12,29 @@ import { PageHeader } from "@/components/ui/page-header";
 
 type FilterTab = "all" | "enabled" | "disabled" | SchemaCategory;
 
+const EXTENSION_PACKS = [
+  {
+    id: "w3c-core",
+    label: "W3C core",
+    description: "Core design token types",
+    schemaIds: SCHEMA_CATALOG.filter((item) => item.isCoreDefault).map((item) => item.id),
+  },
+  {
+    id: "color-spaces",
+    label: "Color spaces",
+    description: "Additional color formats",
+    schemaIds: SCHEMA_CATALOG.filter((item) => item.category === "color-spaces").map((item) => item.id),
+  },
+  {
+    id: "math-functions",
+    label: "Math / functions",
+    description: "Token value functions",
+    schemaIds: SCHEMA_CATALOG.filter((item) => item.category === "functions").map((item) => item.id),
+  },
+] as const;
+
 export const ExtensionsView: React.FC = () => {
-  const { enabledSchemas, toggleSchemaAction, setSchemasEnabledAction, canUserEdit } = useTokenStore();
+  const { enabledSchemas, toggleSchemaAction, setSchemasEnabledAction, canUserEdit, addToast } = useTokenStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [inspectingItem, setInspectingItem] = useState<SchemaItem | null>(null);
@@ -56,17 +77,26 @@ export const ExtensionsView: React.FC = () => {
     return list;
   }, [activeTab, searchQuery, enabledSchemas]);
 
-  const updateFilteredSchemas = async (enabled: boolean) => {
+  const updateSchemas = async (schemaIds: string[], enabled: boolean) => {
     setIsBulkUpdating(true);
     try {
-      await setSchemasEnabledAction(
-        filteredItems.map((item) => item.id),
-        enabled
-      );
+      await setSchemasEnabledAction(schemaIds, enabled);
+    } catch (error) {
+      addToast({
+        type: "error",
+        title: "Could not update extensions",
+        message: error instanceof Error ? error.message : "Please try again.",
+      });
     } finally {
       setIsBulkUpdating(false);
     }
   };
+
+  const updateFilteredSchemas = (enabled: boolean) =>
+    updateSchemas(filteredItems.map((item) => item.id), enabled);
+
+  const enablePack = (schemaIds: readonly string[]) =>
+    updateSchemas([...schemaIds], true);
 
   const getTagColor = (tag: string) => {
     switch (tag) {
@@ -107,7 +137,7 @@ export const ExtensionsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("all")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition  cursor-pointer ${
                 activeTab === "all"
                   ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -122,7 +152,7 @@ export const ExtensionsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("enabled")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition  cursor-pointer ${
                 activeTab === "enabled"
                   ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -135,7 +165,7 @@ export const ExtensionsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("disabled")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition  cursor-pointer ${
                 activeTab === "disabled"
                   ? "border-muted-foreground/50 bg-muted text-foreground shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -148,7 +178,7 @@ export const ExtensionsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("color-spaces")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition  cursor-pointer ${
                 activeTab === "color-spaces"
                   ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -161,7 +191,7 @@ export const ExtensionsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("functions")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition  cursor-pointer ${
                 activeTab === "functions"
                   ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -174,7 +204,7 @@ export const ExtensionsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("core")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition  cursor-pointer ${
                 activeTab === "core"
                   ? "border-primary bg-primary/10 text-primary shadow-xs"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -186,6 +216,44 @@ export const ExtensionsView: React.FC = () => {
           </div>
 
           {isEditable && (
+            <section aria-labelledby="extension-packs-title" className="mt-4 rounded-xl border border-border bg-card/60 p-3.5">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                <h2 id="extension-packs-title" className="text-xs font-semibold text-foreground">
+                  Recommended packs
+                </h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Enable a useful group of schemas at once.
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {EXTENSION_PACKS.map((pack) => {
+                  const enabledCount = pack.schemaIds.filter((id) => enabledSchemas.includes(id)).length;
+                  const isEnabled = enabledCount === pack.schemaIds.length;
+                  return (
+                    <Button
+                      key={pack.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isBulkUpdating || isEnabled || pack.schemaIds.length === 0}
+                      onClick={() => void enablePack(pack.schemaIds)}
+                      className="h-auto min-h-12 justify-between gap-2 px-3 py-2 text-left"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-semibold">{pack.label}</span>
+                        <span className="block truncate text-[10px] font-normal text-muted-foreground">{pack.description}</span>
+                      </span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {isEnabled ? "Enabled" : `${enabledCount}/${pack.schemaIds.length}`}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {isEditable && (
             <div className="flex flex-wrap items-center justify-end gap-2 mt-3">
               <Button
                 type="button"
@@ -195,7 +263,7 @@ export const ExtensionsView: React.FC = () => {
                 onClick={() => void updateFilteredSchemas(true)}
                 className="h-8 text-xs"
               >
-                Enable All
+                Enable matching
               </Button>
               <Button
                 type="button"
@@ -205,7 +273,7 @@ export const ExtensionsView: React.FC = () => {
                 onClick={() => void updateFilteredSchemas(false)}
                 className="h-8 text-xs"
               >
-                Disable All
+                Disable matching
               </Button>
             </div>
           )}
@@ -225,14 +293,17 @@ export const ExtensionsView: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  onClick={() => setInspectingItem(item)}
-                  className="group p-4 rounded-xl border border-border bg-card/50 hover:bg-muted/40 transition-all cursor-pointer flex flex-col gap-1.5"
+                  className="group p-4 rounded-xl border border-border bg-card/50 hover:bg-muted/40 transition-colors flex flex-col gap-1.5"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => setInspectingItem(item)}
+                        className="text-left font-bold text-sm text-foreground group-hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
                         {item.name}
-                      </span>
+                      </button>
                       <Badge
                         variant="outline"
                         className={`text-[11px] px-2 py-0.2 font-medium rounded-full border ${getTagColor(
@@ -252,33 +323,28 @@ export const ExtensionsView: React.FC = () => {
                     </div>
 
                     {isEditable && (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSchemaAction(item.id);
-                        }}
-                      >
-                        {isEnabled ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          >
-                            Disable
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs font-medium border-border hover:bg-primary/10 hover:text-primary"
-                          >
-                            <Plus className="size-3 mr-1" />
-                            Enable
-                          </Button>
-                        )}
-                      </div>
+                      isEnabled ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleSchemaAction(item.id)}
+                          className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          Disable
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleSchemaAction(item.id)}
+                          className="h-7 text-xs font-medium border-border hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Plus className="size-3 mr-1" />
+                          Enable
+                        </Button>
+                      )
                     )}
                   </div>
 

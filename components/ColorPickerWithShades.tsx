@@ -98,7 +98,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
                 type="button"
                 onClick={() => handleSelectFamily(family)}
                 style={{ backgroundColor: family.baseHex }}
-                className={`w-6 h-6 rounded-full transition-all cursor-pointer relative flex items-center justify-center ${
+                className={`w-6 h-6 rounded-full transition cursor-pointer relative flex items-center justify-center ${
                   isSelected
                     ? "ring-2 ring-offset-2 ring-primary z-10 shadow-xs ring-offset-background"
                     : "opacity-85 hover:opacity-100 hover:ring-2 hover:ring-ring/40 hover:ring-offset-1 hover:ring-offset-background"
@@ -118,7 +118,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
           {/* Dynamic Custom Color Indicator Swatch when not in a standard preset */}
           {!exactFamily && (
             <div
-              className="w-6 h-6 rounded-full ring-2 ring-offset-2 ring-primary ring-offset-background shadow-xs z-10 relative flex items-center justify-center border border-border/70 transition-all cursor-default"
+              className="w-6 h-6 rounded-full ring-2 ring-offset-2 ring-primary ring-offset-background shadow-xs z-10 relative flex items-center justify-center border border-border/70 transition-colors cursor-default"
               style={{ backgroundColor: selectedHex }}
               title={`Custom Accent Color (${selectedHex})`}
             >
@@ -154,7 +154,7 @@ export const ColorPickerWithShades: React.FC<ColorPickerWithShadesProps> = ({
                   type="button"
                   onClick={() => handleSelectShade(step, shadeHex)}
                   style={{ backgroundColor: shadeHex }}
-                  className={`flex-1 h-full rounded-[4px] transition-all cursor-pointer relative flex items-center justify-center ${
+                  className={`flex-1 h-full rounded-[4px] transition cursor-pointer relative flex items-center justify-center ${
                     isShadeSelected
                       ? "ring-2 ring-primary ring-offset-1 z-10 shadow-xs ring-offset-background"
                       : "hover:z-10 opacity-90 hover:opacity-100 hover:ring-1 hover:ring-ring/40"

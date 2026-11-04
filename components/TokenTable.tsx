@@ -27,6 +27,7 @@ import {
   ArrowDown01,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDialogs } from "@/components/DialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -382,6 +383,7 @@ const TokenRow: React.FC<TokenRowProps> = ({
   onDelete,
 }) => {
   const { addToast, canUserEdit } = useTokenStore();
+  const dialogs = useDialogs();
   const isEditable = canUserEdit ? canUserEdit() : true;
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
@@ -545,10 +547,15 @@ const TokenRow: React.FC<TokenRowProps> = ({
                   <DropdownMenuShortcut>⌘E</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => {
-                    const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
-                    if (newName && newName.trim()) {
-                      onDuplicate(newName.trim());
+                  onClick={async () => {
+                    const newName = await dialogs.prompt({
+                      title: "Duplicate token",
+                      label: "Name for the copy",
+                      defaultValue: `${token.name}-copy`,
+                      confirmLabel: "Duplicate",
+                    });
+                    if (newName) {
+                      onDuplicate(newName);
                     }
                   }}
                   className="cursor-pointer"
@@ -574,8 +581,14 @@ const TokenRow: React.FC<TokenRowProps> = ({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
-                    if (confirm(`Delete token "${token.name}" from set "${token.setName}"?`)) {
+                  onClick={async () => {
+                    const confirmed = await dialogs.confirm({
+                      title: `Delete "${token.name}"?`,
+                      description: `This removes the token from the set "${token.setName}".`,
+                      confirmLabel: "Delete token",
+                      destructive: true,
+                    });
+                    if (confirmed) {
                       onDelete();
                     }
                   }}
@@ -601,10 +614,15 @@ const TokenRow: React.FC<TokenRowProps> = ({
               <ContextMenuShortcut>⌘E</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
-              onClick={() => {
-                const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
-                if (newName && newName.trim()) {
-                  onDuplicate(newName.trim());
+              onClick={async () => {
+                const newName = await dialogs.prompt({
+                  title: "Duplicate token",
+                  label: "Name for the copy",
+                  defaultValue: `${token.name}-copy`,
+                  confirmLabel: "Duplicate",
+                });
+                if (newName) {
+                  onDuplicate(newName);
                 }
               }}
               className="cursor-pointer"
@@ -630,8 +648,14 @@ const TokenRow: React.FC<TokenRowProps> = ({
           <>
             <ContextMenuSeparator />
             <ContextMenuItem
-              onClick={() => {
-                if (confirm(`Delete token "${token.name}" from set "${token.setName}"?`)) {
+              onClick={async () => {
+                const confirmed = await dialogs.confirm({
+                  title: `Delete "${token.name}"?`,
+                  description: `This removes the token from the set "${token.setName}".`,
+                  confirmLabel: "Delete token",
+                  destructive: true,
+                });
+                if (confirmed) {
                   onDelete();
                 }
               }}

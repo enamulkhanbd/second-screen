@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Button } from "@/components/ui/button";
+import { useDialogs } from "@/components/DialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,8 @@ interface ApiKeyItem {
   expiresAt?: string;
 }
 
-export const ApiKeysManager: React.FC = () => {
+export const ApiKeysManager: React.FC<{ onTokenCreated?: (token: string) => void }> = ({ onTokenCreated }) => {
+  const dialogs = useDialogs();
   const { addToast } = useTokenStore();
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,6 +91,7 @@ export const ApiKeysManager: React.FC = () => {
       const data = await res.json();
       if (data.success && data.token) {
         setCreatedSecret(data.token);
+        onTokenCreated?.(data.token);
         fetchKeys();
         addToast({
           type: "success",
@@ -108,7 +111,13 @@ export const ApiKeysManager: React.FC = () => {
   };
 
   const handleDeleteKey = async (id: string, name: string) => {
-    if (!confirm(`Revoke API key "${name}"? This will disconnect any Figma plugin or CLI using this key.`)) {
+    const confirmed = await dialogs.confirm({
+      title: `Revoke "${name}"?`,
+      description: "Any Figma plugin or CLI using this key will be disconnected.",
+      confirmLabel: "Revoke key",
+      destructive: true,
+    });
+    if (!confirmed) {
       return;
     }
 

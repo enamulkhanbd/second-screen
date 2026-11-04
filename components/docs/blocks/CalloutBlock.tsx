@@ -50,7 +50,7 @@ export const CalloutBlock: React.FC<CalloutBlockProps> = ({
 
   return (
     <div
-      className={`group relative rounded-xl border p-4 transition-all duration-200 ${config.bg}`}
+      className={`group relative rounded-xl border p-4 transition-colors duration-200 ${config.bg}`}
     >
       <div className="flex items-start gap-3.5">
         <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${config.iconBg}`}>

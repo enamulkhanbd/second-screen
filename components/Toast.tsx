@@ -21,7 +21,7 @@ export const ToastContainer: React.FC = () => {
           <div
             key={toast.id}
             role={isError ? "alert" : "status"}
-            className="pointer-events-auto flex items-start gap-4 rounded-2xl border border-border bg-background p-5 text-foreground shadow-lg transition-all duration-300 animate-in slide-in-from-bottom-5"
+            className="pointer-events-auto flex items-start gap-4 rounded-2xl border border-border bg-background p-5 text-foreground shadow-lg transition duration-300 animate-in slide-in-from-bottom-5"
           >
             <div className="mt-0.5 shrink-0" aria-hidden="true">
               {isSuccess ? (

@@ -22,13 +22,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
 
     const applyTheme = () => {
-      const forceDark =
-        isWorkspaces ||
-        (typeof window !== "undefined" && window.location.pathname === "/");
       const isDark =
-        forceDark
-          ? true
-          : themeMode === "dark"
+        themeMode === "dark"
           ? true
           : themeMode === "light"
           ? false
@@ -49,7 +44,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       mediaQuery.addEventListener("change", handler);
       return () => mediaQuery.removeEventListener("change", handler);
     }
-  }, [themeMode, isWorkspaces]);
+  }, [themeMode]);
 
   useEffect(() => {
     const root = document.documentElement;

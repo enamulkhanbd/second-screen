@@ -126,7 +126,7 @@ export const DocCanvas: React.FC<DocCanvasProps> = ({
     <main className="relative flex-1 overflow-y-auto bg-background/50">
       {/* Page Header Banner */}
       <div
-        className={`relative border-b border-border/60 transition-all ${
+        className={`relative border-b border-border/60 transition-colors ${
           isHero
             ? "py-16 px-8 md:px-16"
             : isFeature
@@ -223,7 +223,7 @@ export const DocCanvas: React.FC<DocCanvasProps> = ({
               <div
                 key={block.id}
                 onClick={() => onSelectBlock(block.id)}
-                className={`group relative transition-all ${
+                className={`group relative transition ${
                   isEditing
                     ? `cursor-pointer rounded-2xl p-1 ${
                         isSelected
@@ -367,7 +367,7 @@ export const DocCanvas: React.FC<DocCanvasProps> = ({
             <button
               type="button"
               onClick={() => handleOpenSlashMenu(page.blocks.length)}
-              className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-card/40 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-primary transition-all"
+              className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-card/40 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               <Plus className="h-4 w-4" />
               <span>Insert block (or type /)</span>

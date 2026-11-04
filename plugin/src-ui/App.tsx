@@ -229,7 +229,7 @@ export const App: React.FC = () => {
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text).catch(() => {});
     }
-    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `✓ Copied ${label}` } }, "*");
+    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `Copied ${label}` } }, "*");
   };
 
   // 1. Initial configuration load from Figma clientStorage
@@ -620,7 +620,7 @@ export const App: React.FC = () => {
           {
             pluginMessage: {
               type: "NOTIFY",
-              payload: data.message || `✓ Published ${data.changedCount ?? 0} tokens to Studio!`,
+              payload: data.message || `Published ${data.changedCount ?? 0} tokens to Studio`,
             },
           },
           "*"

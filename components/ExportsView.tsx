@@ -13,8 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   Package,
-  Save,
-  Check,
+  ArrowLeft,
   FileCode,
 } from "lucide-react";
 import JSZip from "jszip";
@@ -30,7 +29,6 @@ export const ExportsView: React.FC = () => {
 
   const [activeView, setActiveView] = useState<ExportViewType>("hub");
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
 
   // Active files tracked for header counters & bulk actions
   const [currentFiles, setCurrentFiles] = useState<GeneratedExportFile[]>([]);
@@ -43,22 +41,11 @@ export const ExportsView: React.FC = () => {
 
   const handleConfigChange = useCallback(() => {
     setIsUpdating(true);
-    setIsSaved(false);
     const timer = setTimeout(() => {
       setIsUpdating(false);
     }, 400);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleSaveExport = () => {
-    setIsSaved(true);
-    addToast({
-      type: "success",
-      title: "Export Configuration Saved",
-      message: "Your export presets have been updated.",
-    });
-    setTimeout(() => setIsSaved(false), 2500);
-  };
 
   const handleDownloadFile = (file: GeneratedExportFile) => {
     const blob = new Blob([file.content], { type: "text/plain;charset=utf-8" });
@@ -133,48 +120,36 @@ export const ExportsView: React.FC = () => {
       {activeView !== "hub" && (
         <PageHeader
           title={getViewTitle()}
+          leading={
+            <button
+              type="button"
+              onClick={() => setActiveView("hub")}
+              className="mb-1 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>All formats</span>
+            </button>
+          }
           className="sticky top-0 z-10 flex-shrink-0 border-b border-border/70 bg-card px-6 py-3"
           actions={
             <>
             {/* Realtime updating indicator */}
             {isUpdating && (
               <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mr-1">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-amber-500 motion-safe:animate-pulse" />
                 Updating...
               </span>
             )}
 
-            {/* File count indicator matching frame_020.jpg */}
+            {/* File count indicator */}
             {currentFiles.length > 0 && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mr-1 font-mono">
-                <span className="flex items-center gap-1 text-foreground/80 font-medium">
-                  <FileCode className="w-3.5 h-3.5" />
-                  {currentFiles.length}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mr-1 font-mono">
+                <FileCode className="w-3.5 h-3.5" />
+                <span className="text-foreground/80 font-medium">
+                  {currentFiles.length} {currentFiles.length === 1 ? "file" : "files"}
                 </span>
-                <span className="text-muted-foreground/40">•</span>
-                <span className="text-muted-foreground">0</span>
               </div>
             )}
-
-            {/* Save Export Preset */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveExport}
-              className="h-8 text-xs font-semibold gap-1.5 border-border/70"
-            >
-              {isSaved ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-emerald-500">Saved</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Save Export</span>
-                </>
-              )}
-            </Button>
 
             {/* Download All (ZIP) */}
             <Button

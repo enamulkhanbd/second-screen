@@ -128,7 +128,7 @@ export const TokenRawValueCell: React.FC<{
           disabled={!isEditable}
           readOnly={!isEditable}
           placeholder="e.g. #3b82f6 or {colors.brand.500}"
-          className={`w-full font-mono text-xs px-3 py-1.5 rounded-md border transition-all outline-none ${
+          className={`w-full font-mono text-xs px-3 py-1.5 rounded-md border transition outline-none ${
             !isEditable
               ? "border-border/60 bg-muted/20 text-foreground cursor-default select-text"
               : token.isAlias

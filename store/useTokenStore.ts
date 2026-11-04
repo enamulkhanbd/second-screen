@@ -397,6 +397,7 @@ interface TokenStoreState {
     cloneFromOptionId?: string;
     newSetName?: string;
   }) => void;
+  createLightDarkThemes: () => void;
   updateThemeGroup: (groupId: string, newName: string, newColor?: string) => void;
   duplicateThemeGroup: (groupId: string) => void;
   deleteThemeGroup: (groupId: string) => void;
@@ -4763,6 +4764,54 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "success",
       title: "Theme Option Created",
       message: `Added "${params.name}" to ${targetGroup.name}. You can edit its token values now.`,
+    });
+  },
+
+  createLightDarkThemes: () => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot create themes.",
+      });
+      return;
+    }
+    const { rawTokens, activeSet, themeGroups } = get();
+    if (themeGroups.length > 0) return;
+
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+    const setNames = Object.keys(rawTokens).filter((key) => !key.startsWith("$"));
+    const selectedTokenSets = Object.fromEntries(setNames.map((name) => [name, "enabled" as const]));
+    const stamp = Date.now().toString(36);
+    const existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+    existingThemes.push(
+      { id: `opt-light-${stamp}`, name: "Light", group: "Theme", selectedTokenSets, color: "#f59e0b" },
+      { id: `opt-dark-${stamp}`, name: "Dark", group: "Theme", selectedTokenSets: { ...selectedTokenSets }, color: "#6366f1" }
+    );
+
+    const updatedRawDoc = { ...rawTokens, [themesKey]: existingThemes } as typeof rawTokens;
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const optionIds = buildDefaultActiveOptionIds(updatedGroups, get().activeThemeOptionIds);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, optionIds);
+    const createdGroup = updatedGroups.find((g) => g.name === "Theme") || updatedGroups[0];
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeOptionIds: optionIds,
+      activeThemeGroupId: createdGroup?.id ?? get().activeThemeGroupId,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().addToast({
+      type: "success",
+      title: "Themes created",
+      message: "Added Light and Dark. Edit their token sets to tell them apart.",
     });
   },
 

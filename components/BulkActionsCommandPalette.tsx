@@ -18,6 +18,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useDialogs } from "@/components/DialogProvider";
 
 interface BulkActionsCommandPaletteProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export const BulkActionsCommandPalette: React.FC<BulkActionsCommandPaletteProps>
   onMoveTo,
 }) => {
   const count = selectedTokens.length;
+  const dialogs = useDialogs();
   const [search, setSearch] = useState("");
   const [subView, setSubView] = useState<SubView>("main");
 
@@ -114,8 +116,14 @@ export const BulkActionsCommandPalette: React.FC<BulkActionsCommandPaletteProps>
         description: `Delete ${count} tokens`,
         icon: Trash2,
         danger: true,
-        run: () => {
-          if (confirm(`Are you sure you want to delete ${count} tokens?`)) {
+        run: async () => {
+          const confirmed = await dialogs.confirm({
+            title: `Delete ${count} ${count === 1 ? "token" : "tokens"}?`,
+            description: "This removes the selected tokens from their sets.",
+            confirmLabel: "Delete",
+            destructive: true,
+          });
+          if (confirmed) {
             onDelete();
             onClose();
           }
@@ -146,7 +154,7 @@ export const BulkActionsCommandPalette: React.FC<BulkActionsCommandPaletteProps>
         run: () => setSubView("move-to"),
       },
     ];
-  }, [count, onClearDescription, onClearSelection, onDelete, onDuplicate, onClose]);
+  }, [count, dialogs, onClearDescription, onClearSelection, onDelete, onDuplicate, onClose]);
 
   const filteredActions = useMemo(() => {
     if (!search.trim()) return actions;

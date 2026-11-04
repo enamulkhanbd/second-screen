@@ -279,22 +279,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
+            <div
+              role="group"
+              aria-label="Account action"
+              className="grid grid-cols-2 rounded-lg border border-border bg-muted/50 p-1"
+            >
+              <button
+                type="button"
+                aria-pressed={!isSignUp}
+                onClick={() => {
+                  setIsSignUp(false);
+                  setError(null);
+                }}
+                className={`h-8 rounded-md text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  !isSignUp ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                aria-pressed={isSignUp}
+                onClick={() => {
+                  setIsSignUp(true);
+                  setError(null);
+                }}
+                className={`h-8 rounded-md text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  isSignUp ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Create account
+              </button>
+            </div>
+
             <DialogHeader className="gap-1 text-left">
               <div className="flex items-center gap-2.5">
                 <TokensPlatformLogo variant="app-icon" size={32} />
                 <div>
                   <div className="flex items-center gap-2">
                     <DialogTitle className="text-base">
-                      {title || (isSignUp ? "Create Workspace Account" : "Sign In to Tokens Platform")}
+                      {isSignUp
+                        ? title
+                          ? "Create an account to connect your plugin"
+                          : "Create your account"
+                        : title || "Sign in to Tokens Platform"}
                     </DialogTitle>
                     <Badge variant="success" className="text-[10px] py-0 font-semibold">
                       100% Free
                     </Badge>
                   </div>
                   <DialogDescription className="text-xs">
-                    {subtitle || (isSignUp
-                      ? "Get started with multi-tenant design token management — no credit card needed"
-                      : "Access your cloud organizations and token repositories")}
+                    {isSignUp
+                      ? "Create an account to connect this device."
+                      : subtitle || "Access your workspaces and projects."}
                   </DialogDescription>
                 </div>
               </div>
@@ -363,6 +400,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <Input
                     id="auth-name"
                     type="text"
+                    autoComplete="name"
                     placeholder="Your Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -376,6 +414,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Input
                   id="auth-email"
                   type="email"
+                  autoComplete="email"
+                  spellCheck={false}
                   required
                   placeholder="designer@company.com"
                   value={email}
@@ -389,6 +429,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Input
                   id="auth-password"
                   type="password"
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
                   required
                   placeholder="••••••••"
                   value={password}
@@ -407,17 +448,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </Button>
             </form>
 
-            <div className="text-center pt-1 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isSignUp
-                  ? "Already have an account? Sign In"
-                  : "Don't have an account? Create one"}
-              </button>
-            </div>
           </div>
         )}
       </DialogContent>
