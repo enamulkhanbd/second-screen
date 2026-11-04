@@ -94,6 +94,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     resolvedTokens,
     activeSet,
     updateSingleToken,
+    updateTokensBatch,
+    deleteTokensBatch,
     updateSetJson,
     renameSet,
     deleteSet,
@@ -115,6 +117,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
       resolvedTokens: state.resolvedTokens,
       activeSet: state.activeSet,
       updateSingleToken: state.updateSingleToken,
+      updateTokensBatch: state.updateTokensBatch,
+      deleteTokensBatch: state.deleteTokensBatch,
       updateSetJson: state.updateSetJson,
       renameSet: state.renameSet,
       deleteSet: state.deleteSet,
@@ -460,14 +464,17 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   }, [displayedTokens, selectedTokenIds]);
 
   // Bulk action handlers
+  // Bulk action handlers leveraging batch store actions for O(1) resolver & persist efficiency
   const handleBulkClearDescription = () => {
-    selectedTokensList.forEach((token) => {
-      updateSingleToken(token.path, {
+    const entries = selectedTokensList.map((token) => ({
+      path: token.path,
+      newValue: {
         value: token.rawValue,
         type: token.type,
         description: "",
-      });
-    });
+      },
+    }));
+    updateTokensBatch(entries);
     addToast({
       type: "success",
       title: "Descriptions Cleared",
@@ -476,15 +483,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkDelete = () => {
-    selectedTokensList.forEach((token) => {
-      deleteToken(token.setName, token.name.split("."));
-    });
+    const items = selectedTokensList.map((token) => ({
+      setName: token.setName,
+      tokenPath: token.name.split("."),
+    }));
+    deleteTokensBatch(items);
     setSelectedTokenIds(new Set());
-    addToast({
-      type: "success",
-      title: "Tokens Deleted",
-      message: `Deleted ${selectedTokensList.length} tokens.`,
-    });
   };
 
   const handleBulkDuplicate = () => {
@@ -500,13 +504,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkChangeType = (newType: string) => {
-    selectedTokensList.forEach((token) => {
-      updateSingleToken(token.path, {
+    const entries = selectedTokensList.map((token) => ({
+      path: token.path,
+      newValue: {
         value: token.rawValue,
         type: newType,
         description: token.description,
-      });
-    });
+      },
+    }));
+    updateTokensBatch(entries);
     addToast({
       type: "success",
       title: "Type Changed",
@@ -515,9 +521,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkChangeValue = (newValue: string) => {
-    selectedTokensList.forEach((token) => {
-      updateSingleToken(token.path, newValue);
-    });
+    const entries = selectedTokensList.map((token) => ({
+      path: token.path,
+      newValue,
+    }));
+    updateTokensBatch(entries);
     addToast({
       type: "success",
       title: "Values Updated",
@@ -526,22 +534,27 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkFindReplace = (findText: string, replaceText: string) => {
-    let replacedCount = 0;
+    const entries: { path: string[]; newValue: any }[] = [];
     selectedTokensList.forEach((token) => {
       if (token.description && token.description.includes(findText)) {
         const updatedDesc = token.description.replaceAll(findText, replaceText);
-        updateSingleToken(token.path, {
-          value: token.rawValue,
-          type: token.type,
-          description: updatedDesc,
+        entries.push({
+          path: token.path,
+          newValue: {
+            value: token.rawValue,
+            type: token.type,
+            description: updatedDesc,
+          },
         });
-        replacedCount++;
       }
     });
+    if (entries.length > 0) {
+      updateTokensBatch(entries);
+    }
     addToast({
       type: "success",
       title: "Find & Replace Complete",
-      message: `Updated descriptions in ${replacedCount} tokens.`,
+      message: `Updated descriptions in ${entries.length} tokens.`,
     });
   };
 
