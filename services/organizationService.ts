@@ -838,7 +838,8 @@ const inFlightProjectPromises = new Map<string, Promise<Project | null>>();
 const inFlightOrgSummariesPromises = new Map<string, Promise<Project[]>>();
 
 /**
- * Fetches a single project from Supabase by orgId and projectId with full tokens and branches
+ * Fetches a single project from Supabase by orgId and projectId with full tokens and branches.
+ * Throws if the underlying database query fails; returns null only when the project is not found.
  */
 export async function getProject(orgId: string, projectId: string): Promise<Project | null> {
   if (!orgId || !projectId || !isSupabaseConfigured) return null;
@@ -857,7 +858,8 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
         .eq("id", projectId)
         .maybeSingle();
 
-      if (error || !data) return null;
+      if (error) throw error;
+      if (!data) return null;
       const { data: integration } = await client
         .from("project_integrations")
         .select("git_config, asset_git_config, asset_figma_config")
@@ -866,7 +868,7 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
       return mapDbProjectToProject(data, integration || undefined);
     } catch (e) {
       console.warn("Supabase error fetching single project:", e);
-      return null;
+      throw e;
     }
   })().finally(() => {
     inFlightProjectPromises.delete(cacheKey);
@@ -1309,9 +1311,17 @@ export async function saveProjectBranches(
     updates.active_branch = activeBranch;
   }
   try {
-    await client.from("projects").update(updates).eq("id", projectId).eq("org_id", orgId);
+    const { data, error } = await client
+      .from("projects")
+      .update(updates)
+      .eq("id", projectId)
+      .eq("org_id", orgId)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving project branches:", e);
+    throw e;
   }
 }
 
@@ -1406,7 +1416,7 @@ export async function saveProjectTokens(
   const client = getClient();
 
   try {
-    await client
+    const { data, error } = await client
       .from("projects")
       .update({
         raw_tokens: rawTokens,
@@ -1414,19 +1424,24 @@ export async function saveProjectTokens(
         updated_at: new Date().toISOString(),
       })
       .eq("id", projectId)
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving project tokens:", e);
+    throw e;
   }
 }
 
 /**
  * Saves tokens, themes and branches in a single UPDATE instead of two separate large PATCH requests.
+ * When rawTokens is undefined, only branches (and optional activeBranch) are updated.
  */
 export async function saveProjectTokensAndBranches(
   orgId: string,
   projectId: string,
-  rawTokens: RawTokensDocument,
+  rawTokens: RawTokensDocument | undefined,
   themeGroups: ThemeGroup[] | undefined,
   branches: ProjectBranch[],
   activeBranch?: string
@@ -1435,15 +1450,25 @@ export async function saveProjectTokensAndBranches(
   invalidateMetadataCache();
   const client = getClient();
   const updates: Record<string, any> = {
-    raw_tokens: rawTokens,
-    theme_groups: themeGroups || extractThemeGroups(rawTokens),
     branches,
     updated_at: new Date().toISOString(),
   };
+  if (rawTokens !== undefined) {
+    updates.raw_tokens = rawTokens;
+    updates.theme_groups = themeGroups || extractThemeGroups(rawTokens);
+  } else if (themeGroups !== undefined) {
+    updates.theme_groups = themeGroups;
+  }
   if (activeBranch) updates.active_branch = activeBranch;
   try {
-    const { error } = await client.from("projects").update(updates).eq("id", projectId).eq("org_id", orgId);
+    const { data, error } = await client
+      .from("projects")
+      .update(updates)
+      .eq("id", projectId)
+      .eq("org_id", orgId)
+      .select("id");
     if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving project tokens and branches:", e);
     throw e;
@@ -1529,11 +1554,13 @@ export async function saveProjectFigmaVariables(
   if (!orgId || !projectId || !isSupabaseConfigured) return;
   const client = getClient();
   try {
-    const { data: currentProj } = await client
+    const { data: currentProj, error: selectErr } = await client
       .from("projects")
       .select("extra_data")
       .eq("id", projectId)
+      .eq("org_id", orgId)
       .maybeSingle();
+    if (selectErr) throw selectErr;
 
     const currentExtra = currentProj?.extra_data || {};
     const updatedExtra = {
@@ -1542,7 +1569,7 @@ export async function saveProjectFigmaVariables(
       figmaUpdatedAt: figmaVariables && Object.keys(figmaVariables).length > 0 ? new Date().toISOString() : null,
     };
 
-    await client
+    const { data, error } = await client
       .from("projects")
       .update({
         figma_variables: figmaVariables || {},
@@ -1550,9 +1577,13 @@ export async function saveProjectFigmaVariables(
         updated_at: new Date().toISOString(),
       })
       .eq("id", projectId)
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving figma variables:", e);
+    throw e;
   }
 }
 

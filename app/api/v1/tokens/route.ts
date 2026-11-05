@@ -7,9 +7,8 @@ import {
   getOrgProjectSummaries,
   getProject,
   getUserOrganizations,
-  saveProjectTokens,
   saveProjectFigmaVariables,
-  saveProjectBranches,
+  saveProjectTokensAndBranches,
   ensureProjectDefaultBranch,
 } from "@/services/organizationService";
 import { BranchCommit, ProjectBranch } from "@/types/tokens";
@@ -83,46 +82,55 @@ export async function GET(req: NextRequest) {
     let availableBranches: { name: string; title: string; isDefault?: boolean }[] = [];
 
     // Fetch only the target project to avoid loading every project and token set.
-    if (orgId && projectId) {
-      try {
-        const proj = await getProject(orgId, projectId);
-        if (proj) {
-          const gitBranch = proj.gitConfig?.branch || proj.activeBranch || "main";
-          currentBranchName = requestedBranch || gitBranch;
+    let proj;
+    try {
+      proj = await getProject(orgId, projectId);
+    } catch (err) {
+      console.warn("Error fetching project tokens:", err);
+      return jsonWithCors(
+        { success: false, code: "project_unavailable", error: "Could not load project tokens." },
+        { status: 503 }
+      );
+    }
 
-          if (availableBranches.length === 0 && proj.branches && proj.branches.length > 0) {
-            availableBranches = proj.branches.map((b) => ({
-              name: b.name,
-              title: b.title,
-              isDefault: b.isDefault,
-            }));
-            const branchObj =
-              proj.branches.find((b) => b.name === (requestedBranch || proj.activeBranch || "main")) ||
-              proj.branches[0];
-            if (branchObj) {
-              currentBranchName = branchObj.name;
-              if (branchObj.rawTokens && Object.keys(branchObj.rawTokens).length > 0) {
-                targetDoc = branchObj.rawTokens;
-              }
-            }
-          }
+    if (!proj) {
+      return jsonWithCors(
+        { success: false, code: "project_not_found", error: "Project not found." },
+        { status: 404 }
+      );
+    }
 
-          if (availableBranches.length === 0) {
-            availableBranches = [{ name: gitBranch, title: gitBranch, isDefault: true }];
-          }
+    const gitBranch = proj.gitConfig?.branch || proj.activeBranch || "main";
+    currentBranchName = requestedBranch || gitBranch;
 
-          if (Object.keys(targetDoc).length === 0 && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
-            targetDoc = proj.rawTokens;
-          }
-
-          if (proj.figmaVariables) {
-            figmaVariables = proj.figmaVariables;
-            figmaUpdatedAt = proj.figmaUpdatedAt || null;
-          }
+    if (availableBranches.length === 0 && proj.branches && proj.branches.length > 0) {
+      availableBranches = proj.branches.map((b) => ({
+        name: b.name,
+        title: b.title,
+        isDefault: b.isDefault,
+      }));
+      const branchObj =
+        proj.branches.find((b) => b.name === (requestedBranch || proj.activeBranch || "main")) ||
+        proj.branches[0];
+      if (branchObj) {
+        currentBranchName = branchObj.name;
+        if (branchObj.rawTokens && Object.keys(branchObj.rawTokens).length > 0) {
+          targetDoc = branchObj.rawTokens;
         }
-      } catch (err) {
-        console.warn("Error fetching project tokens:", err);
       }
+    }
+
+    if (availableBranches.length === 0) {
+      availableBranches = [{ name: gitBranch, title: gitBranch, isDefault: true }];
+    }
+
+    if (Object.keys(targetDoc).length === 0 && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
+      targetDoc = proj.rawTokens;
+    }
+
+    if (proj.figmaVariables) {
+      figmaVariables = proj.figmaVariables;
+      figmaUpdatedAt = proj.figmaUpdatedAt || null;
     }
 
     const resolvedTokens = flattenAndResolveTokens(targetDoc, "ALL");
@@ -243,30 +251,46 @@ export async function POST(req: NextRequest) {
       Boolean(body.isFigmaPlugin) ||
       (auth.record.name && auth.record.name.toLowerCase().includes("figma"));
 
-    let currentDoc: Record<string, any> = {};
-    let targetBranchName = requestedBranch || "main";
+    // Fail closed if getProject fails or returns null (A1 / R4)
     let targetProject: any = null;
-    let projectBranches: ProjectBranch[] = [];
-
-    if (orgId && projectId) {
-      try {
-        targetProject = await getProject(orgId, projectId);
-        if (targetProject) {
-          projectBranches = ensureProjectDefaultBranch(targetProject);
-          targetBranchName = requestedBranch || targetProject.activeBranch || "main";
-          const branchObj =
-            projectBranches.find((b) => b.name === targetBranchName) ||
-            projectBranches[0];
-
-          if (branchObj && branchObj.rawTokens && Object.keys(branchObj.rawTokens).length > 0) {
-            currentDoc = branchObj.rawTokens;
-          } else if (targetProject.rawTokens) {
-            currentDoc = targetProject.rawTokens;
-          }
-        }
-      } catch {}
+    try {
+      targetProject = await getProject(orgId, projectId);
+    } catch (readErr) {
+      console.error("Failed reading project before token push:", readErr);
+      return jsonWithCors(
+        {
+          success: false,
+          code: "project_unavailable",
+          error: "Project is temporarily unavailable. Token push was aborted to prevent overwriting existing tokens.",
+        },
+        { status: 503 }
+      );
     }
-    
+
+    if (!targetProject) {
+      return jsonWithCors(
+        {
+          success: false,
+          code: "project_not_found",
+          error: "Project not found.",
+        },
+        { status: 404 }
+      );
+    }
+
+    const projectBranches: ProjectBranch[] = ensureProjectDefaultBranch(targetProject);
+    const targetBranchName = requestedBranch || targetProject.activeBranch || "main";
+    const branchObj =
+      projectBranches.find((b) => b.name === targetBranchName) ||
+      projectBranches[0];
+
+    let currentDoc: Record<string, any> = {};
+    if (branchObj && branchObj.rawTokens && Object.keys(branchObj.rawTokens).length > 0) {
+      currentDoc = branchObj.rawTokens;
+    } else if (targetProject.rawTokens) {
+      currentDoc = targetProject.rawTokens;
+    }
+
     // Merge incoming tokens onto stored doc preserving $themes and $metadata
     const mergedDoc: Record<string, any> = {
       ...currentDoc,
@@ -293,78 +317,92 @@ export async function POST(req: NextRequest) {
     const totalChanges = diff.totalAdded + diff.totalModified + diff.totalDeleted;
     const hasExistingTokens = Object.keys(currentDoc).filter((k) => !k.startsWith("$")).length > 0;
 
-    if (orgId && projectId) {
+    let figmaVariablesSaved: boolean | undefined = undefined;
+    if (isFromFigma && rawDoc && Object.keys(rawDoc).length > 0) {
       try {
-        // ALWAYS persist Figma variables when push originates from Figma Plugin!
-        if (isFromFigma && rawDoc && Object.keys(rawDoc).length > 0) {
-          await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
-        }
+        await saveProjectFigmaVariables(orgId, projectId, rawDoc, body.meta);
+        figmaVariablesSaved = true;
+      } catch (figmaErr) {
+        console.warn("Error saving Figma variables snapshot:", figmaErr);
+        figmaVariablesSaved = false;
+      }
+    }
 
-        // Save tokens only if changes exist or during initial import
-        if (diff.hasChanges || !hasExistingTokens) {
-          if (projectBranches.length > 0) {
-            let branch = projectBranches.find((b) => b.name === targetBranchName);
-            if (!branch) {
-              const newBranch: ProjectBranch = {
-                id: `branch_${targetBranchName}_${Date.now()}`,
-                name: targetBranchName,
-                title: targetBranchName,
-                isDefault: targetBranchName === "main",
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                createdBy: { name: auth.record.name, email: "api@tokens-platform.local" },
-                rawTokens: mergedDoc,
-                themeGroups: targetProject?.themeGroups || [],
-                commits: [],
-                comments: [],
-              };
-              projectBranches.push(newBranch);
-              branch = newBranch;
-            } else {
-              branch.rawTokens = mergedDoc;
-              branch.updatedAt = new Date().toISOString();
-            }
+    // Save tokens only if changes exist or during initial import
+    if (diff.hasChanges || !hasExistingTokens) {
+      let branch = projectBranches.find((b) => b.name === targetBranchName);
+      if (!branch) {
+        const newBranch: ProjectBranch = {
+          id: `branch_${targetBranchName}_${Date.now()}`,
+          name: targetBranchName,
+          title: targetBranchName,
+          isDefault: targetBranchName === "main",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: { name: auth.record.name, email: "api@tokens-platform.local" },
+          rawTokens: mergedDoc,
+          themeGroups: targetProject?.themeGroups || [],
+          commits: [],
+          comments: [],
+        };
+        projectBranches.push(newBranch);
+        branch = newBranch;
+      } else {
+        branch.rawTokens = mergedDoc;
+        branch.updatedAt = new Date().toISOString();
+      }
 
-            const commit: BranchCommit = {
-              id: "commit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
-              sha: Math.random().toString(36).substring(2, 9),
-              message:
-                body.commitMessage ||
-                (isFromFigma
-                  ? "Sync tokens from Figma Plugin"
-                  : `Update ${totalChanges || Object.keys(rawDoc).length} tokens via API`),
-              timestamp: new Date().toISOString(),
-              author: {
-                name: auth.record.name || "API User",
-                email: "api@tokens-platform.local",
-              },
-              totalAdded: diff.totalAdded,
-              totalModified: diff.totalModified,
-              totalDeleted: diff.totalDeleted,
-              changes: allChangedTokens.slice(0, 30).map((t) => ({
-                id: `chg_${Math.random().toString(36).substring(2, 9)}`,
-                category: "tokens",
-                action: t.changeType,
-                key: t.key,
-                label: t.name || t.key,
-                oldValue: typeof t.oldValue === "string" ? t.oldValue : JSON.stringify(t.oldValue),
-                newValue: typeof t.newValue === "string" ? t.newValue : JSON.stringify(t.newValue),
-                timestamp: new Date().toISOString(),
-              })),
-            };
+      const commit: BranchCommit = {
+        id: "commit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+        sha: Math.random().toString(36).substring(2, 9),
+        message:
+          body.commitMessage ||
+          (isFromFigma
+            ? "Sync tokens from Figma Plugin"
+            : `Update ${totalChanges || Object.keys(rawDoc).length} tokens via API`),
+        timestamp: new Date().toISOString(),
+        author: {
+          name: auth.record.name || "API User",
+          email: "api@tokens-platform.local",
+        },
+        totalAdded: diff.totalAdded,
+        totalModified: diff.totalModified,
+        totalDeleted: diff.totalDeleted,
+        changes: allChangedTokens.slice(0, 30).map((t) => ({
+          id: `chg_${Math.random().toString(36).substring(2, 9)}`,
+          category: "tokens",
+          action: t.changeType,
+          key: t.key,
+          label: t.name || t.key,
+          oldValue: typeof t.oldValue === "string" ? t.oldValue : JSON.stringify(t.oldValue),
+          newValue: typeof t.newValue === "string" ? t.newValue : JSON.stringify(t.newValue),
+          timestamp: new Date().toISOString(),
+        })),
+      };
 
-            branch.commits = [commit, ...(branch.commits || [])];
+      branch.commits = [commit, ...(branch.commits || [])];
 
-            await saveProjectBranches(orgId, projectId, projectBranches, targetBranchName);
-          }
-
-          // Always maintain project rawTokens for default/main compatibility
-          if (targetBranchName === "main" || !projectBranches.length) {
-            await saveProjectTokens(orgId, projectId, mergedDoc);
-          }
-        }
-      } catch (err) {
-        console.warn("Error saving project tokens:", err);
+      try {
+        const shouldUpdateRootTokens = targetBranchName === "main" || projectBranches.length === 0;
+        await saveProjectTokensAndBranches(
+          orgId,
+          projectId,
+          shouldUpdateRootTokens ? mergedDoc : undefined,
+          shouldUpdateRootTokens ? extractThemeGroups(mergedDoc) : undefined,
+          projectBranches,
+          targetBranchName
+        );
+      } catch (persistErr: any) {
+        console.error("Error persisting project tokens:", persistErr);
+        return jsonWithCors(
+          {
+            success: false,
+            code: "persist_failed",
+            error: "Failed to persist tokens to the database. Please retry.",
+            ...(figmaVariablesSaved !== undefined ? { figmaVariablesSaved } : {}),
+          },
+          { status: 500 }
+        );
       }
     }
 
@@ -398,6 +436,7 @@ export async function POST(req: NextRequest) {
       hasChanges: diff.hasChanges || !hasExistingTokens,
       changedCount: hasExistingTokens ? totalChanges : resolved.length,
       totalTokens: resolved.length,
+      ...(figmaVariablesSaved !== undefined ? { figmaVariablesSaved } : {}),
       diffSummary: {
         added: diff.totalAdded,
         modified: diff.totalModified,

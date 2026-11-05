@@ -527,7 +527,16 @@ export const App: React.FC = () => {
         throw new Error(errData.error || `HTTP ${res.status}: Failed to fetch tokens`);
       }
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        if (data.code === "conflict" || res.status === 409) {
+          throw new Error(data.error || "Conflict: Cloud tokens were updated concurrently. Pull latest tokens and retry.");
+        }
+        if (data.code === "persist_failed") {
+          throw new Error(data.error || "Could not save tokens to the cloud database. Please retry.");
+        }
+        throw new Error(data.error || "Failed to push tokens to Studio");
+      }
       if (data.success) {
         setIsOffline(false);
         setErrorBanner(null);
@@ -614,7 +623,16 @@ export const App: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        if (data.code === "conflict" || res.status === 409) {
+          throw new Error(data.error || "Conflict: Cloud tokens were updated concurrently. Pull latest tokens and retry.");
+        }
+        if (data.code === "persist_failed") {
+          throw new Error(data.error || "Could not save tokens to the cloud database. Please retry.");
+        }
+        throw new Error(data.error || "Failed to push tokens to Studio");
+      }
       if (data.success) {
         parent.postMessage(
           {

@@ -3,7 +3,8 @@ import {
   isR2Configured,
   deleteAssets as r2DeleteAssets,
   loadMetadataIndex,
-  uploadMetadataIndex,
+  updateMetadataIndex,
+  MetadataConflictError,
   buildAssetKey,
   extensionFromContentType,
 } from "@/lib/r2";
@@ -14,14 +15,8 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/assets/delete
  *
- * Deletes one or more assets from R2 and updates the project metadata index.
- *
- * Request body (JSON):
- * {
- *   orgId: string;
- *   projectId: string;
- *   assetIds: string[];        // Array of asset IDs to delete
- * }
+ * Deletes one or more assets from R2 and updates the project metadata index
+ * using conditional ETag writes to prevent concurrent lost updates.
  */
 export async function POST(req: NextRequest) {
   if (!isR2Configured) {
@@ -71,10 +66,11 @@ export async function POST(req: NextRequest) {
     // Delete from R2
     await r2DeleteAssets(keysToDelete);
 
-    // Update metadata index — remove deleted assets
+    // Update metadata index conditionally — remove deleted assets without clobbering concurrent edits
     const deleteSet = new Set(assetIds);
-    const updatedMetadata = currentMetadata.filter((a) => !deleteSet.has(a.id));
-    await uploadMetadataIndex(orgId, projectId, updatedMetadata);
+    const updatedMetadata = await updateMetadataIndex(orgId, projectId, (items) =>
+      items.filter((a) => !deleteSet.has(a.id))
+    );
 
     return NextResponse.json({
       success: true,
@@ -82,6 +78,12 @@ export async function POST(req: NextRequest) {
       remainingAssets: updatedMetadata.length,
     });
   } catch (err: any) {
+    if (err instanceof MetadataConflictError || err?.statusCode === 409) {
+      return NextResponse.json(
+        { success: false, code: "metadata_conflict", error: err.message || "Asset index is busy, please retry." },
+        { status: 409 }
+      );
+    }
     console.error("R2 delete error:", err);
     return NextResponse.json(
       { success: false, error: err.message || "Failed to delete assets from R2." },

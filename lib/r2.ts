@@ -45,8 +45,14 @@ export const isR2Configured =
 // ---------------------------------------------------------------------------
 
 let _client: S3Client | null = null;
+let _testClientOverride: Pick<S3Client, "send"> | null = null;
 
-function getClient(): S3Client {
+export function __setR2ClientForTests(client: Pick<S3Client, "send"> | null): void {
+  _testClientOverride = client;
+}
+
+function getClient(): Pick<S3Client, "send"> {
+  if (_testClientOverride) return _testClientOverride;
   if (!_client) {
     if (!isR2Configured) {
       throw new Error(
@@ -222,38 +228,71 @@ export async function uploadAsset(
 
 import { AssetType, ProjectAsset } from "@/types/tenant";
 
+export interface MetadataWriteOptions {
+  ifMatch?: string;
+  ifNoneMatch?: string;
+}
+
+export class MetadataConflictError extends Error {
+  statusCode = 409;
+  code = "metadata_conflict";
+  constructor(message = "Asset index is busy, please retry") {
+    super(message);
+    this.name = "MetadataConflictError";
+  }
+}
+
+function isPreconditionFailedError(err: any): boolean {
+  const status = err?.$metadata?.httpStatusCode;
+  return (
+    status === 412 ||
+    status === 409 ||
+    err?.name === "PreconditionFailed" ||
+    err?.Code === "PreconditionFailed"
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * Uploads the asset metadata index (lightweight JSON) for a project.
- * Stores the lightweight asset metadata index alongside files in R2.
+ * Uploads the asset metadata index (compact JSON) for a project.
+ * Supports conditional writes via If-Match / If-None-Match to prevent lost updates.
  */
 export async function uploadMetadataIndex(
   orgId: string,
   projectId: string,
-  metadata: ProjectAsset[]
-): Promise<void> {
+  metadata: ProjectAsset[],
+  options?: MetadataWriteOptions
+): Promise<{ etag?: string }> {
   const client = getClient();
   const key = buildMetadataKey(orgId, projectId);
-  const body = JSON.stringify(metadata, null, 2);
+  const body = JSON.stringify(metadata);
 
-  await client.send(
+  const response = await client.send(
     new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
       Body: Buffer.from(body, "utf-8"),
       ContentType: "application/json",
       CacheControl: "no-cache, no-store, must-revalidate",
+      ...(options?.ifMatch ? { IfMatch: options.ifMatch } : {}),
+      ...(options?.ifNoneMatch ? { IfNoneMatch: options.ifNoneMatch } : {}),
     })
   );
+
+  return { etag: response?.ETag };
 }
 
 /**
- * Loads the asset metadata index for a project from R2.
- * Returns an empty array if the metadata file doesn't exist yet.
+ * Loads the asset metadata index and its current ETag for a project from R2.
+ * Returns `{ items: [], etag: undefined }` if the metadata file doesn't exist yet.
  */
-export async function loadMetadataIndex(
+export async function loadMetadataIndexWithEtag(
   orgId: string,
   projectId: string
-): Promise<ProjectAsset[]> {
+): Promise<{ items: ProjectAsset[]; etag?: string }> {
   const client = getClient();
   const key = buildMetadataKey(orgId, projectId);
 
@@ -267,16 +306,71 @@ export async function loadMetadataIndex(
 
     if (response.Body) {
       const bodyStr = await response.Body.transformToString("utf-8");
-      return JSON.parse(bodyStr);
+      const parsed = JSON.parse(bodyStr);
+      return {
+        items: Array.isArray(parsed) ? parsed : [],
+        etag: response.ETag,
+      };
     }
-    return [];
+    return { items: [], etag: response.ETag };
   } catch (err: any) {
     // NoSuchKey = metadata index doesn't exist yet (new project)
     if (err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
-      return [];
+      return { items: [], etag: undefined };
     }
     throw err;
   }
+}
+
+/**
+ * Loads the asset metadata index for a project from R2.
+ * Returns an empty array if the metadata file doesn't exist yet.
+ */
+export async function loadMetadataIndex(
+  orgId: string,
+  projectId: string
+): Promise<ProjectAsset[]> {
+  const { items } = await loadMetadataIndexWithEtag(orgId, projectId);
+  return items;
+}
+
+/**
+ * Atomically reads, mutates, and conditionally writes the project's metadata index
+ * with ETag verification and exponential backoff + jitter on 412 Precondition Failed.
+ */
+export async function updateMetadataIndex(
+  orgId: string,
+  projectId: string,
+  mutate: (items: ProjectAsset[]) => ProjectAsset[],
+  options?: { maxAttempts?: number; backoffBaseMs?: number }
+): Promise<ProjectAsset[]> {
+  const maxAttempts = options?.maxAttempts ?? 5;
+  const backoffBaseMs = options?.backoffBaseMs ?? 50;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { items, etag } = await loadMetadataIndexWithEtag(orgId, projectId);
+    const cloned = items.map((item) => ({ ...item }));
+    const nextItems = mutate(cloned);
+
+    try {
+      await uploadMetadataIndex(
+        orgId,
+        projectId,
+        nextItems,
+        etag ? { ifMatch: etag } : { ifNoneMatch: "*" }
+      );
+      return nextItems;
+    } catch (err: any) {
+      if (!isPreconditionFailedError(err)) {
+        throw err;
+      }
+      if (attempt + 1 < maxAttempts) {
+        await sleep(backoffBaseMs * 2 ** attempt + Math.random() * backoffBaseMs);
+      }
+    }
+  }
+
+  throw new MetadataConflictError("Asset index is busy, please retry");
 }
 
 /**

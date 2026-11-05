@@ -412,9 +412,9 @@ A finding is **Resolved** only when: (1) the fix is merged with tests covering t
 
 | ID | Status | PR / Migration | Verified in prod | Notes |
 |---|---|---|---|---|
-| H1 / A2–A4 | ⬜ Planned | `20261104_invitation_policy_cleanup.sql` + accept route | ⬜ | Data audit + re-issue pending invites |
-| M1 / A5 / P2 | ⬜ Planned | `20261104_api_keys_unique_hash.sql` + auth/cloudStorage | ⬜ | |
-| M2 / A1 | ⬜ Planned | service + `v1/tokens` route (+ `version` column optional) | ⬜ | |
-| P1 / A7 | ⬜ Planned | `utils/pool.ts` + Figma/upload routes | ⬜ | |
-| M3 | ⬜ Planned | Option B now, Option A later | ⬜ | Confirm R2 conditional writes |
-| P3 / A6 | ⬜ Planned | pairing cleanup + rate limit | ⬜ | |
+| H1 / A2–A4 | ✅ Implemented (2026-11-05) | `20261104_invitation_policy_cleanup.sql` + `accept`/`send` routes + `invitationsAuth.test.ts` | ⬜ Pending prod deploy | Run §R2.3 data audit + re-issue pending invites on deploy |
+| M1 / A5 / P2 | ✅ Implemented (2026-11-05) | `20261104_api_keys_unique_hash.sql` + `utils/auth.ts` + `utils/cloudStorage.ts` + `patAndPairing.test.ts` | ⬜ Pending prod deploy | Indexed `key_hash` lookup; owner-scoped verified delete |
+| M2 / A1 | ✅ Implemented (2026-11-05) | `services/organizationService.ts` + `app/api/v1/tokens/route.ts` + `tokensRoute.test.ts` | ⬜ Pending prod deploy | Fail-closed project read + single atomic `saveProjectTokensAndBranches` |
+| P1 / A7 | ✅ Implemented (2026-11-05) | `utils/pool.ts` + Figma/upload/git routes + `pool.test.ts` + `figmaRoutes.test.ts` | ⬜ Pending prod deploy | Bounded concurrency, deadlines, 429 retry, payload cap |
+| M3 | ✅ Implemented (2026-11-05) | `lib/r2.ts` + asset routes + `20261104_project_assets_table.sql` + `r2MetadataConcurrency.test.ts` | ⬜ Pending prod deploy | Option B conditional ETag writes active; Option A table migration added |
+| P3 / A6 | ✅ Implemented (2026-11-05) | `app/api/v1/auth/pair/route.ts` + `pair/cleanup/route.ts` + `patAndPairing.test.ts` | ⬜ Pending prod deploy | Dynamic origin, rate limit, map pruning, immediate PAT scrub, cron cleanup |

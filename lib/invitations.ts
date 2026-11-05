@@ -33,3 +33,36 @@ export function resolveInviteState(row: InvitationRow): InviteState {
   if (new Date(row.expires_at).getTime() < Date.now()) return "expired";
   return "pending";
 }
+
+export function roleMayGrant(inviterRole: string, invitedRole: string): boolean {
+  if (inviterRole === "owner") return true;
+  if (inviterRole === "admin") return invitedRole !== "owner" && ["admin", "editor", "viewer"].includes(invitedRole);
+  if (inviterRole === "editor") return invitedRole === "editor" || invitedRole === "viewer";
+  return false;
+}
+
+export async function inviterMayGrant(
+  admin: ReturnType<typeof createAdminClient>,
+  orgId: string,
+  inviterUid: string,
+  role: string
+): Promise<boolean> {
+  if (!orgId || !inviterUid || !role) return false;
+  const { data: org, error: orgErr } = await admin
+    .from("organizations")
+    .select("owner_uid")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (orgErr) throw orgErr;
+  if (org?.owner_uid === inviterUid) return roleMayGrant("owner", role);
+
+  const { data: m, error: memberErr } = await admin
+    .from("organization_members")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", inviterUid)
+    .maybeSingle();
+  if (memberErr) throw memberErr;
+  if (!m?.role) return false;
+  return roleMayGrant(m.role, role);
+}

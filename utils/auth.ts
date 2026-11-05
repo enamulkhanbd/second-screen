@@ -1,6 +1,7 @@
+import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { ApiKeyRecord, validateApiKey } from "@/utils/patAuth";
-import { getStoredApiKeys } from "@/utils/cloudStorage";
+import { findApiKeyByHash, getStoredApiKeysLegacy } from "@/utils/cloudStorage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -19,8 +20,20 @@ export async function authenticateRequest(
   const authorization = req.headers.get("authorization");
   if (authorization?.match(/^Bearer\s+/i)) {
     const token = authorization.replace(/^Bearer\s+/i, "").trim();
-    const storedKeys = await getStoredApiKeys();
-    const result = validateApiKey(token, storedKeys, requiredScope);
+    if (!token || !token.startsWith("sec_pat_")) {
+      return validateApiKey(token, [], requiredScope);
+    }
+
+    let candidateRecords: ApiKeyRecord[] = [];
+    if (process.env.API_KEY_LOOKUP === "legacy") {
+      candidateRecords = await getStoredApiKeysLegacy();
+    } else {
+      const hash = crypto.createHash("sha256").update(token).digest("hex");
+      const matched = await findApiKeyByHash(hash);
+      if (matched) candidateRecords = [matched];
+    }
+
+    const result = validateApiKey(token, candidateRecords, requiredScope);
     if (result.isValid && !result.record?.uid) {
       return { isValid: false, error: "This API key must be reissued with an authenticated owner." };
     }
