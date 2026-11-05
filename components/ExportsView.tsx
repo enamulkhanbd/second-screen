@@ -16,7 +16,6 @@ import {
   ArrowLeft,
   FileCode,
 } from "lucide-react";
-import JSZip from "jszip";
 
 export const ExportsView: React.FC = () => {
   const {
@@ -67,6 +66,7 @@ export const ExportsView: React.FC = () => {
 
   const handleDownloadAllZip = async (files: GeneratedExportFile[], zipName: string) => {
     try {
+      const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       files.forEach((file) => {
         zip.file(file.path, file.content);

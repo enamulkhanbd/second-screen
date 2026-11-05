@@ -682,7 +682,7 @@ export async function getUploadPresignedUrl(
     ContentType: contentType,
   });
 
-  const presignedUrl = await getSignedUrl(client, command, {
+  const presignedUrl = await getSignedUrl(client as any, command, {
     expiresIn: expiresInSeconds,
   });
 
@@ -706,7 +706,7 @@ export async function getDownloadPresignedUrl(
     Key: key,
   });
 
-  return await getSignedUrl(client, command, {
+  return await getSignedUrl(client as any, command, {
     expiresIn: expiresInSeconds,
   });
 }

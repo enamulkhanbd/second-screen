@@ -12,7 +12,6 @@ import { UploadAssetsModal } from "@/components/assets/UploadAssetsModal";
 import { AssetListView } from "@/components/assets/AssetListView";
 import { AssetDetailStudio } from "@/components/assets/studio/AssetDetailStudio";
 
-import JSZip from "jszip";
 import {
   Image as ImageIcon,
   Search,
@@ -1164,15 +1163,16 @@ export const AssetsWorkspace: React.FC = () => {
 
       if (lower.endsWith(".zip")) {
         try {
+          const JSZip = (await import("jszip")).default;
           const zip = await JSZip.loadAsync(file);
           const zipEntries: Array<Promise<void>> = [];
 
-          zip.forEach((path, entry) => {
+          zip.forEach((path: string, entry: any) => {
             if (!entry.dir) {
               const entryLower = path.toLowerCase();
               if (entryLower.endsWith(".json") || entryLower.endsWith(".svg")) {
                 zipEntries.push(
-                  entry.async("text").then((text) => {
+                  entry.async("text").then((text: string) => {
                     rawFiles.push({ path, content: text, isBinary: false, contentType: entryLower.endsWith(".svg") ? "image/svg+xml" : "application/json" });
                   })
                 );
@@ -1814,7 +1814,7 @@ export const AssetsWorkspace: React.FC = () => {
     if (targetAssets.length === 0) return;
 
     try {
-      const zip = new JSZip();
+      const zip = new ((await import("jszip")).default)();
       const filePromises = targetAssets.map(async (asset) => {
         const typeFolder = asset.type || "general";
         const catFolder = asset.category || "general";

@@ -1,8 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, authorizeProjectRequest } from "@/utils/auth";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { extractThemeGroups, getThemesArray, getMetadataObject } from "@/utils/themeHelpers";
-import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
+import { jsonWithCors, handleOptionsCors, corsHeaders } from "@/utils/cors";
 import {
   getOrgProjectSummaries,
   getProject,
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     if (!orgId || !projectId) {
       return jsonWithCors({ success: false, error: "Both orgId and projectId are required." }, { status: 400 });
     }
-    const access = await authorizeProjectRequest(req, orgId, projectId, "read");
+    const access = await authorizeProjectRequest(req, orgId, projectId, "read", auth.record);
     if (!access.authorized) {
       return jsonWithCors({ success: false, error: access.error }, { status: access.status });
     }
@@ -124,6 +124,18 @@ export async function GET(req: NextRequest) {
       availableBranches = [{ name: gitBranch, title: gitBranch, isDefault: true }];
     }
 
+    const etag = `W/"${projectId}:${proj.updatedAt || "0"}:${currentBranchName}"`;
+    const ifNoneMatch = req.headers.get("if-none-match");
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ...corsHeaders,
+          ETag: etag,
+        },
+      });
+    }
+
     if (Object.keys(targetDoc).length === 0 && proj.rawTokens && Object.keys(proj.rawTokens).length > 0) {
       targetDoc = proj.rawTokens;
     }
@@ -139,22 +151,29 @@ export async function GET(req: NextRequest) {
     const themes = getThemesArray(targetDoc);
     const metadata = getMetadataObject(targetDoc) || {};
 
-    return jsonWithCors({
-      success: true,
-      authenticatedAs: auth.record.name,
-      orgId: orgId || undefined,
-      projectId: projectId || undefined,
-      branch: currentBranchName,
-      availableBranches: availableBranches.length > 0 ? availableBranches : undefined,
-      version: "1.0.0",
-      rawTokens: targetDoc,
-      figmaVariables,
-      figmaUpdatedAt,
-      resolvedTokens,
-      themeGroups,
-      themes,
-      metadata,
-    });
+    return jsonWithCors(
+      {
+        success: true,
+        authenticatedAs: auth.record.name,
+        orgId: orgId || undefined,
+        projectId: projectId || undefined,
+        branch: currentBranchName,
+        availableBranches: availableBranches.length > 0 ? availableBranches : undefined,
+        version: "1.0.0",
+        rawTokens: targetDoc,
+        figmaVariables,
+        figmaUpdatedAt,
+        resolvedTokens,
+        themeGroups,
+        themes,
+        metadata,
+      },
+      {
+        headers: {
+          ETag: etag,
+        },
+      }
+    );
   } catch (err: any) {
     return jsonWithCors({ success: false, error: err.message }, { status: 500 });
   }
@@ -231,7 +250,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const access = await authorizeProjectRequest(req, orgId, projectId, "write");
+    const access = await authorizeProjectRequest(req, orgId, projectId, "write", auth.record);
     if (!access.authorized) {
       return jsonWithCors({ success: false, error: access.error }, { status: access.status });
     }

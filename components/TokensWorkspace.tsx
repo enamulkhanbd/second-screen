@@ -96,6 +96,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     updateSingleToken,
     updateTokensBatch,
     deleteTokensBatch,
+    duplicateTokensBatch,
+    moveTokensBatch,
     updateSetJson,
     renameSet,
     deleteSet,
@@ -119,6 +121,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
       updateSingleToken: state.updateSingleToken,
       updateTokensBatch: state.updateTokensBatch,
       deleteTokensBatch: state.deleteTokensBatch,
+      duplicateTokensBatch: state.duplicateTokensBatch,
+      moveTokensBatch: state.moveTokensBatch,
       updateSetJson: state.updateSetJson,
       renameSet: state.renameSet,
       deleteSet: state.deleteSet,
@@ -492,9 +496,17 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkDuplicate = () => {
-    selectedTokensList.forEach((token) => {
-      duplicateToken(token.setName, token.name.split("."), `${token.name}-copy`);
+    const items = selectedTokensList.map((token) => {
+      const segs = token.name.split(".");
+      const lastSeg = segs[segs.length - 1];
+      const newPath = [...segs.slice(0, -1), `${lastSeg}-copy`];
+      return {
+        setName: token.setName,
+        tokenPath: segs,
+        newPath,
+      };
     });
+    duplicateTokensBatch(items);
     setSelectedTokenIds(new Set());
     addToast({
       type: "success",
@@ -559,16 +571,17 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkMoveTo = (targetSet: string) => {
-    selectedTokensList.forEach((token) => {
-      // Add to target set
-      addNewToken(targetSet, token.name.split("."), {
+    const items = selectedTokensList.map((token) => ({
+      sourceSet: token.setName,
+      targetSet,
+      tokenPath: token.name.split("."),
+      tokenLeaf: {
         value: token.rawValue,
         type: token.type,
         description: token.description,
-      });
-      // Delete from old set
-      deleteToken(token.setName, token.name.split("."));
-    });
+      },
+    }));
+    moveTokensBatch(items);
     setSelectedTokenIds(new Set());
     addToast({
       type: "success",

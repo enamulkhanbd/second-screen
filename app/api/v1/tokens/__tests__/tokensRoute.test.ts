@@ -38,7 +38,7 @@ vi.mock("@/services/organizationService", () => ({
         ],
 }));
 
-import { POST as tokensPostRoute } from "../route";
+import { POST as tokensPostRoute, GET as tokensGetRoute } from "../route";
 
 function makePushRequest(body: Record<string, any>) {
   return new NextRequest(
@@ -184,6 +184,75 @@ describe("M2 / A1 / R4 — POST /api/v1/tokens fail-closed read and atomic write
     expect(body.success).toBe(true);
     expect(body.changedCount).toBe(1);
     expect(mockSaveProjectTokensAndBranches).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("B1 / B3 — GET /api/v1/tokens performance, auth deduplication, and ETag caching", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthenticateRequest.mockResolvedValue({
+      isValid: true,
+      record: {
+        name: "Test Developer",
+        uid: "user_owner_1",
+        orgId: "org_1",
+        projectId: "proj_1",
+        scopes: ["read:tokens"],
+      },
+    });
+    mockAuthorizeProjectRequest.mockResolvedValue({
+      authorized: true,
+      role: "owner",
+    });
+    mockGetProject.mockResolvedValue({
+      id: "proj_1",
+      orgId: "org_1",
+      activeBranch: "main",
+      updatedAt: "2026-11-05T12:00:00.000Z",
+      rawTokens: {
+        core: { primary: { value: "#112233", type: "color" } },
+      },
+      branches: [
+        {
+          name: "main",
+          title: "Main",
+          rawTokens: {
+            core: { primary: { value: "#112233", type: "color" } },
+          },
+        },
+      ],
+    });
+  });
+
+  it("passes auth.record to authorizeProjectRequest to prevent duplicate authentication", async () => {
+    const req = new NextRequest("https://app.example.com/api/v1/tokens?orgId=org_1&projectId=proj_1&branch=main", {
+      headers: { authorization: "Bearer sec_pat_live_test" },
+    });
+
+    const res = await tokensGetRoute(req);
+    expect(res.status).toBe(200);
+    expect(mockAuthenticateRequest).toHaveBeenCalledTimes(1);
+    expect(mockAuthorizeProjectRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      "org_1",
+      "proj_1",
+      "read",
+      expect.objectContaining({ name: "Test Developer" })
+    );
+  });
+
+  it("returns 304 Not Modified when client provides matching ETag in If-None-Match header", async () => {
+    const etag = 'W/"proj_1:2026-11-05T12:00:00.000Z:main"';
+    const req = new NextRequest("https://app.example.com/api/v1/tokens?orgId=org_1&projectId=proj_1&branch=main", {
+      headers: {
+        authorization: "Bearer sec_pat_live_test",
+        "if-none-match": etag,
+      },
+    });
+
+    const res = await tokensGetRoute(req);
+    expect(res.status).toBe(304);
+    expect(res.headers.get("etag")).toBe(etag);
   });
 });
 

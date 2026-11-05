@@ -1505,7 +1505,7 @@ export const SCHEMA_CATALOG: SchemaItem[] = [
   },
 ];
 
-export const DEFAULT_ENABLED_SCHEMA_IDS = SCHEMA_CATALOG.filter((s) => s.isCoreDefault).map((s) => s.id);
+export { DEFAULT_ENABLED_SCHEMA_IDS } from "./schemaIds";
 
 
 // In-memory lookup indices for O(1) resolution

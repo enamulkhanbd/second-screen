@@ -77,12 +77,15 @@ export async function authorizeProjectRequest(
   req: NextRequest,
   orgId: string,
   projectId: string,
-  permission: "read" | "write"
+  permission: "read" | "write",
+  preAuthRecord?: ApiKeyRecord
 ): Promise<
   | { authorized: true; record: ApiKeyRecord; role: string }
   | { authorized: false; status: number; error: string }
 > {
-  const auth = await authenticateRequest(req, permission === "read" ? "read:tokens" : "write:tokens");
+  const auth = preAuthRecord
+    ? { isValid: true, record: preAuthRecord, error: undefined }
+    : await authenticateRequest(req, permission === "read" ? "read:tokens" : "write:tokens");
   if (!auth.isValid || !auth.record) {
     return { authorized: false, status: 401, error: auth.error || "Unauthorized" };
   }

@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import { FlattenedToken, RawTokensDocument, ThemeGroup, TokenType } from "@/types/tokens";
 import {
   CssExportConfig,
@@ -806,6 +805,7 @@ export function generateFigmaVariablesExportFiles(
 // ============================================================================
 
 export async function downloadExportZip(files: GeneratedExportFile[], zipFilename: string): Promise<void> {
+  const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
 
   files.forEach((f) => {

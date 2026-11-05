@@ -1444,10 +1444,13 @@ export async function saveProjectTokensAndBranches(
   rawTokens: RawTokensDocument | undefined,
   themeGroups: ThemeGroup[] | undefined,
   branches: ProjectBranch[],
-  activeBranch?: string
+  activeBranch?: string,
+  options?: { invalidateMetadata?: boolean }
 ): Promise<void> {
   if (!orgId || !projectId || !isSupabaseConfigured) return;
-  invalidateMetadataCache();
+  if (options?.invalidateMetadata) {
+    invalidateMetadataCache();
+  }
   const client = getClient();
   const updates: Record<string, any> = {
     branches,
