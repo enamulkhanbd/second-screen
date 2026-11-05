@@ -340,7 +340,7 @@ export async function POST(req: NextRequest) {
         cache: "no-store",
         signal: AbortSignal.timeout(20000),
       });
-      treePromise.catch(() => {});
+      treePromise.catch(() => { });
 
       const clientSha = (rawCreds as { lastCommitSha?: unknown }).lastCommitSha;
       if (typeof clientSha === "string" && clientSha) {
@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
         try {
           const errObj = JSON.parse(errorText);
           parsedMessage = errObj.message || parsedMessage;
-        } catch {}
+        } catch { }
 
         if (treeRes.status === 404) {
           // Check whether the repo itself exists to provide a specific, actionable error
@@ -385,7 +385,7 @@ export async function POST(req: NextRequest) {
                 { status: 404 }
               );
             }
-          } catch {}
+          } catch { }
 
           return NextResponse.json(
             {

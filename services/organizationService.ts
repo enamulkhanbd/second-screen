@@ -79,22 +79,22 @@ function mapDbProjectToProject(row: any, integration?: any): Project {
       integration?.git_config && Object.keys(integration.git_config).length > 0
         ? integration.git_config
         : row.git_config && Object.keys(row.git_config).length > 0
-        ? row.git_config
-        : row.credentials && Object.keys(row.credentials).length > 0
-        ? row.credentials
-        : null,
+          ? row.git_config
+          : row.credentials && Object.keys(row.credentials).length > 0
+            ? row.credentials
+            : null,
     assetGitConfig:
       integration?.asset_git_config && Object.keys(integration.asset_git_config).length > 0
         ? integration.asset_git_config
         : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
-        ? row.asset_git_config
-        : null,
+          ? row.asset_git_config
+          : null,
     assetFigmaConfig:
       integration?.asset_figma_config && Object.keys(integration.asset_figma_config).length > 0
         ? integration.asset_figma_config
         : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
-        ? row.asset_figma_config
-        : null,
+          ? row.asset_figma_config
+          : null,
     figmaVariables: row.figma_variables || {},
     documentation: row.documentation || null,
     assets: extra.assets || [],
@@ -196,8 +196,8 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
           .update({ user_id: uid })
           .eq("email", cleanEmail)
           .neq("user_id", uid)
-          .then(() => {})
-          .catch(() => {});
+          .then(() => { })
+          .catch(() => { });
       }
 
       if (!uid && memberOrgIds.length === 0) {
@@ -336,7 +336,7 @@ export async function checkOrganizationNameAvailable(
           }
         }
       }
-    } catch {}
+    } catch { }
   }
 
   return { available: true };
@@ -829,7 +829,7 @@ export function safeSetCachedProjects(orgId: string, projs: Project[]): void {
     } catch {
       try {
         localStorage.removeItem(cacheKey);
-      } catch {}
+      } catch { }
     }
   }
 }
@@ -915,22 +915,22 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
               integ?.git_config && Object.keys(integ.git_config).length > 0
                 ? integ.git_config
                 : row.git_config && Object.keys(row.git_config).length > 0
-                ? row.git_config
-                : row.credentials && Object.keys(row.credentials).length > 0
-                ? row.credentials
-                : null;
+                  ? row.git_config
+                  : row.credentials && Object.keys(row.credentials).length > 0
+                    ? row.credentials
+                    : null;
             const assetGitConfig =
               integ?.asset_git_config && Object.keys(integ.asset_git_config).length > 0
                 ? integ.asset_git_config
                 : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
-                ? row.asset_git_config
-                : null;
+                  ? row.asset_git_config
+                  : null;
             const assetFigmaConfig =
               integ?.asset_figma_config && Object.keys(integ.asset_figma_config).length > 0
                 ? integ.asset_figma_config
                 : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
-                ? row.asset_figma_config
-                : null;
+                  ? row.asset_figma_config
+                  : null;
 
             return {
               id: row.id,
@@ -967,7 +967,7 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) return parsed;
         }
-      } catch {}
+      } catch { }
     }
 
     return [];
@@ -1047,7 +1047,7 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
             return parsed;
           }
         }
-      } catch {}
+      } catch { }
     }
 
     return [];
@@ -1114,7 +1114,7 @@ export async function checkProjectNameAvailable(
           }
         }
       }
-    } catch {}
+    } catch { }
   }
 
   return { available: true };
@@ -1238,7 +1238,7 @@ export async function createProject(
       const list: Project[] = existing ? JSON.parse(existing) : [];
       const updated = [...list.filter((p) => p.id !== projId), newProject];
       safeSetCachedProjects(orgId, updated);
-    } catch {}
+    } catch { }
   }
 
   return newProject;
@@ -1347,7 +1347,7 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
         const updated = list.filter((p) => p.id !== projectId);
         safeSetCachedProjects(orgId, updated);
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -1398,7 +1398,7 @@ export async function updateProject(
         );
         safeSetCachedProjects(orgId, updated);
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -1504,7 +1504,7 @@ export async function saveProjectGitConfig(
         const p: Project = JSON.parse(existingSingle);
         localStorage.setItem(projKey, JSON.stringify({ ...p, gitConfig, updatedAt: new Date().toISOString() }));
       }
-    } catch {}
+    } catch { }
   }
 
   if (!isSupabaseConfigured) return;
