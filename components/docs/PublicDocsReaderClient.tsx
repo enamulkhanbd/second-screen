@@ -102,7 +102,11 @@ export function PublicDocsReaderClient({
 
   if (!docData || !documentation || publishedPages.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center text-foreground">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center text-foreground focus:outline-none"
+      >
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
           <Lock className="h-6 w-6" />
         </div>
@@ -117,7 +121,7 @@ export function PublicDocsReaderClient({
           <ArrowLeft className="h-4 w-4" />
           <span>Back to App</span>
         </Link>
-      </div>
+      </main>
     );
   }
 

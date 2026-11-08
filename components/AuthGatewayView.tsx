@@ -488,7 +488,7 @@ export const AuthGatewayView: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 px-6 text-center text-xs text-muted-foreground border-t border-border/30 z-10">
+      <footer className="py-4 px-6 text-center text-xs text-foreground/75 bg-background/85 backdrop-blur-sm border-t border-border/30 z-10">
         <div className="flex flex-wrap items-center justify-center gap-4 text-[11px]">
           <span>Protected by Supabase Cloud Authentication</span>
           <span>•</span>
