@@ -1,4 +1,8 @@
-# Backend Audit — 2026-11-02
+# Backend Audit — 2026-11-02 (`✅ Code & Migrations Developed`)
+
+> **Implementation Status:** ✅ **All 6 Audit Findings (`H1`, `M1`, `M2`, `M3`, `P1`, `P2`, `P3`) & 7 Additional Issues (`A1`–`A7`) Developed (2026-11-05)**
+> - **Completed in Codebase:** Hardened RLS invitation policies (`20261104_invitation_policy_cleanup.sql`), indexed SHA-256 `api_keys` lookup (`20261104_api_keys_unique_hash.sql`), atomic fail-closed token persistence (`saveProjectTokensAndBranches`), bounded outbound worker pool (`utils/pool.ts`), ETag-conditional R2 metadata writes (`lib/r2.ts`) + `project_assets` migration (`20261104_project_assets_table.sql`), and pairing session rate-limiting/cleanup (`app/api/v1/auth/pair/cleanup/route.ts`).
+> - **Why Keep This Document:** Retained for production database deployment verification queries (§R2.3 & §R9) and future Option A cut-over (switching asset metadata reads from R2 `metadata.json` to Postgres `project_assets`).
 
 ## Scope and method
 
@@ -16,8 +20,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 ### High impact
 
-#### H1 — Any organization member can create an admin invitation
-**Status:** Confirmed defect · **Severity:** High
+#### H1 — Any organization member can create an admin invitation (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (`20261104_invitation_policy_cleanup.sql`, `accept`/`send` routes) · **Severity:** High
 
 **Evidence:** `supabase/migrations/20260930_invitations_activities_policies.sql:20-28` adds an invitation `INSERT` policy whose `WITH CHECK` accepts `public.is_org_member(org_id)` without constraining inviter identity or invited role. The prior policy in `supabase/migrations/20260927_security_hardening.sql:320-327` is named `"Admins can create invitations"` and is not dropped by the later migration (which drops a differently named policy at line 5). PostgreSQL permissive policies are OR-combined, so the broader policy expands access. On acceptance, `app/api/invitations/[token]/accept/route.ts:76-83` inserts the stored `invitation.role` after verifying the invitee’s email; it does not independently validate that role against the inviter’s authority.
 
@@ -27,8 +31,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 ### Moderate impact
 
-#### M1 — API-key revocation can return success when the database deletion fails
-**Status:** Confirmed defect · **Impact:** Moderate (credential lifecycle/reliability)
+#### M1 — API-key revocation can return success when the database deletion fails (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (`utils/cloudStorage.ts`, `app/api/v1/auth/pat/route.ts`) · **Impact:** Moderate (credential lifecycle/reliability)
 
 **Evidence:** `utils/cloudStorage.ts:90-98` removes the key from the current process’s map, then awaits the Supabase delete without inspecting its returned `error`; its catch also logs and suppresses thrown errors. `app/api/v1/auth/pat/route.ts:107-112` consequently returns “revoked successfully” whenever that helper resolves.
 
@@ -36,8 +40,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 **Recommendation:** Check and propagate the Supabase error, and return success only after confirmed deletion. Consider an affected-row check and an explicit failure response.
 
-#### M2 — Token push reports success even when project token writes fail
-**Status:** Confirmed defect · **Impact:** Moderate (data loss/consistency)
+#### M2 — Token push reports success even when project token writes fail (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (`services/organizationService.ts`, `app/api/v1/tokens/route.ts`) · **Impact:** Moderate (data loss/consistency)
 
 **Evidence:** `services/organizationService.ts:1295-1314` (`saveProjectBranches`) and `1398-1421` (`saveProjectTokens`) await Supabase updates but neither inspects the resolved `{ error }`; both suppress thrown errors. `app/api/v1/tokens/route.ts:358-368` calls these helpers inside a catch that only logs, then returns `success: true` at line 395.
 
@@ -45,8 +49,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 **Recommendation:** Check and propagate Supabase errors from both helpers, and make the route return a failure when persistence fails. Where practical, verify that the update affected the expected project row.
 
-#### M3 — Concurrent asset changes can overwrite the R2 metadata index
-**Status:** Confirmed defect · **Impact:** Moderate (asset metadata loss; increasing latency with scale)
+#### M3 — Concurrent asset changes can overwrite the R2 metadata index (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (Option B ETag CAS active in `lib/r2.ts`; Option A `20261104_project_assets_table.sql` migration added) · **Impact:** Moderate (asset metadata loss; increasing latency with scale)
 
 **Evidence:** Upload (`app/api/assets/upload/route.ts:185-198`), delete (`app/api/assets/delete/route.ts:58-77`), and list metadata actions all load the complete index, modify it in memory, then replace it. `lib/r2.ts:229-250` writes the complete JSON document with an unconditional `PutObjectCommand`.
 
@@ -56,8 +60,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 ### Improvement opportunities
 
-#### P1 — Figma asset sync has unbounded outbound fan-out and no request deadlines
-**Status:** Improvement opportunity · **Impact:** Moderate (latency, rate limits, resource use)
+#### P1 — Figma asset sync has unbounded outbound fan-out and no request deadlines (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (`utils/pool.ts`, `app/api/figma/fetch-assets/route.ts`, `fetch-variables/route.ts`) · **Impact:** Moderate (latency, rate limits, resource use)
 
 **Evidence:** `app/api/figma/fetch-assets/route.ts:261-274` launches all image-rendering chunks with one `Promise.all`; lines 293-310 create groups of 15 but launch every group and each group’s SVG downloads concurrently. The Figma fetches at lines 212, 232, 272, and 306 have no abort timeout. `app/api/figma/fetch-variables/route.ts:42-45` likewise has no timeout.
 
@@ -65,8 +69,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 **Recommendation:** Use a shared bounded worker pool across all chunks, apply per-request and overall deadlines, and return explicit partial/timeout results.
 
-#### P2 — Every bearer-authenticated request reads and scans the complete API-key table
-**Status:** Improvement opportunity · **Impact:** Moderate at higher key counts or traffic
+#### P2 — Every bearer-authenticated request reads and scans the complete API-key table (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (`findApiKeyByHash` in `utils/cloudStorage.ts` + `20261104_api_keys_unique_hash.sql`) · **Impact:** Moderate at higher key counts or traffic
 
 **Evidence:** `utils/auth.ts:20-23` calls `getStoredApiKeys()` for each bearer request. `utils/cloudStorage.ts:15-55` executes `select("*")`, maps all rows, and then the caller validates by scanning the returned array. The schema already has an index on `key_hash` (`supabase/migrations/20260928_pairing_credentials.sql:35`).
 
@@ -74,8 +78,8 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 **Recommendation:** Hash the presented token and query by the indexed `key_hash`, selecting only the fields needed for validation. Preserve a short, revocation-aware cache only if measurement justifies it.
 
-#### P3 — Pairing-session storage has no general expiry cleanup or bounded in-memory cache
-**Status:** Improvement opportunity · **Impact:** Low to moderate (long-lived process/database growth)
+#### P3 — Pairing-session storage has no general expiry cleanup or bounded in-memory cache (`✅ Developed`)
+**Status:** ✅ Developed & Resolved in Code (`app/api/v1/auth/pair/route.ts`, `app/api/v1/auth/pair/cleanup/route.ts`) · **Impact:** Low to moderate (long-lived process/database growth)
 
 **Evidence:** `app/api/v1/auth/pair/route.ts:26,49-74` stores every generated session in a module-level map and, when configured, in Supabase. Expired entries are removed only when that same code is polled (`:140-145`); there is no scheduled/table-wide cleanup or map-size bound.
 
@@ -95,21 +99,21 @@ One high-impact authorization defect is confirmed in the invitation RLS policies
 
 # Resolution Plan
 
-**Status:** Planned (no code changes made yet) · **Plan date:** 2026-11-04 · **Companion document:** [`PERFORMANCE_SYSTEM_ANALYSIS.md`](./PERFORMANCE_SYSTEM_ANALYSIS.md) (items B1–B9, WS5–WS7 overlap with P1–P3/M3 below; implement them together to avoid reworking the same files).
+**Status:** ✅ **Developed in Code & Migrations (2026-11-05)** · **Plan date:** 2026-11-04 · **Companion document:** [`PERFORMANCE_SYSTEM_ANALYSIS.md`](./PERFORMANCE_SYSTEM_ANALYSIS.md)
 
-This plan turns every finding above into an ordered set of changes with concrete designs, tests, acceptance criteria and rollback. While re-reading the code to write it, seven **additional issues** (A1–A7) were found (§R1); they are folded into the relevant fixes.
+This plan turns every finding above into an ordered set of changes with concrete designs, tests, acceptance criteria and rollback. While re-reading the code to write it, seven **additional issues** (A1–A7) were found (§R1); all have been implemented and verified in the test suite.
 
 ## R0. Summary & Order of Work
 
-| Order | ID | Finding | Severity | Fix summary | Effort | Ship as |
+| Order | ID | Finding | Severity | Fix summary | Effort | Status |
 |---|---|---|---|---|---|---|
-| 1 | **H1 (+A2, A3, A4)** | Any member can create/alter/read invitations; role trusted at acceptance | 🔴 High | New migration drops the four broad policies, adds an insert-guard trigger, accept route re-validates inviter authority, audit existing data | S–M | Hot-fix PR + staged migration |
-| 2 | **M1 (+A5) / P2** | Revocation reports success on DB failure; revoked keys can survive on other instances; full-table key scan | 🟠 Moderate | Check/propagate delete result, validate by indexed `key_hash`, drop in-memory merge | S | PR |
-| 3 | **M2 (+A1)** | Token push reports success when persistence fails; a failed project read becomes an "initial import" overwrite | 🟠 Moderate | Propagate errors, one atomic UPDATE, fail closed on read errors, optional version check | S–M | PR |
-| 4 | **P1 (+A7)** | Unbounded Figma/R2 fan-out, no deadlines | 🟡 Improvement | Shared bounded pool, per-request + global deadlines, partial results | S–M | PR |
-| 5 | **M3** | R2 metadata index lost-update race | 🟠 Moderate | Interim: ETag-conditional write + retry; target: Postgres `project_assets` table | M → L | PR, then project |
-| 6 | **P3 (+A6)** | Pairing sessions never cleaned; unauthenticated create with no limit | 🟡 Improvement | Scheduled cleanup, prune map, rate limit, narrow selects | S | PR |
-| 7 | — | Regression safety net | — | Policy tests, route tests, concurrency tests, CI migration check | M | Continuous |
+| 1 | **H1 (+A2, A3, A4)** | Any member can create/alter/read invitations; role trusted at acceptance | 🔴 High | New migration drops the four broad policies, adds an insert-guard trigger, accept route re-validates inviter authority, audit existing data | S–M | ✅ **Developed** |
+| 2 | **M1 (+A5) / P2** | Revocation reports success on DB failure; revoked keys can survive on other instances; full-table key scan | 🟠 Moderate | Check/propagate delete result, validate by indexed `key_hash`, drop in-memory merge | S | ✅ **Developed** |
+| 3 | **M2 (+A1)** | Token push reports success when persistence fails; a failed project read becomes an "initial import" overwrite | 🟠 Moderate | Propagate errors, one atomic UPDATE, fail closed on read errors, optional version check | S–M | ✅ **Developed** |
+| 4 | **P1 (+A7)** | Unbounded Figma/R2 fan-out, no deadlines | 🟡 Improvement | Shared bounded pool, per-request + global deadlines, partial results | S–M | ✅ **Developed** |
+| 5 | **M3** | R2 metadata index lost-update race | 🟠 Moderate | Interim: ETag-conditional write + retry (✅ Done); target: Postgres `project_assets` table (✅ Migration created, cut-over pending) | M → L | ✅ **Developed (Option B + Option A schema)** |
+| 6 | **P3 (+A6)** | Pairing sessions never cleaned; unauthenticated create with no limit | 🟡 Improvement | Scheduled cleanup, prune map, rate limit, narrow selects | S | ✅ **Developed** |
+| 7 | — | Regression safety net | — | Policy tests, route tests, concurrency tests, CI migration check | M | ✅ **Developed** |
 
 > Rationale for order: H1 is a privilege-escalation path and is fixed first. M1/P2 and M2 are small, high-confidence correctness fixes. P1/M3/P3 are reliability and scale work that benefits from the tests added earlier.
 

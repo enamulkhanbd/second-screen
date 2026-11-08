@@ -1,5 +1,7 @@
 # Design System & Tokens Architecture (`DESIGN.md`)
 
+> **Implementation Status:** ✅ **Developed & Active (v1.7.0)** — The 3-tier dark/light surface hierarchy, typography scale, `shadcn/ui` primitives, modal geometry standards, and DTCG 2025.10 token structures defined here are fully implemented across the studio and companion plugin.
+
 This document serves as the foundational design system reference and visual guidelines for the **Second Screen / Tokens Platform** web application, Figma companion plugin, and living documentation ecosystem.
 
 ---

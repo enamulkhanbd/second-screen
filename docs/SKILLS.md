@@ -1,5 +1,7 @@
 # Skills & Operational Workflows (`SKILLS.md`)
 
+> **Implementation Status:** ✅ **Developed & Active (v1.7.0)** — All operational workflows, self-hosted schema registry routes, progressive batching guardrails, Figma companion plugin build pipelines, and multi-tenant safeguards below are active in the codebase.
+
 This guide serves as an operational cheat sheet for human engineers and AI coding agents working on the **Second Screen / Tokens Platform** codebase.
 
 ---

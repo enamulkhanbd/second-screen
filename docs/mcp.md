@@ -1,5 +1,9 @@
 # Model Context Protocol (MCP) Server: Complete Guide, Architecture & Implementation Plan (`mcp.md`)
 
+> **Implementation Status Summary:**
+> - ✅ **Core Platform Services, PAT Auth & Developers UI (80% Foundation):** **Developed & Active** — `components/McpCliView.tsx`, `components/ApiKeysManager.tsx`, `utils/patAuth.ts`, `utils/auth.ts`, `app/api/v1/auth/pat/route.ts`, $O(1)$ Token Engine (`utils/transformTokens.ts`), Multi-Platform Compilers (`utils/exportsCompiler.ts`), WCAG/CVD Engine (`utils/accessibility.ts`), 182 Self-Hosted Schemas (`utils/dtcgSchemaGenerator.ts`), and R2 Asset Services (`lib/r2.ts`) are already 100% implemented.
+> - ⏳ **MCP JSON-RPC Server Backend & 16 Agent Tools (Part 5 Phases 1–6):** **Pending Implementation** — `lib/mcp/*`, `app/api/v1/mcp/route.ts`, `scripts/mcp-server.mjs`, Slug/UUID resolver, and the live MCP connection tester in `McpCliView.tsx` are planned for implementation per Part 5 below.
+
 এই ডকুমেন্টটি **Second Screen / Tokens Platform**-এর জন্য **Model Context Protocol (MCP)**-এর একটি সম্পূর্ণ A-to-Z গাইড এবং ইঞ্জিনিয়ারিং ইমপ্লিমেন্টেশন প্ল্যান। আপনি যদি আগে কখনো MCP ব্যবহার না-ও করে থাকেন, এই ডকুমেন্টটি পড়লে MCP কী, কেন দরকার, আমাদের সিস্টেমে এটি কীভাবে কাজ করবে, আমরা কীভাবে এটি কোডবেসে ইমপ্লিমেন্ট করব এবং ইমপ্লিমেন্টেশনের পর কীভাবে ব্যবহার করবেন—সবকিছু একদম পরিষ্কার বুঝতে পারবেন।
 
 ---
@@ -92,22 +96,22 @@ MCP-তে যোগাযোগের জন্য দুটি প্রধা
 
 আমরা পুরো **Second Screen / Tokens Platform** কোডবেস বিশ্লেষণ করে দেখেছি। সুখবর হলো—আমাদের সিস্টেমের **৮০% কোর লজিক ইতিমধ্যেই অত্যন্ত মজবুতভাবে তৈরি আছে**! নিচে বর্তমান অবস্থা এবং কী কী নতুন যোগ করতে হবে তার বিশ্লেষণ দেওয়া হলো:
 
-### ২.১ আমাদের সিস্টেমে যা যা ইতিমধ্যে প্রস্তুত আছে (Existing Strengths)
+### ২.১ আমাদের সিস্টেমে যা যা ইতিমধ্যে প্রস্তুত আছে (Existing Strengths — `✅ Developed`)
 
-| মডিউল / ফিচার | বর্তমান ফাইল পাথ | কীভাবে MCP-তে কাজে লাগবে? |
-| :--- | :--- | :--- |
-| **Developers UI & PAT Manager** | [`components/McpCliView.tsx`](file:///d:/GitHub/second-screen/components/McpCliView.tsx), [`components/ApiKeysManager.tsx`](file:///d:/GitHub/second-screen/components/ApiKeysManager.tsx) | সাইডবারে `Developers` ট্যাব এবং PAT (`sec_pat_live_*`) জেনারেট করার সম্পূর্ণ UI ইতিমধ্যে তৈরি আছে। |
-| **PAT Auth & RBAC Security** | [`utils/patAuth.ts`](file:///d:/GitHub/second-screen/utils/patAuth.ts), [`utils/auth.ts`](file:///d:/GitHub/second-screen/utils/auth.ts), [`app/api/v1/auth/pat/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/auth/pat/route.ts) | SHA-256 হ্যাশড API Key (`public.api_keys` টেবিলে $O(1)$ লুকআপ), স্কোপ চেকিং (`read:tokens`, `write:tokens`, `manage:releases`) এবং মাল্টি-টেন্যান্ট মেম্বারশিপ ভেরিফিকেশন (`authorizeProjectRequest`) একদম রেডি। |
-| **High-Scale Token Engine** | [`utils/transformTokens.ts`](file:///d:/GitHub/second-screen/utils/transformTokens.ts), [`utils/themeHelpers.ts`](file:///d:/GitHub/second-screen/utils/themeHelpers.ts) | ১৩,০০০+ টোকেনের জন্য $O(1)$ ইন্ডেক্সিং, Alias Resolution (`{colors.brand.500}`), Math Evaluation (`{spacing.sm} * 2`), এবং DTCG 2025.10 পার্সার প্রস্তুত। |
-| **Smart Delta & Branching** | [`utils/tokenDiff.ts`](file:///d:/GitHub/second-screen/utils/tokenDiff.ts), [`app/api/v1/tokens/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/tokens/route.ts) | টোকেন আপডেট করলে কী কী পরিবর্তন হলো (`added`, `modified`, `deleted`) তা বের করে ব্রাঞ্চে অটোমেটিক কমিট হিস্ট্রি সেভ করার লজিক তৈরি আছে। |
-| **Multi-Platform Compilers** | [`utils/exportsCompiler.ts`](file:///d:/GitHub/second-screen/utils/exportsCompiler.ts), [`utils/releaseCompiler.ts`](file:///d:/GitHub/second-screen/utils/releaseCompiler.ts) | টোকেন থেকে সরাসরি CSS Variables, SCSS, Tailwind, React TS, Flutter Dart, SwiftUI, ও Android XML জেনারেট করার ফাংশন রেডি। |
-| **WCAG & CVD Accessibility** | [`utils/accessibility.ts`](file:///d:/GitHub/second-screen/utils/accessibility.ts) | যেকোনো দুটি রঙের মধ্যে WCAG 2.1 AA/AAA কন্ট্রাস্ট রেশিও এবং Color Blindness (Protanopia, Deuteranopia, ইত্যাদি) সিমুলেশন করার ফাংশন তৈরি আছে। |
-| **182 Local Schema Registry** | [`data/schemaCatalog.ts`](file:///d:/GitHub/second-screen/data/schemaCatalog.ts), [`utils/dtcgSchemaGenerator.ts`](file:///d:/GitHub/second-screen/utils/dtcgSchemaGenerator.ts) | ১০০% সেলফ-হোস্টেড DTCG Draft 2020-12 স্কিমা ক্যাটালগ ও ভ্যালিডেটর রেডি। |
-| **Cloudflare R2 Assets** | [`lib/r2.ts`](file:///d:/GitHub/second-screen/lib/r2.ts), [`app/api/assets/list/route.ts`](file:///d:/GitHub/second-screen/app/api/assets/list/route.ts) | প্রজেক্টের ভেক্টর SVG আইকন ও অ্যাসেট লিস্ট এবং কন্টেন্ট ফেচ করার সিস্টেম রেডি। |
+| মডিউল / ফিচার | স্ট্যাটাস | বর্তমান ফাইল পাথ | কীভাবে MCP-তে কাজে লাগবে? |
+| :--- | :--- | :--- | :--- |
+| **Developers UI & PAT Manager** | ✅ **Developed** | [`components/McpCliView.tsx`](file:///d:/GitHub/second-screen/components/McpCliView.tsx), [`components/ApiKeysManager.tsx`](file:///d:/GitHub/second-screen/components/ApiKeysManager.tsx) | সাইডবারে `Developers` ট্যাব এবং PAT (`sec_pat_live_*`) জেনারেট করার সম্পূর্ণ UI ইতিমধ্যে তৈরি আছে। |
+| **PAT Auth & RBAC Security** | ✅ **Developed** | [`utils/patAuth.ts`](file:///d:/GitHub/second-screen/utils/patAuth.ts), [`utils/auth.ts`](file:///d:/GitHub/second-screen/utils/auth.ts), [`app/api/v1/auth/pat/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/auth/pat/route.ts) | SHA-256 হ্যাশড API Key (`public.api_keys` টেবিলে $O(1)$ লুকআপ), স্কোপ চেকিং (`read:tokens`, `write:tokens`, `manage:releases`) এবং মাল্টি-টেন্যান্ট মেম্বারশিপ ভেরিফিকেশন (`authorizeProjectRequest`) একদম রেডি। |
+| **High-Scale Token Engine** | ✅ **Developed** | [`utils/transformTokens.ts`](file:///d:/GitHub/second-screen/utils/transformTokens.ts), [`utils/themeHelpers.ts`](file:///d:/GitHub/second-screen/utils/themeHelpers.ts) | ১৩,০০০+ টোকেনের জন্য $O(1)$ ইন্ডেক্সিং, Alias Resolution (`{colors.brand.500}`), Math Evaluation (`{spacing.sm} * 2`), এবং DTCG 2025.10 পার্সার প্রস্তুত। |
+| **Smart Delta & Branching** | ✅ **Developed** | [`utils/tokenDiff.ts`](file:///d:/GitHub/second-screen/utils/tokenDiff.ts), [`app/api/v1/tokens/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/tokens/route.ts) | টোকেন আপডেট করলে কী কী পরিবর্তন হলো (`added`, `modified`, `deleted`) তা বের করে ব্রাঞ্চে অটোমেটিক কমিট হিস্ট্রি সেভ করার লজিক তৈরি আছে। |
+| **Multi-Platform Compilers** | ✅ **Developed** | [`utils/exportsCompiler.ts`](file:///d:/GitHub/second-screen/utils/exportsCompiler.ts), [`utils/releaseCompiler.ts`](file:///d:/GitHub/second-screen/utils/releaseCompiler.ts) | টোকেন থেকে সরাসরি CSS Variables, SCSS, Tailwind, React TS, Flutter Dart, SwiftUI, ও Android XML জেনারেট করার ফাংশন রেডি। |
+| **WCAG & CVD Accessibility** | ✅ **Developed** | [`utils/accessibility.ts`](file:///d:/GitHub/second-screen/utils/accessibility.ts) | যেকোনো দুটি রঙের মধ্যে WCAG 2.1 AA/AAA কন্ট্রাস্ট রেশিও এবং Color Blindness (Protanopia, Deuteranopia, ইত্যাদি) সিমুলেশন করার ফাংশন তৈরি আছে। |
+| **182 Local Schema Registry** | ✅ **Developed** | [`data/schemaCatalog.ts`](file:///d:/GitHub/second-screen/data/schemaCatalog.ts), [`utils/dtcgSchemaGenerator.ts`](file:///d:/GitHub/second-screen/utils/dtcgSchemaGenerator.ts) | ১০০% সেলফ-হোস্টেড DTCG Draft 2020-12 স্কিমা ক্যাটালগ ও ভ্যালিডেটর রেডি। |
+| **Cloudflare R2 Assets** | ✅ **Developed** | [`lib/r2.ts`](file:///d:/GitHub/second-screen/lib/r2.ts), [`app/api/assets/list/route.ts`](file:///d:/GitHub/second-screen/app/api/assets/list/route.ts) | প্রজেক্টের ভেক্টর SVG আইকন ও অ্যাসেট লিস্ট এবং কন্টেন্ট ফেচ করার সিস্টেম রেডি। |
 
 ---
 
-### ২.২ বর্তমানে কী কী ঘাটতি আছে? (Gap Analysis — What We Need to Build)
+### ২.২ বর্তমানে কী কী ঘাটতি আছে? (Gap Analysis — What We Need to Build — `⏳ Pending Implementation`)
 
 1. **MCP Server Backend নেই**:
    * [`components/McpCliView.tsx`](file:///d:/GitHub/second-screen/components/McpCliView.tsx)-এ বর্তমানে একটি স্ট্যাটিক JSON স্নিপেট দেখানো হচ্ছে (`@tokens-platform/mcp-server`), কিন্তু ব্যাকএন্ডে কোনো `/api/v1/mcp` রাউট বা লোকাল MCP সার্ভার স্ক্রিপ্ট এখনো তৈরি করা হয়নি।
@@ -281,7 +285,7 @@ AI ক্লায়েন্টগুলো চাইলে সরাসরি �
 
 ---
 
-## Part 5: Step-by-Step Implementation Plan (আমরা কীভাবে Implementation করব?)
+## Part 5: Step-by-Step Implementation Plan (আমরা কীভাবে Implementation করব? — `⏳ Pending Implementation`)
 
 এখানে আমাদের কোডবেসে MCP সার্ভার যুক্ত করার সম্পূর্ণ ধাপে ধাপে ইঞ্জিনিয়ারিং প্ল্যান দেওয়া হলো। আমরা আমাদের প্রজেক্টের **৫টি Critical Architectural Rules (`AGENTS.md`)** অক্ষুণ্ণ রেখে এটি বাস্তবায়ন করব।
 
