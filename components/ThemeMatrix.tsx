@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   buildThemeMatrix,
   MatrixRowData,
@@ -178,14 +179,22 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
     activeThemeGroupId,
     activeThemeOptionId,
     activeThemeOptionIds,
-    setActiveThemeOption,
-    updateSingleToken,
-    addThemeOption,
-    deleteThemeGroup,
-    canUserEdit,
-    setSidebarTab,
-    createLightDarkThemes,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      rawTokens: s.rawTokens,
+      themeGroups: s.themeGroups,
+      activeThemeGroupId: s.activeThemeGroupId,
+      activeThemeOptionId: s.activeThemeOptionId,
+      activeThemeOptionIds: s.activeThemeOptionIds,
+    }))
+  );
+  const setActiveThemeOption = useTokenStore((s) => s.setActiveThemeOption);
+  const updateSingleToken = useTokenStore((s) => s.updateSingleToken);
+  const addThemeOption = useTokenStore((s) => s.addThemeOption);
+  const deleteThemeGroup = useTokenStore((s) => s.deleteThemeGroup);
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const setSidebarTab = useTokenStore((s) => s.setSidebarTab);
+  const createLightDarkThemes = useTokenStore((s) => s.createLightDarkThemes);
 
   const isEditable = canUserEdit();
   const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH_SIZE);

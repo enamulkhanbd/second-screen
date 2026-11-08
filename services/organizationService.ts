@@ -1660,35 +1660,47 @@ export async function getPublishedProjectDocs(
   if (!isSupabaseConfigured) return null;
   const client = getClient();
   try {
-    // 1. Try finding org by ID or slug
+    // 1. Try finding org by ID or slug (projected fields)
     const { data: orgData, error: orgErr } = await client
       .from("organizations")
-      .select("*")
+      .select("id, name, slug")
       .or(`id.eq.${orgSlugOrId},slug.eq.${orgSlugOrId}`)
       .maybeSingle();
 
     if (orgErr || !orgData) return null;
 
-    // 2. Query projects in this org
-    const { data: projsData, error: projErr } = await client
-      .from("projects")
-      .select("*")
-      .eq("org_id", orgData.id);
-
-    if (projErr || !projsData) return null;
-
+    // 2. Try direct query for target project by id or slug with projected fields only
     let targetProject: any = null;
-    for (const p of projsData) {
-      const cleanNameSlug = (p.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const docSlug = p.documentation?.publishedUrlSlug;
-      if (
-        p.id === projectSlugOrName ||
-        p.slug === projectSlugOrName ||
-        cleanNameSlug === projectSlugOrName ||
-        docSlug === projectSlugOrName
-      ) {
-        targetProject = p;
-        break;
+    const { data: directProject } = await client
+      .from("projects")
+      .select("id, org_id, name, slug, documentation, raw_tokens, figma_variables, branches, active_branch")
+      .eq("org_id", orgData.id)
+      .or(`id.eq.${projectSlugOrName},slug.eq.${projectSlugOrName}`)
+      .maybeSingle();
+
+    if (directProject) {
+      targetProject = directProject;
+    } else {
+      // 3. Fallback: query lightweight metadata (no heavy raw_tokens/figma_variables)
+      const { data: projsMeta } = await client
+        .from("projects")
+        .select("id, name, slug, documentation")
+        .eq("org_id", orgData.id);
+
+      if (projsMeta && projsMeta.length > 0) {
+        for (const p of projsMeta) {
+          const cleanNameSlug = (p.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+          const docSlug = (p.documentation as any)?.publishedUrlSlug;
+          if (cleanNameSlug === projectSlugOrName || docSlug === projectSlugOrName) {
+            const { data: fullProj } = await client
+              .from("projects")
+              .select("id, org_id, name, slug, documentation, raw_tokens, figma_variables, branches, active_branch")
+              .eq("id", p.id)
+              .maybeSingle();
+            targetProject = fullProj;
+            break;
+          }
+        }
       }
     }
 

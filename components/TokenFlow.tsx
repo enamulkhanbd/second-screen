@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   buildTokenFlowGraph,
   traceTokenDependencies,
@@ -48,9 +49,16 @@ export const TokenFlow: React.FC = () => {
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
-    setActiveThemeOption,
-    updateSingleToken,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      rawTokens: s.rawTokens,
+      themeGroups: s.themeGroups,
+      activeThemeGroupId: s.activeThemeGroupId,
+      activeThemeOptionId: s.activeThemeOptionId,
+    }))
+  );
+  const setActiveThemeOption = useTokenStore((s) => s.setActiveThemeOption);
+  const updateSingleToken = useTokenStore((s) => s.updateSingleToken);
 
   const [searchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<"all" | TokenCategory>("all");
@@ -243,7 +251,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
   onSelectToken,
   onUpdateToken,
 }) => {
-  const { focusTokenInMatrix } = useTokenStore();
+  const focusTokenInMatrix = useTokenStore((s) => s.focusTokenInMatrix);
   const [val, setVal] = useState(token.rawValue);
 
   React.useEffect(() => {

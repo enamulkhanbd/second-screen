@@ -35,6 +35,7 @@ import {
   deleteTokenAtKeyPath,
   createEmptyTokenSet,
   deleteTokenSet,
+  patchResolvedTokensIncremental,
 } from "@/utils/transformTokens";
 import {
   compileCssVariables,
@@ -473,10 +474,11 @@ function resolveTokensWithActiveThemes(
   doc: RawTokensDocument,
   activeSet: string,
   themeGroups: ThemeGroup[],
-  activeThemeOptionIds: Record<string, string>
+  activeThemeOptionIds: Record<string, string>,
+  options?: { sort?: boolean }
 ): FlattenedToken[] {
   const themeConfig = getActiveThemeSets(themeGroups, activeThemeOptionIds, doc);
-  return flattenAndResolveTokens(doc, activeSet, themeConfig);
+  return flattenAndResolveTokens(doc, activeSet, themeConfig, options);
 }
 
 // Client-side in-memory SWR cache for project assets & configuration (0ms reloads)
@@ -4662,10 +4664,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       return;
     }
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
     const updatedGroups = extractThemeGroups(updatedRaw);
-    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
+    const themeConfig = getActiveThemeSets(updatedGroups, activeThemeOptionIds, updatedRaw);
+    let updatedResolved = patchResolvedTokensIncremental(resolvedTokens, updatedRaw, path, themeConfig);
+    if (!updatedResolved) {
+      updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds, { sort: false });
+    }
 
     set({
       rawTokens: updatedRaw,
@@ -4701,13 +4707,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
     if (!entries || entries.length === 0) return;
 
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     let updatedRaw = rawTokens;
     for (const entry of entries) {
       updatedRaw = setTokenAtKeyPath(updatedRaw, entry.path, entry.newValue);
     }
     const updatedGroups = extractThemeGroups(updatedRaw);
-    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds, { sort: false });
 
     set({
       rawTokens: updatedRaw,
@@ -4735,13 +4741,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       return;
     }
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     const updatedRaw = {
       ...rawTokens,
       [setName]: newJsonContent,
     };
     const updatedGroups = extractThemeGroups(updatedRaw);
-    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds, { sort: false });
 
     set({
       rawTokens: updatedRaw,
@@ -5505,7 +5511,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
     if (!items || items.length === 0) return;
 
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     let updatedRawDoc = rawTokens;
 
     for (const item of items) {
@@ -5551,7 +5557,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
     if (!items || items.length === 0) return;
 
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     let updatedRawDoc = rawTokens;
 
     for (const item of items) {

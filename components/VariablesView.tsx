@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import { FlattenedToken, TokenType } from "@/types/tokens";
 import {
   Layers,
@@ -77,15 +78,24 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
     figmaVariables,
     figmaResolvedVariables,
     figmaUpdatedAt,
-    setFigmaVariables,
-    desyncFigmaVariablesAction,
-    deleteFigmaVariableAction,
-    deleteFigmaCollectionAction,
-    canUserEdit,
-    addToast,
-    setSidebarTab,
-    setProjectSettingsTab,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      currentOrg: s.currentOrg,
+      currentProject: s.currentProject,
+      figmaVariables: s.figmaVariables,
+      figmaResolvedVariables: s.figmaResolvedVariables,
+      figmaUpdatedAt: s.figmaUpdatedAt,
+    }))
+  );
+  const setFigmaVariables = useTokenStore((s) => s.setFigmaVariables);
+  const desyncFigmaVariablesAction = useTokenStore((s) => s.desyncFigmaVariablesAction);
+  const deleteFigmaVariableAction = useTokenStore((s) => s.deleteFigmaVariableAction);
+  const deleteFigmaCollectionAction = useTokenStore((s) => s.deleteFigmaCollectionAction);
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const addToast = useTokenStore((s) => s.addToast);
+  const setSidebarTab = useTokenStore((s) => s.setSidebarTab);
+  const setProjectSettingsTab = useTokenStore((s) => s.setProjectSettingsTab);
+  const [visibleCount, setVisibleCount] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
@@ -94,6 +104,10 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [sortField, setSortField] = useState<"name" | "resolved" | "collection">("resolved");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setVisibleCount(100);
+  }, [searchQuery, selectedCollection, selectedType]);
 
   const handleSortToggle = (field: "name" | "resolved" | "collection") => {
     if (sortField === field) {
@@ -579,7 +593,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
             ) : viewLayout === "grid" ? (
               /* GRID VIEW */
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                {sortedVariables.map((item) => {
+                {sortedVariables.slice(0, visibleCount).map((item) => {
                   const isColor = item.type === "color";
                   const isCopied = copiedId === item.id;
 
@@ -787,7 +801,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
-                    {sortedVariables.map((item) => {
+                    {sortedVariables.slice(0, visibleCount).map((item) => {
                       const isColor = item.type === "color";
 
                       return (
@@ -891,6 +905,18 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {sortedVariables.length > visibleCount && (
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
+                <span>Showing {Math.min(visibleCount, sortedVariables.length)} of {sortedVariables.length} variables</span>
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => Math.min(prev + 100, sortedVariables.length))}
+                  className="rounded px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors border border-border/50"
+                >
+                  Load more (+100)
+                </button>
               </div>
             )}
           </div>

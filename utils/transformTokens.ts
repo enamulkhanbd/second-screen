@@ -321,6 +321,75 @@ export function compareTokens<T extends { name: string; resolvedValue?: any; raw
   return compareTokenNames(a.name, b.name, dir);
 }
 
+/**
+ * Fast Schwartzian transform sorter for FlattenedToken arrays.
+ * Precomputes sortable values and regex matches once per item,
+ * eliminating redundant parsing inside the O(N log N) quicksort comparisons.
+ */
+export function sortFlattenedTokens<T extends { name: string; resolvedValue?: any; rawValue?: any }>(
+  tokens: T[],
+  field: "name" | "resolved" = "resolved",
+  dir: "asc" | "desc" = "asc"
+): T[] {
+  if (tokens.length <= 1) return tokens;
+
+  // Precompute keys (Schwartzian transform)
+  const items = tokens.map((token, idx) => ({
+    idx,
+    token,
+    parsed:
+      field === "resolved"
+        ? parseSortableValue(token.resolvedValue !== undefined && token.resolvedValue !== null ? token.resolvedValue : token.rawValue)
+        : null,
+    scaleMatch: field === "resolved" ? token.name.match(/^(.*).(\d+)$/) : null,
+  }));
+
+  items.sort((a, b) => {
+    if (field === "resolved") {
+      // 1. Same family numeric scale check (e.g. primary.50 vs primary.500)
+      if (a.scaleMatch && b.scaleMatch && a.scaleMatch[1] === b.scaleMatch[1]) {
+        const numA = parseInt(a.scaleMatch[2], 10);
+        const numB = parseInt(b.scaleMatch[2], 10);
+        return dir === "asc" ? numA - numB : numB - numA;
+      }
+
+      // 2. Parsed value comparison
+      const pA = a.parsed!;
+      const pB = b.parsed!;
+
+      if (pA.isNumeric && pB.isNumeric) {
+        if (pA.num !== pB.num) {
+          return dir === "desc" ? pB.num - pA.num : pA.num - pB.num;
+        }
+        const unitCmp = (pA.unit || "").localeCompare(pB.unit || "");
+        if (unitCmp !== 0) return dir === "desc" ? -unitCmp : unitCmp;
+      } else if (pA.isNumeric && !pB.isNumeric) {
+        return dir === "desc" ? -1 : 1;
+      } else if (!pA.isNumeric && pB.isNumeric) {
+        return dir === "desc" ? 1 : -1;
+      } else if (pA.isColor && pB.isColor) {
+        const lumA = getColorLuminance(pA.text);
+        const lumB = getColorLuminance(pB.text);
+        if (lumA !== null && lumB !== null && Math.abs(lumA - lumB) > 0.001) {
+          return dir === "asc" ? lumB - lumA : lumA - lumB;
+        }
+        const cmp = compareSegmentAZ09(pA.text, pB.text);
+        if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
+      } else {
+        const cmp = compareSegmentAZ09(pA.text, pB.text);
+        if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
+      }
+
+      // Secondary deterministic sort by name
+      return compareTokenNames(a.token.name, b.token.name, dir);
+    }
+
+    return compareTokenNames(a.token.name, b.token.name, dir);
+  });
+
+  return items.map((item) => item.token);
+}
+
 // Helper to look up a path in a nested object
 function getNestedValue(obj: any, path: string[]): any {
   let current = obj;
@@ -1012,7 +1081,8 @@ export function formatTypographySummary(
 export function flattenAndResolveTokens(
   rawDoc: RawTokensDocument,
   selectedSet?: string,
-  themeConfig?: ThemeResolutionConfig
+  themeConfig?: ThemeResolutionConfig,
+  options?: { sort?: boolean }
 ): FlattenedToken[] {
   const result: FlattenedToken[] = [];
   if (!rawDoc || typeof rawDoc !== "object") return result;
@@ -1133,7 +1203,9 @@ export function flattenAndResolveTokens(
     walk(setTree, []);
   }
 
-  result.sort((a, b) => compareTokens(a, b, "resolved", "asc"));
+  if (options?.sort !== false) {
+    result.sort((a, b) => compareTokens(a, b, "resolved", "asc"));
+  }
 
   return result;
 }
@@ -1341,4 +1413,231 @@ export function deleteTokenSet(
   }
 
   return clone;
+}
+
+
+// WeakMap caching for token reverse dependency graph
+const dependencyGraphCache = new WeakMap<FlattenedToken[], Map<string, Set<string>>>();
+
+/**
+ * Builds or retrieves from cache the reverse dependency graph for a set of flattened tokens.
+ * Key: referenced token path/name (e.g., "colors.primary.500" or "global.spacing.md")
+ * Value: Set of token IDs that depend directly on this path.
+ */
+export function buildTokenDependencyGraph(tokens: FlattenedToken[]): Map<string, Set<string>> {
+  const cached = dependencyGraphCache.get(tokens);
+  if (cached) return cached;
+
+  const graph = new Map<string, Set<string>>();
+
+  for (const token of tokens) {
+    if (!token.isAlias && !token.modify) continue;
+
+    const matches: string[] = [];
+    if (token.rawValue && typeof token.rawValue === "string") {
+      const aliasRegex = /\{([^}]+)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = aliasRegex.exec(token.rawValue)) !== null) {
+        matches.push(match[1]);
+      }
+    }
+    if (token.modify?.color && typeof token.modify.color === "string") {
+      const aliasRegex = /\{([^}]+)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = aliasRegex.exec(token.modify.color)) !== null) {
+        matches.push(match[1]);
+      }
+    }
+    if (token.modify?.value && typeof token.modify.value === "string") {
+      const aliasRegex = /\{([^}]+)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = aliasRegex.exec(token.modify.value)) !== null) {
+        matches.push(match[1]);
+      }
+    }
+
+    for (const ref of matches) {
+      const cleanRef = ref.trim();
+      let set = graph.get(cleanRef);
+      if (!set) {
+        set = new Set<string>();
+        graph.set(cleanRef, set);
+      }
+      set.add(token.id);
+    }
+  }
+
+  dependencyGraphCache.set(tokens, graph);
+  return graph;
+}
+
+/**
+ * Traverses reverse dependency graph to find all tokens that directly or transitively
+ * depend on the changed token reference.
+ */
+export function getTransitiveDependents(
+  changedRef: string,
+  tokensById: Map<string, FlattenedToken>,
+  graph: Map<string, Set<string>>,
+  visited = new Set<string>()
+): Set<string> {
+  const direct = graph.get(changedRef);
+  if (!direct) return visited;
+
+  direct.forEach((depId) => {
+    if (!visited.has(depId)) {
+      visited.add(depId);
+      const depToken = tokensById.get(depId);
+      if (depToken) {
+        getTransitiveDependents(depToken.name, tokensById, graph, visited);
+        if (depToken.setName) {
+          getTransitiveDependents(`${depToken.setName}.${depToken.name}`, tokensById, graph, visited);
+        }
+      }
+    }
+  });
+
+  return visited;
+}
+
+/**
+ * Incrementally updates resolved tokens after a single token edit.
+ * Re-resolves only the modified token and its downstream alias dependents,
+ * preserving references and order of all untouched tokens.
+ * Returns null if incremental patch cannot be safely performed (e.g. structural/set changes),
+ * signalling caller to fall back to full resolution.
+ */
+export function patchResolvedTokensIncremental(
+  currentTokens: FlattenedToken[],
+  rawDoc: RawTokensDocument,
+  changedPath: string[],
+  themeConfig?: ThemeResolutionConfig
+): FlattenedToken[] | null {
+  if (!currentTokens || currentTokens.length === 0) return null;
+  if (!changedPath || changedPath.length < 2) return null;
+
+  const setName = changedPath[0];
+  let tokenPathSegments = changedPath.slice(1);
+  const lastSegment = tokenPathSegments[tokenPathSegments.length - 1];
+  if (
+    lastSegment === "value" ||
+    lastSegment === "$value" ||
+    lastSegment === "description" ||
+    lastSegment === "$description" ||
+    lastSegment === "$type" ||
+    lastSegment === "type" ||
+    lastSegment === "$extensions"
+  ) {
+    tokenPathSegments = tokenPathSegments.slice(0, -1);
+  }
+
+  if (tokenPathSegments.length === 0) return null;
+  const tokenName = tokenPathSegments.join(".");
+  const tokenId = `${setName}.${tokenName}`;
+
+  const tokensById = new Map<string, FlattenedToken>();
+  let changedTokenIndex = -1;
+  for (let i = 0; i < currentTokens.length; i++) {
+    const t = currentTokens[i];
+    tokensById.set(t.id, t);
+    if (t.id === tokenId) {
+      changedTokenIndex = i;
+    }
+  }
+
+  if (changedTokenIndex === -1) return null;
+
+  const depGraph = buildTokenDependencyGraph(currentTokens);
+  const affectedIds = new Set<string>([tokenId]);
+  getTransitiveDependents(tokenName, tokensById, depGraph, affectedIds);
+  getTransitiveDependents(tokenId, tokensById, depGraph, affectedIds);
+
+  const lookupIndex = buildTokenLookupIndex(rawDoc, themeConfig);
+  const resolutionMemo = new Map<string, any>();
+  const negativeCache = new Set<string>();
+
+  const nextTokens = currentTokens.slice();
+
+  for (let i = 0; i < nextTokens.length; i++) {
+    const token = nextTokens[i];
+    if (!affectedIds.has(token.id)) continue;
+
+    const nodePath = token.path.slice(1);
+    const node = getNestedValue(rawDoc[token.setName], nodePath);
+    if (!node || typeof node !== "object") {
+      return null;
+    }
+
+    const rawValue = node.$value !== undefined ? node.$value : node.value;
+    if (rawValue === undefined) {
+      return null;
+    }
+
+    const isAlias =
+      typeof rawValue === "string" && rawValue.includes("{") && rawValue.includes("}");
+    const aliasMatch = isAlias ? String(rawValue).match(/\{([^}]+)\}/) : null;
+    let resolvedValue = resolveTokenAlias(rawValue, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
+
+    const modifier = extractColorModifier(node);
+    let resolvedHex: string | undefined = undefined;
+
+    if (modifier) {
+      let resolvedMixColor: string | undefined = undefined;
+      if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
+        resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
+      }
+      let resolvedModValue = modifier.value;
+      if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
+        resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
+      }
+      const modToApply: ColorModifier = {
+        ...modifier,
+        value: resolvedModValue,
+      };
+      const modResult = applyColorModifier(
+        typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+        modToApply,
+        resolvedMixColor
+      );
+      resolvedValue = modResult.resolvedValue;
+      resolvedHex = modResult.hex;
+    } else if (typeof resolvedValue === "string") {
+      resolvedHex = toHexFast(resolvedValue);
+    }
+
+    const rawDesc = node.description ?? node.$description;
+    const description =
+      typeof rawDesc === "string"
+        ? rawDesc
+        : rawDesc !== undefined && rawDesc !== null
+        ? typeof rawDesc === "object"
+          ? JSON.stringify(rawDesc)
+          : String(rawDesc)
+        : undefined;
+
+    const extensions = node.$extensions && typeof node.$extensions === "object" ? node.$extensions : {};
+    const studioExt =
+      extensions["studio.tokens"] && typeof extensions["studio.tokens"] === "object"
+        ? extensions["studio.tokens"]
+        : {};
+    const deprecation = readDeprecation(node, studioExt);
+
+    nextTokens[i] = {
+      ...token,
+      rawValue: typeof rawValue === "string" ? rawValue : JSON.stringify(rawValue),
+      resolvedValue: typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+      resolvedHex,
+      modify: modifier || undefined,
+      isAlias: !!isAlias,
+      aliasTarget: aliasMatch ? String(aliasMatch[1]) : undefined,
+      description,
+      deprecated: deprecation ? true : undefined,
+      deprecatedMessage: deprecation?.message,
+      deprecatedReplacement: deprecation?.replacementToken,
+      deprecatedSeverity: deprecation?.severity,
+      deprecatedRemoveAfter: deprecation?.removeAfter,
+    };
+  }
+
+  return nextTokens;
 }

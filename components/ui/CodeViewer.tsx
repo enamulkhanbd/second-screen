@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 
 export interface CodeViewerProps {
   content: string;
@@ -201,6 +201,32 @@ export function getTokenClass(type: Token["type"]): string {
   }
 }
 
+const CodeLine = React.memo<{
+  idx: number;
+  showLineNumbers: boolean;
+  tokens: Token[];
+}>(({ idx, showLineNumbers, tokens }) => (
+  <div className="flex items-start hover:bg-muted/30 dark:hover:bg-zinc-800/30 transition-colors px-4 py-0.5">
+    {showLineNumbers && (
+      <span className="w-10 pr-4 text-right select-none text-muted-foreground/50 font-mono text-[11px]">
+        {idx + 1}
+      </span>
+    )}
+    <span className="flex-1 whitespace-pre">
+      {tokens.length === 0 ? (
+        "\u00A0"
+      ) : (
+        tokens.map((t, tIdx) => (
+          <span key={tIdx} className={getTokenClass(t.type)}>
+            {t.value}
+          </span>
+        ))
+      )}
+    </span>
+  </div>
+));
+CodeLine.displayName = "CodeLine";
+
 export const CodeViewer: React.FC<CodeViewerProps> = ({
   content,
   language = "css",
@@ -208,6 +234,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   className = "",
 }) => {
   const lines = useMemo(() => content.split("\n"), [content]);
+  const [visibleLines, setVisibleLines] = useState(500);
 
   const lang = (language || "").toLowerCase();
   const isJson = lang.includes("json");
@@ -224,45 +251,60 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     lang.includes("shell") ||
     lang.includes("cli");
 
-  const tokenizeLine = (line: string): Token[] => {
-    if (isJson) return tokenizeJsonLine(line);
-    if (isTs) return tokenizeTsLine(line);
-    if (isBash) return tokenizeBashLine(line);
-    return tokenizeCssLine(line);
-  };
+  const tokenizeLine = useCallback(
+    (line: string): Token[] => {
+      if (isJson) return tokenizeJsonLine(line);
+      if (isTs) return tokenizeTsLine(line);
+      if (isBash) return tokenizeBashLine(line);
+      return tokenizeCssLine(line);
+    },
+    [isJson, isTs, isBash]
+  );
+
+  const displayedLines = useMemo(() => {
+    return lines.slice(0, visibleLines).map((line, idx) => ({
+      idx,
+      tokens: tokenizeLine(line),
+    }));
+  }, [lines, visibleLines, tokenizeLine]);
 
   return (
     <div
       className={`font-mono text-xs md:text-[13px] leading-relaxed select-text bg-white dark:bg-[#0d0d12] text-foreground ${className}`}
     >
       <div className="min-w-fit w-full">
-        {lines.map((line, idx) => {
-          const tokens = tokenizeLine(line);
-          return (
-            <div
-              key={idx}
-              className="flex items-start hover:bg-muted/30 dark:hover:bg-zinc-800/30 transition-colors px-4 py-0.5"
-            >
-              {showLineNumbers && (
-                <span className="w-10 pr-4 text-right select-none text-muted-foreground/50 font-mono text-[11px]">
-                  {idx + 1}
-                </span>
-              )}
-              <span className="flex-1 whitespace-pre">
-                {tokens.length === 0 ? (
-                  "\u00A0"
-                ) : (
-                  tokens.map((t, tIdx) => (
-                    <span key={tIdx} className={getTokenClass(t.type)}>
-                      {t.value}
-                    </span>
-                  ))
-                )}
-              </span>
-            </div>
-          );
-        })}
+        {displayedLines.map((item) => (
+          <CodeLine
+            key={item.idx}
+            idx={item.idx}
+            showLineNumbers={showLineNumbers}
+            tokens={item.tokens}
+          />
+        ))}
       </div>
+      {lines.length > visibleLines && (
+        <div className="flex items-center justify-between px-4 py-2 border-t border-border/40 bg-muted/20 text-xs text-muted-foreground mt-2">
+          <span>
+            Showing {visibleLines} of {lines.length} lines
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibleLines((prev) => Math.min(prev + 1000, lines.length))}
+              className="px-2.5 py-1 text-xs font-medium rounded hover:bg-muted text-foreground border border-border/40 transition-colors"
+            >
+              Load more (+1,000)
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibleLines(lines.length)}
+              className="px-2.5 py-1 text-xs font-medium rounded hover:bg-muted text-foreground border border-border/40 transition-colors"
+            >
+              Load all
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

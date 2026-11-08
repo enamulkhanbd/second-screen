@@ -68,7 +68,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { buildTokenGroupTree, TokenGroupNode, getActiveThemeSets } from "@/utils/themeHelpers";
-import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
+import { naturalCompareTokenKeys, compareTokens, sortFlattenedTokens } from "@/utils/transformTokens";
 import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
 import { ThemeSwitcherDropdown } from "@/components/ThemeSwitcherDropdown";
 import { useDialogs } from "@/components/DialogProvider";
@@ -338,9 +338,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   }, [displayedTokens, groupDepth, sortDirection, sortField]);
 
   const sortedTokens = useMemo(() => {
-    const list = [...displayedTokens];
-    list.sort((a, b) => compareTokens(a, b, sortField, sortDirection));
-    return list;
+    return sortFlattenedTokens(displayedTokens, sortField, sortDirection);
+
+
   }, [displayedTokens, sortField, sortDirection]);
 
   // Sliced tokens for flat view

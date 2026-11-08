@@ -18,7 +18,9 @@ export const VariableTypographyBlock: React.FC<VariableTypographyBlockProps> = (
   onUpdate,
   onDelete,
 }) => {
-  const { resolvedTokens, figmaResolvedVariables, addToast } = useTokenStore();
+  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const figmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const addToast = useTokenStore((s) => s.addToast);
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
 
   // Extract font size or typography tokens

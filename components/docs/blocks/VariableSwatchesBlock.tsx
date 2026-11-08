@@ -19,7 +19,10 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  const { figmaResolvedVariables, resolvedTokens, addToast } = useTokenStore();
+  const figmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const addToast = useTokenStore((s) => s.addToast);
+  const [visibleCount, setVisibleCount] = useState(60);
   const [search, setSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -136,8 +139,9 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
           No color variables found for the selected configuration.
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {colorItems.map((c, i) => {
+          {colorItems.slice(0, visibleCount).map((c, i) => {
             const rawVal = String(c.resolvedValue || c.rawValue || "#000000");
             const cssVar = `--${c.name.replace(/\//g, "-").replace(/\./g, "-")}`;
             const key = `swatch-${c.setName}-${c.name}-${i}`;
@@ -200,6 +204,19 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
             );
           })}
         </div>
+        {colorItems.length > visibleCount && (
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
+            <span>Showing {visibleCount} of {colorItems.length} color swatches</span>
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => Math.min(prev + 60, colorItems.length))}
+              className="rounded px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Load more (+60)
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

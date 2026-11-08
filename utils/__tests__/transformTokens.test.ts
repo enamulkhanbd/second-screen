@@ -9,6 +9,8 @@ import {
   evaluateTokenMath,
   flattenAndResolveTokens,
   buildTokenLookupIndex,
+  sortFlattenedTokens,
+  patchResolvedTokensIncremental,
 } from "../transformTokens";
 import { RawTokensDocument } from "@/types/tokens";
 
@@ -132,5 +134,54 @@ describe("token alias & arithmetic resolution", () => {
     const index1 = buildTokenLookupIndex(doc);
     const index2 = buildTokenLookupIndex(doc);
     expect(index1).toBe(index2); // Cached reference
+  });
+
+  it("sorts flattened tokens using Schwartzian transform", () => {
+    const tokens = [
+      { name: "spacing.large", resolvedValue: "24px", rawValue: "24px" },
+      { name: "spacing.small", resolvedValue: "8px", rawValue: "8px" },
+      { name: "spacing.medium", resolvedValue: "16px", rawValue: "16px" },
+    ];
+    const sorted = sortFlattenedTokens(tokens, "resolved", "asc");
+    expect(sorted.map((t) => t.name)).toEqual(["spacing.small", "spacing.medium", "spacing.large"]);
+  });
+
+  it("incrementally patches modified token and downstream dependents", () => {
+    const flattened = flattenAndResolveTokens(doc);
+    const brandBefore = flattened.find((t) => t.name === "color.brand");
+    const spacingBefore = flattened.find((t) => t.name === "spacing.base");
+    expect(brandBefore?.resolvedValue).toBe("#3b82f6");
+
+    // Update core.color.blue500 from #3b82f6 to #ef4444
+    const updatedDoc: RawTokensDocument = {
+      ...doc,
+      core: {
+        ...doc.core,
+        color: {
+          ...doc.core.color,
+          blue500: { value: "#ef4444", type: "color" },
+        },
+      },
+    };
+
+    const patched = patchResolvedTokensIncremental(
+      flattened,
+      updatedDoc,
+      ["core", "color", "blue500", "value"]
+    );
+    expect(patched).not.toBeNull();
+    if (!patched) return;
+
+    // Modified token updated
+    const blueAfter = patched.find((t) => t.name === "color.blue500");
+    expect(blueAfter?.resolvedValue).toBe("#ef4444");
+
+    // Dependent token color.brand updated
+    const brandAfter = patched.find((t) => t.name === "color.brand");
+    expect(brandAfter?.resolvedValue).toBe("#ef4444");
+
+    // Untouched token maintains exact object reference
+    const spacingAfter = patched.find((t) => t.name === "spacing.base");
+    expect(spacingAfter).toBe(spacingBefore);
   });
 });

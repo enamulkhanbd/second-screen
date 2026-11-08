@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   Folder,
   FolderOpen,
@@ -62,23 +63,34 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     rawTokens,
     resolvedTokens,
     activeSet,
-    setActiveSet,
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
     activeThemeOptionIds,
-    setActiveThemeGroup,
-    setActiveThemeOption,
-    renameSet,
-    deleteSet,
-    renameFolder,
-    deleteFolder,
-    deleteThemeGroup,
-    updateThemeOption,
-    deleteThemeOption,
-    canUserEdit,
-    addToast,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      sidebarTab: s.sidebarTab,
+      rawTokens: s.rawTokens,
+      resolvedTokens: s.resolvedTokens,
+      activeSet: s.activeSet,
+      themeGroups: s.themeGroups,
+      activeThemeGroupId: s.activeThemeGroupId,
+      activeThemeOptionId: s.activeThemeOptionId,
+      activeThemeOptionIds: s.activeThemeOptionIds,
+    }))
+  );
+  const setActiveSet = useTokenStore((s) => s.setActiveSet);
+  const setActiveThemeGroup = useTokenStore((s) => s.setActiveThemeGroup);
+  const setActiveThemeOption = useTokenStore((s) => s.setActiveThemeOption);
+  const renameSet = useTokenStore((s) => s.renameSet);
+  const deleteSet = useTokenStore((s) => s.deleteSet);
+  const renameFolder = useTokenStore((s) => s.renameFolder);
+  const deleteFolder = useTokenStore((s) => s.deleteFolder);
+  const deleteThemeGroup = useTokenStore((s) => s.deleteThemeGroup);
+  const updateThemeOption = useTokenStore((s) => s.updateThemeOption);
+  const deleteThemeOption = useTokenStore((s) => s.deleteThemeOption);
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const addToast = useTokenStore((s) => s.addToast);
 
   const isEditable = canUserEdit();
   const [addModalGroupId, setAddModalGroupId] = useState<string | null>(null);

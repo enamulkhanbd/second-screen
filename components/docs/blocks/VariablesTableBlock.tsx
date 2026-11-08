@@ -31,7 +31,11 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  const { figmaResolvedVariables, figmaVariables, resolvedTokens, addToast } = useTokenStore();
+  const figmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const figmaVariables = useTokenStore((s) => s.figmaVariables);
+  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const addToast = useTokenStore((s) => s.addToast);
+  const [visibleCount, setVisibleCount] = useState(60);
   const [localSearch, setLocalSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -291,7 +295,7 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
                 </td>
               </tr>
             ) : (
-              processedVariables.map((item, idx) => {
+              processedVariables.slice(0, visibleCount).map((item, idx) => {
                 const itemKey = `${item.setName}-${item.name}-${idx}`;
                 const isColor = item.type === "color";
                 const displayVal = String(item.resolvedValue || item.rawValue || "");
@@ -351,6 +355,18 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
             )}
           </tbody>
         </table>
+        {processedVariables.length > visibleCount && (
+          <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-t border-border/40 text-xs text-muted-foreground">
+            <span>Showing {visibleCount} of {processedVariables.length} variables</span>
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => Math.min(prev + 60, processedVariables.length))}
+              className="px-2.5 py-1 text-xs font-medium rounded hover:bg-muted text-foreground transition-colors"
+            >
+              Load more (+60)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,8 @@ import { useTokenStore } from "@/store/useTokenStore";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 
 export const ToastContainer: React.FC = () => {
-  const { toasts, removeToast } = useTokenStore();
+  const toasts = useTokenStore((s) => s.toasts);
+  const removeToast = useTokenStore((s) => s.removeToast);
 
   return (
     <div

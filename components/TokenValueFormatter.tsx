@@ -52,7 +52,8 @@ export const TokenRawValueCell: React.FC<{
   token: FlattenedToken;
   onUpdate: (path: string[], newValue: string | Record<string, any>) => void;
 }> = ({ token, onUpdate }) => {
-  const { canUserEdit, addToast } = useTokenStore();
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const addToast = useTokenStore((s) => s.addToast);
   const [localVal, setLocalVal] = useState(token.rawValue);
   const [isSaved, setIsSaved] = useState(false);
   const isEditable = canUserEdit();
