@@ -4,9 +4,10 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import { Organization } from "@/types/tenant";
 import { getOrgProjectCounts } from "@/services/organizationService";
-import { Plus, Folder, Users, Building2, Sparkles } from "lucide-react";
+import { Plus, Folder, Users, Building2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +44,18 @@ export const WorkspacesListView: React.FC = () => {
     createOrgAction,
     addToast,
     orgProjects,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      userOrgs: s.userOrgs,
+      currentOrg: s.currentOrg,
+      setCurrentOrg: s.setCurrentOrg,
+      setCurrentProject: s.setCurrentProject,
+      setSidebarTab: s.setSidebarTab,
+      createOrgAction: s.createOrgAction,
+      addToast: s.addToast,
+      orgProjects: s.orgProjects,
+    }))
+  );
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
@@ -187,12 +199,12 @@ export const WorkspacesListView: React.FC = () => {
                     handleSelectWorkspace(org);
                   }
                 }}
-                className="group p-5 sm:p-6 rounded-2xl border border-border bg-card hover:bg-muted/40 hover:border-border/80 transition-colors shadow-xs flex items-center justify-between gap-4"
+                className="group p-4 sm:p-5 rounded-xl border border-border bg-card hover:bg-muted/35 hover:border-border/90 transition-colors shadow-2xs flex items-center justify-between gap-4"
               >
-                {/* Left side: Avatar + Name + Subtitle */}
-                <div className="flex items-center gap-4 min-w-0">
+                {/* Left side: Avatar + Name + Slug */}
+                <div className="flex items-center gap-3.5 min-w-0">
                   <div
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-xs shrink-0 overflow-hidden"
+                    className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-semibold text-base shadow-2xs shrink-0 overflow-hidden"
                     style={{
                       backgroundColor: logoImgUrl
                         ? isPlanetOrg
@@ -207,7 +219,7 @@ export const WorkspacesListView: React.FC = () => {
                         alt={org.name}
                         className={
                           isPlanetOrg
-                            ? "w-10 h-10 object-contain"
+                            ? "w-8 h-8 object-contain"
                             : "w-full h-full object-cover"
                         }
                       />
@@ -216,27 +228,28 @@ export const WorkspacesListView: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="min-w-0 space-y-1">
-                    <h2 className="font-bold text-base sm:text-lg text-foreground group-hover:text-primary transition-colors truncate">
+                  <div className="min-w-0 space-y-0.5">
+                    <h2 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors truncate">
                       {org.name || "Untitled Workspace"}
                     </h2>
 
-                    <p className="text-xs text-muted-foreground font-normal">
-                      Workspace
+                    <p className="text-xs text-muted-foreground font-mono truncate">
+                      /{org.slug}
                     </p>
                   </div>
                 </div>
 
-                {/* Right side: Project Count & Member Count matching Screenshot */}
-                <div className="flex items-center gap-5 sm:gap-7 text-xs sm:text-sm text-muted-foreground font-mono shrink-0">
-                  <div className="flex items-center gap-2" title={`${projectCount} Projects`}>
-                    <Folder className="w-4 h-4 text-muted-foreground/80" strokeWidth={1.75} />
+                {/* Right side: Project Count & Member Count */}
+                <div className="flex items-center gap-5 sm:gap-6 text-xs text-muted-foreground font-mono tabular-nums shrink-0">
+                  <div className="flex items-center gap-1.5" title={`${projectCount} Projects`}>
+                    <Folder className="w-3.5 h-3.5 text-muted-foreground/80" strokeWidth={1.75} />
                     <span>{projectCount}</span>
                   </div>
-                  <div className="flex items-center gap-2" title={`${memberCount} Members`}>
-                    <Users className="w-4 h-4 text-muted-foreground/80" strokeWidth={1.75} />
+                  <div className="flex items-center gap-1.5" title={`${memberCount} Members`}>
+                    <Users className="w-3.5 h-3.5 text-muted-foreground/80" strokeWidth={1.75} />
                     <span>{memberCount}</span>
                   </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
                 </div>
               </Link>
             );
@@ -266,8 +279,8 @@ export const WorkspacesListView: React.FC = () => {
         <DialogContent className="sm:max-w-md font-sans bg-card border-border text-card-foreground">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                <Sparkles className="w-4 h-4" />
+              <div className="p-2 rounded-lg bg-muted text-foreground">
+                <Building2 className="w-4 h-4" />
               </div>
               <div>
                 <DialogTitle className="text-base font-bold text-foreground">Create New Workspace</DialogTitle>

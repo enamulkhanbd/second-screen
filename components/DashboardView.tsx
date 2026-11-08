@@ -30,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useShallow } from "zustand/react/shallow";
+import { SYSTEM_CHANGELOG, LATEST_VERSION } from "@/data/systemChangelog";
 
 const CreateProjectModal = dynamic(
   () => import("@/components/CreateProjectModal").then((module) => module.CreateProjectModal),
@@ -289,11 +290,13 @@ export const DashboardView: React.FC = () => {
               <div className="space-y-2.5">
                 {displayProjects.map((proj) => {
                   const isCurrent = currentProject?.id === proj.id;
+                  const hasGitSync = Boolean(proj.gitConfig?.repo && proj.gitConfig?.owner);
+                  const hasFigmaSync = Boolean(proj.figmaUpdatedAt);
 
                   return (
                     <div
                       key={proj.id}
-                      className="rounded-xl border border-border bg-card hover:bg-muted/40 transition-colors shadow-2xs flex items-center group"
+                      className="rounded-xl border border-border bg-card hover:bg-muted/35 hover:border-border/90 transition-colors shadow-2xs flex items-center group"
                     >
                       <Link
                         href={currentOrg
@@ -302,11 +305,11 @@ export const DashboardView: React.FC = () => {
                         onClick={(event) => {
                           if (isPlainClick(event)) handleOpenProject(proj);
                         }}
-                        className="p-4 flex flex-1 min-w-0 items-center justify-between gap-4 rounded-xl"
+                        className="p-3.5 sm:p-4 flex flex-1 min-w-0 items-center justify-between gap-4 rounded-xl"
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 overflow-hidden ${
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-semibold shadow-2xs shrink-0 overflow-hidden ${
                               isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
                             }`}
                             style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
@@ -318,18 +321,33 @@ export const DashboardView: React.FC = () => {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                                 {proj.name}
                               </h3>
+                              <span className="text-[11px] font-mono text-muted-foreground hidden sm:inline">
+                                /{proj.slug}
+                              </span>
                               {isCurrent && (
-                                <Badge variant="outline" className="text-[9px] py-0 px-1 font-sans text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-sans text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
                                   Active
                                 </Badge>
                               )}
+                              {hasGitSync && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                                  <GitBranch className="w-2.5 h-2.5" />
+                                  <span>{proj.gitConfig?.branch || "main"}</span>
+                                </span>
+                              )}
+                              {hasFigmaSync && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                                  <Figma className="w-2.5 h-2.5" />
+                                  <span>Figma</span>
+                                </span>
+                              )}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Last changed {formatTimeAgo(proj.updatedAt || proj.createdAt)}
+                            <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                              Updated {formatTimeAgo(proj.updatedAt || proj.createdAt)}
                             </p>
                           </div>
                         </div>
@@ -400,81 +418,44 @@ export const DashboardView: React.FC = () => {
             </section>
           )}
 
-          {/* 2. Let us help you (9 Cards Grid Matching Video) */}
+          {/* 2. Core Studio Workflows (Compact 4-item bar replacing 9-card filler grid) */}
           <div className="space-y-3">
-            <h2 className="text-sm font-bold text-foreground tracking-tight">Let us help you</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <h2 className="text-sm font-semibold text-foreground tracking-tight">Studio workflows</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 {
-                  id: "intro",
-                  title: "Introduction to Tokens",
-                  description: "Learn what design tokens are and how they work.",
-                  icon: HelpCircle,
-                  tab: "documentation",
-                },
-                {
-                  id: "themes",
-                  title: "Creating Your First Theme",
-                  description: "Set up themes for light, dark and brand variations.",
-                  icon: Palette,
-                  tab: "themes",
-                },
-                {
-                  id: "branches",
-                  title: "Working with Branches",
-                  description: "Safely experiment with token changes.",
-                  icon: GitBranch,
-                  tab: "branches",
-                },
-                {
-                  id: "exports",
-                  title: "Exporting Tokens",
-                  description: "Transform tokens into CSS, JSON, and other formats.",
-                  icon: ArrowUpToLine,
-                  tab: "exports",
-                },
-                {
-                  id: "figma",
-                  title: "Figma Integration",
-                  description: "Sync your tokens and variables with Figma files.",
-                  icon: Figma,
-                  tab: "project-settings",
-                },
-                {
-                  id: "references",
-                  title: "Token References",
-                  description: "Create relationships between tokens.",
+                  id: "tokens",
+                  title: "Token sets & aliases",
+                  description: "Edit DTCG sets, groups, and deep references.",
                   icon: Layers,
                   tab: "tokens",
                 },
                 {
-                  id: "collab",
-                  title: "Team Collaboration",
-                  description: "Invite teammates and collaborate together.",
-                  icon: Users,
-                  tab: "members",
+                  id: "themes",
+                  title: "Theme matrix",
+                  description: "Configure Light, Dark, and brand mode combinations.",
+                  icon: Palette,
+                  tab: "themes",
                 },
                 {
-                  id: "releases",
-                  title: "Publishing Releases",
-                  description: "Version and publish your tokens for consumers.",
-                  icon: Package,
-                  tab: "releases",
+                  id: "figma",
+                  title: "Figma & Git sync",
+                  description: "Connect repositories and Figma Variables.",
+                  icon: Figma,
+                  tab: "project-settings",
                 },
                 {
-                  id: "cli",
-                  title: "CLI Overview",
-                  description: "Manage tokens from the command line.",
-                  icon: Terminal,
-                  tab: "mcp",
+                  id: "exports",
+                  title: "Code & releases",
+                  description: "Compile CSS, TS, Swift, Kotlin, and versioned releases.",
+                  icon: ArrowUpToLine,
+                  tab: "exports",
                 },
               ].map((card) => {
                 const Icon = card.icon;
                 const cardProject = currentProject || orgProjects[0];
                 const targetHref = currentOrg
-                  ? card.tab === "members"
-                    ? `/${encodeURIComponent(currentOrg.slug)}/members`
-                    : cardProject
+                  ? cardProject
                     ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(cardProject.slug)}/${card.tab}`
                     : `/${encodeURIComponent(currentOrg.slug)}/projects`
                   : "/";
@@ -483,19 +464,8 @@ export const DashboardView: React.FC = () => {
                     key={card.id}
                     href={targetHref}
                     onClick={(event) => {
-                      if (
-                        event.button !== 0 ||
-                        event.metaKey ||
-                        event.ctrlKey ||
-                        event.shiftKey ||
-                        event.altKey
-                      ) {
-                        return;
-                      }
-                      if (card.tab === "members") {
-                        setSidebarTab("members");
-                        setMembersSubTab("members");
-                      } else if (cardProject) {
+                      if (!isPlainClick(event)) return;
+                      if (cardProject) {
                         setCurrentProject(cardProject);
                         if (card.id === "figma") {
                           useTokenStore.getState().setProjectSettingsTab("sync");
@@ -505,16 +475,19 @@ export const DashboardView: React.FC = () => {
                         setSidebarTab("projects");
                       }
                     }}
-                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-colors cursor-pointer shadow-2xs flex items-start gap-3 group"
+                    className="p-3.5 rounded-xl border border-border bg-card hover:bg-muted/35 hover:border-border/90 transition-colors cursor-pointer shadow-2xs flex flex-col justify-between gap-2.5 group"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-muted/70 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5">
-                      <Icon className="w-4 h-4" />
+                    <div className="flex items-center justify-between">
+                      <div className="w-7 h-7 rounded-lg bg-muted/70 flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
                     </div>
-                    <div className="min-w-0">
+                    <div>
                       <h3 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                         {card.title}
                       </h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
                         {card.description}
                       </p>
                     </div>
@@ -562,14 +535,14 @@ export const DashboardView: React.FC = () => {
         {/* Right Rail Column Matching Video */}
         <div className="w-full xl:w-80 2xl:w-88 border-t xl:border-t-0 xl:border-l border-border/60 p-6 md:p-8 space-y-6 shrink-0 text-xs bg-card/20">
           {/* Top 3 Stat Boxes (Projects, Members, Created) */}
-          <div className="grid grid-cols-3 gap-3 p-4 rounded-xl border border-border bg-card shadow-2xs text-center">
+          <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl border border-border bg-card shadow-2xs text-center tabular-nums">
             <div>
               <div className="text-[11px] text-muted-foreground font-medium">Projects</div>
-              <div className="text-base font-bold text-foreground mt-0.5">{totalProjectsCount}</div>
+              <div className="text-base font-semibold text-foreground mt-0.5">{totalProjectsCount}</div>
             </div>
             <div className="border-x border-border/60">
               <div className="text-[11px] text-muted-foreground font-medium">Members</div>
-              <div className="text-base font-bold text-foreground mt-0.5">{totalMembersCount}</div>
+              <div className="text-base font-semibold text-foreground mt-0.5">{totalMembersCount}</div>
             </div>
             <div>
               <div className="text-[11px] text-muted-foreground font-medium">Created</div>
@@ -577,66 +550,48 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* What's new in Studio (10 Items from Video) */}
+          {/* Real System Changelog Feed */}
           <div className="space-y-3 pt-2 border-t border-border/60">
-            <div className="text-[11px] font-bold tracking-wider text-muted-foreground">
-              What&apos;s new in Studio
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground">
+                Platform releases
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {LATEST_VERSION}
+              </span>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {[
-                {
-                  title: "Packaged exports for every release",
-                  desc: "Every release now packages to exports server for instant multi-platform packages.",
-                },
-                {
-                  title: "Documentation and Assets in Beta",
-                  desc: "We've launched two new dedicated features for workspace asset and token docs.",
-                },
-                {
-                  title: "TypeScript export format",
-                  desc: "You can now export your tokens or variables to typed TS objects seamlessly.",
-                },
-                {
-                  title: "Project activity",
-                  desc: "See who changed what, when, and from where in your design system.",
-                },
-                {
-                  title: "Billing manager role",
-                  desc: "Introduced a new Billing Manager role for team administration.",
-                },
-                {
-                  title: "Powerful bulk rename",
-                  desc: "Rename tokens at scale with comprehensive pattern operations.",
-                },
-                {
-                  title: "Filter deprecated tokens",
-                  desc: "Easily identify and sunset deprecated tokens in your project sets.",
-                },
-                {
-                  title: "Figma Variables projects",
-                  desc: "Manage projects that sync directly with Figma Variables.",
-                },
-                {
-                  title: "Revamped Exports with API",
-                  desc: "A completely rebuilt export system with personal access token auth.",
-                },
-                {
-                  title: "AI Assistant (Beta)",
-                  desc: "Let Design Tokens AI Co-pilot assist your styling and theme setup.",
-                },
-              ].map((item, idx) => (
-                <div key={idx} className="space-y-0.5">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                    <span>{item.title}</span>
+            <div className="space-y-3.5 text-xs">
+              {SYSTEM_CHANGELOG.slice(0, 2).flatMap((release) =>
+                release.items.slice(0, 3).map((item, idx) => (
+                  <div key={`${release.version}-${idx}`} className="space-y-0.5">
+                    <div className="font-medium text-foreground flex items-center justify-between gap-2">
+                      <span className="truncate">{item.title}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                        {release.version}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                      {item.description}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-muted-foreground pl-3 leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
+
+            {firstProject && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentProject(firstProject);
+                  setSidebarTab("changelog");
+                }}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer pt-1"
+              >
+                <span>View full release log</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

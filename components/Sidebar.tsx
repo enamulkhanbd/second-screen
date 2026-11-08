@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, startTransition } from "react";
 import Link from "next/link";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
@@ -138,7 +138,7 @@ function SidebarNavItem({
         {!collapsed && <span className="truncate">{label}</span>}
       </span>
       {!collapsed && count !== undefined && (
-        <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-muted text-muted-foreground">
+        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono tabular-nums bg-muted text-muted-foreground">
           {count}
         </span>
       )}
@@ -703,7 +703,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
         {isWorkspaceNavigation && (
           <div className="space-y-0.5">
             {!isCollapsed && (
-              <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+              <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground/80">
                 Workspace
               </div>
             )}
@@ -755,30 +755,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                 currentOrg
                   ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/${tab}`
                   : "/";
-              const groupTitle = "px-2.5 py-1 text-[10px] font-bold text-muted-foreground";
+              const selectProjectTab = (tab: typeof sidebarTab) => () => {
+                startTransition(() => {
+                  setSidebarTab(tab);
+                });
+              };
+              const groupTitle = "px-2.5 py-1 text-[11px] font-medium text-muted-foreground/80";
               return (
                 <>
                   <section className="space-y-0.5" aria-label="Design">
                     {!isCollapsed && <div className={groupTitle}>Design</div>}
-                    <SidebarNavItem href={projectHref("tokens")} label="Tokens" active={sidebarTab === "tokens"} collapsed={isCollapsed} icon={<Layers className="size-4 shrink-0" />} count={allSetNames.length || undefined} />
-                    <SidebarNavItem href={projectHref("themes")} label="Themes" active={sidebarTab === "themes"} collapsed={isCollapsed} icon={<Palette className="size-4 shrink-0" />} count={themeGroups.length || undefined} />
+                    <SidebarNavItem href={projectHref("tokens")} label="Tokens" active={sidebarTab === "tokens"} collapsed={isCollapsed} icon={<Layers className="size-4 shrink-0" />} count={allSetNames.length || undefined} onClick={selectProjectTab("tokens")} />
+                    <SidebarNavItem href={projectHref("themes")} label="Themes" active={sidebarTab === "themes"} collapsed={isCollapsed} icon={<Palette className="size-4 shrink-0" />} count={themeGroups.length || undefined} onClick={selectProjectTab("themes")} />
                   </section>
                   <section className="space-y-0.5" aria-label="Connect">
                     {!isCollapsed && <div className={groupTitle}>Connect</div>}
-                    <SidebarNavItem href={projectHref("variables")} label="Figma Variables" active={sidebarTab === "variables"} collapsed={isCollapsed} icon={<FigmaVariableIcon className="size-4 shrink-0" />} />
-                    <SidebarNavItem href={projectHref("branches")} label="Branches" active={sidebarTab === "branches"} collapsed={isCollapsed} icon={<GitBranch className="size-4 shrink-0" />} count={branches.length || 1} />
+                    <SidebarNavItem href={projectHref("variables")} label="Figma Variables" active={sidebarTab === "variables"} collapsed={isCollapsed} icon={<FigmaVariableIcon className="size-4 shrink-0" />} onClick={selectProjectTab("variables")} />
+                    <SidebarNavItem href={projectHref("branches")} label="Branches" active={sidebarTab === "branches"} collapsed={isCollapsed} icon={<GitBranch className="size-4 shrink-0" />} count={branches.length || 1} onClick={selectProjectTab("branches")} />
                   </section>
                   <section className="space-y-0.5" aria-label="Publish">
                     {!isCollapsed && <div className={groupTitle}>Publish</div>}
-                    <SidebarNavItem href={projectHref("documentation")} label="Documentation" active={sidebarTab === "documentation"} collapsed={isCollapsed} icon={<FileText className="size-4 shrink-0" />} badge="Beta" />
-                    <SidebarNavItem href={projectHref("assets")} label="Assets" active={sidebarTab === "assets"} collapsed={isCollapsed} icon={<ImageIcon className="size-4 shrink-0" />} badge="Beta" />
-                    <SidebarNavItem href={projectHref("exports")} label="Exports" active={sidebarTab === "exports"} collapsed={isCollapsed} icon={<Download className="size-4 shrink-0" />} />
-                    <SidebarNavItem href={projectHref("releases")} label="Releases" active={sidebarTab === "releases"} collapsed={isCollapsed} icon={<Package className="size-4 shrink-0" />} count={releases.length || undefined} />
+                    <SidebarNavItem href={projectHref("documentation")} label="Documentation" active={sidebarTab === "documentation"} collapsed={isCollapsed} icon={<FileText className="size-4 shrink-0" />} badge="Beta" onClick={selectProjectTab("documentation")} />
+                    <SidebarNavItem href={projectHref("assets")} label="Assets" active={sidebarTab === "assets"} collapsed={isCollapsed} icon={<ImageIcon className="size-4 shrink-0" />} badge="Beta" onClick={selectProjectTab("assets")} />
+                    <SidebarNavItem href={projectHref("exports")} label="Exports" active={sidebarTab === "exports"} collapsed={isCollapsed} icon={<Download className="size-4 shrink-0" />} onClick={selectProjectTab("exports")} />
+                    <SidebarNavItem href={projectHref("releases")} label="Releases" active={sidebarTab === "releases"} collapsed={isCollapsed} icon={<Package className="size-4 shrink-0" />} count={releases.length || undefined} onClick={selectProjectTab("releases")} />
                   </section>
                   <section className="space-y-0.5" aria-label="Advanced">
                     {!isCollapsed && <div className={groupTitle}>Advanced</div>}
-                    <SidebarNavItem href={projectHref("extensions")} label="Extensions" active={sidebarTab === "extensions"} collapsed={isCollapsed} icon={<Lightbulb className="size-4 shrink-0" />} />
-                    <SidebarNavItem href={projectHref("mcp")} label={"Developers (MCP & CLI)"} active={sidebarTab === "mcp"} collapsed={isCollapsed} icon={<Code2 className="size-4 shrink-0" />} />
+                    <SidebarNavItem href={projectHref("extensions")} label="Extensions" active={sidebarTab === "extensions"} collapsed={isCollapsed} icon={<Lightbulb className="size-4 shrink-0" />} onClick={selectProjectTab("extensions")} />
+                    <SidebarNavItem href={projectHref("mcp")} label={"Developers (MCP & CLI)"} active={sidebarTab === "mcp"} collapsed={isCollapsed} icon={<Code2 className="size-4 shrink-0" />} onClick={selectProjectTab("mcp")} />
                   </section>
                 </>
               );

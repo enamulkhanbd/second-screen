@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -148,14 +148,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   const currentSetKey = activeSet && activeSet !== "ALL" ? activeSet : allSetKeys[0] || "";
 
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   // PREVIEW MODE STATE & FILTERING
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showDeprecatedOnly, setShowDeprecatedOnly] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
@@ -267,12 +264,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const deprecatedCount = useMemo(() => setTokens.filter((t) => t.deprecated).length, [setTokens]);
 
   const displayedTokens = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    if (!showDeprecatedOnly && !q) return setTokens;
+
     return setTokens.filter((token) => {
       if (showDeprecatedOnly && !token.deprecated) return false;
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (q) {
         const matchName = String(token.name || "").toLowerCase().includes(q);
         const matchRaw = String(token.rawValue || "").toLowerCase().includes(q);
         const matchResolved = String(token.resolvedValue || "").toLowerCase().includes(q);
@@ -282,7 +280,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
       return true;
     });
-  }, [setTokens, searchQuery, showDeprecatedOnly]);
+  }, [setTokens, deferredSearchQuery, showDeprecatedOnly]);
 
   // Grouping depth state (default to 0: All Levels)
   const [groupDepth, setGroupDepth] = useState<number>(0);
@@ -322,12 +320,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   // Reset infinite scroll count whenever filters, active set, or sort changes
   useEffect(() => {
     setVisibleCount(INITIAL_BATCH_SIZE);
-  }, [searchQuery, showDeprecatedOnly, activeSet, groupDepth, sortField, sortDirection]);
+  }, [deferredSearchQuery, showDeprecatedOnly, activeSet, groupDepth, sortField, sortDirection]);
 
   const totalCount = displayedTokens.length;
 
   // Multi-level recursive group tree from displayed tokens with chosen grouping depth and sort field
   const groupTree = useMemo(() => {
+    if (tokensViewMode !== "preview" || groupDepth === 1) return [];
     return buildTokenGroupTree(
       displayedTokens,
       (token) => token.name.split("."),
@@ -335,13 +334,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
       sortDirection,
       sortField
     );
-  }, [displayedTokens, groupDepth, sortDirection, sortField]);
+  }, [tokensViewMode, displayedTokens, groupDepth, sortDirection, sortField]);
 
   const sortedTokens = useMemo(() => {
+    if (tokensViewMode !== "preview" || groupDepth !== 1) return [];
     return sortFlattenedTokens(displayedTokens, sortField, sortDirection);
-
-
-  }, [displayedTokens, sortField, sortDirection]);
+  }, [tokensViewMode, groupDepth, displayedTokens, sortField, sortDirection]);
 
   // Sliced tokens for flat view
   const visibleFlatTokens = useMemo(() => {
@@ -604,13 +602,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [selectedTokenIds]);
 
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   // JSON CODE EDITOR STATE
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   const [code, setCode] = useState<string>("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);

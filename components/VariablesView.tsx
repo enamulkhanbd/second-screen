@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import { FlattenedToken, TokenType } from "@/types/tokens";
@@ -39,7 +39,7 @@ import {
   ArrowUp01,
   ArrowDown01,
 } from "lucide-react";
-import { compareTokens, compareTokenNames } from "@/utils/transformTokens";
+import { compareTokens, compareTokenNames, sortFlattenedTokens } from "@/utils/transformTokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +98,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [visibleCount, setVisibleCount] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [viewLayout, setViewLayout] = useState<"grid" | "table">("grid");
@@ -107,7 +108,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
   useEffect(() => {
     setVisibleCount(100);
-  }, [searchQuery, selectedCollection, selectedType]);
+  }, [deferredSearchQuery, selectedCollection, selectedType]);
 
   const handleSortToggle = (field: "name" | "resolved" | "collection") => {
     if (sortField === field) {
@@ -161,6 +162,11 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
   // Filtered variables
   const filteredVariables = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    if (selectedCollection === "ALL" && selectedType === "ALL" && !q) {
+      return allVariables;
+    }
+
     return allVariables.filter((item) => {
       // Collection filter
       if (selectedCollection !== "ALL" && item.setName !== selectedCollection) {
@@ -176,8 +182,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
       }
 
       // Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (q) {
         const matchName = String(item.name || "").toLowerCase().includes(q);
         const matchValue = String(item.resolvedValue || item.rawValue || "").toLowerCase().includes(q);
         const matchSet = String(item.setName || "").toLowerCase().includes(q);
@@ -187,18 +192,18 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
       return true;
     });
-  }, [allVariables, selectedCollection, selectedType, searchQuery]);
+  }, [allVariables, selectedCollection, selectedType, deferredSearchQuery]);
 
   // Sorted variables
   const sortedVariables = useMemo(() => {
+    if (sortField !== "collection") {
+      return sortFlattenedTokens(filteredVariables, sortField, sortDirection);
+    }
     const list = [...filteredVariables];
     list.sort((a, b) => {
-      if (sortField === "collection") {
-        const cmp = compareTokenNames(a.setName, b.setName, sortDirection);
-        if (cmp !== 0) return cmp;
-        return compareTokenNames(a.name, b.name, sortDirection);
-      }
-      return compareTokens(a, b, sortField, sortDirection);
+      const cmp = compareTokenNames(a.setName, b.setName, sortDirection);
+      if (cmp !== 0) return cmp;
+      return compareTokenNames(a.name, b.name, sortDirection);
     });
     return list;
   }, [filteredVariables, sortField, sortDirection]);
