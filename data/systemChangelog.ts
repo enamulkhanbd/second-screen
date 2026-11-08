@@ -2,12 +2,74 @@ import { SystemChangelogEntry } from "@/types/changelog";
 
 export const SYSTEM_CHANGELOG: SystemChangelogEntry[] = [
   {
+    version: "v1.7.0",
+    releaseDate: "November 8, 2026",
+    title: "Studio UI Craft, shadcn/ui Unification, Performance Architecture & Security Hardening",
+    badge: "Feature Release",
+    badgeVariant: "default",
+    isLatest: true,
+    summary:
+      "Refined every workspace view, modal, and dropdown menu to human-crafted studio standards, unified all select and menu primitives on shadcn/ui, hardened API & R2 concurrency, and achieved 100/100 Lighthouse Accessibility, Best Practices, and SEO scores.",
+    highlights: [
+      "Human-Crafted Studio UI: Calibrated 3-tier dark/light surface depth (#09090d canvas, #121316 card, #15171c popover), Inter OpenType cv02/cv03/cv04/cv11 typography, and tabular-nums across all data tables and metrics.",
+      "Interactive Auth & Workspace Experience: Redesigned AuthGatewayView with a live interactive Dark/Light Token Resolution Specimen, real versioned release feeds on DashboardView, and authentic vector brand iconography.",
+      "Universal shadcn/ui Dropdown & Select System: Upgraded dropdown-menu, select, and context-menu primitives to 12px studio precision and replaced all 14 native HTML <select> and <details> menus across Docs, Assets, and Header.",
+      "React 18 Concurrent Rendering & Store Selectors: Migrated workspace views to useShallow selectors, wrapped tab switching in startTransition with idle chunk preloading, and gated flat vs. tree token computation.",
+      "API & Storage Concurrency Hardening: Enforced fail-closed token persistence, optimistic concurrency retry loops on R2 metadata index mutations, SSRF host validation on Figma asset proxies, and indexed PAT hash lookups.",
+      "100/100 Lighthouse Verification: Verified 100 Accessibility, 100 Best Practices, and 100 SEO across /, /docs, and /connect.",
+    ],
+    items: [
+      {
+        title: "Studio Surface Hierarchy & Precision Typography",
+        description:
+          "Calibrated dark and light mode HSL tokens for true depth separation between canvas, cards, and popovers, paired with OpenType stylistic alternates and tabular numeric alignment.",
+        category: "ui",
+        tags: ["Design System", "Typography", "Dark Mode", "Surfaces"],
+      },
+      {
+        title: "Universal shadcn/ui Select, Dropdown & Context Menu Unification",
+        description:
+          "Standardized all menu primitives with 12px typography, 14px icons, and 12px rounded popover containers, replacing all 14 native browser <select> elements across Documentation, Assets, and Header branch switching.",
+        category: "ui",
+        tags: ["shadcn/ui", "DropdownMenu", "Select", "ContextMenu"],
+      },
+      {
+        title: "De-Templated Views & Live Token Specimen",
+        description:
+          "Replaced decorative gradient banners, rainbow stat boxes, and placeholder onboarding grids across AuthGatewayView, DashboardView, VariablesView, Documentation, and ExportsHub with functional studio workflows.",
+        category: "ui",
+        tags: ["AuthGateway", "Dashboard", "Variables", "Docs"],
+      },
+      {
+        title: "Zustand useShallow & Concurrent UI Transitions",
+        description:
+          "Eliminated redundant component re-renders with useShallow selectors, deferred search filtering via useDeferredValue, and added idle background preloading for heavy workspace chunks.",
+        category: "enhancement",
+        tags: ["Performance", "React 18", "Zustand", "Concurrency"],
+      },
+      {
+        title: "R2 Optimistic Concurrency & Fail-Closed Token Persistence",
+        description:
+          "Implemented ETag-based CAS retry loops for concurrent R2 asset index writes, atomic fail-closed token push validation, and O(1) indexed SHA-256 API key lookups.",
+        category: "security",
+        tags: ["Cloudflare R2", "Supabase", "Concurrency", "Security"],
+      },
+      {
+        title: "100/100 Lighthouse Accessibility, Best Practices & SEO",
+        description:
+          "Added semantic <main> landmarks, skip-to-content navigation, WCAG AA contrast tokens, and /robots.txt metadata route.",
+        category: "enhancement",
+        tags: ["Lighthouse", "Accessibility", "SEO", "WCAG"],
+      },
+    ],
+  },
+  {
     version: "v1.6.0",
     releaseDate: "October 5, 2026",
     title: "Digital Asset Management (DAM), Cloudflare R2, Team Invitations & Workspace Routing",
     badge: "Major Release",
     badgeVariant: "default",
-    isLatest: true,
+    isLatest: false,
     summary:
       "Introduced enterprise Cloudflare R2 Digital Asset Management (DAM), transactional team email invitations with RBAC, universal URL-first workspace routing, and comprehensive network optimization.",
     highlights: [

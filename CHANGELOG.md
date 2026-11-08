@@ -2,6 +2,35 @@
 
 All notable changes to the Tokens & Asset Management Platform will be documented in this file.
 
+# 1.7.0 `2026-11-08`
+
+● **Minor Changes — Studio UI Craft, `shadcn/ui` Dropdown & Select Unification, Concurrent Rendering & Security Hardening**
+
+### 🚀 Highlights & Features
+
+- **Human-Crafted Studio UI & Surface Architecture**:
+  - Calibrated 3-tier dark and light surface hierarchy (`#09090d` canvas $\rightarrow$ `#121316` card $\rightarrow$ `#15171c` elevated popover) with crisp `1px` structural borders (`#212329`) in [`app/globals.css`](file:///d:/GitHub/second-screen/app/globals.css).
+  - Enabled Inter OpenType precision features (`cv02`, `cv03`, `cv04`, `cv11`) and `tabular-nums` alignment across token counts, metrics, and version badges.
+  - Replaced decorative gradient banners, `<Sparkles />` icons, and rainbow stat boxes across `AuthGatewayView`, `DashboardView`, `VariablesView`, `DocOverviewRoot`, `DocEmptyStateGuide`, `ExportsHub`, and `SystemChangelogView`.
+  - Built an interactive Dark/Light **Live Token Resolution Specimen** on [`components/AuthGatewayView.tsx`](file:///d:/GitHub/second-screen/components/AuthGatewayView.tsx) and connected [`components/DashboardView.tsx`](file:///d:/GitHub/second-screen/components/DashboardView.tsx) to the live release feed from `data/systemChangelog.ts`.
+- **Universal `shadcn/ui` Dropdown, Select & Context Menu System**:
+  - Upgraded [`components/ui/dropdown-menu.tsx`](file:///d:/GitHub/second-screen/components/ui/dropdown-menu.tsx), [`components/ui/select.tsx`](file:///d:/GitHub/second-screen/components/ui/select.tsx), and [`components/ui/context-menu.tsx`](file:///d:/GitHub/second-screen/components/ui/context-menu.tsx) to compact studio `12px` (`text-xs font-medium`) typography, `14px` (`size-3.5`) icons, `rounded-xl` (`12px`) popover containers, and `rounded-lg` (`8px`) interactive items.
+  - Replaced all 14 native browser `<select>` elements and `<details>` filter menus across `DocBlockInspector`, `CalloutBlock`, `PublicDocsReaderClient`, `AssetsWorkspace`, `CreateCollectionModal`, `UploadAssetsModal`, and `AssetDetailStudio` with `shadcn/ui` `<Select>` and `<DropdownMenu>` components.
+  - Converted the custom branch switcher in [`components/Header.tsx`](file:///d:/GitHub/second-screen/components/Header.tsx) to a `shadcn/ui` `<DropdownMenu>` and unified the token reference/function popovers in `AddTokenModal` and `EditTokenDrawer`.
+- **React 18 Concurrent Rendering & Zustand Store Optimization**:
+  - Migrated workspace components (`Header`, `Sidebar`, `SecondarySidebar`, `DashboardView`, `WorkspacesListView`, `DocOverviewRoot`) to `useShallow` selectors to prevent unnecessary re-renders during token edits.
+  - Added `startTransition` tab navigation and `requestIdleCallback` background chunk preloading in [`app/page.tsx`](file:///d:/GitHub/second-screen/app/page.tsx).
+  - Gated `TokensWorkspace` tree vs. flat sorting computation so only the active view mode executes, paired with `useDeferredValue` search filtering.
+- **API & Cloud Storage Concurrency Hardening**:
+  - Enforced fail-closed project reads and atomic persistence checks in `POST /api/v1/tokens`.
+  - Added ETag-based optimistic concurrency control (CAS retry loop) to Cloudflare R2 metadata index updates (`lib/r2.ts`).
+  - Added strict HTTPS + Figma S3/CDN host allowlist validation to `/api/figma/fetch-assets` to prevent SSRF.
+  - Added indexed `key_hash` lookup for Personal Access Token authentication and restricted pairing session polling to safe status metadata.
+- **100/100 Lighthouse Verification**:
+  - Added [`app/robots.ts`](file:///d:/GitHub/second-screen/app/robots.ts), semantic `<main id="main-content">` landmarks, and WCAG AA contrast calibration, achieving **100 / 100** in Accessibility, Best Practices, and SEO across `/`, `/docs/[orgSlug]/[projectSlug]`, and `/connect`.
+
+---
+
 # 1.6.0 `2026-10-05`
 
 ● **Major Release — Digital Asset Management (DAM), Cloudflare R2 Storage, Team Email Invitations & Dynamic Workspace Routing**
