@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDialogs } from "@/components/DialogProvider";
 import { shallow } from "zustand/shallow";
 import { ProjectAsset, AssetFolder, AssetCollection, AssetType, AssetGitConfig, FigmaSourceLink } from "@/types/tenant";
 import { detectContentType, deriveAssetType, extensionFromContentType } from "@/lib/r2";
@@ -11,7 +12,6 @@ import { UploadAssetsModal } from "@/components/assets/UploadAssetsModal";
 import { AssetListView } from "@/components/assets/AssetListView";
 import { AssetDetailStudio } from "@/components/assets/studio/AssetDetailStudio";
 
-import JSZip from "jszip";
 import {
   Image as ImageIcon,
   Search,
@@ -183,13 +183,13 @@ function parseMetadataJson(content: string): Map<string, RawMetadataItem> {
     const items: RawMetadataItem[] = Array.isArray(parsed)
       ? parsed
       : parsed.icons && Array.isArray(parsed.icons)
-      ? parsed.icons
-      : typeof parsed === "object"
-      ? Object.entries(parsed).map(([k, v]: [string, any]) => ({
-          name: k,
-          ...(typeof v === "object" && v !== null ? v : {}),
-        }))
-      : [];
+        ? parsed.icons
+        : typeof parsed === "object"
+          ? Object.entries(parsed).map(([k, v]: [string, any]) => ({
+            name: k,
+            ...(typeof v === "object" && v !== null ? v : {}),
+          }))
+          : [];
 
     for (const item of items) {
       if (!item) continue;
@@ -493,7 +493,7 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   return (
     <div
-      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-all duration-200"
+      className="w-full h-22 rounded-lg border border-border/50 relative flex items-center justify-center p-2.5 overflow-hidden transition-colors duration-200"
       style={previewStyle}
     >
       {!isLoaded && !hasError && icon.url && (
@@ -516,13 +516,11 @@ const AssetPreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           alt={displayTitle}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
-          className={`max-h-14 max-w-[85%] object-contain transition-opacity duration-150 ${
-            isLoaded ? "opacity-100" : "opacity-0"
-          } ${
-            shouldInvertMonochrome || shouldInvertInDarkMode
+          className={`max-h-14 max-w-[85%] object-contain transition-opacity duration-150 ${isLoaded ? "opacity-100" : "opacity-0"
+            } ${shouldInvertMonochrome || shouldInvertInDarkMode
               ? "dark:invert dark:opacity-90"
               : ""
-          }`}
+            }`}
           loading="lazy"
         />
       ) : (
@@ -547,7 +545,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 
   return (
     <div
-      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-all duration-200 p-2"
+      className="w-full h-22 rounded-lg border border-border/50 overflow-hidden flex items-center justify-center relative transition-colors duration-200 p-2"
       style={previewStyle}
     >
       {!isLoaded && !hasError && (
@@ -563,9 +561,8 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
           alt={displayTitle}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
-          className={`max-h-full max-w-full object-contain transition-opacity duration-150 ${
-            isLoaded ? "opacity-100" : "opacity-0"
-          }`}
+          className={`max-h-full max-w-full object-contain transition-opacity duration-150 ${isLoaded ? "opacity-100" : "opacity-0"
+            }`}
           loading="lazy"
         />
       )}
@@ -576,6 +573,7 @@ const ImagePreviewThumbnail: React.FC<AssetPreviewThumbnailProps> = React.memo((
 ImagePreviewThumbnail.displayName = "ImagePreviewThumbnail";
 
 export const AssetsWorkspace: React.FC = () => {
+  const dialogs = useDialogs();
   const {
     currentOrg,
     currentProject,
@@ -1165,15 +1163,16 @@ export const AssetsWorkspace: React.FC = () => {
 
       if (lower.endsWith(".zip")) {
         try {
+          const JSZip = (await import("jszip")).default;
           const zip = await JSZip.loadAsync(file);
           const zipEntries: Array<Promise<void>> = [];
 
-          zip.forEach((path, entry) => {
+          zip.forEach((path: string, entry: any) => {
             if (!entry.dir) {
               const entryLower = path.toLowerCase();
               if (entryLower.endsWith(".json") || entryLower.endsWith(".svg")) {
                 zipEntries.push(
-                  entry.async("text").then((text) => {
+                  entry.async("text").then((text: string) => {
                     rawFiles.push({ path, content: text, isBinary: false, contentType: entryLower.endsWith(".svg") ? "image/svg+xml" : "application/json" });
                   })
                 );
@@ -1815,7 +1814,7 @@ export const AssetsWorkspace: React.FC = () => {
     if (targetAssets.length === 0) return;
 
     try {
-      const zip = new JSZip();
+      const zip = new ((await import("jszip")).default)();
       const filePromises = targetAssets.map(async (asset) => {
         const typeFolder = asset.type || "general";
         const catFolder = asset.category || "general";
@@ -2117,32 +2116,28 @@ export const AssetsWorkspace: React.FC = () => {
             handleCardClick();
           }
         }}
-        className={`w-[120px] flex-shrink-0 cursor-pointer group relative ${
-          isSelected ? "" : ""
-        }`}
+        className={`w-[120px] flex-shrink-0 cursor-pointer group relative ${isSelected ? "" : ""
+          }`}
         title={icon.tag ? `Tags: ${icon.tag}` : undefined}
       >
         {/* Preview Area */}
         <div
-          className={`relative w-full aspect-square rounded-2xl border overflow-hidden flex items-center justify-center transition-all duration-200 ${
-            isSelected
-              ? "border-primary ring-2 ring-primary/20 bg-muted/30"
-              : "border-border/60 bg-muted/20"
-          }`}
+          className={`relative w-full aspect-square rounded-2xl border overflow-hidden flex items-center justify-center transition duration-200 ${isSelected
+            ? "border-primary ring-2 ring-primary/20 bg-muted/30"
+            : "border-border/60 bg-muted/20"
+            }`}
         >
           {/* Selection Checkbox */}
           <div
-            className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${
-              isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-            }`}
+            className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              }`}
             onClick={(e) => toggleAssetSelect(icon.id, e)}
           >
             <div
-              className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-colors ${
-                isSelected
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background/80 border border-border text-transparent"
-              }`}
+              className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-colors ${isSelected
+                ? "bg-primary text-primary-foreground"
+                : "bg-background/80 border border-border text-transparent"
+                }`}
             >
               <Check className="w-2.5 h-2.5 stroke-[3]" />
             </div>
@@ -2352,9 +2347,9 @@ export const AssetsWorkspace: React.FC = () => {
     >
       {/* Full-surface drag-and-drop visual dropzone indicator */}
       {isDragOver && !isUnfilteredEmptyCollection && (
-        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary flex flex-col items-center justify-center pointer-events-none transition-all animate-in fade-in duration-150">
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary flex flex-col items-center justify-center pointer-events-none transition animate-in fade-in duration-150">
           <div className="bg-card border border-primary/30 shadow-2xl rounded-2xl p-6 flex flex-col items-center gap-3 text-center max-w-sm pointer-events-none">
-            <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center animate-bounce">
+            <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center motion-safe:animate-bounce">
               <UploadCloud className="w-7 h-7" />
             </div>
             <div>
@@ -2483,9 +2478,8 @@ export const AssetsWorkspace: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={toggleSelectAll}
-              className={`h-8 text-xs gap-1.5 cursor-pointer ${
-                selectedAssetIds.size > 0 ? "border-primary/50 text-primary bg-primary/5" : ""
-              }`}
+              className={`h-8 text-xs gap-1.5 cursor-pointer ${selectedAssetIds.size > 0 ? "border-primary/50 text-primary bg-primary/5" : ""
+                }`}
             >
               {isAllSelected ? (
                 <CheckSquare className="w-3.5 h-3.5" />
@@ -2563,9 +2557,8 @@ export const AssetsWorkspace: React.FC = () => {
               size="sm"
               onClick={() => syncAssetsFromGit()}
               disabled={isSyncingAssets || assetGitConfig?.isPaused}
-              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer border-emerald-500/30 text-emerald-600 dark:text-emerald-400 ${
-                assetGitConfig?.isPaused ? "opacity-60" : ""
-              }`}
+              className={`gap-1.5 h-8 text-xs font-semibold bg-background hover:bg-muted cursor-pointer border-emerald-500/30 text-emerald-600 dark:text-emerald-400 ${assetGitConfig?.isPaused ? "opacity-60" : ""
+                }`}
               title={
                 assetGitConfig?.isPaused
                   ? "Git sync is paused. Resume in Git Config to sync."
@@ -2577,8 +2570,8 @@ export const AssetsWorkspace: React.FC = () => {
                 {isSyncingAssets
                   ? "Syncing Git..."
                   : assetGitConfig?.isPaused
-                  ? "Git Paused"
-                  : "Sync Git"}
+                    ? "Git Paused"
+                    : "Sync Git"}
               </span>
             </Button>
           )}
@@ -2631,9 +2624,8 @@ export const AssetsWorkspace: React.FC = () => {
           <aside className="w-64 border-r border-border bg-card/30 flex flex-col flex-shrink-0 select-none overflow-hidden">
             {/* SECTION 1: COLLECTIONS */}
             <div
-              className={`p-3 ${
-                categories.length > 0 ? "border-b border-border/40 max-h-[50%]" : "flex-1"
-              } flex flex-col overflow-hidden`}
+              className={`p-3 ${categories.length > 0 ? "border-b border-border/40 max-h-[50%]" : "flex-1"
+                } flex flex-col overflow-hidden`}
             >
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <div className="flex items-center gap-1.5">
@@ -2671,28 +2663,25 @@ export const AssetsWorkspace: React.FC = () => {
                     e.preventDefault();
                     handleProcessIncomingFiles(e.dataTransfer.files, undefined);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer group ${
-                    activeFolderId === null
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                  }`}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg                   text-xs transition cursor-pointer group ${activeFolderId === null
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                    }`}
                 >
                   <div className="flex items-center gap-2 truncate">
                     <Grid
-                      className={`w-3.5 h-3.5 flex-shrink-0 ${
-                        activeFolderId === null
-                          ? "text-sidebar-accent-foreground"
-                          : "text-muted-foreground group-hover:text-sidebar-foreground"
-                      }`}
+                      className={`w-3.5 h-3.5 flex-shrink-0 ${activeFolderId === null
+                        ? "text-sidebar-accent-foreground"
+                        : "text-muted-foreground group-hover:text-sidebar-foreground"
+                        }`}
                     />
                     <span className="truncate">All Assets</span>
                   </div>
                   <span
-                    className={`text-[10px] font-mono ml-2 ${
-                      activeFolderId === null
-                        ? "text-sidebar-accent-foreground font-semibold"
-                        : "text-muted-foreground/80"
-                    }`}
+                    className={`text-[10px] font-mono ml-2 ${activeFolderId === null
+                      ? "text-sidebar-accent-foreground font-semibold"
+                      : "text-muted-foreground/80"
+                      }`}
                   >
                     {displayAssets.length}
                   </span>
@@ -2723,22 +2712,20 @@ export const AssetsWorkspace: React.FC = () => {
                         setDragTargetFolderId(null);
                         handleProcessIncomingFiles(e.dataTransfer.files, folder.id);
                       }}
-                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                          : isDropTarget
+                      className={`group/folder relative flex items-center justify-between px-2.5 py-1.5 rounded-lg                       text-xs transition cursor-pointer ${isSelected
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                        : isDropTarget
                           ? "bg-muted border border-border text-foreground"
                           : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                      }`}
+                        }`}
                       onClick={() => setActiveFolderId(folder.id)}
                     >
                       <div className="flex items-center gap-2 truncate flex-1 min-w-0">
                         <FolderIconComp
-                          className={`w-3.5 h-3.5 flex-shrink-0 ${
-                            isSelected
-                              ? "text-sidebar-accent-foreground"
-                              : "text-muted-foreground group-hover/folder:text-sidebar-foreground"
-                          }`}
+                          className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected
+                            ? "text-sidebar-accent-foreground"
+                            : "text-muted-foreground group-hover/folder:text-sidebar-foreground"
+                            }`}
                         />
                         <span className="truncate" title={folder.description || folder.name}>
                           {folder.name}
@@ -2747,11 +2734,10 @@ export const AssetsWorkspace: React.FC = () => {
 
                       <div className="flex items-center gap-1">
                         <span
-                          className={`text-[10px] font-mono ${
-                            isSelected
-                              ? "text-sidebar-accent-foreground font-semibold"
-                              : "text-muted-foreground/80 group-hover/folder:opacity-0"
-                          }`}
+                          className={`text-[10px] font-mono ${isSelected
+                            ? "text-sidebar-accent-foreground font-semibold"
+                            : "text-muted-foreground/80 group-hover/folder:opacity-0"
+                            }`}
                         >
                           {count}
                         </span>
@@ -2764,11 +2750,10 @@ export const AssetsWorkspace: React.FC = () => {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className={`w-5 h-5 rounded flex items-center justify-center cursor-pointer ${
-                                    isSelected
-                                      ? "text-sidebar-accent-foreground hover:bg-sidebar-accent/80"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                  }`}
+                                  className={`w-5 h-5 rounded flex items-center justify-center cursor-pointer ${isSelected
+                                    ? "text-sidebar-accent-foreground hover:bg-sidebar-accent/80"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    }`}
                                 >
                                   <MoreVertical className="w-3 h-3" />
                                 </button>
@@ -2867,28 +2852,25 @@ export const AssetsWorkspace: React.FC = () => {
                       <button
                         key={cat}
                         onClick={() => setSelectedCategory(isSelected ? "all" : cat)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer group ${
-                          isSelected
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                            : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                        }`}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg                         text-xs transition cursor-pointer group ${isSelected
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                          : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                          }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <IconComponent
-                            className={`w-3.5 h-3.5 flex-shrink-0 ${
-                              isSelected
-                                ? "text-sidebar-accent-foreground"
-                                : "text-muted-foreground group-hover:text-sidebar-foreground"
-                            }`}
+                            className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected
+                              ? "text-sidebar-accent-foreground"
+                              : "text-muted-foreground group-hover:text-sidebar-foreground"
+                              }`}
                           />
                           <span className="truncate" title={formattedName}>
                             {formattedName}
                           </span>
                         </div>
                         <span
-                          className={`text-[10px] font-mono ml-2 ${
-                            isSelected ? "text-sidebar-accent-foreground font-semibold" : "text-muted-foreground/80"
-                          }`}
+                          className={`text-[10px] font-mono ml-2 ${isSelected ? "text-sidebar-accent-foreground font-semibold" : "text-muted-foreground/80"
+                            }`}
                         >
                           {count}
                         </span>
@@ -2913,11 +2895,10 @@ export const AssetsWorkspace: React.FC = () => {
                 </span>
                 <button
                   onClick={() => setSelectedType("all")}
-                  className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
-                    selectedType === "all"
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${selectedType === "all"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                    }`}
                 >
                   All Types ({displayAssets.length})
                 </button>
@@ -2928,11 +2909,10 @@ export const AssetsWorkspace: React.FC = () => {
                     <button
                       key={t}
                       onClick={() => setSelectedType(t)}
-                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
-                        isSelected
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
-                          : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
-                      }`}
+                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${isSelected
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs"
+                        : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 font-medium"
+                        }`}
                     >
                       <span>{formatCategoryName(t) || t}</span>
                       <span className={`text-[10px] ${isSelected ? "text-sidebar-accent-foreground/80 font-semibold" : "text-muted-foreground"}`}>
@@ -2993,10 +2973,10 @@ export const AssetsWorkspace: React.FC = () => {
                     <ImageIcon className="w-6 h-6" />
                   </div>
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
-                    No Vector Assets in Project
+                    Add your first icons
                   </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Upload SVG vector icons, folders, or ZIP archives, connect multiple Figma component frames &amp; sections, or synchronize automatically from any Git repository.
+                    Upload SVGs, a folder, or a ZIP, or import them from Figma or a Git repository.
                   </p>
                 </div>
 
@@ -3008,18 +2988,17 @@ export const AssetsWorkspace: React.FC = () => {
                       setUploadTargetFolderId(activeFolderId || null);
                       setIsUploadQueueOpen(true);
                     }}
-                    className={`p-5 rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col justify-between group text-center space-y-4 ${
-                      isDragOver
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "border-border/80 bg-card hover:bg-muted/40 shadow-xs"
-                    }`}
+                    className={`p-5 rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col justify-between group text-center space-y-4 ${isDragOver
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border/80 bg-card hover:bg-muted/40 shadow-xs"
+                      }`}
                   >
                     <div className="space-y-3 flex flex-col items-center">
                       <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                         <UploadCloud className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-foreground">Upload SVG, Folder, or ZIP</h3>
+                        <h3 className="text-sm font-bold text-foreground">Upload files</h3>
                         <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                           Drag and drop nested type folders (e.g. <code className="font-mono text-primary">stroke/</code>, <code className="font-mono text-primary">twotone/</code>), a <code className="font-mono text-primary">.zip</code> archive, or <code className="font-mono text-primary">metadata.json</code>.
                         </p>
@@ -3065,7 +3044,7 @@ export const AssetsWorkspace: React.FC = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-foreground">Connect Figma Links</h3>
+                          <h3 className="text-sm font-bold text-foreground">Import from Figma</h3>
                           <Badge variant="outline" className="text-[9px] font-mono border-violet-500/30 text-violet-600 dark:text-violet-400">
                             Multi-Link
                           </Badge>
@@ -3109,7 +3088,7 @@ export const AssetsWorkspace: React.FC = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-foreground">Connect Git Folder</h3>
+                          <h3 className="text-sm font-bold text-foreground">Import from Git</h3>
                           <Badge variant="outline" className="text-[9px] font-mono border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                             Independent
                           </Badge>
@@ -3148,9 +3127,8 @@ export const AssetsWorkspace: React.FC = () => {
               isUnfilteredEmptyCollection ? (
                 /* Empty Folder State */
                 <div
-                  className={`mx-auto flex h-[35vh] min-h-[220px] max-h-[420px] w-full max-w-3xl flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-                    isDragOver ? "border-primary bg-primary/10" : "border-muted-foreground/35 bg-muted/20 hover:border-primary/50"
-                  }`}
+                  className={`mx-auto flex h-[35vh] min-h-[220px] max-h-[420px] w-full max-w-3xl flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${isDragOver ? "border-primary bg-primary/10" : "border-muted-foreground/35 bg-muted/20 hover:border-primary/50"
+                    }`}
                   onDragOver={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -3520,11 +3498,10 @@ export const AssetsWorkspace: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerActiveTab("figma")}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  drawerActiveTab === "figma"
-                    ? "bg-background text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs                 font-semibold transition cursor-pointer ${drawerActiveTab === "figma"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 <Figma className="w-3.5 h-3.5 text-violet-500" />
                 <span>Figma &amp; View Options</span>
@@ -3538,11 +3515,10 @@ export const AssetsWorkspace: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerActiveTab("git")}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  drawerActiveTab === "git"
-                    ? "bg-background text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs                 font-semibold transition cursor-pointer ${drawerActiveTab === "git"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 <FolderGit2 className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Git Repository</span>
@@ -3767,11 +3743,10 @@ export const AssetsWorkspace: React.FC = () => {
                         return (
                           <div
                             key={src.id}
-                            className={`p-3.5 rounded-2xl border text-xs transition-all ${
-                              isSrcPaused
-                                ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
-                                : "border-border bg-card shadow-2xs"
-                            }`}
+                            className={`p-3.5 rounded-2xl border text-xs transition ${isSrcPaused
+                              ? "border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10"
+                              : "border-border bg-card shadow-2xs"
+                              }`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1 space-y-1">
@@ -3850,11 +3825,10 @@ export const AssetsWorkspace: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => togglePauseFigmaSource(src.id)}
-                                  className={`h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer ${
-                                    isSrcPaused
-                                      ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
-                                      : "border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                                  }`}
+                                  className={`h-7 px-2.5 text-[11px] gap-1.5 font-medium cursor-pointer ${isSrcPaused
+                                    ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                                    : "border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                                    }`}
                                   title={isSrcPaused ? "Resume sync for this Figma link" : "Pause sync for this Figma link"}
                                 >
                                   {isSrcPaused ? (
@@ -3961,7 +3935,13 @@ export const AssetsWorkspace: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={async () => {
-                          if (confirm("Are you sure you want to disconnect and remove this Git configuration?")) {
+                          const confirmed = await dialogs.confirm({
+                            title: "Disconnect Git?",
+                            description: "This removes the Git configuration for this project's assets.",
+                            confirmLabel: "Disconnect",
+                            destructive: true,
+                          });
+                          if (confirmed) {
                             await disconnectAssetGit();
                           }
                         }}
@@ -3982,11 +3962,10 @@ export const AssetsWorkspace: React.FC = () => {
                         key={p}
                         type="button"
                         onClick={() => setGitProvider(p)}
-                        className={`px-2 py-2.5 rounded-xl border text-xs font-medium capitalize transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                          gitProvider === p
-                            ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
-                            : "border-border bg-card text-muted-foreground hover:text-foreground"
-                        }`}
+                        className={`px-2 py-2.5 rounded-xl border text-xs font-medium capitalize transition cursor-pointer flex flex-col items-center gap-1 ${gitProvider === p
+                          ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground"
+                          }`}
                       >
                         <span>{p === "github" ? "🐙" : p === "gitlab" ? "🦊" : p === "azure" ? "🔷" : "🪣"}</span>
                         <span className="text-[10px]">{p}</span>
@@ -4189,7 +4168,7 @@ export const AssetsWorkspace: React.FC = () => {
               <span>Remove Figma Source Link</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Choose what happens to icons synced from <strong>"{sourceToRemove?.name}"</strong>.
+              Choose what happens to icons synced from <strong>&ldquo;{sourceToRemove?.name}&rdquo;</strong>.
             </DialogDescription>
           </DialogHeader>
 
@@ -4433,11 +4412,10 @@ export const AssetsWorkspace: React.FC = () => {
                         key={iconKey}
                         type="button"
                         onClick={() => setFolderFormIcon(iconKey)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
-                          isSelected
-                            ? "border-primary bg-primary text-primary-foreground shadow-2xs"
-                            : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                        }`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border transition cursor-pointer ${isSelected
+                          ? "border-primary bg-primary text-primary-foreground shadow-2xs"
+                          : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                          }`}
                         title={iconKey}
                       >
                         <IconComp className="w-4 h-4" />

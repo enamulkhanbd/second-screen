@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasTrustedMutationOrigin } from "@/utils/auth";
-import { findInvitationByToken, resolveInviteState } from "@/lib/invitations";
+import { findInvitationByToken, inviterMayGrant, resolveInviteState } from "@/lib/invitations";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     const admin = createAdminClient();
     const { data: organization, error: organizationError } = await admin
       .from("organizations")
-      .select("owner_uid")
+      .select("id, slug, owner_uid")
       .eq("id", invitation.org_id)
       .maybeSingle();
     if (organizationError) throw organizationError;
@@ -52,17 +52,49 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       );
     }
 
-    // Never downgrade an existing membership (e.g. the org owner) through an invitation.
-    const { data: existing, error: existingError } = await admin
-      .from("organization_members")
-      .select("user_id, email")
-      .eq("org_id", invitation.org_id);
-    if (existingError) throw existingError;
+    // Re-validate the inviter's current authority to grant the stored role (H1 / R2.2)
+    if (process.env.INVITE_REVALIDATE_INVITER !== "off") {
+      const authorized = await inviterMayGrant(
+        admin,
+        invitation.org_id,
+        invitation.inviter_uid,
+        invitation.role
+      );
+      if (!authorized) {
+        await admin
+          .from("invitations")
+          .update({ status: "revoked" })
+          .eq("id", invitation.id)
+          .eq("status", "pending");
+        return NextResponse.json(
+          { error: "The user who sent this invitation is not authorized to grant this role.", code: "inviter_not_authorized" },
+          { status: 403 }
+        );
+      }
+    }
 
+    // Targeted duplicate checks instead of downloading every org member (A4 / R2.2)
     const normalizedEmail = user.email.trim().toLowerCase();
-    const sameEmailMembership = existing?.find(
-      (member) => member.email?.trim().toLowerCase() === normalizedEmail
-    );
+    const [{ data: sameEmailMembership, error: emailError }, { data: existingUserMembership, error: userError }] =
+      await Promise.all([
+        admin
+          .from("organization_members")
+          .select("user_id, email")
+          .eq("org_id", invitation.org_id)
+          .ilike("email", normalizedEmail)
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from("organization_members")
+          .select("user_id")
+          .eq("org_id", invitation.org_id)
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle(),
+      ]);
+    if (emailError) throw emailError;
+    if (userError) throw userError;
+
     if (sameEmailMembership && sameEmailMembership.user_id !== user.id) {
       return NextResponse.json(
         { error: "This email is already a member of the workspace under another account.", code: "email_already_member" },
@@ -70,13 +102,26 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       );
     }
 
-    const existingUserMembership = existing?.find((member) => member.user_id === user.id);
+    // Claim the pending invitation first; if 0 rows affected, do not create membership (A4 / R2.2)
+    const { data: acceptedRows, error: acceptErr } = await admin
+      .from("invitations")
+      .update({ status: "accepted" })
+      .eq("id", invitation.id)
+      .eq("status", "pending")
+      .select("id");
+    if (acceptErr) throw acceptErr;
+    if (!acceptedRows || acceptedRows.length === 0) {
+      return NextResponse.json(
+        { error: "This invitation has already been accepted.", code: "already_accepted" },
+        { status: 409 }
+      );
+    }
 
     if (!existingUserMembership) {
       const { error: memberErr } = await admin.from("organization_members").insert({
         org_id: invitation.org_id,
         user_id: user.id,
-        email: user.email.trim().toLowerCase(),
+        email: normalizedEmail,
         display_name:
           user.user_metadata?.full_name || user.user_metadata?.name || user.email.split("@")[0],
         role: invitation.role,
@@ -88,22 +133,21 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
           { status: 409 }
         );
       }
-      if (memberErr) throw memberErr;
+      if (memberErr) {
+        await admin
+          .from("invitations")
+          .update({ status: "pending" })
+          .eq("id", invitation.id)
+          .eq("status", "accepted");
+        throw memberErr;
+      }
     }
 
-    await admin
-      .from("invitations")
-      .update({ status: "accepted" })
-      .eq("id", invitation.id)
-      .eq("status", "pending");
-
-    const { data: org } = await admin
-      .from("organizations")
-      .select("id, slug")
-      .eq("id", invitation.org_id)
-      .maybeSingle();
-
-    return NextResponse.json({ success: true, orgId: invitation.org_id, orgSlug: org?.slug || null });
+    return NextResponse.json({
+      success: true,
+      orgId: invitation.org_id,
+      orgSlug: organization?.slug || null,
+    });
   } catch {
     return NextResponse.json({ error: "Failed to accept invitation." }, { status: 500 });
   }

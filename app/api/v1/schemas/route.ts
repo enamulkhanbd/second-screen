@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SCHEMA_CATALOG, SchemaCategory } from "@/data/schemaCatalog";
+import { jsonWithCors, handleOptionsCors, corsHeaders } from "@/utils/cors";
+
+export const dynamic = "force-dynamic";
+
+export async function OPTIONS() {
+  return handleOptionsCors();
+}
+
+export async function HEAD() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600",
+    },
+  });
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -28,9 +46,16 @@ export async function GET(req: NextRequest) {
     functions: SCHEMA_CATALOG.filter((s) => s.category === "functions").length,
   };
 
-  return NextResponse.json({
-    counts,
-    total: items.length,
-    schemas: items,
-  });
+  return jsonWithCors(
+    {
+      counts,
+      total: items.length,
+      schemas: items,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    }
+  );
 }

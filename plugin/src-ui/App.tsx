@@ -225,11 +225,11 @@ export const App: React.FC = () => {
       el.select();
       document.execCommand("copy");
       document.body.removeChild(el);
-    } catch {}
+    } catch { }
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
+      navigator.clipboard.writeText(text).catch(() => { });
     }
-    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `✓ Copied ${label}` } }, "*");
+    parent.postMessage({ pluginMessage: { type: "NOTIFY", payload: `Copied ${label}` } }, "*");
   };
 
   // 1. Initial configuration load from Figma clientStorage
@@ -527,7 +527,16 @@ export const App: React.FC = () => {
         throw new Error(errData.error || `HTTP ${res.status}: Failed to fetch tokens`);
       }
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        if (data.code === "conflict" || res.status === 409) {
+          throw new Error(data.error || "Conflict: Cloud tokens were updated concurrently. Pull latest tokens and retry.");
+        }
+        if (data.code === "persist_failed") {
+          throw new Error(data.error || "Could not save tokens to the cloud database. Please retry.");
+        }
+        throw new Error(data.error || "Failed to push tokens to Studio");
+      }
       if (data.success) {
         setIsOffline(false);
         setErrorBanner(null);
@@ -583,7 +592,7 @@ export const App: React.FC = () => {
       if (Array.isArray(data.branches) && data.branches.length > 0) {
         setAvailableBranches(data.branches);
       }
-    } catch {}
+    } catch { }
   };
 
   // Push local tokens to Studio API
@@ -614,13 +623,22 @@ export const App: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        if (data.code === "conflict" || res.status === 409) {
+          throw new Error(data.error || "Conflict: Cloud tokens were updated concurrently. Pull latest tokens and retry.");
+        }
+        if (data.code === "persist_failed") {
+          throw new Error(data.error || "Could not save tokens to the cloud database. Please retry.");
+        }
+        throw new Error(data.error || "Failed to push tokens to Studio");
+      }
       if (data.success) {
         parent.postMessage(
           {
             pluginMessage: {
               type: "NOTIFY",
-              payload: data.message || `✓ Published ${data.changedCount ?? 0} tokens to Studio!`,
+              payload: data.message || `Published ${data.changedCount ?? 0} tokens to Studio`,
             },
           },
           "*"
@@ -730,7 +748,7 @@ export const App: React.FC = () => {
       <button
         onClick={() => {
           const next = themeMode === "dark" ? "light" : "dark";
-              saveThemePreferences(next);
+          saveThemePreferences(next);
         }}
         title={`Switch to ${themeMode === "dark" ? "Light" : "Dark"} mode`}
         className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -1365,11 +1383,10 @@ export const App: React.FC = () => {
       <div className="px-3.5 py-2 border-b border-border/60 bg-card/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
         <button
           onClick={() => setSelectedCollection("ALL")}
-          className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
-            selectedCollection === "ALL"
-              ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
+          className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${selectedCollection === "ALL"
+            ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
         >
           All ({tokens.length})
         </button>
@@ -1378,11 +1395,10 @@ export const App: React.FC = () => {
           <button
             key={col.name}
             onClick={() => setSelectedCollection(col.name)}
-            className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${
-              selectedCollection === col.name
-                ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            }`}
+            className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer ${selectedCollection === col.name
+              ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
           >
             {col.name} ({col.count})
           </button>
@@ -1462,9 +1478,8 @@ export const App: React.FC = () => {
                     setSelectedBranch(b);
                     fetchTokens(config.serverUrl, config.pat, selectedOrg?.id, selectedProject?.id, b);
                   }}
-                  className={`text-xs cursor-pointer px-2 py-1.5 rounded-md ${
-                    selectedBranch === b ? "bg-primary/15 text-primary font-bold" : "hover:bg-accent"
-                  }`}
+                  className={`text-xs cursor-pointer px-2 py-1.5 rounded-md ${selectedBranch === b ? "bg-primary/15 text-primary font-bold" : "hover:bg-accent"
+                    }`}
                 >
                   {b}
                 </DropdownMenuItem>

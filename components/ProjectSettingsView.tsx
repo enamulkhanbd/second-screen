@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDialogs } from "@/components/DialogProvider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +35,7 @@ import {
 
 
 export const ProjectSettingsView: React.FC = () => {
+  const dialogs = useDialogs();
   const {
     currentOrg,
     currentProject,
@@ -146,10 +148,15 @@ export const ProjectSettingsView: React.FC = () => {
   const handleArchive = async () => {
     if (!currentOrg || !project) return;
     const willArchive = !project.isArchived;
-    const confirmMsg = willArchive
-      ? `Are you sure you want to archive "${project.name}"? It will become read-only and move to the Archived projects tab.`
-      : `Are you sure you want to restore "${project.name}" to active status?`;
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await dialogs.confirm({
+      title: willArchive ? `Archive "${project.name}"?` : `Restore "${project.name}"?`,
+      description: willArchive
+        ? "It becomes read-only and moves to the Archived projects tab."
+        : "It returns to active status.",
+      confirmLabel: willArchive ? "Archive project" : "Restore project",
+      destructive: willArchive,
+    });
+    if (!confirmed) return;
 
     try {
       await updateProjectAction(currentOrg.id, project.id, {
@@ -326,7 +333,7 @@ export const ProjectSettingsView: React.FC = () => {
               {/* Live Avatar Preview / Click to upload */}
               <div
                 onClick={() => canEditSettings && fileInputRef.current?.click()}
-                className={`w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-xl flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden border border-border/80 shadow-2xs transition-all relative group ${
+                className={`w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-xl flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden border border-border/80 shadow-2xs transition relative group ${
                   canEditSettings ? "cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-primary/20" : ""
                 }`}
                 style={{

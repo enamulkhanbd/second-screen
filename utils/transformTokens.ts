@@ -212,27 +212,52 @@ function getColorLuminance(val: string): number | null {
  * Correctly extracts dimension values (e.g. 4px, 1.5rem, 50%) to allow numerical magnitude sorting,
  * and detects color values for perceptual lightness comparison.
  */
+const sortableValueCache = new WeakMap<object, ParsedSortableValue>();
+const primitiveSortableCache = new Map<string, ParsedSortableValue>();
+const MAX_PRIMITIVE_SORTABLE_CACHE = 8192;
+
+/**
+ * Parses any resolved/raw token value into a sortable structure.
+ * Correctly extracts dimension values (e.g. 4px, 1.5rem, 50%) to allow numerical magnitude sorting,
+ * and detects color values for perceptual lightness comparison.
+ * Employs fast WeakMap & bounded primitive caches to avoid redundant regex parsing during table sorts.
+ */
 export function parseSortableValue(val: any): ParsedSortableValue {
   if (val === null || val === undefined) {
     return { isNumeric: false, num: 0, unit: "", text: "", isColor: false };
   }
+  if (typeof val === "object") {
+    const cached = sortableValueCache.get(val);
+    if (cached) return cached;
+    const str = JSON.stringify(val).trim();
+    const parsed: ParsedSortableValue = { isNumeric: false, num: 0, unit: "", text: str, isColor: false };
+    sortableValueCache.set(val, parsed);
+    return parsed;
+  }
   if (typeof val === "number") {
     return { isNumeric: true, num: val, unit: "", text: String(val), isColor: false };
   }
-  const str = String(typeof val === "object" ? JSON.stringify(val) : val).trim();
+  const str = String(val).trim();
+  const cached = primitiveSortableCache.get(str);
+  if (cached) return cached;
+
+  let parsed: ParsedSortableValue;
   const match = str.match(/^([+-]?(?:\d*\.)?\d+)([a-zA-Z%]*)$/);
   if (match) {
-    return { isNumeric: true, num: parseFloat(match[1]), unit: match[2] || "", text: str, isColor: false };
+    parsed = { isNumeric: true, num: parseFloat(match[1]), unit: match[2] || "", text: str, isColor: false };
+  } else {
+    const isCol = isColorString(str);
+    parsed = { isNumeric: false, num: 0, unit: "", text: str, isColor: isCol };
   }
-  const isCol = isColorString(str);
-  return { isNumeric: false, num: 0, unit: "", text: str, isColor: isCol };
+
+  if (primitiveSortableCache.size >= MAX_PRIMITIVE_SORTABLE_CACHE) {
+    const oldest = primitiveSortableCache.keys().next().value;
+    if (oldest !== undefined) primitiveSortableCache.delete(oldest);
+  }
+  primitiveSortableCache.set(str, parsed);
+  return parsed;
 }
 
-/**
- * Compares two resolved token values.
- * - Dimension/numeric values (0px, 1px, 2px, 4px, 16px, 999px) sort by their numeric magnitude.
- * - Text/color values sort with alphabetical A-Z, 0-9 collation.
- */
 export function compareResolvedValues(valA: any, valB: any, dir: "asc" | "desc" = "asc"): number {
   const pA = parseSortableValue(valA);
   const pB = parseSortableValue(valB);
@@ -296,6 +321,75 @@ export function compareTokens<T extends { name: string; resolvedValue?: any; raw
   return compareTokenNames(a.name, b.name, dir);
 }
 
+/**
+ * Fast Schwartzian transform sorter for FlattenedToken arrays.
+ * Precomputes sortable values and regex matches once per item,
+ * eliminating redundant parsing inside the O(N log N) quicksort comparisons.
+ */
+export function sortFlattenedTokens<T extends { name: string; resolvedValue?: any; rawValue?: any }>(
+  tokens: T[],
+  field: "name" | "resolved" = "resolved",
+  dir: "asc" | "desc" = "asc"
+): T[] {
+  if (tokens.length <= 1) return tokens;
+
+  // Precompute keys (Schwartzian transform)
+  const items = tokens.map((token, idx) => ({
+    idx,
+    token,
+    parsed:
+      field === "resolved"
+        ? parseSortableValue(token.resolvedValue !== undefined && token.resolvedValue !== null ? token.resolvedValue : token.rawValue)
+        : null,
+    scaleMatch: field === "resolved" ? token.name.match(/^(.*).(\d+)$/) : null,
+  }));
+
+  items.sort((a, b) => {
+    if (field === "resolved") {
+      // 1. Same family numeric scale check (e.g. primary.50 vs primary.500)
+      if (a.scaleMatch && b.scaleMatch && a.scaleMatch[1] === b.scaleMatch[1]) {
+        const numA = parseInt(a.scaleMatch[2], 10);
+        const numB = parseInt(b.scaleMatch[2], 10);
+        return dir === "asc" ? numA - numB : numB - numA;
+      }
+
+      // 2. Parsed value comparison
+      const pA = a.parsed!;
+      const pB = b.parsed!;
+
+      if (pA.isNumeric && pB.isNumeric) {
+        if (pA.num !== pB.num) {
+          return dir === "desc" ? pB.num - pA.num : pA.num - pB.num;
+        }
+        const unitCmp = (pA.unit || "").localeCompare(pB.unit || "");
+        if (unitCmp !== 0) return dir === "desc" ? -unitCmp : unitCmp;
+      } else if (pA.isNumeric && !pB.isNumeric) {
+        return dir === "desc" ? -1 : 1;
+      } else if (!pA.isNumeric && pB.isNumeric) {
+        return dir === "desc" ? 1 : -1;
+      } else if (pA.isColor && pB.isColor) {
+        const lumA = getColorLuminance(pA.text);
+        const lumB = getColorLuminance(pB.text);
+        if (lumA !== null && lumB !== null && Math.abs(lumA - lumB) > 0.001) {
+          return dir === "asc" ? lumB - lumA : lumA - lumB;
+        }
+        const cmp = compareSegmentAZ09(pA.text, pB.text);
+        if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
+      } else {
+        const cmp = compareSegmentAZ09(pA.text, pB.text);
+        if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
+      }
+
+      // Secondary deterministic sort by name
+      return compareTokenNames(a.token.name, b.token.name, dir);
+    }
+
+    return compareTokenNames(a.token.name, b.token.name, dir);
+  });
+
+  return items.map((item) => item.token);
+}
+
 // Helper to look up a path in a nested object
 function getNestedValue(obj: any, path: string[]): any {
   let current = obj;
@@ -310,16 +404,46 @@ function getNestedValue(obj: any, path: string[]): any {
 
 export type TokenLookupIndex = Map<string, { leaf: RawTokenLeaf; setName: string }>;
 
+interface SetIndexEntry {
+  dotPath: string;
+  setName: string;
+  leaf: RawTokenLeaf;
+}
+
+const setIndexEntriesCache = new WeakMap<object, SetIndexEntry[]>();
+const docLookupIndexCache = new WeakMap<object, Map<string, TokenLookupIndex>>();
+
+function getThemeOrderKey(themeConfig?: ThemeResolutionConfig): string {
+  if (!themeConfig) return "default";
+  const active = themeConfig.activeSetsOrder?.join(",") || "";
+  const inactive = themeConfig.inactiveSets ? Array.from(themeConfig.inactiveSets).sort().join(",") : "";
+  return `${active}|${inactive}`;
+}
+
 /**
  * Builds a fast flat index of all tokens across all sets for O(1) alias resolution.
+ * Employs two levels of caching:
+ * 1. Document-level WeakMap cache returning existing index in O(1) when document reference and theme config match.
+ * 2. Set-level WeakMap cache avoiding AST traversal for unchanged token sets across incremental edits.
  */
 export function buildTokenLookupIndex(
   allTokens: RawTokensDocument,
   themeConfig?: ThemeResolutionConfig
 ): TokenLookupIndex {
-  const index: TokenLookupIndex = new Map();
-  if (!allTokens || typeof allTokens !== "object") return index;
+  if (!allTokens || typeof allTokens !== "object") return new Map();
 
+  const themeKey = getThemeOrderKey(themeConfig);
+  let configMap = docLookupIndexCache.get(allTokens);
+  if (!configMap) {
+    configMap = new Map();
+    docLookupIndexCache.set(allTokens, configMap);
+  }
+  const cachedIndex = configMap.get(themeKey);
+  if (cachedIndex) {
+    return cachedIndex;
+  }
+
+  const index: TokenLookupIndex = new Map();
   const allSetNames = Object.keys(allTokens).filter(
     (k) => !k.startsWith("$") && allTokens[k] && typeof allTokens[k] === "object"
   );
@@ -351,51 +475,67 @@ export function buildTokenLookupIndex(
     const setTree = allTokens[setName];
     if (!setTree || typeof setTree !== "object") continue;
 
+    let entries = setIndexEntriesCache.get(setTree);
+    if (!entries) {
+      entries = [];
+      const walk = (node: any, currentPath: string[]) => {
+        if (!node || typeof node !== "object") return;
+        if (isTokenLeaf(node)) {
+          entries!.push({
+            dotPath: currentPath.join("."),
+            setName,
+            leaf: node,
+          });
+          return;
+        }
+        for (const [key, child] of Object.entries(node)) {
+          if (!key.startsWith("$")) {
+            walk(child, [...currentPath, key]);
+          }
+        }
+      };
+      walk(setTree, []);
+      setIndexEntriesCache.set(setTree, entries);
+    }
+
     const normSet = setName.replace(/[/\\]/g, ".");
-    const walk = (node: any, currentPath: string[]) => {
-      if (!node || typeof node !== "object") return;
-      if (isTokenLeaf(node)) {
-        const dotPath = currentPath.join(".");
-        const entry = { leaf: node, setName };
+    for (const entry of entries) {
+      const dotPath = entry.dotPath;
+      const leaf = entry.leaf;
+      const indexEntry = { leaf, setName };
 
-        // 1. Direct path within set: e.g. "color.blue.500"
-        index.set(dotPath, entry);
-        index.set(dotPath.toLowerCase(), entry);
+      // 1. Direct path within set: e.g. "color.blue.500"
+      index.set(dotPath, indexEntry);
+      index.set(dotPath.toLowerCase(), indexEntry);
 
-        // 2. Qualified with set name: e.g. "core.color.blue.500"
-        index.set(`${setName}.${dotPath}`, entry);
-        index.set(`${setName}.${dotPath}`.toLowerCase(), entry);
-        if (normSet !== setName) {
-          index.set(`${normSet}.${dotPath}`, entry);
-          index.set(`${normSet}.${dotPath}`.toLowerCase(), entry);
-        }
-
-        // 3. Category omitted: e.g. if dotPath is "color.blue.500", also index "blue.500"
-        if (currentPath.length > 1) {
-          const stripped = currentPath.slice(1).join(".");
-          index.set(stripped, entry);
-          index.set(stripped.toLowerCase(), entry);
-        }
-        return;
+      // 2. Qualified with set name: e.g. "core.color.blue.500"
+      index.set(`${setName}.${dotPath}`, indexEntry);
+      index.set(`${setName}.${dotPath}`.toLowerCase(), indexEntry);
+      if (normSet !== setName) {
+        index.set(`${normSet}.${dotPath}`, indexEntry);
+        index.set(`${normSet}.${dotPath}`.toLowerCase(), indexEntry);
       }
 
-      for (const [key, child] of Object.entries(node)) {
-        if (!key.startsWith("$")) {
-          walk(child, [...currentPath, key]);
-        }
+      // 3. Category omitted: e.g. if dotPath is "color.blue.500", also index "blue.500"
+      const dotIdx = dotPath.indexOf(".");
+      if (dotIdx > 0) {
+        const stripped = dotPath.slice(dotIdx + 1);
+        index.set(stripped, indexEntry);
+        index.set(stripped.toLowerCase(), indexEntry);
       }
-    };
-
-    walk(setTree, []);
+    }
   }
 
+  configMap.set(themeKey, index);
   return index;
 }
 
 const hexColorCache = new Map<string, string>();
+const MAX_HEX_COLOR_CACHE = 8192;
 
 /**
  * Fast cached color converter to prevent redundant colorjs.io instantiations
+ * with LRU eviction preventing unbounded memory growth.
  */
 export function toHexFast(colorStr: string): string | undefined {
   if (!colorStr || typeof colorStr !== "string") return undefined;
@@ -409,20 +549,28 @@ export function toHexFast(colorStr: string): string | undefined {
   try {
     const col = new Color(s);
     const hex = col.to("srgb").toString({ format: "hex" });
-    if (hexColorCache.size < 5000) {
-      hexColorCache.set(s, hex);
+    if (hexColorCache.size >= MAX_HEX_COLOR_CACHE) {
+      const oldest = hexColorCache.keys().next().value;
+      if (oldest !== undefined) hexColorCache.delete(oldest);
     }
+    hexColorCache.set(s, hex);
     return hex;
   } catch {
-    if (hexColorCache.size < 5000) {
-      hexColorCache.set(s, "");
+    if (hexColorCache.size >= MAX_HEX_COLOR_CACHE) {
+      const oldest = hexColorCache.keys().next().value;
+      if (oldest !== undefined) hexColorCache.delete(oldest);
     }
+    hexColorCache.set(s, "");
     return undefined;
   }
 }
 
 /**
- * Resolves a token alias string like "{colors.blue.500}", "{foundation.color.blue.100}", or composite objects
+ * Resolves a token alias string like "{colors.blue.500}", "{foundation.color.blue.100}", or composite objects.
+ * Features:
+ * - O(1) per-pass memoization map preventing redundant chain evaluations.
+ * - Negative cache skipping known missing aliases across large token documents.
+ * - Backtracking visited set eliminating O(depth^2) Set allocations.
  */
 export function resolveTokenAlias(
   aliasValue: any,
@@ -430,20 +578,28 @@ export function resolveTokenAlias(
   currentSet?: string,
   visited: Set<string> = new Set(),
   lookupIndex?: TokenLookupIndex,
-  depth: number = 0
+  depth: number = 0,
+  resolutionMemo?: Map<string, string>,
+  negativeCache?: Set<string>
 ): string {
   if (aliasValue === null || aliasValue === undefined) return "";
   if (depth > 30) return String(aliasValue);
+
+  // Fast path for numbers, booleans, and non-aliased plain strings
+  if (typeof aliasValue === "number" || typeof aliasValue === "boolean") return String(aliasValue);
+  if (typeof aliasValue === "string" && !aliasValue.includes("{")) {
+    return aliasValue;
+  }
 
   // Handle composite object values (e.g. typography) or leaf objects
   if (typeof aliasValue === "object" && aliasValue !== null) {
     if ("value" in aliasValue || "$value" in aliasValue) {
       const inner = aliasValue.value !== undefined ? aliasValue.value : aliasValue.$value;
-      return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex, depth + 1);
+      return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
     }
     const resolvedObj: Record<string, any> = {};
     for (const [k, v] of Object.entries(aliasValue)) {
-      resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex, depth + 1);
+      resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
     }
     return JSON.stringify(resolvedObj);
   }
@@ -455,11 +611,11 @@ export function resolveTokenAlias(
       if (typeof parsed === "object" && parsed !== null) {
         if ("value" in parsed || "$value" in parsed) {
           const inner = parsed.value !== undefined ? parsed.value : parsed.$value;
-          return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex, depth + 1);
+          return resolveTokenAlias(inner, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
         }
         const resolvedObj: Record<string, any> = {};
         for (const [k, v] of Object.entries(parsed)) {
-          resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex, depth + 1);
+          resolvedObj[k] = resolveTokenAlias(v, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
         }
         return JSON.stringify(resolvedObj);
       }
@@ -470,6 +626,12 @@ export function resolveTokenAlias(
 
   const aliasString = String(aliasValue);
 
+  // Per-pass memo check
+  const memoKey = currentSet ? `${currentSet}:${aliasString}` : aliasString;
+  if (resolutionMemo && resolutionMemo.has(memoKey)) {
+    return resolutionMemo.get(memoKey)!;
+  }
+
   // Match {path.to.token}
   const aliasRegex = /\{([^}]+)\}/g;
 
@@ -479,138 +641,170 @@ export function resolveTokenAlias(
     if (visited.has(cleanPath)) {
       return match; // Circular reference guard
     }
-    const newVisited = new Set(visited);
-    newVisited.add(cleanPath);
 
-    // 0. Instant O(1) index lookup if index provided
-    if (lookupIndex) {
-      const direct = lookupIndex.get(cleanPath) || lookupIndex.get(cleanPath.toLowerCase());
-      if (direct?.leaf && isTokenLeaf(direct.leaf)) {
-        const rawVal = getLeafValue(direct.leaf);
-        return resolveTokenAlias(rawVal, allTokens, direct.setName || currentSet, newVisited, lookupIndex, depth + 1);
-      }
-      if (currentSet) {
-        const withSet = lookupIndex.get(`${currentSet}.${cleanPath}`) || lookupIndex.get(`${currentSet}.${cleanPath}`.toLowerCase());
-        if (withSet?.leaf && isTokenLeaf(withSet.leaf)) {
-          const rawVal = getLeafValue(withSet.leaf);
-          return resolveTokenAlias(rawVal, allTokens, withSet.setName || currentSet, newVisited, lookupIndex, depth + 1);
+    if (negativeCache && negativeCache.has(cleanPath)) {
+      return match; // Negative cache hit - skip repeating expensive searches
+    }
+
+    const pathMemoKey = currentSet ? `${currentSet}:${cleanPath}` : cleanPath;
+    if (resolutionMemo && resolutionMemo.has(pathMemoKey)) {
+      return resolutionMemo.get(pathMemoKey)!;
+    }
+
+    visited.add(cleanPath);
+
+    try {
+      const resolveFoundLeaf = (leafNode: RawTokenLeaf, leafSet?: string): string => {
+        const rawVal = getLeafValue(leafNode);
+        const targetSet = leafSet || currentSet;
+        const baseResolved = resolveTokenAlias(rawVal, allTokens, targetSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+        const modifier = extractColorModifier(leafNode);
+        let finalResolved = baseResolved;
+        if (modifier) {
+          let resolvedMixColor: string | undefined = undefined;
+          if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
+            resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, targetSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+          }
+          let resolvedModValue = modifier.value;
+          if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
+            resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, targetSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+          }
+          const modToApply: ColorModifier = {
+            ...modifier,
+            value: resolvedModValue,
+          };
+          const modResult = applyColorModifier(baseResolved, modToApply, resolvedMixColor);
+          finalResolved = modResult.resolvedValue;
+        }
+        if (resolutionMemo) resolutionMemo.set(pathMemoKey, finalResolved);
+        return finalResolved;
+      };
+
+      // 0. Instant O(1) index lookup if index provided
+      if (lookupIndex) {
+        const direct = lookupIndex.get(cleanPath) || lookupIndex.get(cleanPath.toLowerCase());
+        if (direct?.leaf && isTokenLeaf(direct.leaf)) {
+          return resolveFoundLeaf(direct.leaf, direct.setName);
+        }
+        if (currentSet) {
+          const withSet = lookupIndex.get(`${currentSet}.${cleanPath}`) || lookupIndex.get(`${currentSet}.${cleanPath}`.toLowerCase());
+          if (withSet?.leaf && isTokenLeaf(withSet.leaf)) {
+            return resolveFoundLeaf(withSet.leaf, withSet.setName);
+          }
         }
       }
-    }
 
-    const pathSegments = cleanPath.split(/[./\\]/).filter(Boolean);
-    if (pathSegments.length === 0) return match;
+      const pathSegments = cleanPath.split(/[./\\]/).filter(Boolean);
+      if (pathSegments.length === 0) return match;
 
-    // 1. Try finding within current set first
-    let foundLeaf: any = undefined;
+      // 1. Try finding within current set first
+      let foundLeaf: any = undefined;
 
-    if (currentSet && allTokens[currentSet]) {
-      const candidate = getNestedValue(allTokens[currentSet], pathSegments);
-      if (isTokenLeaf(candidate)) {
-        foundLeaf = candidate;
-      }
-    }
-
-    // 2. Direct path lookup in root allTokens
-    if (!foundLeaf) {
-      const candidate = getNestedValue(allTokens, pathSegments);
-      if (isTokenLeaf(candidate)) {
-        foundLeaf = candidate;
-      }
-    }
-
-    // 3. Search each set in allTokens directly
-    if (!foundLeaf) {
-      for (const setName of Object.keys(allTokens)) {
-        if (setName === currentSet || setName.startsWith("$")) continue;
-        const candidate = getNestedValue(allTokens[setName], pathSegments);
+      if (currentSet && allTokens[currentSet]) {
+        const candidate = getNestedValue(allTokens[currentSet], pathSegments);
         if (isTokenLeaf(candidate)) {
           foundLeaf = candidate;
-          break;
         }
       }
-    }
 
-    // 4. Flexible cross-layer alias resolution (handles {foundation.color.blue.100}, {foundation/color.blue.100}, {color.blue.100})
-    if (!foundLeaf) {
-      for (const [setName, setTree] of Object.entries(allTokens)) {
-        if (setName.startsWith("$") || !setTree || typeof setTree !== "object") continue;
+      // 2. Direct path lookup in root allTokens
+      if (!foundLeaf) {
+        const candidate = getNestedValue(allTokens, pathSegments);
+        if (isTokenLeaf(candidate)) {
+          foundLeaf = candidate;
+        }
+      }
 
-        // A. If path starts with set name or folder (e.g. path is "foundation.color.blue.100", setName is "foundation/color")
-        const normSet = setName.toLowerCase().replace(/\.json$/i, "").replace(/[/\\]/g, ".");
-        const setSegs = normSet.split(".").filter(Boolean);
+      // 3. Search each set in allTokens directly
+      if (!foundLeaf) {
+        for (const setName of Object.keys(allTokens)) {
+          if (setName === currentSet || setName.startsWith("$")) continue;
+          const candidate = getNestedValue(allTokens[setName], pathSegments);
+          if (isTokenLeaf(candidate)) {
+            foundLeaf = candidate;
+            break;
+          }
+        }
+      }
 
-        if (pathSegments.length > setSegs.length) {
-          const prefixMatch = setSegs.every((seg, idx) => pathSegments[idx].toLowerCase() === seg);
-          if (prefixMatch) {
-            const subSegments = pathSegments.slice(setSegs.length);
-            const subCandidate = getNestedValue(setTree, subSegments);
-            if (isTokenLeaf(subCandidate)) {
-              foundLeaf = subCandidate;
+      // 4. Flexible cross-layer alias resolution (handles {foundation.color.blue.100}, {foundation/color.blue.100}, {color.blue.100})
+      if (!foundLeaf) {
+        for (const [setName, setTree] of Object.entries(allTokens)) {
+          if (setName.startsWith("$") || !setTree || typeof setTree !== "object") continue;
+
+          // A. If path starts with set name or folder
+          const normSet = setName.toLowerCase().replace(/\.json$/i, "").replace(/[/\\]/g, ".");
+          const setSegs = normSet.split(".").filter(Boolean);
+
+          if (pathSegments.length > setSegs.length) {
+            const prefixMatch = setSegs.every((seg, idx) => pathSegments[idx].toLowerCase() === seg);
+            if (prefixMatch) {
+              const subSegments = pathSegments.slice(setSegs.length);
+              const subCandidate = getNestedValue(setTree, subSegments);
+              if (isTokenLeaf(subCandidate)) {
+                foundLeaf = subCandidate;
+                break;
+              }
+            }
+          }
+
+          // B. If path has a category prefix that might or might not exist in setTree root
+          if (pathSegments.length > 1) {
+            const strippedFirst = pathSegments.slice(1);
+            const candidate2 = getNestedValue(setTree, strippedFirst);
+            if (isTokenLeaf(candidate2)) {
+              foundLeaf = candidate2;
               break;
             }
           }
-        }
 
-        // B. If path has a category prefix that might or might not exist in setTree root
-        if (pathSegments.length > 1) {
-          const strippedFirst = pathSegments.slice(1);
-          const candidate2 = getNestedValue(setTree, strippedFirst);
-          if (isTokenLeaf(candidate2)) {
-            foundLeaf = candidate2;
-            break;
+          // C. Prepend category / parent if omitted in path
+          for (const rootKey of ["color", "colors", "spacing", "sizing", "borderRadius", "typography", "shadow", "boxShadow"]) {
+            const candidate3 = getNestedValue(setTree, [rootKey, ...pathSegments]);
+            if (isTokenLeaf(candidate3)) {
+              foundLeaf = candidate3;
+              break;
+            }
           }
+          if (foundLeaf) break;
         }
-
-        // C. Prepend category / parent if omitted in path
-        for (const rootKey of ["color", "colors", "spacing", "sizing", "borderRadius", "typography", "shadow", "boxShadow"]) {
-          const candidate3 = getNestedValue(setTree, [rootKey, ...pathSegments]);
-          if (isTokenLeaf(candidate3)) {
-            foundLeaf = candidate3;
-            break;
-          }
-        }
-        if (foundLeaf) break;
       }
-    }
 
-    if (foundLeaf) {
-      const rawVal = getLeafValue(foundLeaf);
-      const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, newVisited, lookupIndex, depth + 1);
-      const modifier = extractColorModifier(foundLeaf);
-      if (modifier) {
-        let resolvedMixColor: string | undefined = undefined;
-        if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
-          resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, newVisited, lookupIndex, depth + 1);
-        }
-        let resolvedModValue = modifier.value;
-        if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
-          resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, newVisited, lookupIndex, depth + 1);
-        }
-        const modToApply: ColorModifier = {
-          ...modifier,
-          value: resolvedModValue,
-        };
-        const modResult = applyColorModifier(baseResolved, modToApply, resolvedMixColor);
-        return modResult.resolvedValue;
+      if (foundLeaf) {
+        return resolveFoundLeaf(foundLeaf, currentSet);
       }
-      return baseResolved;
-    }
 
-    return match;
+      if (negativeCache) {
+        negativeCache.add(cleanPath);
+      }
+      return match;
+    } finally {
+      visited.delete(cleanPath);
+    }
   });
 
-  return evaluateTokenMath(replaced, allTokens, currentSet, visited, lookupIndex, depth + 1);
+  const finalMathResult = evaluateTokenMath(replaced, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+  if (resolutionMemo) {
+    resolutionMemo.set(memoKey, finalMathResult);
+  }
+  return finalMathResult;
 }
 
-/**
+const mathEvalCache = new Map<string, number | null>();
+const MAX_MATH_CACHE = 4096;
+
 /**
  * Safe mathematical expression evaluator without `new Function` or `eval`.
- * Parses and computes arithmetic expressions, percentage transforms, and rounding functions safely.
+ * Parses and computes arithmetic expressions, percentage transforms, and rounding functions safely
+ * with bounded LRU caching.
  */
 function safeEvalArithmetic(expr: string): number | null {
-  let pos = 0;
   const input = expr.trim();
+  if (mathEvalCache.has(input)) {
+    return mathEvalCache.get(input) ?? null;
+  }
+
+  let pos = 0;
 
   function peek(): string {
     while (pos < input.length && /\s/.test(input[pos])) pos++;
@@ -755,10 +949,16 @@ function safeEvalArithmetic(expr: string): number | null {
 
   try {
     const result = parseExpression();
-    if (pos < input.length && peek() !== "") {
-      return null;
+    let finalVal: number | null = null;
+    if (pos >= input.length || peek() === "") {
+      finalVal = result !== null && isFinite(result) && !isNaN(result) ? result : null;
     }
-    return result !== null && isFinite(result) && !isNaN(result) ? result : null;
+    if (mathEvalCache.size >= MAX_MATH_CACHE) {
+      const oldest = mathEvalCache.keys().next().value;
+      if (oldest !== undefined) mathEvalCache.delete(oldest);
+    }
+    mathEvalCache.set(input, finalVal);
+    return finalVal;
   } catch {
     return null;
   }
@@ -774,7 +974,9 @@ export function evaluateTokenMath(
   currentSet?: string,
   visited: Set<string> = new Set(),
   lookupIndex?: TokenLookupIndex,
-  depth: number = 0
+  depth: number = 0,
+  resolutionMemo?: Map<string, string>,
+  negativeCache?: Set<string>
 ): string {
   if (!expr || typeof expr !== "string") return expr;
   if (depth > 30) return expr;
@@ -798,7 +1000,7 @@ export function evaluateTokenMath(
       ) {
         return match;
       }
-      const res = resolveTokenAlias(`{${match}}`, allTokens, currentSet);
+      const res = resolveTokenAlias(`{${match}}`, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
       return res !== `{${match}}` ? res : match;
     });
   }
@@ -822,10 +1024,6 @@ export function evaluateTokenMath(
   return str;
 }
 
-/**
- * Formats a typography composite token (raw or resolved) into a clean readable string with fully resolved values
- * e.g. "Inter, Arial - Medium - 48 - 60"
- */
 export function formatTypographySummary(
   val: string | Record<string, any>,
   rawDoc?: RawTokensDocument,
@@ -875,16 +1073,26 @@ export function formatTypographySummary(
 /**
  * Traverses raw tokens and flattens them into a list of table-ready token items
  */
+/**
+ * Traverses raw tokens and flattens them into a list of table-ready token items
+ * using cached lookup index and per-pass memoization.
+ */
 export function flattenAndResolveTokens(
   rawDoc: RawTokensDocument,
   selectedSet?: string,
-  themeConfig?: ThemeResolutionConfig
+  themeConfig?: ThemeResolutionConfig,
+  options?: { sort?: boolean }
 ): FlattenedToken[] {
   const result: FlattenedToken[] = [];
   if (!rawDoc || typeof rawDoc !== "object") return result;
 
-  // Build O(1) lookup index across all token sets with theme priority order
+  // Build O(1) lookup index across all token sets with theme priority order (WeakMap cached)
   const lookupIndex = buildTokenLookupIndex(rawDoc, themeConfig);
+
+  // Per-pass memoization structures
+  const resolutionMemo = new Map<string, string>();
+  const negativeCache = new Set<string>();
+  const visited = new Set<string>();
 
   const setsToProcess = selectedSet && selectedSet !== "ALL" && rawDoc[selectedSet]
     ? [selectedSet]
@@ -905,7 +1113,7 @@ export function flattenAndResolveTokens(
         const name = currentPath.join(".");
         const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
         const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
-        let resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName, new Set(), lookupIndex);
+        let resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName, visited, lookupIndex, 0, resolutionMemo, negativeCache);
 
         const modifier = extractColorModifier(node);
         let resolvedHex: string | undefined = undefined;
@@ -913,11 +1121,11 @@ export function flattenAndResolveTokens(
         if (modifier) {
           let resolvedMixColor: string | undefined = undefined;
           if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
-            resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, setName, new Set(), lookupIndex);
+            resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, setName, visited, lookupIndex, 0, resolutionMemo, negativeCache);
           }
           let resolvedModValue = modifier.value;
           if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
-            resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, setName, new Set(), lookupIndex);
+            resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, setName, visited, lookupIndex, 0, resolutionMemo, negativeCache);
           }
           const modToApply: ColorModifier = {
             ...modifier,
@@ -994,13 +1202,16 @@ export function flattenAndResolveTokens(
     walk(setTree, []);
   }
 
-  result.sort((a, b) => compareTokens(a, b, "resolved", "asc"));
+  if (options?.sort !== false) {
+    result.sort((a, b) => compareTokens(a, b, "resolved", "asc"));
+  }
 
   return result;
 }
 
 /**
- * Immutably updates a single token in the nested raw token document.
+ * Immutably updates a single token in the nested raw token document using structural sharing (copy-on-write).
+ * Avoids expensive full-tree JSON serialization.
  */
 export function setTokenAtKeyPath(
   doc: RawTokensDocument,
@@ -1009,20 +1220,21 @@ export function setTokenAtKeyPath(
 ): RawTokensDocument {
   if (fullPath.length === 0) return doc;
 
-  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  const clone: RawTokensDocument = { ...doc };
   let current: any = clone;
 
   for (let i = 0; i < fullPath.length - 1; i++) {
     const segment = fullPath[i];
-    if (!current[segment] || typeof current[segment] !== "object") {
-      current[segment] = {};
-    }
-    current = current[segment];
+    const nextVal = current[segment];
+    const nextObj = nextVal && typeof nextVal === "object"
+      ? (Array.isArray(nextVal) ? [...nextVal] : { ...nextVal })
+      : {};
+    current[segment] = nextObj;
+    current = nextObj;
   }
 
   const lastSegment = fullPath[fullPath.length - 1];
 
-  // If newValue is a JSON string of an object, store as object if leaf originally had object
   let finalVal = newValue;
   if (typeof newValue === "string" && newValue.trim().startsWith("{") && newValue.trim().endsWith("}") && newValue.includes(":")) {
     try {
@@ -1053,7 +1265,6 @@ export function setTokenAtKeyPath(
       else delete nextLeaf.description;
     }
     if (finalVal.category !== undefined) nextLeaf.category = finalVal.category;
-    // Only touch deprecation when the payload carries it, so bulk edits keep existing metadata.
     if ("$deprecated" in finalVal) {
       delete nextLeaf.$deprecatedMessage;
       delete nextLeaf.$replacementToken;
@@ -1079,7 +1290,7 @@ export function setTokenAtKeyPath(
 }
 
 /**
- * Creates a new token leaf at the given key path.
+ * Creates a new token leaf at the given key path using structural sharing.
  */
 export function createTokenAtKeyPath(
   doc: RawTokensDocument,
@@ -1088,15 +1299,17 @@ export function createTokenAtKeyPath(
 ): RawTokensDocument {
   if (fullPath.length === 0) return doc;
 
-  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  const clone: RawTokensDocument = { ...doc };
   let current: any = clone;
 
   for (let i = 0; i < fullPath.length - 1; i++) {
     const segment = fullPath[i];
-    if (!current[segment] || typeof current[segment] !== "object") {
-      current[segment] = {};
-    }
-    current = current[segment];
+    const nextVal = current[segment];
+    const nextObj = nextVal && typeof nextVal === "object"
+      ? (Array.isArray(nextVal) ? [...nextVal] : { ...nextVal })
+      : {};
+    current[segment] = nextObj;
+    current = nextObj;
   }
 
   const lastSegment = fullPath[fullPath.length - 1];
@@ -1111,7 +1324,7 @@ export function createTokenAtKeyPath(
 }
 
 /**
- * Immutably deletes a token leaf at the given key path.
+ * Immutably deletes a token leaf at the given key path using structural sharing.
  */
 export function deleteTokenAtKeyPath(
   doc: RawTokensDocument,
@@ -1119,7 +1332,7 @@ export function deleteTokenAtKeyPath(
 ): RawTokensDocument {
   if (fullPath.length === 0) return doc;
 
-  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  const clone: RawTokensDocument = { ...doc };
   let current: any = clone;
 
   for (let i = 0; i < fullPath.length - 1; i++) {
@@ -1127,7 +1340,10 @@ export function deleteTokenAtKeyPath(
     if (!current[segment] || typeof current[segment] !== "object") {
       return clone;
     }
-    current = current[segment];
+    const nextVal = current[segment];
+    const nextObj = Array.isArray(nextVal) ? [...nextVal] : { ...nextVal };
+    current[segment] = nextObj;
+    current = nextObj;
   }
 
   const lastSegment = fullPath[fullPath.length - 1];
@@ -1137,58 +1353,319 @@ export function deleteTokenAtKeyPath(
 }
 
 /**
- * Creates a new empty token set in the document.
+ * Creates a new empty token set in the document using structural sharing.
  */
 export function createEmptyTokenSet(
   doc: RawTokensDocument,
   setName: string
 ): RawTokensDocument {
-  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  const clone: RawTokensDocument = { ...doc };
   if (!clone[setName]) {
     clone[setName] = {};
   }
 
-  // Update $metadata.tokenSetOrder if present
   const metaKey = clone["$metadata.json"] ? "$metadata.json" : "$metadata";
   if (clone[metaKey] && Array.isArray((clone[metaKey] as any).tokenSetOrder)) {
-    const order = (clone[metaKey] as any).tokenSetOrder;
+    const order = [...(clone[metaKey] as any).tokenSetOrder];
     if (!order.includes(setName)) {
       order.push(setName);
     }
+    clone[metaKey] = {
+      ...(clone[metaKey] as any),
+      tokenSetOrder: order,
+    };
   }
 
   return clone;
 }
 
 /**
- * Deletes a token set from the document and cleans up references.
+ * Deletes a token set from the document and cleans up references with structural sharing.
  */
 export function deleteTokenSet(
   doc: RawTokensDocument,
   setName: string
 ): RawTokensDocument {
-  const clone: RawTokensDocument = JSON.parse(JSON.stringify(doc));
+  const clone: RawTokensDocument = { ...doc };
   delete clone[setName];
 
-  // Clean from $metadata.tokenSetOrder
   const metaKey = clone["$metadata.json"] ? "$metadata.json" : "$metadata";
   if (clone[metaKey] && Array.isArray((clone[metaKey] as any).tokenSetOrder)) {
-    (clone[metaKey] as any).tokenSetOrder = (clone[metaKey] as any).tokenSetOrder.filter(
-      (s: string) => s !== setName
-    );
+    clone[metaKey] = {
+      ...(clone[metaKey] as any),
+      tokenSetOrder: (clone[metaKey] as any).tokenSetOrder.filter((s: string) => s !== setName),
+    };
   }
 
-  // Clean from $themes.json / $theme.json
   const themesKey = ["$themes.json", "$themes", "$theme.json", "$theme"].find((k) =>
     Array.isArray(clone[k])
   );
-  if (themesKey) {
-    (clone[themesKey] as any).forEach((theme: any) => {
+  if (themesKey && Array.isArray(clone[themesKey])) {
+    clone[themesKey] = (clone[themesKey] as any[]).map((theme: any) => {
       if (theme.selectedTokenSets && theme.selectedTokenSets[setName]) {
-        delete theme.selectedTokenSets[setName];
+        const nextSelected = { ...theme.selectedTokenSets };
+        delete nextSelected[setName];
+        return { ...theme, selectedTokenSets: nextSelected };
       }
+      return theme;
     });
   }
 
   return clone;
+}
+
+
+// WeakMap caching for token reverse dependency graph
+const dependencyGraphCache = new WeakMap<FlattenedToken[], Map<string, Set<string>>>();
+
+/**
+ * Builds or retrieves from cache the reverse dependency graph for a set of flattened tokens.
+ * Key: referenced token path/name (e.g., "colors.primary.500" or "global.spacing.md")
+ * Value: Set of token IDs that depend directly on this path.
+ */
+export function buildTokenDependencyGraph(tokens: FlattenedToken[]): Map<string, Set<string>> {
+  const cached = dependencyGraphCache.get(tokens);
+  if (cached) return cached;
+
+  const graph = new Map<string, Set<string>>();
+
+  const addEdge = (rawRef: string, tokenId: string) => {
+    const cleanRef = rawRef.trim().replace(/^[./\s]+|[./\s]+$/g, "").toLowerCase();
+    if (!cleanRef) return;
+    let set = graph.get(cleanRef);
+    if (!set) {
+      set = new Set<string>();
+      graph.set(cleanRef, set);
+    }
+    set.add(tokenId);
+  };
+
+  for (const token of tokens) {
+    if (token.rawValue && typeof token.rawValue === "string") {
+      if (token.rawValue.includes("{")) {
+        const aliasRegex = /\{([^}]+)\}/g;
+        let match: RegExpExecArray | null;
+        while ((match = aliasRegex.exec(token.rawValue)) !== null) {
+          addEdge(match[1], token.id);
+        }
+      }
+      if (token.rawValue.includes("roundTo") || /^[a-zA-Z0-9_\-\.\s\+\-\*\/,()]+$/.test(token.rawValue)) {
+        const wordRegex = /[a-zA-Z0-9_\-]+(\.[a-zA-Z0-9_\-]+)+/g;
+        let match: RegExpExecArray | null;
+        while ((match = wordRegex.exec(token.rawValue)) !== null) {
+          if (!match[0].startsWith("Math.") && match[0] !== "roundTo") {
+            addEdge(match[0], token.id);
+          }
+        }
+      }
+    }
+    if (token.modify?.color && typeof token.modify.color === "string" && token.modify.color.includes("{")) {
+      const aliasRegex = /\{([^}]+)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = aliasRegex.exec(token.modify.color)) !== null) {
+        addEdge(match[1], token.id);
+      }
+    }
+    if (token.modify?.value && typeof token.modify.value === "string" && token.modify.value.includes("{")) {
+      const aliasRegex = /\{([^}]+)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = aliasRegex.exec(token.modify.value)) !== null) {
+        addEdge(match[1], token.id);
+      }
+    }
+  }
+
+  dependencyGraphCache.set(tokens, graph);
+  return graph;
+}
+
+function getLookupKeysForToken(setName: string, tokenName: string): string[] {
+  const keys = [
+    tokenName.toLowerCase(),
+    `${setName}.${tokenName}`.toLowerCase(),
+  ];
+  const normSet = setName.replace(/\.json$/i, "").replace(/[/\\]/g, ".");
+  if (normSet !== setName) {
+    keys.push(`${normSet}.${tokenName}`.toLowerCase());
+  }
+  const dotIdx = tokenName.indexOf(".");
+  if (dotIdx > 0) {
+    keys.push(tokenName.slice(dotIdx + 1).toLowerCase());
+  }
+  return keys;
+}
+
+/**
+ * Traverses reverse dependency graph to find all tokens that directly or transitively
+ * depend on the changed token reference.
+ */
+export function getTransitiveDependents(
+  changedRef: string,
+  tokensById: Map<string, FlattenedToken>,
+  graph: Map<string, Set<string>>,
+  visited = new Set<string>()
+): Set<string> {
+  const cleanRef = changedRef.trim().replace(/^[./\s]+|[./\s]+$/g, "").toLowerCase();
+  const direct = graph.get(cleanRef);
+  if (!direct) return visited;
+
+  direct.forEach((depId) => {
+    if (!visited.has(depId)) {
+      visited.add(depId);
+      const depToken = tokensById.get(depId);
+      if (depToken) {
+        const nextKeys = getLookupKeysForToken(depToken.setName || "", depToken.name);
+        for (const k of nextKeys) {
+          getTransitiveDependents(k, tokensById, graph, visited);
+        }
+      }
+    }
+  });
+
+  return visited;
+}
+
+/**
+ * Incrementally updates resolved tokens after a single token edit.
+ * Re-resolves only the modified token and its downstream alias dependents,
+ * preserving references and order of all untouched tokens.
+ * Returns null if incremental patch cannot be safely performed (e.g. structural/set changes),
+ * signalling caller to fall back to full resolution.
+ */
+export function patchResolvedTokensIncremental(
+  currentTokens: FlattenedToken[],
+  rawDoc: RawTokensDocument,
+  changedPath: string[],
+  themeConfig?: ThemeResolutionConfig
+): FlattenedToken[] | null {
+  if (!currentTokens || currentTokens.length === 0) return null;
+  if (!changedPath || changedPath.length < 2) return null;
+
+  const setName = changedPath[0];
+  const tokensById = new Map<string, FlattenedToken>();
+  for (let i = 0; i < currentTokens.length; i++) {
+    tokensById.set(currentTokens[i].id, currentTokens[i]);
+  }
+
+  let tokenPathSegments = changedPath.slice(1);
+  let tokenName = tokenPathSegments.join(".");
+  let tokenId = `${setName}.${tokenName}`;
+
+  if (!tokensById.has(tokenId) && tokenPathSegments.length > 1) {
+    const lastSegment = tokenPathSegments[tokenPathSegments.length - 1];
+    if (
+      lastSegment === "value" ||
+      lastSegment === "$value" ||
+      lastSegment === "description" ||
+      lastSegment === "$description" ||
+      lastSegment === "$type" ||
+      lastSegment === "type" ||
+      lastSegment === "$extensions"
+    ) {
+      tokenPathSegments = tokenPathSegments.slice(0, -1);
+      tokenName = tokenPathSegments.join(".");
+      tokenId = `${setName}.${tokenName}`;
+    }
+  }
+
+  if (!tokensById.has(tokenId)) return null;
+
+  const depGraph = buildTokenDependencyGraph(currentTokens);
+  const affectedIds = new Set<string>([tokenId]);
+  for (const key of getLookupKeysForToken(setName, tokenName)) {
+    getTransitiveDependents(key, tokensById, depGraph, affectedIds);
+  }
+
+  const lookupIndex = buildTokenLookupIndex(rawDoc, themeConfig);
+  const resolutionMemo = new Map<string, string>();
+  const negativeCache = new Set<string>();
+
+  const nextTokens = currentTokens.slice();
+
+  for (let i = 0; i < nextTokens.length; i++) {
+    const token = nextTokens[i];
+    if (!affectedIds.has(token.id)) continue;
+
+    const nodePath = token.path.slice(1);
+    const node = getNestedValue(rawDoc[token.setName], nodePath);
+    if (!node || typeof node !== "object" || !isTokenLeaf(node)) {
+      return null;
+    }
+
+    const rawValue = getLeafValue(node);
+    const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
+    const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
+    let resolvedValue = resolveTokenAlias(rawValue, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
+
+    const modifier = extractColorModifier(node);
+    let resolvedHex: string | undefined = undefined;
+
+    if (modifier) {
+      let resolvedMixColor: string | undefined = undefined;
+      if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
+        resolvedMixColor = resolveTokenAlias(modifier.color, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
+      }
+      let resolvedModValue = modifier.value;
+      if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
+        resolvedModValue = resolveTokenAlias(resolvedModValue, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
+      }
+      const modToApply: ColorModifier = {
+        ...modifier,
+        value: resolvedModValue,
+      };
+      const modResult = applyColorModifier(
+        typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+        modToApply,
+        resolvedMixColor
+      );
+      resolvedValue = modResult.resolvedValue;
+      resolvedHex = modResult.hex;
+    } else if (typeof resolvedValue === "string") {
+      resolvedHex = toHexFast(resolvedValue);
+    }
+
+    const rawDesc = node.description ?? node.$description;
+    const description =
+      typeof rawDesc === "string"
+        ? rawDesc
+        : rawDesc !== undefined && rawDesc !== null
+        ? typeof rawDesc === "object"
+          ? JSON.stringify(rawDesc)
+          : String(rawDesc)
+        : undefined;
+
+    const extensions = node.$extensions && typeof node.$extensions === "object" ? node.$extensions : {};
+    const studioExt =
+      extensions["studio.tokens"] && typeof extensions["studio.tokens"] === "object"
+        ? extensions["studio.tokens"]
+        : {};
+    const deprecation = readDeprecation(node, studioExt);
+    const figmaKey =
+      typeof node.$figmaVariableReferences === "string"
+        ? node.$figmaVariableReferences
+        : typeof node.figmaVariableKey === "string"
+        ? node.figmaVariableKey
+        : undefined;
+
+    nextTokens[i] = {
+      ...token,
+      type: getLeafType(node, token.group),
+      rawValue: typeof rawValue === "string" ? rawValue : JSON.stringify(rawValue),
+      resolvedValue: typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
+      resolvedHex,
+      modify: modifier || undefined,
+      isAlias,
+      aliasTarget: aliasMatch ? String(aliasMatch[1]) : undefined,
+      description,
+      deprecated: deprecation ? true : undefined,
+      deprecatedMessage: deprecation?.message,
+      deprecatedReplacement: deprecation?.replacementToken,
+      deprecatedSeverity: deprecation?.severity,
+      deprecatedRemoveAfter: deprecation?.removeAfter,
+      figmaVariableKey: figmaKey,
+      category: typeof node.category === "string" ? node.category : undefined,
+    };
+  }
+
+  return nextTokens;
 }

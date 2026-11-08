@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasTrustedMutationOrigin } from "@/utils/auth";
-import { InvitationRow, resolveInviteState } from "@/lib/invitations";
+import { InvitationRow, inviterMayGrant, resolveInviteState, roleMayGrant } from "@/lib/invitations";
 import { sendInviteEmail } from "@/lib/inviteEmail";
 import type { UserRole } from "@/types/tenant";
 
@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/invitations/send  { invitationId }
- * Emails the invitation link. Caller must be an owner, admin or editor of the organization.
+ * Emails the invitation link. Caller must be an owner, admin, or the original inviter
+ * with authority to grant the invitation's role.
  */
 export async function POST(req: NextRequest) {
   if (!hasTrustedMutationOrigin(req)) {
@@ -45,8 +46,25 @@ export async function POST(req: NextRequest) {
         .eq("user_id", user.id)
         .maybeSingle(),
     ]);
-    const canInvite = org?.owner_uid === user.id || ["owner", "admin", "editor"].includes(member?.role ?? "");
-    if (!canInvite) {
+
+    const callerRole = org?.owner_uid === user.id ? "owner" : (member?.role ?? "");
+    const canManageInvitation =
+      callerRole === "owner" ||
+      callerRole === "admin" ||
+      (callerRole === "editor" && invitation.inviter_uid === user.id);
+
+    if (!canManageInvitation || !roleMayGrant(callerRole, invitation.role)) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
+    // Also verify the original inviter still holds authority to grant this role
+    const inviterAuthorized = await inviterMayGrant(
+      admin,
+      invitation.org_id,
+      invitation.inviter_uid,
+      invitation.role
+    );
+    if (!inviterAuthorized) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 

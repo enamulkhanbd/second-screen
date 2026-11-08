@@ -1,8 +1,88 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { ProjectAsset, FigmaSourceLink } from "@/types/tenant";
+import { mapLimit } from "@/utils/pool";
 
 export const dynamic = "force-dynamic";
+
+const FIGMA_IMAGE_CONCURRENCY = 3;
+const FIGMA_SVG_CONCURRENCY = 8;
+const FIGMA_REQUEST_TIMEOUT_MS = 15_000;
+const FIGMA_OVERALL_DEADLINE_MS = 50_000;
+const FIGMA_MAX_COMPONENTS = 2_000;
+const MAX_RETRY_AFTER_MS = 5_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createRequestSignal(overallSignal: AbortSignal, timeoutMs: number): {
+  signal: AbortSignal;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException("Request timed out", "TimeoutError"));
+  }, timeoutMs);
+
+  const onOverallAbort = () => {
+    controller.abort(overallSignal.reason || new DOMException("Overall deadline exceeded", "TimeoutError"));
+  };
+
+  if (overallSignal.aborted) {
+    clearTimeout(timer);
+    controller.abort(overallSignal.reason || new DOMException("Overall deadline exceeded", "TimeoutError"));
+  } else {
+    overallSignal.addEventListener("abort", onOverallAbort, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      overallSignal.removeEventListener("abort", onOverallAbort);
+    },
+  };
+}
+
+async function fetchWithDeadlineAndRetry(
+  url: string,
+  init: RequestInit,
+  overallSignal: AbortSignal,
+  timeoutMs: number = FIGMA_REQUEST_TIMEOUT_MS
+): Promise<Response> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (overallSignal.aborted) {
+      throw new DOMException("Overall deadline exceeded", "TimeoutError");
+    }
+    const { signal, cleanup } = createRequestSignal(overallSignal, timeoutMs);
+    try {
+      const res = await fetch(url, { ...init, signal });
+      if (res.status === 429 && attempt === 0 && !overallSignal.aborted) {
+        const retryHeader = res.headers.get("retry-after");
+        const retrySeconds = retryHeader ? Number.parseFloat(retryHeader) : NaN;
+        const waitMs = Number.isFinite(retrySeconds)
+          ? Math.min(Math.max(100, retrySeconds * 1000), MAX_RETRY_AFTER_MS)
+          : 1_000;
+        await sleep(waitMs);
+        continue;
+      }
+      return res;
+    } finally {
+      cleanup();
+    }
+  }
+  throw new Error("Exhausted retry attempts");
+}
+
+function isAbortOrTimeout(err: any): boolean {
+  if (!err) return false;
+  return (
+    err.name === "TimeoutError" ||
+    err.name === "AbortError" ||
+    /timed?\s*out|aborted|deadline/i.test(String(err.message || err))
+  );
+}
 
 /**
  * Sanitizes SVG string to strip out scripts and dangerous tags
@@ -50,7 +130,7 @@ function parseComponentMetadata(
   parentName?: string,
   description?: string
 ): { name: string; title: string; type?: string; category: string; tag?: string } {
-  let rawName = nodeName.trim();
+  const rawName = nodeName.trim();
   let derivedType: string | undefined = undefined;
   let derivedCategory = "general";
   let title = rawName;
@@ -167,8 +247,13 @@ function extractComponentNodes(node: any, parentName?: string): ComponentNodeInf
   return list;
 }
 
+export interface FailedFigmaAsset {
+  id: string;
+  reason: string;
+}
+
 /**
- * Helper to process a single Figma link source
+ * Helper to process a single Figma link source with bounded concurrency and deadlines
  */
 async function processSingleFigmaSource(
   target: {
@@ -178,14 +263,18 @@ async function processSingleFigmaSource(
     fileKey?: string;
     nodeId?: string;
   },
-  pat: string
+  pat: string,
+  overallSignal: AbortSignal
 ): Promise<{
   sourceId?: string;
   nodeName: string;
   fileKey: string;
   nodeId?: string;
   assets: ProjectAsset[];
+  failed: FailedFigmaAsset[];
   totalFound: number;
+  truncated: boolean;
+  timedOut: boolean;
 }> {
   let fileKey = target.fileKey || "";
   let nodeId = target.nodeId;
@@ -209,9 +298,10 @@ async function processSingleFigmaSource(
 
   // 1. Fetch Node tree or File tree from Figma API
   if (nodeId) {
-    const nodeRes = await fetch(
+    const nodeRes = await fetchWithDeadlineAndRetry(
       `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
-      { headers }
+      { headers },
+      overallSignal
     );
 
     if (!nodeRes.ok) {
@@ -229,9 +319,11 @@ async function processSingleFigmaSource(
     nodeName = target.sourceName || targetTree.name || `Frame (${nodeId})`;
   } else {
     // Full file fetch
-    const fileRes = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=3`, {
-      headers,
-    });
+    const fileRes = await fetchWithDeadlineAndRetry(
+      `https://api.figma.com/v1/files/${fileKey}?depth=3`,
+      { headers },
+      overallSignal
+    );
 
     if (!fileRes.ok) {
       const errText = await fileRes.text();
@@ -243,98 +335,132 @@ async function processSingleFigmaSource(
     nodeName = target.sourceName || fileData.name || "Figma File";
   }
 
-  // 2. Discover all COMPONENT nodes
-  const componentNodes = extractComponentNodes(targetTree);
-  if (componentNodes.length === 0) {
+  // 2. Discover all COMPONENT nodes and cap at FIGMA_MAX_COMPONENTS
+  const allDiscoveredNodes = extractComponentNodes(targetTree);
+  const totalFound = allDiscoveredNodes.length;
+  if (totalFound === 0) {
     return {
       sourceId: target.sourceId,
       nodeName,
       fileKey,
       nodeId,
       assets: [],
+      failed: [],
       totalFound: 0,
+      truncated: false,
+      timedOut: false,
     };
   }
 
-  // 3. Batch fetch SVG image rendering URLs from Figma
+  const truncated = totalFound > FIGMA_MAX_COMPONENTS;
+  const componentNodes = truncated
+    ? allDiscoveredNodes.slice(0, FIGMA_MAX_COMPONENTS)
+    : allDiscoveredNodes;
+
+  // 3. Batch fetch SVG image rendering URLs from Figma using bounded worker pool
   const nodeIds = componentNodes.map((c) => c.id);
   const chunkSize = 80;
   const imageUrlMap: Record<string, string> = {};
+  const failed: FailedFigmaAsset[] = [];
+  let timedOut = false;
 
   const chunks: string[][] = [];
   for (let i = 0; i < nodeIds.length; i += chunkSize) {
     chunks.push(nodeIds.slice(i, i + chunkSize));
   }
 
-  await Promise.all(
-    chunks.map(async (chunk) => {
-      try {
-        const imgRes = await fetch(
-          `https://api.figma.com/v1/images/${fileKey}?ids=${chunk.join(",")}&format=svg`,
-          { headers }
-        );
+  await mapLimit(chunks, FIGMA_IMAGE_CONCURRENCY, async (chunk) => {
+    if (overallSignal.aborted) {
+      timedOut = true;
+      for (const id of chunk) failed.push({ id, reason: "timeout" });
+      return;
+    }
+    try {
+      const imgRes = await fetchWithDeadlineAndRetry(
+        `https://api.figma.com/v1/images/${fileKey}?ids=${chunk.join(",")}&format=svg`,
+        { headers },
+        overallSignal
+      );
 
-        if (imgRes.ok) {
-          const imgData = await imgRes.json();
-          if (imgData.images) {
-            Object.assign(imageUrlMap, imgData.images);
-          }
+      if (imgRes.ok) {
+        const imgData = await imgRes.json();
+        if (imgData.images) {
+          Object.assign(imageUrlMap, imgData.images);
         }
-      } catch (err) {
-        console.warn("Error fetching Figma image chunk:", err);
+      } else {
+        const reason = imgRes.status === 429 ? "rate_limited" : `figma_images_http_${imgRes.status}`;
+        for (const id of chunk) failed.push({ id, reason });
       }
-    })
-  );
+    } catch (err: any) {
+      if (isAbortOrTimeout(err)) timedOut = true;
+      const reason = isAbortOrTimeout(err) ? "timeout" : err?.message || "fetch_failed";
+      for (const id of chunk) failed.push({ id, reason });
+    }
+  });
 
-  // 4. Download and sanitize SVGs concurrently
+  // 4. Download and sanitize SVGs with bounded concurrency across all components
   const assets: ProjectAsset[] = [];
   const now = new Date().toISOString();
+  const recordedFailedIds = new Set(failed.map((f) => f.id));
 
-  const fetchChunks: ComponentNodeInfo[][] = [];
-  for (let i = 0; i < componentNodes.length; i += 15) {
-    fetchChunks.push(componentNodes.slice(i, i + 15));
-  }
+  await mapLimit(componentNodes, FIGMA_SVG_CONCURRENCY, async (comp) => {
+    const svgUrl = imageUrlMap[comp.id];
+    if (!svgUrl) {
+      if (!recordedFailedIds.has(comp.id)) {
+        failed.push({ id: comp.id, reason: timedOut ? "timeout" : "missing_render_url" });
+      }
+      return;
+    }
 
-  await Promise.all(
-    fetchChunks.map(async (chunk) => {
-      await Promise.all(
-        chunk.map(async (comp) => {
-          const svgUrl = imageUrlMap[comp.id];
-          if (!svgUrl) return;
+    if (overallSignal.aborted) {
+      timedOut = true;
+      failed.push({ id: comp.id, reason: "timeout" });
+      return;
+    }
 
-          try {
-            const svgFetchRes = await fetch(svgUrl);
-            if (!svgFetchRes.ok) return;
+    try {
+      const svgFetchRes = await fetchWithDeadlineAndRetry(svgUrl, {}, overallSignal);
+      if (!svgFetchRes.ok) {
+        failed.push({
+          id: comp.id,
+          reason: svgFetchRes.status === 429 ? "rate_limited" : `svg_http_${svgFetchRes.status}`,
+        });
+        return;
+      }
 
-            const rawSvg = await svgFetchRes.text();
-            const cleanSvg = sanitizeSvg(rawSvg);
-            if (!cleanSvg || !cleanSvg.includes("<svg")) return;
+      const rawSvg = await svgFetchRes.text();
+      const cleanSvg = sanitizeSvg(rawSvg);
+      if (!cleanSvg || !cleanSvg.includes("<svg")) {
+        failed.push({ id: comp.id, reason: "invalid_svg" });
+        return;
+      }
 
-            const meta = parseComponentMetadata(comp.name, comp.parentName, comp.description);
-            const figmaDirectUrl = `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(comp.id)}`;
+      const meta = parseComponentMetadata(comp.name, comp.parentName, comp.description);
+      const figmaDirectUrl = `https://www.figma.com/file/${fileKey}?node-id=${encodeURIComponent(comp.id)}`;
 
-            assets.push({
-              id: `figma_${comp.id.replace(/[^a-zA-Z0-9]/g, "_")}_${Math.random().toString(36).substring(2, 6)}`,
-              name: meta.name,
-              title: meta.title,
-              type: meta.type,
-              category: target.sourceName || meta.category,
-              tag: meta.tag,
-              svg: cleanSvg,
-              updatedAt: now,
-              source: "figma",
-              figmaNodeId: comp.id,
-              figmaUrl: figmaDirectUrl,
-              figmaSourceId: target.sourceId,
-              figmaSourceName: target.sourceName || nodeName,
-            });
-          } catch (err) {
-            console.warn(`Error fetching SVG for component ${comp.id}:`, err);
-          }
-        })
-      );
-    })
-  );
+      assets.push({
+        id: `figma_${comp.id.replace(/[^a-zA-Z0-9]/g, "_")}_${Math.random().toString(36).substring(2, 6)}`,
+        name: meta.name,
+        title: meta.title,
+        type: meta.type,
+        category: target.sourceName || meta.category,
+        tag: meta.tag,
+        svg: cleanSvg,
+        updatedAt: now,
+        source: "figma",
+        figmaNodeId: comp.id,
+        figmaUrl: figmaDirectUrl,
+        figmaSourceId: target.sourceId,
+        figmaSourceName: target.sourceName || nodeName,
+      });
+    } catch (err: any) {
+      if (isAbortOrTimeout(err)) timedOut = true;
+      failed.push({
+        id: comp.id,
+        reason: isAbortOrTimeout(err) ? "timeout" : err?.message || "svg_fetch_failed",
+      });
+    }
+  });
 
   return {
     sourceId: target.sourceId,
@@ -342,7 +468,10 @@ async function processSingleFigmaSource(
     fileKey,
     nodeId,
     assets,
-    totalFound: componentNodes.length,
+    failed,
+    totalFound,
+    truncated,
+    timedOut: timedOut || overallSignal.aborted,
   };
 }
 
@@ -351,6 +480,11 @@ async function processSingleFigmaSource(
  * Supports single link sync OR multi-source batch link sync with unified PAT.
  */
 export async function POST(req: NextRequest) {
+  const overallController = new AbortController();
+  const overallTimer = setTimeout(() => {
+    overallController.abort(new DOMException("Overall Figma sync deadline exceeded", "TimeoutError"));
+  }, FIGMA_OVERALL_DEADLINE_MS);
+
   try {
     const auth = await authenticateRequest(req, "read:tokens");
     if (!auth.isValid) {
@@ -376,6 +510,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           success: true,
           assets: [],
+          failed: [],
+          truncated: false,
+          timedOut: false,
           totalFound: 0,
           sourcesResults: [],
           message: "No enabled Figma sources provided to sync.",
@@ -383,16 +520,28 @@ export async function POST(req: NextRequest) {
       }
 
       const allAssets: ProjectAsset[] = [];
+      const allFailed: FailedFigmaAsset[] = [];
+      let anyTruncated = false;
+      let anyTimedOut = false;
+      let totalFoundCount = 0;
+
       const sourcesResults: Array<{
         sourceId: string;
         nodeName: string;
         fileKey: string;
         nodeId?: string;
         importedCount: number;
+        failedCount: number;
+        truncated: boolean;
+        timedOut: boolean;
         lastSyncedAt: string;
       }> = [];
 
       for (const src of enabledSources) {
+        if (overallController.signal.aborted) {
+          anyTimedOut = true;
+          break;
+        }
         try {
           const res = await processSingleFigmaSource(
             {
@@ -402,19 +551,29 @@ export async function POST(req: NextRequest) {
               fileKey: src.fileKey,
               nodeId: src.nodeId,
             },
-            cleanPat
+            cleanPat,
+            overallController.signal
           );
 
           allAssets.push(...res.assets);
+          allFailed.push(...res.failed);
+          totalFoundCount += res.totalFound;
+          if (res.truncated) anyTruncated = true;
+          if (res.timedOut) anyTimedOut = true;
+
           sourcesResults.push({
             sourceId: src.id,
             nodeName: res.nodeName,
             fileKey: res.fileKey,
             nodeId: res.nodeId,
             importedCount: res.assets.length,
+            failedCount: res.failed.length,
+            truncated: res.truncated,
+            timedOut: res.timedOut,
             lastSyncedAt: new Date().toISOString(),
           });
         } catch (err: any) {
+          if (isAbortOrTimeout(err)) anyTimedOut = true;
           console.warn(`Error syncing Figma source "${src.name}":`, err.message);
         }
       }
@@ -422,10 +581,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         assets: allAssets,
-        totalFound: allAssets.length,
+        failed: allFailed,
+        truncated: anyTruncated,
+        timedOut: anyTimedOut,
+        totalFound: totalFoundCount,
         importedCount: allAssets.length,
         sourcesResults,
         lastSyncedAt: new Date().toISOString(),
+        ...(anyTruncated
+          ? {
+              guidance: `Component count exceeded ${FIGMA_MAX_COMPONENTS}. Provide a specific frame/section node-id URL to narrow the sync scope.`,
+            }
+          : {}),
       });
     }
 
@@ -438,7 +605,8 @@ export async function POST(req: NextRequest) {
         fileKey,
         nodeId,
       },
-      cleanPat
+      cleanPat,
+      overallController.signal
     );
 
     return NextResponse.json({
@@ -447,11 +615,30 @@ export async function POST(req: NextRequest) {
       fileKey: singleResult.fileKey,
       nodeId: singleResult.nodeId,
       assets: singleResult.assets,
+      failed: singleResult.failed,
+      truncated: singleResult.truncated,
+      timedOut: singleResult.timedOut,
       totalFound: singleResult.totalFound,
       importedCount: singleResult.assets.length,
       lastSyncedAt: new Date().toISOString(),
+      ...(singleResult.truncated
+        ? {
+            guidance: `Found ${singleResult.totalFound} components; synced the first ${FIGMA_MAX_COMPONENTS}. Provide a narrower Figma frame/node link to sync specific sections.`,
+          }
+        : {}),
     });
   } catch (error: any) {
+    if (isAbortOrTimeout(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          timedOut: true,
+          code: "timeout",
+          error: "Figma asset sync timed out. Try syncing a specific frame or node instead of the entire file.",
+        },
+        { status: 504 }
+      );
+    }
     console.error("Figma asset sync error:", error);
     return NextResponse.json(
       {
@@ -460,5 +647,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    clearTimeout(overallTimer);
   }
 }

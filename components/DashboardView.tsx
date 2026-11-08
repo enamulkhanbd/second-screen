@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Project } from "@/types/tenant";
@@ -17,9 +18,7 @@ import {
   Plus,
   FolderGit2,
   ChevronRight,
-  UserPlus,
   Settings,
-  Building2,
   Check,
   Trash2,
   AlertTriangle,
@@ -37,6 +36,9 @@ const CreateProjectModal = dynamic(
   { ssr: false }
 );
 
+const isPlainClick = (event: React.MouseEvent) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+
 export const DashboardView: React.FC = () => {
   const {
     currentOrg,
@@ -46,9 +48,10 @@ export const DashboardView: React.FC = () => {
     userActivities,
     setSidebarTab,
     setMembersSubTab,
+    setSyncTargetProject,
+    setProjectSettingsTab,
     currentUser,
     getCurrentUserRole,
-    addToast,
   } = useTokenStore(
     useShallow((state) => ({
       currentOrg: state.currentOrg,
@@ -58,9 +61,10 @@ export const DashboardView: React.FC = () => {
       userActivities: state.userActivities,
       setSidebarTab: state.setSidebarTab,
       setMembersSubTab: state.setMembersSubTab,
+      setSyncTargetProject: state.setSyncTargetProject,
+      setProjectSettingsTab: state.setProjectSettingsTab,
       currentUser: state.currentUser,
       getCurrentUserRole: state.getCurrentUserRole,
-      addToast: state.addToast,
     }))
   );
 
@@ -82,7 +86,7 @@ export const DashboardView: React.FC = () => {
   };
 
   // Active Organization Info
-  const orgName = currentOrg?.name || "Planet Design System";
+  const orgName = currentOrg?.name || "Workspace";
   const orgInitial = orgName[0]?.toUpperCase() || "P";
   const orgColor = currentOrg?.color || "#171717";
 
@@ -99,6 +103,9 @@ export const DashboardView: React.FC = () => {
 
   const totalProjectsCount = orgProjects?.length || 0;
   const totalMembersCount = currentOrg?.members?.length || 1;
+  const createdLabel = currentOrg?.createdAt
+    ? new Date(currentOrg.createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    : "-";
 
   // Format relative time helper
   const formatTimeAgo = (isoString?: string) => {
@@ -142,12 +149,54 @@ export const DashboardView: React.FC = () => {
   const handleOpenProject = (proj: Project) => {
     setCurrentProject(proj);
     setSidebarTab("tokens");
-    addToast({
-      type: "success",
-      title: "Project Opened",
-      message: `Active project: ${proj.name}`,
-    });
   };
+
+  const openProjectSettings = (proj: Project, tab: "details" | "sync") => {
+    setSyncTargetProject(proj);
+    setCurrentProject(proj, { skipHydration: true });
+    setProjectSettingsTab(tab);
+    setSidebarTab("project-settings");
+  };
+
+  const firstProject = orgProjects[0];
+  const hasInvitedTeammate = (currentOrg?.members?.length || 0) > 1;
+  const hasConnectedFigma = orgProjects.some(
+    (proj) => Boolean(proj.figmaUpdatedAt) || (proj.assetFigmaConfig?.sources?.length ?? 0) > 0
+  );
+  const orgBase = currentOrg ? `/${encodeURIComponent(currentOrg.slug)}` : "";
+  const setupSteps = [
+    {
+      id: "project",
+      title: "Create a project",
+      description: "A project holds your tokens, themes, and exports.",
+      done: orgProjects.length > 0,
+      href: `${orgBase}/projects`,
+      onActivate: handleOpenCreateProject,
+    },
+    {
+      id: "invite",
+      title: "Invite a teammate",
+      description: "Share tokens and review changes together.",
+      done: hasInvitedTeammate,
+      href: `${orgBase}/members`,
+      onActivate: () => {
+        setSidebarTab("members");
+        setMembersSubTab("members");
+      },
+    },
+    {
+      id: "figma",
+      title: "Connect Figma",
+      description: "Pull Figma Variables into a project. Tokens stay the source.",
+      done: hasConnectedFigma,
+      href: firstProject ? `${orgBase}/${encodeURIComponent(firstProject.slug)}/project-settings` : `${orgBase}/projects`,
+      onActivate: () => {
+        if (firstProject) openProjectSettings(firstProject, "sync");
+        else setSidebarTab("projects");
+      },
+    },
+  ];
+  const completedSetupSteps = setupSteps.filter((step) => step.done).length;
 
   return (
     <div className="flex-1 h-full overflow-y-auto bg-background text-foreground font-sans select-none">
@@ -210,12 +259,12 @@ export const DashboardView: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-foreground tracking-tight">Recent projects</h2>
-              <button
-                onClick={() => setSidebarTab("projects")}
-                className="text-xs text-primary hover:underline font-medium cursor-pointer"
+              <Link
+                href={currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/projects` : "/"}
+                className="text-xs text-primary hover:underline font-medium"
               >
                 View all
-              </button>
+              </Link>
             </div>
 
             {displayProjects.length === 0 ? (
@@ -244,48 +293,112 @@ export const DashboardView: React.FC = () => {
                   return (
                     <div
                       key={proj.id}
-                      onClick={() => handleOpenProject(proj)}
-                      className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-4 group"
+                      className="rounded-xl border border-border bg-card hover:bg-muted/40 transition-colors shadow-2xs flex items-center group"
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 overflow-hidden ${
-                            isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
-                          }`}
-                          style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
-                        >
-                          {proj.logoUrl ? (
-                            <img src={proj.logoUrl} alt={proj.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{proj.name?.[0]?.toUpperCase() || "P"}</span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                              {proj.name}
-                            </h3>
-                            {isCurrent && (
-                              <Badge variant="outline" className="text-[9px] py-0 px-1 font-sans text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
-                                Active
-                              </Badge>
+                      <Link
+                        href={currentOrg
+                          ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(proj.slug)}/tokens`
+                          : "/"}
+                        onClick={(event) => {
+                          if (isPlainClick(event)) handleOpenProject(proj);
+                        }}
+                        className="p-4 flex flex-1 min-w-0 items-center justify-between gap-4 rounded-xl"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold shadow-2xs shrink-0 overflow-hidden ${
+                              isCustomOrgColor ? "text-white" : "bg-primary text-primary-foreground"
+                            }`}
+                            style={isCustomOrgColor ? { backgroundColor: currentOrg?.color } : undefined}
+                          >
+                            {proj.logoUrl ? (
+                              <img src={proj.logoUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{proj.name?.[0]?.toUpperCase() || "P"}</span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Last changed {formatTimeAgo(proj.updatedAt || proj.createdAt)}
-                          </p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                {proj.name}
+                              </h3>
+                              {isCurrent && (
+                                <Badge variant="outline" className="text-[9px] py-0 px-1 font-sans text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                                  Active
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Last changed {formatTimeAgo(proj.updatedAt || proj.createdAt)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="shrink-0">
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
-                      </div>
+                        <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
+                      </Link>
+                      <Link
+                        href={currentOrg
+                          ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(proj.slug)}/project-settings`
+                          : "/"}
+                        onClick={(event) => {
+                          if (isPlainClick(event)) openProjectSettings(proj, "details");
+                        }}
+                        aria-label={`Project settings for ${proj.name}`}
+                        title="Project settings"
+                        className="mr-3 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Link>
                     </div>
                   );
                 })}
               </div>
             )}
           </div>
+
+          {/* Setup checklist: stays until every step is done */}
+          {completedSetupSteps < setupSteps.length && (
+            <section aria-labelledby="setup-checklist-title" className="rounded-xl border border-border bg-card shadow-2xs">
+              <div className="flex items-center justify-between px-4 pt-4">
+                <h2 id="setup-checklist-title" className="text-sm font-bold text-foreground tracking-tight">
+                  Finish setting up
+                </h2>
+                <span className="text-[11px] text-muted-foreground">
+                  {completedSetupSteps} of {setupSteps.length} done
+                </span>
+              </div>
+              <ul className="p-2">
+                {setupSteps.map((step) => (
+                  <li key={step.id}>
+                    {step.done ? (
+                      <div className="flex items-start gap-3 rounded-lg px-2.5 py-2.5">
+                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-3" />
+                        </span>
+                        <span className="text-xs font-medium text-muted-foreground line-through">{step.title}</span>
+                      </div>
+                    ) : (
+                      <Link
+                        href={step.href || "/"}
+                        onClick={(event) => {
+                          if (isPlainClick(event)) step.onActivate();
+                        }}
+                        className="group flex items-start gap-3 rounded-lg px-2.5 py-2.5 hover:bg-muted/50 transition-colors"
+                      >
+                        <span className="mt-0.5 size-5 shrink-0 rounded-full border border-border" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {step.title}
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground mt-0.5">{step.description}</span>
+                        </span>
+                        <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* 2. Let us help you (9 Cards Grid Matching Video) */}
           <div className="space-y-3">
@@ -357,21 +470,42 @@ export const DashboardView: React.FC = () => {
                 },
               ].map((card) => {
                 const Icon = card.icon;
+                const cardProject = currentProject || orgProjects[0];
+                const targetHref = currentOrg
+                  ? card.tab === "members"
+                    ? `/${encodeURIComponent(currentOrg.slug)}/members`
+                    : cardProject
+                    ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(cardProject.slug)}/${card.tab}`
+                    : `/${encodeURIComponent(currentOrg.slug)}/projects`
+                  : "/";
                 return (
-                  <div
+                  <Link
                     key={card.id}
-                    onClick={() => {
+                    href={targetHref}
+                    onClick={(event) => {
+                      if (
+                        event.button !== 0 ||
+                        event.metaKey ||
+                        event.ctrlKey ||
+                        event.shiftKey ||
+                        event.altKey
+                      ) {
+                        return;
+                      }
                       if (card.tab === "members") {
                         setSidebarTab("members");
                         setMembersSubTab("members");
-                      } else {
+                      } else if (cardProject) {
+                        setCurrentProject(cardProject);
                         if (card.id === "figma") {
                           useTokenStore.getState().setProjectSettingsTab("sync");
                         }
                         setSidebarTab(card.tab as any);
+                      } else {
+                        setSidebarTab("projects");
                       }
                     }}
-                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs flex items-start gap-3 group"
+                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-colors cursor-pointer shadow-2xs flex items-start gap-3 group"
                   >
                     <div className="w-8 h-8 rounded-lg bg-muted/70 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5">
                       <Icon className="w-4 h-4" />
@@ -384,7 +518,7 @@ export const DashboardView: React.FC = () => {
                         {card.description}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -439,48 +573,13 @@ export const DashboardView: React.FC = () => {
             </div>
             <div>
               <div className="text-[11px] text-muted-foreground font-medium">Created</div>
-              <div className="text-xs font-semibold text-foreground mt-1 font-mono">Sept 2026</div>
-            </div>
-          </div>
-
-          {/* Next steps */}
-          <div className="space-y-2.5">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Next steps
-            </div>
-            <div
-              onClick={() => {
-                setSidebarTab("members");
-                setMembersSubTab("members");
-              }}
-              className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs space-y-2 group"
-            >
-              <div className="flex items-center gap-2 text-foreground font-semibold text-xs group-hover:text-primary transition-colors">
-                <UserPlus className="w-4 h-4 text-primary" />
-                <span>Invite your first collaborator</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Bring team collaborators into this workspace to share tokens and review branches.
-              </p>
-            </div>
-
-            <div
-              onClick={handleOpenWorkspaceSettings}
-              className="p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all cursor-pointer shadow-2xs space-y-2 group"
-            >
-              <div className="flex items-center gap-2 text-foreground font-semibold text-xs group-hover:text-primary transition-colors">
-                <Building2 className="w-4 h-4 text-primary" />
-                <span>Workspace Settings</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Configure brand colors, workspace name, logo, and general organization details.
-              </p>
+              <div className="text-xs font-semibold text-foreground mt-1 font-mono">{createdLabel}</div>
             </div>
           </div>
 
           {/* What's new in Studio (10 Items from Video) */}
           <div className="space-y-3 pt-2 border-t border-border/60">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="text-[11px] font-bold tracking-wider text-muted-foreground">
               What&apos;s new in Studio
             </div>
 
@@ -515,8 +614,8 @@ export const DashboardView: React.FC = () => {
                   desc: "Easily identify and sunset deprecated tokens in your project sets.",
                 },
                 {
-                  title: "Variables-based projects",
-                  desc: "Manage projects that sync directly with Figma variables.",
+                  title: "Figma Variables projects",
+                  desc: "Manage projects that sync directly with Figma Variables.",
                 },
                 {
                   title: "Revamped Exports with API",

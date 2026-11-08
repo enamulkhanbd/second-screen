@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { SchemaItem } from "@/data/schemaCatalog";
+import { SchemaItem, resolveSchemaUrl } from "@/data/schemaCatalog";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
   Dialog,
@@ -33,14 +33,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
   const isEditable = canUserEdit();
 
   const fullSchemaUrl = React.useMemo(() => {
-    if (!item?.schemaUrl) return "";
-    if (typeof window !== "undefined") {
-      const origin = window.location.origin;
-      return item.schemaUrl.startsWith("http")
-        ? item.schemaUrl
-        : `${origin}${item.schemaUrl.startsWith("/") ? "" : "/"}${item.schemaUrl}`;
-    }
-    return item.schemaUrl;
+    return resolveSchemaUrl(item?.schemaUrl || "");
   }, [item?.schemaUrl]);
 
   if (!item) return null;
@@ -73,6 +66,9 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
           <DialogDescription className="text-sm text-muted-foreground leading-relaxed font-normal pt-1">
             {item.description || "Design token schema definition."}
           </DialogDescription>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Tokens with this <code className="font-mono text-foreground">$type</code> will validate against this schema.
+          </p>
         </DialogHeader>
 
         {/* Badges Row - Matches Image 2 pills */}
@@ -121,6 +117,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
               type="button"
               onClick={handleCopyLink}
               title="Copy URL"
+              aria-label={copied ? "Schema URL copied" : "Copy schema URL"}
               className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
             >
               {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
@@ -130,6 +127,7 @@ export const ExtensionDetailModal: React.FC<ExtensionDetailModalProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               title="Open schema in new tab"
+              aria-label="Open schema in new tab"
               className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
             >
               <ArrowUpRight className="size-4" />

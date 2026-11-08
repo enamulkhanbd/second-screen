@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   buildTokenFlowGraph,
   traceTokenDependencies,
@@ -48,9 +49,16 @@ export const TokenFlow: React.FC = () => {
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
-    setActiveThemeOption,
-    updateSingleToken,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      rawTokens: s.rawTokens,
+      themeGroups: s.themeGroups,
+      activeThemeGroupId: s.activeThemeGroupId,
+      activeThemeOptionId: s.activeThemeOptionId,
+    }))
+  );
+  const setActiveThemeOption = useTokenStore((s) => s.setActiveThemeOption);
+  const updateSingleToken = useTokenStore((s) => s.updateSingleToken);
 
   const [searchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<"all" | TokenCategory>("all");
@@ -128,7 +136,7 @@ export const TokenFlow: React.FC = () => {
                   <button
                     key={opt.id}
                     onClick={() => setActiveThemeOption(opt.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
                       isSel
                         ? "bg-background text-foreground shadow-xs font-semibold"
                         : "text-muted-foreground hover:text-foreground"
@@ -162,7 +170,7 @@ export const TokenFlow: React.FC = () => {
         <div className="h-9 px-6 border-b border-border bg-muted/30 flex items-center gap-1.5 overflow-x-auto z-10">
           <button
             onClick={() => setSelectedType("all")}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
               selectedType === "all"
                 ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -179,7 +187,7 @@ export const TokenFlow: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedType(cat)}
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all ${
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium transition ${
                   isSel
                     ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -243,7 +251,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
   onSelectToken,
   onUpdateToken,
 }) => {
-  const { focusTokenInMatrix } = useTokenStore();
+  const focusTokenInMatrix = useTokenStore((s) => s.focusTokenInMatrix);
   const [val, setVal] = useState(token.rawValue);
 
   React.useEffect(() => {
@@ -407,7 +415,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
               Raw / Alias Value
             </label>
             {val !== token.rawValue && (
-              <Badge variant="warning" className="text-xs font-semibold animate-pulse">Unsaved</Badge>
+              <Badge variant="warning" className="text-xs font-semibold motion-safe:animate-pulse">Unsaved</Badge>
             )}
           </div>
 

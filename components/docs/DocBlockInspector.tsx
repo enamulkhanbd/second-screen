@@ -120,7 +120,7 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                     key={bg}
                     type="button"
                     onClick={() => onUpdatePage({ headerBackground: bg })}
-                    className={`relative h-7 w-7 rounded-full border shadow-xs transition-all hover:opacity-90 hover:ring-2 hover:ring-ring/30 ${
+                    className={`relative h-7 w-7 rounded-full border shadow-xs transition hover:opacity-90 hover:ring-2 hover:ring-ring/30 ${
                       isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border/60"
                     }`}
                     style={{
@@ -153,7 +153,7 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                     key={layout}
                     type="button"
                     onClick={() => onUpdatePage({ layout })}
-                    className={`rounded-lg py-1.5 text-center text-xs font-medium capitalize transition-all ${
+                    className={`rounded-lg py-1.5 text-center text-xs font-medium capitalize transition ${
                       isActive
                         ? "bg-background text-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
@@ -272,7 +272,7 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                               },
                             })
                           }
-                          className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                          className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
                             isActive
                               ? "bg-primary text-primary-foreground shadow-xs"
                               : "border border-border/60 bg-background/70 text-muted-foreground hover:text-foreground"

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDocsTokens } from "@/components/docs/DocsTokensContext";
 import {
   Layers,
   Search,
@@ -30,7 +31,11 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  const { resolvedTokens, addToast } = useTokenStore();
+  const docsTokens = useDocsTokens();
+  const storeResolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const resolvedTokens = docsTokens ? docsTokens.resolvedTokens : storeResolvedTokens;
+  const addToast = useTokenStore((s) => s.addToast);
+  const [visibleCount, setVisibleCount] = useState(60);
   const [search, setSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [sortField, setSortField] = useState<"name" | "value">("value");
@@ -171,7 +176,7 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
                 </td>
               </tr>
             ) : (
-              filtered.map((item, idx) => {
+              filtered.slice(0, visibleCount).map((item, idx) => {
                 const itemKey = `token-${item.name}-${idx}`;
                 const displayVal = String(item.resolvedValue || item.rawValue || "");
                 const isColor = item.type === "color";
@@ -223,6 +228,18 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
             )}
           </tbody>
         </table>
+        {filtered.length > visibleCount && (
+          <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-t border-border/40 text-xs text-muted-foreground">
+            <span>Showing {visibleCount} of {filtered.length} tokens</span>
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => Math.min(prev + 60, filtered.length))}
+              className="px-2.5 py-1 text-xs font-medium rounded hover:bg-muted text-foreground transition-colors"
+            >
+              Load more (+60)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

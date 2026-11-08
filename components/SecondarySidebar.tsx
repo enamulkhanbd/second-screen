@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   Folder,
   FolderOpen,
@@ -62,23 +63,34 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     rawTokens,
     resolvedTokens,
     activeSet,
-    setActiveSet,
     themeGroups,
     activeThemeGroupId,
     activeThemeOptionId,
     activeThemeOptionIds,
-    setActiveThemeGroup,
-    setActiveThemeOption,
-    renameSet,
-    deleteSet,
-    renameFolder,
-    deleteFolder,
-    deleteThemeGroup,
-    updateThemeOption,
-    deleteThemeOption,
-    canUserEdit,
-    addToast,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      sidebarTab: s.sidebarTab,
+      rawTokens: s.rawTokens,
+      resolvedTokens: s.resolvedTokens,
+      activeSet: s.activeSet,
+      themeGroups: s.themeGroups,
+      activeThemeGroupId: s.activeThemeGroupId,
+      activeThemeOptionId: s.activeThemeOptionId,
+      activeThemeOptionIds: s.activeThemeOptionIds,
+    }))
+  );
+  const setActiveSet = useTokenStore((s) => s.setActiveSet);
+  const setActiveThemeGroup = useTokenStore((s) => s.setActiveThemeGroup);
+  const setActiveThemeOption = useTokenStore((s) => s.setActiveThemeOption);
+  const renameSet = useTokenStore((s) => s.renameSet);
+  const deleteSet = useTokenStore((s) => s.deleteSet);
+  const renameFolder = useTokenStore((s) => s.renameFolder);
+  const deleteFolder = useTokenStore((s) => s.deleteFolder);
+  const deleteThemeGroup = useTokenStore((s) => s.deleteThemeGroup);
+  const updateThemeOption = useTokenStore((s) => s.updateThemeOption);
+  const deleteThemeOption = useTokenStore((s) => s.deleteThemeOption);
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const addToast = useTokenStore((s) => s.addToast);
 
   const isEditable = canUserEdit();
   const [addModalGroupId, setAddModalGroupId] = useState<string | null>(null);
@@ -417,7 +429,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
       <ContextMenu key={node.id}>
         <ContextMenuTrigger asChild>
           <div
-            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md             text-xs transition cursor-pointer ${
               isSelected
                 ? "bg-muted text-foreground font-semibold shadow-2xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
@@ -588,7 +600,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                 setActiveSet("ALL");
                 onItemSelected?.();
               }}
-              className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+              className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md               text-xs transition cursor-pointer ${
                 activeSet === "ALL" || !activeSet
                   ? "bg-muted text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
@@ -611,7 +623,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                   setAddSetInitialName("");
                   setIsAddSetOpen(true);
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 <span>Add Token Set</span>
@@ -775,7 +787,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                                   setActiveThemeOption(opt.id);
                                   onItemSelected?.();
                                 }}
-                                className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
+                                className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md                                 text-xs transition cursor-pointer ${
                                   isSelected
                                     ? "bg-muted text-foreground font-semibold shadow-2xs"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium"

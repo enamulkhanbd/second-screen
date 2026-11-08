@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SecondarySidebar } from "@/components/SecondarySidebar";
+import { CommandPalette } from "@/components/CommandPalette";
 import { DashboardView } from "@/components/DashboardView";
 import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { ToastContainer } from "@/components/Toast";
@@ -56,8 +57,8 @@ const AuthGatewayView = dynamic(
   {
     ssr: false,
     loading: () => (
-      <main className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <span className="text-xs text-muted-foreground">Loading sign in...</span>
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <span className="text-xs text-muted-foreground">Loading sign in…</span>
       </main>
     ),
   }
@@ -162,6 +163,8 @@ const PROJECT_ROUTE_TABS = new Set([
   "system-docs",
 ]);
 
+const ONBOARDING_DISMISSED_KEY = "ts_onboarding_dismissed";
+
 export default function Home() {
   const pathname = usePathname();
   const router = useRouter();
@@ -190,6 +193,22 @@ export default function Home() {
   const previousPathname = useRef(pathname);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWizardDismissed, setIsWizardDismissed] = useState(false);
+
+  // Honor an earlier dismissal so the setup modal doesn't reappear on every reload.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(ONBOARDING_DISMISSED_KEY) === "1") {
+        setIsWizardDismissed(true);
+      }
+    } catch { }
+  }, []);
+
+  const dismissOnboardingWizard = () => {
+    setIsWizardDismissed(true);
+    try {
+      localStorage.setItem(ONBOARDING_DISMISSED_KEY, "1");
+    } catch { }
+  };
   const [isPrimaryNavOpen, setIsPrimaryNavOpen] = useState(false);
   const [isContextNavOpen, setIsContextNavOpen] = useState(false);
   const {
@@ -441,8 +460,8 @@ export default function Home() {
     const targetPath = workspaceRoute
       ? `/${encodeURIComponent(currentOrg.slug)}/${workspaceRoute}`
       : projectForRoute
-      ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(projectForRoute.slug)}/${sidebarTab}`
-      : null;
+        ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(projectForRoute.slug)}/${sidebarTab}`
+        : null;
 
     if (!targetPath) {
       return;
@@ -487,23 +506,23 @@ export default function Home() {
   // Model A: Dedicated Sign In / Welcome Gateway for signed-out users
   if (!currentUser && !isLoadingTenant) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground">
         <AuthGatewayView />
         <AcceptInviteModal />
         <ToastContainer />
-      </main>
+      </div>
     );
   }
 
   // Loading Screen while resolving authentication & tenancy
   if (isLoadingTenant) {
     return (
-      <main className="h-screen w-screen flex flex-col items-center justify-center bg-background text-foreground space-y-3 select-none font-sans">
-        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center animate-pulse">
+      <main id="main-content" tabIndex={-1} className="h-screen w-screen flex flex-col items-center justify-center bg-background text-foreground space-y-3 select-none font-sans">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center motion-safe:animate-pulse">
           <div className="w-5 h-5 rounded-md bg-primary" />
         </div>
-        <span className="text-xs font-mono text-muted-foreground animate-pulse">
-          Loading Tokens Platform...
+        <span className="text-xs font-mono text-muted-foreground motion-safe:animate-pulse" role="status">
+          Loading Tokens Platform…
         </span>
       </main>
     );
@@ -512,13 +531,7 @@ export default function Home() {
   const isWorkspacesView = sidebarTab === "workspaces" || pathname === "/";
 
   return (
-    <main
-      className={`flex h-screen overflow-hidden ${
-        isWorkspacesView
-          ? "bg-[#09090d] text-zinc-100"
-          : "bg-white dark:bg-[#09090d] text-slate-900 dark:text-zinc-100"
-      }`}
-    >
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* 1. Primary Navigation Sidebar - Full height to top */}
       {!isWorkspacesView && (
         <>
@@ -533,7 +546,8 @@ export default function Home() {
           <Sheet open={isPrimaryNavOpen} onOpenChange={setIsPrimaryNavOpen}>
             <SheetContent
               side="left"
-              className="!w-[min(20rem,calc(100vw-2rem))] p-0 lg:hidden"
+              className="p-0 lg:hidden"
+              style={{ width: "min(20rem, calc(100vw - 2rem))" }}
             >
               <SheetTitle className="sr-only">Primary navigation</SheetTitle>
               <Sidebar
@@ -558,89 +572,89 @@ export default function Home() {
           />
         )}
 
-        {/* Main Workspace */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Main Workspace (skip-link target) */}
+        <main id="main-content" tabIndex={-1} className="flex-1 flex overflow-hidden focus:outline-none">
 
-        {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
-        {(sidebarTab === "tokens" || sidebarTab === "themes") && (
-          <>
-            <div className="hidden xl:flex h-full">
-              <SecondarySidebar />
-            </div>
-            <Sheet open={isContextNavOpen} onOpenChange={setIsContextNavOpen}>
-              <SheetContent
-                side="left"
-                className="!w-[min(20rem,calc(100vw-2rem))] p-0 xl:hidden"
-              >
-                <SheetTitle className="sr-only">
-                  {sidebarTab === "tokens" ? "Token sets" : "Theme groups"}
-                </SheetTitle>
-                <SecondarySidebar
-                  className="w-full border-r-0 pt-10"
-                  onItemSelected={() => setIsContextNavOpen(false)}
-                />
-              </SheetContent>
-            </Sheet>
-          </>
-        )}
+          {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
+          {(sidebarTab === "tokens" || sidebarTab === "themes") && (
+            <>
+              <div className="hidden xl:flex h-full">
+                <SecondarySidebar />
+              </div>
+              <Sheet open={isContextNavOpen} onOpenChange={setIsContextNavOpen}>
+                <SheetContent
+                  side="left"
+                  className="p-0 xl:hidden"
+                  style={{ width: "min(20rem, calc(100vw - 2rem))" }}
+                >
+                  <SheetTitle className="sr-only">
+                    {sidebarTab === "tokens" ? "Token sets" : "Theme groups"}
+                  </SheetTitle>
+                  <SecondarySidebar
+                    className="w-full border-r-0 pt-10"
+                    onItemSelected={() => setIsContextNavOpen(false)}
+                  />
+                </SheetContent>
+              </Sheet>
+            </>
+          )}
 
-        {/* 3. Main Workspace Page Views */}
-        {isWorkspacesView ? (
-          <WorkspacesListView />
-        ) : isLoadingProjectData && sidebarTab !== "project-settings" ? (
-          <WorkspaceLoading variant={getProjectLoadingVariant(sidebarTab)} />
-        ) : sidebarTab === "dashboard" ? (
-          <DashboardView />
-        ) : sidebarTab === "projects" ? (
-          <WorkspacesProjectsView
-            onSelectProject={navigateToProject}
-            onOpenProjectSettings={navigateToProjectSettings}
-          />
-        ) : sidebarTab === "variables" ? (
-          <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
-        ) : sidebarTab === "documentation" ? (
-          <DocumentationView />
-        ) : sidebarTab === "assets" ? (
-          <AssetsView />
-        ) : sidebarTab === "exports" ? (
-          <ExportsView />
-        ) : sidebarTab === "extensions" ? (
-          <ExtensionsView />
-        ) : sidebarTab === "releases" ? (
-          <ReleasesWorkspace />
-        ) : sidebarTab === "branches" ? (
-          <BranchesView />
-        ) : sidebarTab === "mcp" ? (
-          <McpCliView />
-        ) : sidebarTab === "project-settings" ? (
-          <ProjectSettingsView />
-        ) : sidebarTab === "members" ? (
-          <MembersView />
-        ) : sidebarTab === "org-settings" ? (
-          <OrgSettingsView />
-        ) : sidebarTab === "changelog" ? (
-          <SystemChangelogView />
-        ) : sidebarTab === "system-docs" ? (
-          <SystemDocsView />
-        ) : sidebarTab === "tokens" ? (
-          <TokensWorkspace
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenContextNavigation={() => setIsContextNavOpen(true)}
-          />
-        ) : sidebarTab === "themes" ? (
-          <ThemeMatrix
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenContextNavigation={() => setIsContextNavOpen(true)}
-          />
-        ) : null}
-      </div>
+          {/* 3. Main Workspace Page Views */}
+          {isWorkspacesView ? (
+            <WorkspacesListView />
+          ) : isLoadingProjectData && sidebarTab !== "project-settings" ? (
+            <WorkspaceLoading variant={getProjectLoadingVariant(sidebarTab)} />
+          ) : sidebarTab === "dashboard" ? (
+            <DashboardView />
+          ) : sidebarTab === "projects" ? (
+            <WorkspacesProjectsView
+              onSelectProject={navigateToProject}
+              onOpenProjectSettings={navigateToProjectSettings}
+            />
+          ) : sidebarTab === "variables" ? (
+            <VariablesView onOpenSettings={() => setIsSettingsOpen(true)} />
+          ) : sidebarTab === "documentation" ? (
+            <DocumentationView />
+          ) : sidebarTab === "assets" ? (
+            <AssetsView />
+          ) : sidebarTab === "exports" ? (
+            <ExportsView />
+          ) : sidebarTab === "extensions" ? (
+            <ExtensionsView />
+          ) : sidebarTab === "releases" ? (
+            <ReleasesWorkspace />
+          ) : sidebarTab === "branches" ? (
+            <BranchesView />
+          ) : sidebarTab === "mcp" ? (
+            <McpCliView />
+          ) : sidebarTab === "project-settings" ? (
+            <ProjectSettingsView />
+          ) : sidebarTab === "members" ? (
+            <MembersView />
+          ) : sidebarTab === "org-settings" ? (
+            <OrgSettingsView />
+          ) : sidebarTab === "changelog" ? (
+            <SystemChangelogView />
+          ) : sidebarTab === "system-docs" ? (
+            <SystemDocsView />
+          ) : sidebarTab === "tokens" ? (
+            <TokensWorkspace
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenContextNavigation={() => setIsContextNavOpen(true)}
+            />
+          ) : sidebarTab === "themes" ? (
+            <ThemeMatrix
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenContextNavigation={() => setIsContextNavOpen(true)}
+            />
+          ) : null}
+        </main>
       </div>
 
       {/* Onboarding Wizard Modal for fresh accounts */}
       <OnboardingWizardModal
         isOpen={showOnboardingWizard}
-        onClose={() => setIsWizardDismissed(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onClose={dismissOnboardingWizard}
       />
 
       {/* Accept Team Invitation Modal for invited members */}
@@ -651,7 +665,8 @@ export default function Home() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+      <CommandPalette />
       <ToastContainer />
-    </main>
+    </div>
   );
 }

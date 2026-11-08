@@ -229,7 +229,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   <button
                     type="button"
                     onClick={() => handleProviderChange("github")}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all ${
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition  ${
                       form.provider === "github"
                         ? "border-primary bg-primary/10 text-primary shadow-xs"
                         : "border-border bg-card text-foreground hover:bg-muted"
@@ -241,7 +241,7 @@ export const CredentialsModal: React.FC<CredentialsModalProps> = ({ isOpen, onCl
                   <button
                     type="button"
                     onClick={() => handleProviderChange("azure")}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all ${
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition  ${
                       form.provider === "azure"
                         ? "border-primary bg-primary/10 text-primary shadow-xs"
                         : "border-border bg-card text-foreground hover:bg-muted"

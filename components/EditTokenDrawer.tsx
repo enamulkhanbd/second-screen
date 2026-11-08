@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FlattenedToken, TokenType } from "@/types/tokens";
 import { useTokenStore } from "@/store/useTokenStore";
-import { HelpCircle, Plus, Search, X } from "lucide-react";
+import { HelpCircle, Plus, Search, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,6 +137,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   const [picker, setPicker] = useState<"none" | "references" | "functions">("none");
   const [refSearch, setRefSearch] = useState("");
   const [deprecated, setDeprecated] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [deprecatedMessage, setDeprecatedMessage] = useState("");
   const [replacementToken, setReplacementToken] = useState("");
   const [deprecatedSeverity, setDeprecatedSeverity] = useState("warning");
@@ -168,6 +169,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
         : "structured"
     );
     setDeprecated(Boolean(token.deprecated));
+    setShowAdvanced(Boolean(token.deprecated));
     setDeprecatedMessage(token.deprecatedMessage || "");
     setReplacementToken(token.deprecatedReplacement || "");
     setDeprecatedSeverity(token.deprecatedSeverity || "warning");
@@ -210,6 +212,18 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
   }, [userActivities, token]);
 
   if (!isOpen || !token) return null;
+
+  // Typing an alias like "{color.br" opens the reference search with that text, no extra click.
+  const handleValueChange = (next: string) => {
+    setValue(next);
+    const trimmed = next.trim();
+    if (trimmed.startsWith("{")) {
+      setRefSearch(trimmed.replace(/^\{/, "").replace(/\}$/, ""));
+      setPicker("references");
+    } else if (picker === "references") {
+      setPicker("none");
+    }
+  };
 
   const composeValue = () => {
     if (tokenType === "typography" && typographyMode === "structured") {
@@ -384,7 +398,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                   <HelpCircle className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5" />
                   <Input
                     value={value}
-                    onChange={(e) => setValue(e.target.value)}
+                    onChange={(e) => handleValueChange(e.target.value)}
                     className="h-9 pl-8 pr-2 text-xs font-mono"
                     placeholder="{token.name} or a raw value"
                   />
@@ -519,6 +533,22 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
               </Select>
             </div>
 
+            <div className="border-t border-border pt-3">
+              <button
+                type="button"
+                aria-expanded={showAdvanced}
+                onClick={() => setShowAdvanced((open) => !open)}
+                className="flex w-full items-center justify-between rounded-md py-1 text-xs font-semibold text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <span>Advanced</span>
+                <ChevronDown
+                  className={cn("size-4 text-muted-foreground transition-transform", showAdvanced && "rotate-180")}
+                />
+              </button>
+            </div>
+
+            {showAdvanced && (
+              <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Category</Label>
               <Input
@@ -575,6 +605,8 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                     placeholder="2026-10-01 or v2.0.11"
                   />
                 </div>
+              </div>
+            )}
               </div>
             )}
           </TabsContent>

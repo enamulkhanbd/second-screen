@@ -134,7 +134,7 @@ export const FlowNodeCard: React.FC<FlowNodeCardProps> = ({
             <div
               key={token.id}
               onClick={() => onSelectToken(token)}
-              className={`relative group flex items-center justify-between px-2.5 py-1.5 rounded-xl border text-xs cursor-pointer transition-all ${itemHighlight}`}
+              className={`relative group flex items-center justify-between px-2.5 py-1.5 rounded-xl border text-xs cursor-pointer transition ${itemHighlight}`}
               title={`Key: ${token.key}\nRaw: ${token.rawValue}\nResolved: ${token.resolvedValue}`}
             >
               {/* Left Pin (Target handle) */}

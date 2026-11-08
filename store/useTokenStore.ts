@@ -28,12 +28,14 @@ import {
   createEmptyDocumentation,
 } from "@/types/documentation";
 import {
+  countTokensInDocument,
   flattenAndResolveTokens,
   setTokenAtKeyPath,
   createTokenAtKeyPath,
   deleteTokenAtKeyPath,
   createEmptyTokenSet,
   deleteTokenSet,
+  patchResolvedTokensIncremental,
 } from "@/utils/transformTokens";
 import {
   compileCssVariables,
@@ -91,7 +93,7 @@ import {
   getProject,
   saveProjectSchemas,
 } from "@/services/organizationService";
-import { DEFAULT_ENABLED_SCHEMA_IDS } from "@/data/schemaCatalog";
+import { DEFAULT_ENABLED_SCHEMA_IDS } from "@/data/schemaIds";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 interface TokenStoreState {
@@ -375,6 +377,10 @@ interface TokenStoreState {
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
   updateSingleToken: (path: string[], newValue: any) => void;
+  updateTokensBatch: (entries: { path: string[]; newValue: any }[]) => void;
+  deleteTokensBatch: (items: { setName: string; tokenPath: string[] }[]) => void;
+  duplicateTokensBatch: (items: { setName: string; tokenPath: string[]; newPath: string[] }[]) => void;
+  moveTokensBatch: (items: { sourceSet: string; targetSet: string; tokenPath: string[]; tokenLeaf: { value: any; type: string; description?: string } }[]) => void;
   updateSetJson: (setName: string, newJsonContent: any) => void;
   setActiveSet: (setName: string) => void;
   setActiveGroup: (group: string) => void;
@@ -397,6 +403,7 @@ interface TokenStoreState {
     cloneFromOptionId?: string;
     newSetName?: string;
   }) => void;
+  createLightDarkThemes: () => void;
   updateThemeGroup: (groupId: string, newName: string, newColor?: string) => void;
   duplicateThemeGroup: (groupId: string) => void;
   deleteThemeGroup: (groupId: string) => void;
@@ -467,10 +474,11 @@ function resolveTokensWithActiveThemes(
   doc: RawTokensDocument,
   activeSet: string,
   themeGroups: ThemeGroup[],
-  activeThemeOptionIds: Record<string, string>
+  activeThemeOptionIds: Record<string, string>,
+  options?: { sort?: boolean }
 ): FlattenedToken[] {
   const themeConfig = getActiveThemeSets(themeGroups, activeThemeOptionIds, doc);
-  return flattenAndResolveTokens(doc, activeSet, themeConfig);
+  return flattenAndResolveTokens(doc, activeSet, themeConfig, options);
 }
 
 // Client-side in-memory SWR cache for project assets & configuration (0ms reloads)
@@ -938,10 +946,93 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       } catch {}
     }
   };
+  interface PendingSaveArgs {
+    orgId: string;
+    projectId: string;
+    doc: RawTokensDocument;
+    groups?: ThemeGroup[];
+    branches: ProjectBranch[];
+    branchName?: string;
+  }
+
+  let pendingSave: PendingSaveArgs | null = null;
+  let persistTokensTimer: ReturnType<typeof setTimeout> | null = null;
+  let inFlightSavePromise: Promise<void> | null = null;
+
+  const flushSaveQueue = async (): Promise<void> => {
+    if (persistTokensTimer) {
+      clearTimeout(persistTokensTimer);
+      persistTokensTimer = null;
+    }
+
+    if (inFlightSavePromise) {
+      try {
+        await inFlightSavePromise;
+      } catch {}
+    }
+
+    const args = pendingSave;
+    pendingSave = null;
+    if (!args) return;
+
+    set({ cloudSaveStatus: "saving" });
+
+    inFlightSavePromise = (async () => {
+      let attempts = 0;
+      const maxAttempts = 3;
+      let lastError: unknown = null;
+
+      while (attempts < maxAttempts) {
+        try {
+          await saveProjectTokensAndBranches(
+            args.orgId,
+            args.projectId,
+            args.doc,
+            args.groups,
+            args.branches,
+            args.branchName
+          );
+          set({
+            cloudSaveStatus: pendingSave ? "saving" : "synced",
+            lastCloudSaveTime: new Date().toISOString(),
+          });
+          return;
+        } catch (err) {
+          lastError = err;
+          attempts++;
+          if (attempts < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 500 * Math.pow(2, attempts - 1)));
+          }
+        }
+      }
+
+      console.error("Single-flight queue failed to persist token changes to cloud after retries:", lastError);
+      set({ cloudSaveStatus: "error" });
+    })().finally(() => {
+      inFlightSavePromise = null;
+      if (pendingSave) {
+        flushSaveQueue();
+      }
+    });
+
+    await inFlightSavePromise;
+  };
   if (typeof window !== "undefined") {
-    window.addEventListener("pagehide", flushPendingCachePersist);
+    window.addEventListener("pagehide", () => {
+      flushPendingCachePersist();
+      flushSaveQueue();
+    });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") flushPendingCachePersist();
+      if (document.visibilityState === "hidden") {
+        flushPendingCachePersist();
+        flushSaveQueue();
+      }
+    });
+    window.addEventListener("beforeunload", (e) => {
+      if (pendingSave || inFlightSavePromise) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes in progress.";
+      }
     });
   }
 
@@ -998,10 +1089,9 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   };
 
-  const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[]) => {
+  const persistTokensChange = (doc: RawTokensDocument, groups?: ThemeGroup[], immediate: boolean = false) => {
     const { currentOrg, currentProject, branches, activeBranch } = get();
     if (currentOrg && currentProject) {
-      set({ cloudSaveStatus: "saving" });
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const updatedBranches = projectBranches.map((b) =>
         b.name === activeBranch
@@ -1013,15 +1103,30 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             }
           : b
       );
-      saveProjectTokensAndBranches(currentOrg.id, currentProject.id, doc, groups, updatedBranches, activeBranch)
-        .then(() => {
-          set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
-        })
-        .catch(() => {
-          set({ cloudSaveStatus: "error" });
-        });
       set({ branches: updatedBranches });
       updateProjectInMemoryAndCache(updatedBranches, doc, groups || currentProject.themeGroups);
+
+      pendingSave = {
+        orgId: currentOrg.id,
+        projectId: currentProject.id,
+        doc,
+        groups,
+        branches: updatedBranches,
+        branchName: activeBranch,
+      };
+
+      set({ cloudSaveStatus: "saving" });
+
+      if (persistTokensTimer) {
+        clearTimeout(persistTokensTimer);
+        persistTokensTimer = null;
+      }
+
+      if (immediate) {
+        flushSaveQueue();
+      } else {
+        persistTokensTimer = setTimeout(flushSaveQueue, 1200);
+      }
     }
   };
 
@@ -1354,6 +1459,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
   setCurrentProject: (proj, options) => {
     flushPendingCachePersist();
+    flushSaveQueue();
     if (proj && get().currentOrg && proj.orgId !== get().currentOrg?.id) return;
     const previousState = get();
     const isSameProject = previousState.currentProject?.id === proj?.id;
@@ -4461,16 +4567,28 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const projectBranches = branches && branches.length > 0 ? branches : ensureProjectDefaultBranch(currentProject);
       const effectiveBranch = credentials.branch || activeBranch || "main";
       const hasBranch = projectBranches.some((b) => b.name === effectiveBranch);
-      // Hydration/refetch with identical content must not re-upload the document to the cloud.
-      const canonicalJson = JSON.stringify(canonical);
+      // Fast equality check: compare reference first, then countTokensInDocument and set keys
       const storedBranch = projectBranches.find((b) => b.name === effectiveBranch);
-      const isUnchanged =
+      let isUnchanged = false;
+      if (
         hasBranch &&
         currentProject.activeBranch === effectiveBranch &&
         Boolean(currentProject.rawTokens) &&
-        JSON.stringify(currentProject.rawTokens) === canonicalJson &&
-        Boolean(storedBranch?.rawTokens) &&
-        JSON.stringify(storedBranch!.rawTokens) === canonicalJson;
+        Boolean(storedBranch?.rawTokens)
+      ) {
+        if (currentProject.rawTokens === canonical && storedBranch!.rawTokens === canonical) {
+          isUnchanged = true;
+        } else {
+          const currSets = Object.keys(currentProject.rawTokens || {}).filter((k) => !k.startsWith("$"));
+          const newSets = Object.keys(canonical).filter((k) => !k.startsWith("$"));
+          if (currSets.length === newSets.length && countTokensInDocument(currentProject.rawTokens) === countTokensInDocument(canonical)) {
+            const canonicalJson = JSON.stringify(canonical);
+            isUnchanged =
+              JSON.stringify(currentProject.rawTokens) === canonicalJson &&
+              JSON.stringify(storedBranch!.rawTokens) === canonicalJson;
+          }
+        }
+      }
       if (!isUnchanged) {
         set({ cloudSaveStatus: "saving" });
       }
@@ -4502,15 +4620,17 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
             },
           ];
       if (!isUnchanged) {
-        saveProjectTokensAndBranches(currentOrg.id, currentProject.id, canonical, groups, updatedBranches, effectiveBranch)
-          .then(() => {
-            set({ cloudSaveStatus: "synced", lastCloudSaveTime: new Date().toISOString() });
-          })
-          .catch(() => {
-            set({ cloudSaveStatus: "error" });
-          });
         set({ branches: updatedBranches, activeBranch: effectiveBranch });
         updateProjectInMemoryAndCache(updatedBranches, canonical, groups, effectiveBranch);
+        pendingSave = {
+          orgId: currentOrg.id,
+          projectId: currentProject.id,
+          doc: canonical,
+          groups,
+          branches: updatedBranches,
+          branchName: effectiveBranch,
+        };
+        flushSaveQueue();
       } else {
         set({ activeBranch: effectiveBranch });
       }
@@ -4518,7 +4638,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
     set({
       rawTokens: canonical,
-      originalTokens: JSON.parse(JSON.stringify(canonical)),
+      originalTokens: canonical,
       resolvedTokens: resolved,
       themeGroups: groups,
       activeThemeGroupId: defaultGroup?.id || "",
@@ -4544,10 +4664,14 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       return;
     }
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     const updatedRaw = setTokenAtKeyPath(rawTokens, path, newValue);
     const updatedGroups = extractThemeGroups(updatedRaw);
-    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
+    const themeConfig = getActiveThemeSets(updatedGroups, activeThemeOptionIds, updatedRaw);
+    let updatedResolved = patchResolvedTokensIncremental(resolvedTokens, updatedRaw, path, themeConfig);
+    if (!updatedResolved) {
+      updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds, { sort: false });
+    }
 
     set({
       rawTokens: updatedRaw,
@@ -4572,6 +4696,42 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     });
   },
 
+  updateTokensBatch: (entries) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot modify design tokens.",
+      });
+      return;
+    }
+    if (!entries || entries.length === 0) return;
+
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
+    let updatedRaw = rawTokens;
+    for (const entry of entries) {
+      updatedRaw = setTokenAtKeyPath(updatedRaw, entry.path, entry.newValue);
+    }
+    const updatedGroups = extractThemeGroups(updatedRaw);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds, { sort: false });
+
+    set({
+      rawTokens: updatedRaw,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRaw, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Batch Tokens Updated",
+      description: `Updated ${entries.length} tokens.`,
+      metadata: { count: entries.length },
+    });
+  },
+
   updateSetJson: (setName, newJsonContent) => {
     if (!get().canUserEdit()) {
       get().addToast({
@@ -4581,13 +4741,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       });
       return;
     }
-    const { rawTokens, activeSet, activeThemeOptionIds } = get();
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
     const updatedRaw = {
       ...rawTokens,
       [setName]: newJsonContent,
     };
     const updatedGroups = extractThemeGroups(updatedRaw);
-    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRaw, activeSet, updatedGroups, activeThemeOptionIds, { sort: false });
 
     set({
       rawTokens: updatedRaw,
@@ -4763,6 +4923,54 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "success",
       title: "Theme Option Created",
       message: `Added "${params.name}" to ${targetGroup.name}. You can edit its token values now.`,
+    });
+  },
+
+  createLightDarkThemes: () => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot create themes.",
+      });
+      return;
+    }
+    const { rawTokens, activeSet, themeGroups } = get();
+    if (themeGroups.length > 0) return;
+
+    const themesKey = rawTokens["$themes.json"] ? "$themes.json" : "$themes";
+    const setNames = Object.keys(rawTokens).filter((key) => !key.startsWith("$"));
+    const selectedTokenSets = Object.fromEntries(setNames.map((name) => [name, "enabled" as const]));
+    const stamp = Date.now().toString(36);
+    const existingThemes: any[] = Array.isArray(rawTokens[themesKey])
+      ? JSON.parse(JSON.stringify(rawTokens[themesKey]))
+      : [];
+    existingThemes.push(
+      { id: `opt-light-${stamp}`, name: "Light", group: "Theme", selectedTokenSets, color: "#f59e0b" },
+      { id: `opt-dark-${stamp}`, name: "Dark", group: "Theme", selectedTokenSets: { ...selectedTokenSets }, color: "#6366f1" }
+    );
+
+    const updatedRawDoc = { ...rawTokens, [themesKey]: existingThemes } as typeof rawTokens;
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const optionIds = buildDefaultActiveOptionIds(updatedGroups, get().activeThemeOptionIds);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, optionIds);
+    const createdGroup = updatedGroups.find((g) => g.name === "Theme") || updatedGroups[0];
+
+    set({
+      rawTokens: updatedRawDoc,
+      themeGroups: updatedGroups,
+      resolvedTokens: updatedResolved,
+      activeThemeOptionIds: optionIds,
+      activeThemeGroupId: createdGroup?.id ?? get().activeThemeGroupId,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().addToast({
+      type: "success",
+      title: "Themes created",
+      message: "Added Light and Dark. Edit their token sets to tell them apart.",
     });
   },
 
@@ -5247,6 +5455,136 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       type: "info",
       title: "Token Deleted",
       message: `Deleted "${tokenPath.join(".")}".`,
+    });
+  },
+
+  deleteTokensBatch: (items) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot delete design tokens.",
+      });
+      return;
+    }
+    if (!items || items.length === 0) return;
+
+    const { rawTokens, activeSet } = get();
+    let updatedRawDoc = rawTokens;
+    for (const item of items) {
+      updatedRawDoc = deleteTokenAtKeyPath(updatedRawDoc, [item.setName, ...item.tokenPath]);
+    }
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, get().activeThemeOptionIds);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Batch Tokens Deleted",
+      description: `Deleted ${items.length} tokens.`,
+      metadata: { count: items.length },
+    });
+
+    get().addToast({
+      type: "info",
+      title: "Tokens Deleted",
+      message: `Deleted ${items.length} tokens.`,
+    });
+  },
+
+  duplicateTokensBatch: (items) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot modify design tokens.",
+      });
+      return;
+    }
+    if (!items || items.length === 0) return;
+
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
+    let updatedRawDoc = rawTokens;
+
+    for (const item of items) {
+      const sourceFull = [item.setName, ...item.tokenPath];
+      let current: any = updatedRawDoc;
+      for (const seg of sourceFull) {
+        current = current?.[seg];
+      }
+      if (current) {
+        const leafCopy = typeof current === "object" ? { ...current } : current;
+        updatedRawDoc = createTokenAtKeyPath(updatedRawDoc, [item.setName, ...item.newPath], leafCopy);
+      }
+    }
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, activeThemeOptionIds);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Batch Tokens Duplicated",
+      description: `Duplicated ${items.length} tokens.`,
+      metadata: { count: items.length },
+    });
+  },
+
+  moveTokensBatch: (items) => {
+    if (!get().canUserEdit()) {
+      get().addToast({
+        type: "info",
+        title: "Read-Only Access",
+        message: "Viewer role cannot modify design tokens.",
+      });
+      return;
+    }
+    if (!items || items.length === 0) return;
+
+    const { rawTokens, activeSet, activeThemeOptionIds, resolvedTokens } = get();
+    let updatedRawDoc = rawTokens;
+
+    for (const item of items) {
+      if (!updatedRawDoc[item.targetSet]) {
+        updatedRawDoc = createEmptyTokenSet(updatedRawDoc, item.targetSet);
+      }
+      updatedRawDoc = createTokenAtKeyPath(updatedRawDoc, [item.targetSet, ...item.tokenPath], item.tokenLeaf);
+      updatedRawDoc = deleteTokenAtKeyPath(updatedRawDoc, [item.sourceSet, ...item.tokenPath]);
+    }
+
+    const updatedGroups = extractThemeGroups(updatedRawDoc);
+    const updatedResolved = resolveTokensWithActiveThemes(updatedRawDoc, activeSet, updatedGroups, activeThemeOptionIds);
+
+    set({
+      rawTokens: updatedRawDoc,
+      resolvedTokens: updatedResolved,
+      themeGroups: updatedGroups,
+      isDirty: true,
+    });
+
+    persistTokensChange(updatedRawDoc, updatedGroups);
+
+    get().logUserActivity({
+      type: "token",
+      title: "Batch Tokens Moved",
+      description: `Moved ${items.length} tokens to target sets.`,
+      metadata: { count: items.length },
     });
   },
 

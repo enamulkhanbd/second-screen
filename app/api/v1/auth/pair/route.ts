@@ -2,42 +2,22 @@ import { NextRequest } from "next/server";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { generateApiKey } from "@/utils/patAuth";
 import { saveApiKey } from "@/utils/cloudStorage";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { hasTrustedMutationOrigin } from "@/utils/auth";
+import { generatePairingCode } from "./generatePairingCode";
+import {
+  PairingSession,
+  PAIRING_SELECT_COLUMNS,
+  pairingSessions,
+  getDbClient,
+  getRequestOrigin,
+  getClientIp,
+  checkPairingRateLimit,
+  prunePairingSessions,
+} from "./pairingStore";
 
 export const dynamic = "force-dynamic";
-
-interface PairingSession {
-  code: string;
-  status: "pending" | "approved" | "expired";
-  createdAt: number;
-  expiresAt: number;
-  serverUrl?: string;
-  pat?: string;
-  orgId?: string;
-  projectId?: string;
-  orgName?: string;
-  projectName?: string;
-}
-
-// In-memory runtime cache
-const pairingSessions = new Map<string, PairingSession>();
-
-function getDbClient() {
-  return createAdminClient();
-}
-
-function getRequestOrigin(req: NextRequest): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
-  }
-
-  return req.nextUrl.origin;
-}
-
-import { generatePairingCode } from "./generatePairingCode";
 
 export async function OPTIONS() {
   return handleOptionsCors();
@@ -47,11 +27,28 @@ export async function OPTIONS() {
  * POST: Generate a new pairing session from the Figma Plugin
  */
 export async function POST(req: NextRequest) {
-  const code = generatePairingCode();
   const now = Date.now();
+  const ip = getClientIp(req);
+  const rateCheck = checkPairingRateLimit(ip, now);
+  if (!rateCheck.allowed) {
+    const res = jsonWithCors(
+      {
+        success: false,
+        code: "rate_limited",
+        error: "Too many pairing requests. Please wait before generating a new code.",
+      },
+      { status: 429 }
+    );
+    res.headers.set("Retry-After", String(rateCheck.retryAfterSeconds));
+    return res;
+  }
+
+  prunePairingSessions(now);
+
+  const code = generatePairingCode();
   const expiresAt = now + 10 * 60 * 1000; // 10 minutes
   const origin = getRequestOrigin(req);
-  const connectUrl = `https://tokensplatform.enamulkhan.com/connect?code=${code}`;
+  const connectUrl = `${origin}/connect?code=${code}`;
 
   const session: PairingSession = {
     code,
@@ -87,6 +84,13 @@ export async function POST(req: NextRequest) {
   });
 }
 
+function recommendedPollIntervalSeconds(createdAt: number, now: number): number {
+  const elapsedMs = Math.max(0, now - createdAt);
+  if (elapsedMs < 30_000) return 2;
+  if (elapsedMs < 120_000) return 5;
+  return 10;
+}
+
 /**
  * GET: Poll pairing status from the Figma Plugin
  */
@@ -106,7 +110,7 @@ export async function GET(req: NextRequest) {
       const client = getDbClient();
       const { data, error } = await client
         .from("pairing_sessions")
-        .select("*")
+        .select(PAIRING_SELECT_COLUMNS)
         .eq("code", code)
         .maybeSingle();
 
@@ -137,7 +141,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  if (session.expiresAt < Date.now()) {
+  const now = Date.now();
+  if (session.expiresAt < now) {
     pairingSessions.delete(code);
     if (isSupabaseConfigured) {
       try {
@@ -152,9 +157,10 @@ export async function GET(req: NextRequest) {
   }
 
   if (session.status === "approved") {
+    const deliveredPat = session.pat;
     const responseData = {
       status: "approved",
-      pat: session.pat,
+      pat: deliveredPat,
       orgId: session.orgId,
       projectId: session.projectId,
       orgName: session.orgName,
@@ -162,12 +168,29 @@ export async function GET(req: NextRequest) {
       serverUrl: session.serverUrl,
     };
 
+    // Immediately scrub the plaintext PAT after the first poll that reads it (A6 / R7)
+    if (deliveredPat) {
+      session.pat = undefined;
+      pairingSessions.set(code, session);
+      if (isSupabaseConfigured) {
+        try {
+          await getDbClient()
+            .from("pairing_sessions")
+            .update({ pat: null })
+            .eq("code", code);
+        } catch (e) {
+          console.warn("Supabase pairing secret cleanup on GET error:", e);
+        }
+      }
+    }
+
     return jsonWithCors(responseData);
   }
 
   return jsonWithCors({
     status: "pending",
-    expiresInSeconds: Math.max(0, Math.round((session.expiresAt - Date.now()) / 1000)),
+    expiresInSeconds: Math.max(0, Math.round((session.expiresAt - now) / 1000)),
+    pollIntervalSeconds: recommendedPollIntervalSeconds(session.createdAt, now),
   });
 }
 
@@ -250,7 +273,7 @@ export async function PUT(req: NextRequest) {
         const client = getDbClient();
         const { data, error } = await client
           .from("pairing_sessions")
-          .select("*")
+          .select(PAIRING_SELECT_COLUMNS)
           .eq("code", cleanCode)
           .maybeSingle();
 

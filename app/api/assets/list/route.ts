@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   isR2Configured,
-  loadMetadataIndex,
+  loadMetadataIndexWithEtag,
   uploadMetadataIndex,
+  updateMetadataIndex,
+  MetadataConflictError,
   listProjectAssetKeys,
   getPublicUrl,
   deriveAssetType,
@@ -16,11 +18,20 @@ function withoutInlineSvg(assets: ProjectAsset[]) {
   return assets.map((asset) => ({ ...asset, svg: undefined }));
 }
 
-async function fetchAssetMetadata(orgId: string, projectId: string): Promise<ProjectAsset[]> {
-  let metadata = await loadMetadataIndex(orgId, projectId);
+function normalizeFolderIds(assets: ProjectAsset[]): ProjectAsset[] {
+  return assets.map(({ collectionId, ...asset }) => ({
+    ...asset,
+    folderId: asset.folderId || collectionId,
+  }));
+}
 
-  // Auto-recovery: If metadata index is empty but objects exist in R2, reconstruct it
-  if (metadata.length === 0) {
+async function fetchAssetMetadata(orgId: string, projectId: string): Promise<ProjectAsset[]> {
+  const { items, etag } = await loadMetadataIndexWithEtag(orgId, projectId);
+  let metadata = items;
+
+  // Auto-recovery: Only when the metadata index object does not exist yet (!etag)
+  // and objects exist in R2, reconstruct it and write conditionally with If-None-Match: "*"
+  if (metadata.length === 0 && !etag) {
     const keys = await listProjectAssetKeys(orgId, projectId);
     if (keys.length > 0) {
       const now = new Date().toISOString();
@@ -50,15 +61,22 @@ async function fetchAssetMetadata(orgId: string, projectId: string): Promise<Pro
         };
       });
 
-      // Save reconstructed index to R2 so future reads are instantaneous
-      await uploadMetadataIndex(orgId, projectId, metadata);
+      // Save reconstructed index only if no concurrent writer created metadata.json first
+      try {
+        await uploadMetadataIndex(orgId, projectId, metadata, { ifNoneMatch: "*" });
+      } catch (err: any) {
+        const status = err?.$metadata?.httpStatusCode;
+        if (status === 412 || status === 409 || err?.name === "PreconditionFailed") {
+          const reloaded = await loadMetadataIndexWithEtag(orgId, projectId);
+          metadata = reloaded.items;
+        } else {
+          throw err;
+        }
+      }
     }
   }
 
-  return metadata.map(({ collectionId, ...asset }) => ({
-    ...asset,
-    folderId: asset.folderId || collectionId,
-  }));
+  return normalizeFolderIds(metadata);
 }
 
 /**
@@ -143,8 +161,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
 
-    let metadata = await fetchAssetMetadata(orgId, projectId);
-
     if (action === "move-folder") {
       const { assetIds, targetFolderId } = body;
       if (!Array.isArray(assetIds) || assetIds.length === 0) {
@@ -156,18 +172,20 @@ export async function POST(req: NextRequest) {
 
       const idSet = new Set(assetIds);
       const now = new Date().toISOString();
-      const updatedMetadata = metadata.map((asset) => {
-        if (idSet.has(asset.id)) {
-          return {
-            ...asset,
-            folderId: targetFolderId || undefined,
-            updatedAt: now,
-          };
-        }
-        return asset;
-      });
-
-      await uploadMetadataIndex(orgId, projectId, updatedMetadata);
+      const updatedMetadata = normalizeFolderIds(
+        await updateMetadataIndex(orgId, projectId, (current) =>
+          current.map((asset) => {
+            if (idSet.has(asset.id)) {
+              return {
+                ...asset,
+                folderId: targetFolderId || undefined,
+                updatedAt: now,
+              };
+            }
+            return asset;
+          })
+        )
+      );
 
       return NextResponse.json({
         success: true,
@@ -179,38 +197,39 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "update-metadata" && Array.isArray(updates) && updates.length > 0) {
-      // Apply metadata updates without re-uploading files
       const updateMap = new Map(updates.map((u) => [u.id, u]));
       const now = new Date().toISOString();
 
-      const updatedMetadata = metadata.map((asset) => {
-        const update = updateMap.get(asset.id);
-        if (update) {
-          return {
-            ...asset,
-            ...(update.title !== undefined && { title: update.title }),
-            ...(update.type !== undefined && { type: update.type }),
-            ...(update.tag !== undefined && { tag: update.tag }),
-            ...(update.category !== undefined && { category: update.category }),
-            ...(update.name !== undefined && { name: update.name }),
-            ...(update.folderId !== undefined && { folderId: update.folderId || undefined }),
-            ...(update.assetType !== undefined && { assetType: update.assetType }),
-            ...(update.description !== undefined && { description: update.description }),
-            ...(update.dimensions !== undefined && { dimensions: update.dimensions }),
-            ...(update.colorSpace !== undefined && { colorSpace: update.colorSpace }),
-            ...(update.format !== undefined && { format: update.format }),
-            ...(update.customMetadata !== undefined && { customMetadata: update.customMetadata }),
-            ...(update.version !== undefined && { version: update.version }),
-            ...(update.history !== undefined && { history: update.history }),
-            ...(update.uploadedBy !== undefined && { uploadedBy: update.uploadedBy }),
-            ...(update.createdAt !== undefined && { createdAt: update.createdAt }),
-            updatedAt: now,
-          };
-        }
-        return asset;
-      });
-
-      await uploadMetadataIndex(orgId, projectId, updatedMetadata);
+      const updatedMetadata = normalizeFolderIds(
+        await updateMetadataIndex(orgId, projectId, (current) =>
+          current.map((asset) => {
+            const update = updateMap.get(asset.id);
+            if (update) {
+              return {
+                ...asset,
+                ...(update.title !== undefined && { title: update.title }),
+                ...(update.type !== undefined && { type: update.type }),
+                ...(update.tag !== undefined && { tag: update.tag }),
+                ...(update.category !== undefined && { category: update.category }),
+                ...(update.name !== undefined && { name: update.name }),
+                ...(update.folderId !== undefined && { folderId: update.folderId || undefined }),
+                ...(update.assetType !== undefined && { assetType: update.assetType }),
+                ...(update.description !== undefined && { description: update.description }),
+                ...(update.dimensions !== undefined && { dimensions: update.dimensions }),
+                ...(update.colorSpace !== undefined && { colorSpace: update.colorSpace }),
+                ...(update.format !== undefined && { format: update.format }),
+                ...(update.customMetadata !== undefined && { customMetadata: update.customMetadata }),
+                ...(update.version !== undefined && { version: update.version }),
+                ...(update.history !== undefined && { history: update.history }),
+                ...(update.uploadedBy !== undefined && { uploadedBy: update.uploadedBy }),
+                ...(update.createdAt !== undefined && { createdAt: update.createdAt }),
+                updatedAt: now,
+              };
+            }
+            return asset;
+          })
+        )
+      );
 
       return NextResponse.json({
         success: true,
@@ -222,6 +241,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Default: list all assets
+    const metadata = await fetchAssetMetadata(orgId, projectId);
     return NextResponse.json(
       {
         success: true,
@@ -236,6 +256,12 @@ export async function POST(req: NextRequest) {
       }
     );
   } catch (err: any) {
+    if (err instanceof MetadataConflictError || err?.statusCode === 409) {
+      return NextResponse.json(
+        { success: false, code: "metadata_conflict", error: err.message || "Asset index is busy, please retry." },
+        { status: 409 }
+      );
+    }
     console.error("R2 list/metadata error (POST):", err);
     return NextResponse.json(
       { success: false, error: err.message || "Failed to load asset metadata from R2." },

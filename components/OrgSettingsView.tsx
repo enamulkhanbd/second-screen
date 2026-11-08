@@ -307,7 +307,7 @@ export const OrgSettingsView: React.FC = () => {
                   {/* Strict Fixed-Size Interactive Avatar Preview */}
                   <div
                     onClick={() => isOwner && fileInputRef.current?.click()}
-                    className={`w-16 h-16 min-w-[64px] min-h-[64px] max-w-[64px] max-h-[64px] rounded-2xl flex items-center justify-center font-bold text-base shrink-0 overflow-hidden border border-border bg-card shadow-xs transition-all relative group ${isOwner ? "cursor-pointer hover:shadow-sm" : ""
+                    className={`w-16 h-16 min-w-[64px] min-h-[64px] max-w-[64px] max-h-[64px] rounded-2xl flex items-center justify-center font-bold text-base shrink-0 overflow-hidden border border-border bg-card shadow-xs transition relative group ${isOwner ? "cursor-pointer hover:shadow-sm" : ""
                       }`}
                     style={{
                       width: 64,

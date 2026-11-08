@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDocsTokens } from "@/components/docs/DocsTokensContext";
 import { Type, Copy, Check } from "lucide-react";
 
 interface VariableTypographyBlockProps {
@@ -18,7 +19,12 @@ export const VariableTypographyBlock: React.FC<VariableTypographyBlockProps> = (
   onUpdate,
   onDelete,
 }) => {
-  const { resolvedTokens, figmaResolvedVariables, addToast } = useTokenStore();
+  const docsTokens = useDocsTokens();
+  const storeResolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const storeFigmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const resolvedTokens = docsTokens ? docsTokens.resolvedTokens : storeResolvedTokens;
+  const figmaResolvedVariables = docsTokens ? docsTokens.figmaResolvedVariables : storeFigmaResolvedVariables;
+  const addToast = useTokenStore((s) => s.addToast);
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
 
   // Extract font size or typography tokens
@@ -120,7 +126,7 @@ export const VariableTypographyBlock: React.FC<VariableTypographyBlockProps> = (
 
               <div className="min-w-0 flex-1 overflow-hidden">
                 <p
-                  className="truncate text-foreground font-sans transition-all"
+                  className="truncate text-foreground font-sans transition-[font-size]"
                   style={{ fontSize: sizeStyle }}
                 >
                   The quick brown fox jumps over the lazy dog

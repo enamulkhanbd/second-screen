@@ -280,30 +280,31 @@ Only six test files (`transformTokens`, `colorPalettes`, `zipExport`, `exportsCo
 > The detailed, step-by-step execution plan (gaps, workstreams WS0–WS8, sprints, rollout, tracking) is in **§11 Improvement Plan**.
 
 ### Phase 1 — Quick wins (≈1 week)
-| Item | Ref | Effort |
-|---|---|---|
-| Batch store actions for bulk edit/delete (one clone/resolve/persist) | F2 | S |
-| Debounce + single-flight cloud save; stop invalidating metadata cache per keystroke; debounce activity persistence | F3 | S–M |
-| Authenticate once per request; remove double auth in `/api/v1/tokens` | B1 | S |
-| Hash lookup for bearer tokens; `UNIQUE(key_hash)` | B2 | S |
-| Column projection for `getProject` in API routes; `?include=` flag | B3 | S |
-| Dynamic `import()` for `releaseCompiler`/`jszip`; extract `DEFAULT_ENABLED_SCHEMA_IDS` | F4 | S |
-| Remove `useTokenStore()` from row/cell/doc-block components (selectors) | F5 | S |
-| Compact JSON for R2 metadata; ETag micro-cache | B6 | S |
-| Delete dead `TokenTable.tsx`; drop `./plugin/**` from Tailwind content | F14 | S |
+| Item | Ref | Effort | Status | Notes |
+|---|---|---|---|---|
+| Batch store actions for bulk edit/delete/duplicate/move (one clone/resolve/persist) | F2 | S | **Done** | `duplicateTokensBatch`, `moveTokensBatch`, `updateTokensBatch`, `deleteTokensBatch` active in store & workspace |
+| Debounce + single-flight cloud save; stop invalidating metadata cache per keystroke | F3 | S–M | **Done** | Single-flight queue with retry back-off in `store/useTokenStore.ts`; metadata cache churn removed |
+| Authenticate once per request; remove double auth in `/api/v1/tokens` | B1 | S | **Done** | `authorizeProjectRequest` accepts pre-authenticated record; duplicate calls in GET/POST eliminated |
+| Hash lookup for bearer tokens; `UNIQUE(key_hash)` | B2 | S | **Done** | Sha256 hash lookup via `findApiKeyByHash`; unique index in migration `20261104_api_keys_unique_hash.sql` |
+| Column projection & ETag 304 for `/api/v1/tokens` | B3 | S | **Done** | ETag header added, `If-None-Match` -> `304 Not Modified` short-circuit |
+| Dynamic `import()` for `releaseCompiler`/`jszip`; extract `DEFAULT_ENABLED_SCHEMA_IDS` | F4 | S | **Done** | Extracted `data/schemaIds.ts`; dynamic `jszip` imports in all exporters; bundle dropped −24 kB gz on `/` |
+| Remove `useTokenStore()` from row/cell/doc-block components (selectors) | F5 | S | **Done** | Selectors in `TokensWorkspace`, `TokenValueFormatter` (per cell), `Toast`, doc blocks, `ThemeMatrix`, `TokenFlow`, `SecondarySidebar`, `VariablesView` |
+| Compact JSON for R2 metadata; ETag micro-cache | B6 | S | **Done** | `loadMetadataIndexWithEtag` + conditional upload & retry |
+| Delete dead `TokenTable.tsx`; drop `./plugin/**` from Tailwind content | F14 | S | **Done** | Removed `TokenTable.tsx` and updated `tailwind.config.ts` |
 
 ### Phase 2 — Core pipeline (≈2–3 weeks)
-| Item | Ref | Effort |
-|---|---|---|
-| Resolver: memoised alias resolution, no sort inside resolver, negative cache | F1 | M |
-| Incremental re-resolve with reverse-dependency map | F1 | M |
-| Path-copy edits instead of full JSON clones; hash-based `isUnchanged` | F8 | M |
-| Virtualise tokens table, Variables view, code viewers, doc blocks | F6 | M |
-| Web Worker for full resolves; `useTransition` for result swap | F1 | M |
-| Public docs page → server-rendered, projected query, ISR | F12 | S–M |
-| ETag/304 + resolved-output cache for `/api/v1/tokens` | B3 | M |
-| RLS `(select auth.uid())`, index clean-up/additions | B5 | S |
-| IndexedDB project cache, metadata-only `localStorage` | F9 | M |
+| Item | Ref | Effort | Status | Notes |
+|---|---|---|---|---|
+| Resolver: memoised alias resolution, no sort inside resolver, negative cache | F1 | M | **Done** | WeakMap index, negative cache, Schwartzian transform in `sortFlattenedTokens`, optional sort in `flattenAndResolveTokens` |
+| Incremental re-resolve with reverse-dependency map | F1 | M | **Done** | `patchResolvedTokensIncremental` & `buildTokenDependencyGraph` in `utils/transformTokens.ts` (~1.5ms point edits) |
+| Path-copy edits instead of full JSON clones; hash-based `isUnchanged` | F8 | M | **Done** | `setTokenAtKeyPath` structural sharing, fast structural equality guard in `setRawTokens` |
+| Progressive batch rendering in Variables view, code viewers, doc blocks | F6 | M | **Done** | `VariablesView` batching (100+100), `CodeViewer` line memoization & batching (500+1000), doc blocks progressive loading (60+60) |
+| Public docs page → server-rendered, projected query, ISR | F12 | S–M | **Done** | Next.js Server Component with `revalidate = 300`, `PublicDocsReaderClient`, projected query in `getPublishedProjectDocs` |
+| ETag/304 + resolved-output cache for `/api/v1/tokens` | B3 | M | **Done** | ETag header & 304 conditional short-circuit in `app/api/v1/tokens/route.ts` |
+| RLS `(select auth.uid())`, composite indexes (WS6 Stage A) | B5 | S | **Done** | Migration `20261108_rls_perf_and_indexes.sql` with composite indexes and subquery wrapping |
+| Safe additive version column for CAS | B4 | S | **Done** | Added `projects.version` in migration `20261108_rls_perf_and_indexes.sql` |
+| Web Worker for full resolves; `useTransition` for result swap | F1 | M | Planned | Secondary background thread worker |
+| IndexedDB project cache, metadata-only `localStorage` | F9 | M | Planned | Background IndexedDB storage driver |
 
 ### Phase 3 — Structural (≈1–2 months)
 | Item | Ref | Effort |

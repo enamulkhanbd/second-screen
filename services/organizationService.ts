@@ -79,22 +79,22 @@ function mapDbProjectToProject(row: any, integration?: any): Project {
       integration?.git_config && Object.keys(integration.git_config).length > 0
         ? integration.git_config
         : row.git_config && Object.keys(row.git_config).length > 0
-        ? row.git_config
-        : row.credentials && Object.keys(row.credentials).length > 0
-        ? row.credentials
-        : null,
+          ? row.git_config
+          : row.credentials && Object.keys(row.credentials).length > 0
+            ? row.credentials
+            : null,
     assetGitConfig:
       integration?.asset_git_config && Object.keys(integration.asset_git_config).length > 0
         ? integration.asset_git_config
         : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
-        ? row.asset_git_config
-        : null,
+          ? row.asset_git_config
+          : null,
     assetFigmaConfig:
       integration?.asset_figma_config && Object.keys(integration.asset_figma_config).length > 0
         ? integration.asset_figma_config
         : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
-        ? row.asset_figma_config
-        : null,
+          ? row.asset_figma_config
+          : null,
     figmaVariables: row.figma_variables || {},
     documentation: row.documentation || null,
     assets: extra.assets || [],
@@ -196,8 +196,8 @@ export async function getUserOrganizations(uid: string, userEmail?: string): Pro
           .update({ user_id: uid })
           .eq("email", cleanEmail)
           .neq("user_id", uid)
-          .then(() => {})
-          .catch(() => {});
+          .then(() => { })
+          .catch(() => { });
       }
 
       if (!uid && memberOrgIds.length === 0) {
@@ -336,7 +336,7 @@ export async function checkOrganizationNameAvailable(
           }
         }
       }
-    } catch {}
+    } catch { }
   }
 
   return { available: true };
@@ -829,7 +829,7 @@ export function safeSetCachedProjects(orgId: string, projs: Project[]): void {
     } catch {
       try {
         localStorage.removeItem(cacheKey);
-      } catch {}
+      } catch { }
     }
   }
 }
@@ -838,7 +838,8 @@ const inFlightProjectPromises = new Map<string, Promise<Project | null>>();
 const inFlightOrgSummariesPromises = new Map<string, Promise<Project[]>>();
 
 /**
- * Fetches a single project from Supabase by orgId and projectId with full tokens and branches
+ * Fetches a single project from Supabase by orgId and projectId with full tokens and branches.
+ * Throws if the underlying database query fails; returns null only when the project is not found.
  */
 export async function getProject(orgId: string, projectId: string): Promise<Project | null> {
   if (!orgId || !projectId || !isSupabaseConfigured) return null;
@@ -857,7 +858,8 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
         .eq("id", projectId)
         .maybeSingle();
 
-      if (error || !data) return null;
+      if (error) throw error;
+      if (!data) return null;
       const { data: integration } = await client
         .from("project_integrations")
         .select("git_config, asset_git_config, asset_figma_config")
@@ -866,7 +868,7 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
       return mapDbProjectToProject(data, integration || undefined);
     } catch (e) {
       console.warn("Supabase error fetching single project:", e);
-      return null;
+      throw e;
     }
   })().finally(() => {
     inFlightProjectPromises.delete(cacheKey);
@@ -913,22 +915,22 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
               integ?.git_config && Object.keys(integ.git_config).length > 0
                 ? integ.git_config
                 : row.git_config && Object.keys(row.git_config).length > 0
-                ? row.git_config
-                : row.credentials && Object.keys(row.credentials).length > 0
-                ? row.credentials
-                : null;
+                  ? row.git_config
+                  : row.credentials && Object.keys(row.credentials).length > 0
+                    ? row.credentials
+                    : null;
             const assetGitConfig =
               integ?.asset_git_config && Object.keys(integ.asset_git_config).length > 0
                 ? integ.asset_git_config
                 : row.asset_git_config && Object.keys(row.asset_git_config).length > 0
-                ? row.asset_git_config
-                : null;
+                  ? row.asset_git_config
+                  : null;
             const assetFigmaConfig =
               integ?.asset_figma_config && Object.keys(integ.asset_figma_config).length > 0
                 ? integ.asset_figma_config
                 : row.asset_figma_config && Object.keys(row.asset_figma_config).length > 0
-                ? row.asset_figma_config
-                : null;
+                  ? row.asset_figma_config
+                  : null;
 
             return {
               id: row.id,
@@ -965,7 +967,7 @@ export async function getOrgProjectSummaries(orgId: string): Promise<Project[]> 
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) return parsed;
         }
-      } catch {}
+      } catch { }
     }
 
     return [];
@@ -1045,7 +1047,7 @@ export async function getOrgProjects(orgId: string): Promise<Project[]> {
             return parsed;
           }
         }
-      } catch {}
+      } catch { }
     }
 
     return [];
@@ -1112,7 +1114,7 @@ export async function checkProjectNameAvailable(
           }
         }
       }
-    } catch {}
+    } catch { }
   }
 
   return { available: true };
@@ -1236,7 +1238,7 @@ export async function createProject(
       const list: Project[] = existing ? JSON.parse(existing) : [];
       const updated = [...list.filter((p) => p.id !== projId), newProject];
       safeSetCachedProjects(orgId, updated);
-    } catch {}
+    } catch { }
   }
 
   return newProject;
@@ -1309,9 +1311,17 @@ export async function saveProjectBranches(
     updates.active_branch = activeBranch;
   }
   try {
-    await client.from("projects").update(updates).eq("id", projectId).eq("org_id", orgId);
+    const { data, error } = await client
+      .from("projects")
+      .update(updates)
+      .eq("id", projectId)
+      .eq("org_id", orgId)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving project branches:", e);
+    throw e;
   }
 }
 
@@ -1337,7 +1347,7 @@ export async function deleteProject(orgId: string, projectId: string): Promise<v
         const updated = list.filter((p) => p.id !== projectId);
         safeSetCachedProjects(orgId, updated);
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -1388,7 +1398,7 @@ export async function updateProject(
         );
         safeSetCachedProjects(orgId, updated);
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -1406,7 +1416,7 @@ export async function saveProjectTokens(
   const client = getClient();
 
   try {
-    await client
+    const { data, error } = await client
       .from("projects")
       .update({
         raw_tokens: rawTokens,
@@ -1414,36 +1424,54 @@ export async function saveProjectTokens(
         updated_at: new Date().toISOString(),
       })
       .eq("id", projectId)
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving project tokens:", e);
+    throw e;
   }
 }
 
 /**
  * Saves tokens, themes and branches in a single UPDATE instead of two separate large PATCH requests.
+ * When rawTokens is undefined, only branches (and optional activeBranch) are updated.
  */
 export async function saveProjectTokensAndBranches(
   orgId: string,
   projectId: string,
-  rawTokens: RawTokensDocument,
+  rawTokens: RawTokensDocument | undefined,
   themeGroups: ThemeGroup[] | undefined,
   branches: ProjectBranch[],
-  activeBranch?: string
+  activeBranch?: string,
+  options?: { invalidateMetadata?: boolean }
 ): Promise<void> {
   if (!orgId || !projectId || !isSupabaseConfigured) return;
-  invalidateMetadataCache();
+  if (options?.invalidateMetadata) {
+    invalidateMetadataCache();
+  }
   const client = getClient();
   const updates: Record<string, any> = {
-    raw_tokens: rawTokens,
-    theme_groups: themeGroups || extractThemeGroups(rawTokens),
     branches,
     updated_at: new Date().toISOString(),
   };
+  if (rawTokens !== undefined) {
+    updates.raw_tokens = rawTokens;
+    updates.theme_groups = themeGroups || extractThemeGroups(rawTokens);
+  } else if (themeGroups !== undefined) {
+    updates.theme_groups = themeGroups;
+  }
   if (activeBranch) updates.active_branch = activeBranch;
   try {
-    const { error } = await client.from("projects").update(updates).eq("id", projectId).eq("org_id", orgId);
+    const { data, error } = await client
+      .from("projects")
+      .update(updates)
+      .eq("id", projectId)
+      .eq("org_id", orgId)
+      .select("id");
     if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving project tokens and branches:", e);
     throw e;
@@ -1479,7 +1507,7 @@ export async function saveProjectGitConfig(
         const p: Project = JSON.parse(existingSingle);
         localStorage.setItem(projKey, JSON.stringify({ ...p, gitConfig, updatedAt: new Date().toISOString() }));
       }
-    } catch {}
+    } catch { }
   }
 
   if (!isSupabaseConfigured) return;
@@ -1529,11 +1557,13 @@ export async function saveProjectFigmaVariables(
   if (!orgId || !projectId || !isSupabaseConfigured) return;
   const client = getClient();
   try {
-    const { data: currentProj } = await client
+    const { data: currentProj, error: selectErr } = await client
       .from("projects")
       .select("extra_data")
       .eq("id", projectId)
+      .eq("org_id", orgId)
       .maybeSingle();
+    if (selectErr) throw selectErr;
 
     const currentExtra = currentProj?.extra_data || {};
     const updatedExtra = {
@@ -1542,7 +1572,7 @@ export async function saveProjectFigmaVariables(
       figmaUpdatedAt: figmaVariables && Object.keys(figmaVariables).length > 0 ? new Date().toISOString() : null,
     };
 
-    await client
+    const { data, error } = await client
       .from("projects")
       .update({
         figma_variables: figmaVariables || {},
@@ -1550,9 +1580,13 @@ export async function saveProjectFigmaVariables(
         updated_at: new Date().toISOString(),
       })
       .eq("id", projectId)
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .select("id");
+    if (error) throw error;
+    if (!data?.length) throw new Error("Project not found or not updated");
   } catch (e) {
     console.warn("Supabase error saving figma variables:", e);
+    throw e;
   }
 }
 
@@ -1626,41 +1660,57 @@ export async function getPublishedProjectDocs(
   if (!isSupabaseConfigured) return null;
   const client = getClient();
   try {
-    // 1. Try finding org by ID or slug
+    // 1. Try finding org by ID or slug (projected fields)
     const { data: orgData, error: orgErr } = await client
       .from("organizations")
-      .select("*")
+      .select("id, name, slug")
       .or(`id.eq.${orgSlugOrId},slug.eq.${orgSlugOrId}`)
       .maybeSingle();
 
     if (orgErr || !orgData) return null;
 
-    // 2. Query projects in this org
-    const { data: projsData, error: projErr } = await client
-      .from("projects")
-      .select("*")
-      .eq("org_id", orgData.id);
-
-    if (projErr || !projsData) return null;
-
+    // 2. Try direct query for target project by id or slug with projected fields only
     let targetProject: any = null;
-    for (const p of projsData) {
-      const cleanNameSlug = (p.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const docSlug = p.documentation?.publishedUrlSlug;
-      if (
-        p.id === projectSlugOrName ||
-        p.slug === projectSlugOrName ||
-        cleanNameSlug === projectSlugOrName ||
-        docSlug === projectSlugOrName
-      ) {
-        targetProject = p;
-        break;
+    const { data: directProject } = await client
+      .from("projects")
+      .select("id, org_id, name, slug, documentation, raw_tokens, figma_variables, branches, active_branch")
+      .eq("org_id", orgData.id)
+      .or(`id.eq.${projectSlugOrName},slug.eq.${projectSlugOrName}`)
+      .maybeSingle();
+
+    if (directProject) {
+      targetProject = directProject;
+    } else {
+      // 3. Fallback: query lightweight metadata (no heavy raw_tokens/figma_variables)
+      const { data: projsMeta } = await client
+        .from("projects")
+        .select("id, name, slug, documentation")
+        .eq("org_id", orgData.id);
+
+      if (projsMeta && projsMeta.length > 0) {
+        for (const p of projsMeta) {
+          const cleanNameSlug = (p.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+          const docSlug = (p.documentation as any)?.publishedUrlSlug;
+          if (cleanNameSlug === projectSlugOrName || docSlug === projectSlugOrName) {
+            const { data: fullProj } = await client
+              .from("projects")
+              .select("id, org_id, name, slug, documentation, raw_tokens, figma_variables, branches, active_branch")
+              .eq("id", p.id)
+              .maybeSingle();
+            targetProject = fullProj;
+            break;
+          }
+        }
       }
     }
 
     if (!targetProject) return null;
     const proj = mapDbProjectToProject(targetProject);
-    if (!proj.documentation || !proj.documentation.isPublishedGlobally) {
+    if (
+      !proj.documentation ||
+      !proj.documentation.isPublishedGlobally ||
+      proj.documentation.allowPublicAccess === false
+    ) {
       return null;
     }
 
@@ -1689,7 +1739,10 @@ export async function getPublishedProjectDocs(
     return {
       orgName: orgData.name,
       projectName: proj.name,
-      documentation: proj.documentation,
+      documentation: {
+        ...proj.documentation,
+        pages: (proj.documentation.pages || []).filter((p) => p.isPublished),
+      },
       rawTokens: rawTokensToReturn || {},
       figmaVariables: figmaVariablesToReturn || {},
       themeGroups: proj.themeGroups || [],

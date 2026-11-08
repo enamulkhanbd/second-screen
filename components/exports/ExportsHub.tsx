@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { buttonProps } from "@/utils/a11y";
 import { ExportViewType } from "@/types/exports";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -114,7 +115,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
           <div className="rounded-xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-sm">
             {/* CSS Variables Row */}
             <div
-              onClick={() => onSelectExport("css")}
+              {...buttonProps(() => onSelectExport("css"))}
               className="flex items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3.5">
@@ -137,7 +138,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
 
             {/* SCSS Variables Row */}
             <div
-              onClick={() => onSelectExport("scss")}
+              {...buttonProps(() => onSelectExport("scss"))}
               className="flex items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3.5">
@@ -160,7 +161,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
 
             {/* TypeScript Row */}
             <div
-              onClick={() => onSelectExport("typescript")}
+              {...buttonProps(() => onSelectExport("typescript"))}
               className="flex items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3.5">
@@ -195,7 +196,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
           <div className="rounded-xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-sm">
             {/* Raw JSON Row */}
             <div
-              onClick={() => onSelectExport("raw-json")}
+              {...buttonProps(() => onSelectExport("raw-json"))}
               className="flex items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3.5">
@@ -218,7 +219,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
 
             {/* DTCG JSON Row */}
             <div
-              onClick={() => onSelectExport("dtcg-json")}
+              {...buttonProps(() => onSelectExport("dtcg-json"))}
               className="flex items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3.5">
@@ -241,7 +242,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
 
             {/* Figma Variables Row */}
             <div
-              onClick={() => onSelectExport("figma-variables")}
+              {...buttonProps(() => onSelectExport("figma-variables"))}
               className="flex items-center justify-between p-4 hover:bg-muted/40 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3.5">

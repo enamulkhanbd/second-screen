@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateApiKey } from "@/utils/patAuth";
-import { getStoredApiKeys, saveApiKey, deleteApiKey } from "@/utils/cloudStorage";
+import { listApiKeysForUser, saveApiKey, deleteApiKey } from "@/utils/cloudStorage";
 import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasTrustedMutationOrigin } from "@/utils/auth";
@@ -20,17 +20,17 @@ async function getAuthenticatedUser(req: NextRequest) {
 
 /**
  * GET /api/v1/auth/pat
- * List all active API keys.
+ * List all active API keys for the signed-in user.
  */
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) return jsonWithCors({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    const keys = await getStoredApiKeys();
+    const keys = await listApiKeysForUser(user.id);
     return jsonWithCors({
       success: true,
-      keys: keys.filter((key) => key.uid === user.id).map(({ keyHash, ...safe }) => safe),
+      keys: keys.map(({ keyHash, ...safe }) => safe),
     });
   } catch (err: any) {
     return jsonWithCors({ success: false, error: err.message }, { status: 500 });
@@ -99,18 +99,19 @@ export async function DELETE(req: NextRequest) {
       return jsonWithCors({ success: false, error: "Missing key ID" }, { status: 400 });
     }
 
-    const ownedKey = (await getStoredApiKeys()).find((key) => key.id === id && key.uid === user.id);
-    if (!ownedKey) {
+    const deleted = await deleteApiKey(id, user.id);
+    if (!deleted) {
       return jsonWithCors({ success: false, error: "API key not found." }, { status: 404 });
     }
-
-    await deleteApiKey(id);
 
     return jsonWithCors({
       success: true,
       message: `API key ${id} revoked successfully.`,
     });
-  } catch (err: any) {
-    return jsonWithCors({ success: false, error: err.message }, { status: 500 });
+  } catch {
+    return jsonWithCors(
+      { success: false, error: "Could not revoke the API key. Please try again." },
+      { status: 500 }
+    );
   }
 }

@@ -211,7 +211,7 @@ export const SystemChangelogView: React.FC = () => {
                 <button
                   key={entry.version}
                   onClick={() => setSelectedVersion(entry.version)}
-                  className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer select-none space-y-2 ${
+                  className={`w-full text-left p-3.5 rounded-xl border transition cursor-pointer select-none space-y-2 ${
                     isSelected
                       ? "bg-card border-primary shadow-sm ring-1 ring-primary/30"
                       : "bg-card/50 border-border/70 hover:bg-card text-muted-foreground"
@@ -341,7 +341,7 @@ export const SystemChangelogView: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap border-b border-border/80 pb-3">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                 selectedCategory === "all"
                   ? "bg-foreground text-background shadow-xs"
                   : "bg-muted text-muted-foreground hover:text-foreground"
@@ -362,7 +362,7 @@ export const SystemChangelogView: React.FC = () => {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition  cursor-pointer ${
                     isSelected
                       ? "bg-foreground text-background shadow-xs"
                       : "bg-muted text-muted-foreground hover:text-foreground"
@@ -404,7 +404,7 @@ export const SystemChangelogView: React.FC = () => {
                       {items.map((item, idx) => (
                         <div
                           key={idx}
-                          className="p-4 rounded-xl border border-border bg-card shadow-2xs hover:shadow-xs transition-all space-y-2"
+                          className="p-4 rounded-xl border border-border bg-card shadow-2xs hover:shadow-xs transition space-y-2"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <h4 className="text-xs font-bold text-foreground flex items-center gap-2">

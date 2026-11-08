@@ -16,10 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CodeViewer } from "@/components/ui/CodeViewer";
+import { ApiKeysManager } from "@/components/ApiKeysManager";
 
 export const McpCliView: React.FC = () => {
   const { currentProject, currentOrg, addToast } = useTokenStore();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Set once a token is created here, so the snippet below can be copied ready to use.
+  const [createdToken, setCreatedToken] = useState<string | null>(null);
 
   const mcpConfig = {
     mcpServers: {
@@ -32,7 +35,7 @@ export const McpCliView: React.FC = () => {
           `--project=${currentProject?.slug || "design-system"}`,
         ],
         env: {
-          TOKENS_PLATFORM_PAT: "<YOUR_PERSONAL_ACCESS_TOKEN>",
+          TOKENS_PLATFORM_PAT: createdToken ?? "<YOUR_PERSONAL_ACCESS_TOKEN>",
         },
       },
     },
@@ -59,10 +62,10 @@ export const McpCliView: React.FC = () => {
           </div>
           <div>
             <h1 className="text-sm font-bold text-foreground">
-              MCP &amp; CLI Developer Tools
+              Developers
             </h1>
             <p className="text-[11px] text-muted-foreground">
-              Model Context Protocol (MCP) server &amp; Tokens Platform terminal CLI
+              Connect AI agents and scripts to this project with a personal access token
             </p>
           </div>
         </div>
@@ -70,6 +73,12 @@ export const McpCliView: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-6">
+        {/* 0. Token first: the snippets below use it */}
+        <Card>
+          <CardContent className="pt-6">
+            <ApiKeysManager onTokenCreated={setCreatedToken} />
+          </CardContent>
+        </Card>
         {/* 1. MCP Server Card */}
         <Card>
           <CardHeader>
@@ -93,7 +102,10 @@ export const McpCliView: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Add this configuration to your Claude Desktop or Cursor MCP settings file (<code className="font-mono text-foreground">mcp_config.json</code>):
+              Add this configuration to your Claude Desktop or Cursor MCP settings file (<code className="font-mono text-foreground">mcp_config.json</code>).
+              {createdToken
+                ? " Your new token is already filled in."
+                : " Create a token above to fill in the placeholder."}
             </p>
 
             <div className="relative rounded-xl border border-border bg-white dark:bg-[#0d0d12] overflow-hidden select-text shadow-sm">

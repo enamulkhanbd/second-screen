@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   TokenRawValueCell,
   TokenVisualPreviewCell,
@@ -27,9 +28,6 @@ import {
   Plus,
   CopyPlus,
   Trash2,
-  FolderGit2,
-  GitBranch,
-  Database,
   FolderTree,
   List,
   ChevronsUpDown,
@@ -48,6 +46,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { AddTokenModal } from "@/components/AddTokenModal";
+import { AddSetModal } from "@/components/AddSetModal";
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -69,9 +68,16 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { buildTokenGroupTree, TokenGroupNode, getActiveThemeSets } from "@/utils/themeHelpers";
-import { naturalCompareTokenKeys, compareTokens } from "@/utils/transformTokens";
+import { naturalCompareTokenKeys, compareTokens, sortFlattenedTokens } from "@/utils/transformTokens";
 import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
 import { ThemeSwitcherDropdown } from "@/components/ThemeSwitcherDropdown";
+import { useDialogs } from "@/components/DialogProvider";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface TokensWorkspaceProps {
@@ -88,7 +94,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     resolvedTokens,
     activeSet,
     updateSingleToken,
+    updateTokensBatch,
+    deleteTokensBatch,
+    duplicateTokensBatch,
+    moveTokensBatch,
     updateSetJson,
+    renameSet,
+    deleteSet,
     duplicateToken,
     deleteToken,
     tokensViewMode,
@@ -99,16 +111,36 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     themeGroups,
     activeThemeOptionIds,
     setSidebarTab,
-    branches,
-    activeBranch,
-    switchBranchAction,
     addNewToken,
-    setProjectSettingsTab,
-  } = useTokenStore();
-
-  const isGitConfigured = Boolean(
-    credentials.provider && credentials.owner && credentials.repo
+    releases,
+  } = useTokenStore(
+    useShallow((state) => ({
+      rawTokens: state.rawTokens,
+      resolvedTokens: state.resolvedTokens,
+      activeSet: state.activeSet,
+      updateSingleToken: state.updateSingleToken,
+      updateTokensBatch: state.updateTokensBatch,
+      deleteTokensBatch: state.deleteTokensBatch,
+      duplicateTokensBatch: state.duplicateTokensBatch,
+      moveTokensBatch: state.moveTokensBatch,
+      updateSetJson: state.updateSetJson,
+      renameSet: state.renameSet,
+      deleteSet: state.deleteSet,
+      duplicateToken: state.duplicateToken,
+      deleteToken: state.deleteToken,
+      tokensViewMode: state.tokensViewMode,
+      setTokensViewMode: state.setTokensViewMode,
+      credentials: state.credentials,
+      canUserEdit: state.canUserEdit,
+      addToast: state.addToast,
+      themeGroups: state.themeGroups,
+      activeThemeOptionIds: state.activeThemeOptionIds,
+      setSidebarTab: state.setSidebarTab,
+      addNewToken: state.addNewToken,
+      releases: state.releases,
+    }))
   );
+  const dialogs = useDialogs();
 
   const allSetKeys = useMemo(() => {
     return Object.keys(rawTokens).filter((k) => !k.startsWith("$"));
@@ -116,14 +148,19 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   const currentSetKey = activeSet && activeSet !== "ALL" ? activeSet : allSetKeys[0] || "";
 
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   // PREVIEW MODE STATE & FILTERING
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeprecatedOnly, setShowDeprecatedOnly] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
+  const [isAddSetOpen, setIsAddSetOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -147,11 +184,14 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     } catch {}
   }, []);
 
-  const startResizing = (colKey: keyof typeof colWidths, e: React.MouseEvent) => {
+  const colWidthsRef = useRef(colWidths);
+  colWidthsRef.current = colWidths;
+
+  const startResizing = useCallback((colKey: keyof typeof colWidths, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
-    const startWidth = colWidths[colKey];
+    const startWidth = colWidthsRef.current[colKey];
     const minW = colKey === "type" ? 60 : colKey === "set" ? 80 : 100;
     let currentNewWidth = startWidth;
 
@@ -203,7 +243,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
     window.addEventListener("mousemove", onMouseMove, { passive: false });
     window.addEventListener("mouseup", onMouseUp);
-  };
+  }, []);
 
   const activeThemeInfo = useMemo(() => {
     return getActiveThemeSets(themeGroups, activeThemeOptionIds, rawTokens);
@@ -263,7 +303,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const isEditable = canUserEdit();
-  const handleCopy = (text: string, label: string) => {
+  const handleCopy = useCallback((text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text);
       addToast({
@@ -272,7 +312,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
         message: `${label}: ${text}`,
       });
     }
-  };
+  }, [addToast]);
 
   // Progressive Infinite Scrolling state for high performance with 10,000+ tokens
   const INITIAL_BATCH_SIZE = 100;
@@ -298,9 +338,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   }, [displayedTokens, groupDepth, sortDirection, sortField]);
 
   const sortedTokens = useMemo(() => {
-    const list = [...displayedTokens];
-    list.sort((a, b) => compareTokens(a, b, sortField, sortDirection));
-    return list;
+    return sortFlattenedTokens(displayedTokens, sortField, sortDirection);
+
+
   }, [displayedTokens, sortField, sortDirection]);
 
   // Sliced tokens for flat view
@@ -352,14 +392,37 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     }
   };
 
-  const toggleSelectToken = (id: string) => {
+  // Compute latestVersion once across all rows to avoid redundant loops
+  const latestVersion = useMemo(() => {
+    let latest: { version: string; createdAt: string } | undefined;
+    for (const r of releases || []) {
+      if (!latest || r.createdAt > latest.createdAt) latest = r;
+    }
+    return latest?.version;
+  }, [releases]);
+
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedTokenIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
+
+  const handleEditToken = useCallback((token: FlattenedToken) => {
+    setEditingToken(token);
+  }, []);
+
+  const handleDuplicateToken = useCallback((token: FlattenedToken, newName: string) => {
+    duplicateToken(token.setName, token.name.split("."), newName);
+  }, [duplicateToken]);
+
+  const handleDeleteToken = useCallback((token: FlattenedToken) => {
+    deleteToken(token.setName, token.name.split("."));
+  }, [deleteToken]);
+
+  const toggleSelectToken = handleToggleSelect;
 
   const toggleSelectAll = () => {
     if (selectedTokenIds.size === displayedTokens.length && displayedTokens.length > 0) {
@@ -371,12 +434,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   const allSelected = displayedTokens.length > 0 && selectedTokenIds.size === displayedTokens.length;
 
-  const toggleGroup = (groupId: string) => {
+  const toggleGroup = useCallback((groupId: string) => {
     setCollapsedGroups((prev) => ({
       ...prev,
       [groupId]: !prev[groupId],
     }));
-  };
+  }, []);
 
   const expandAllGroups = () => {
     setCollapsedGroups({});
@@ -405,14 +468,17 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   }, [displayedTokens, selectedTokenIds]);
 
   // Bulk action handlers
+  // Bulk action handlers leveraging batch store actions for O(1) resolver & persist efficiency
   const handleBulkClearDescription = () => {
-    selectedTokensList.forEach((token) => {
-      updateSingleToken(token.path, {
+    const entries = selectedTokensList.map((token) => ({
+      path: token.path,
+      newValue: {
         value: token.rawValue,
         type: token.type,
         description: "",
-      });
-    });
+      },
+    }));
+    updateTokensBatch(entries);
     addToast({
       type: "success",
       title: "Descriptions Cleared",
@@ -421,21 +487,26 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkDelete = () => {
-    selectedTokensList.forEach((token) => {
-      deleteToken(token.setName, token.name.split("."));
-    });
+    const items = selectedTokensList.map((token) => ({
+      setName: token.setName,
+      tokenPath: token.name.split("."),
+    }));
+    deleteTokensBatch(items);
     setSelectedTokenIds(new Set());
-    addToast({
-      type: "success",
-      title: "Tokens Deleted",
-      message: `Deleted ${selectedTokensList.length} tokens.`,
-    });
   };
 
   const handleBulkDuplicate = () => {
-    selectedTokensList.forEach((token) => {
-      duplicateToken(token.setName, token.name.split("."), `${token.name}-copy`);
+    const items = selectedTokensList.map((token) => {
+      const segs = token.name.split(".");
+      const lastSeg = segs[segs.length - 1];
+      const newPath = [...segs.slice(0, -1), `${lastSeg}-copy`];
+      return {
+        setName: token.setName,
+        tokenPath: segs,
+        newPath,
+      };
     });
+    duplicateTokensBatch(items);
     setSelectedTokenIds(new Set());
     addToast({
       type: "success",
@@ -445,13 +516,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkChangeType = (newType: string) => {
-    selectedTokensList.forEach((token) => {
-      updateSingleToken(token.path, {
+    const entries = selectedTokensList.map((token) => ({
+      path: token.path,
+      newValue: {
         value: token.rawValue,
         type: newType,
         description: token.description,
-      });
-    });
+      },
+    }));
+    updateTokensBatch(entries);
     addToast({
       type: "success",
       title: "Type Changed",
@@ -460,9 +533,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkChangeValue = (newValue: string) => {
-    selectedTokensList.forEach((token) => {
-      updateSingleToken(token.path, newValue);
-    });
+    const entries = selectedTokensList.map((token) => ({
+      path: token.path,
+      newValue,
+    }));
+    updateTokensBatch(entries);
     addToast({
       type: "success",
       title: "Values Updated",
@@ -471,36 +546,42 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   const handleBulkFindReplace = (findText: string, replaceText: string) => {
-    let replacedCount = 0;
+    const entries: { path: string[]; newValue: any }[] = [];
     selectedTokensList.forEach((token) => {
       if (token.description && token.description.includes(findText)) {
         const updatedDesc = token.description.replaceAll(findText, replaceText);
-        updateSingleToken(token.path, {
-          value: token.rawValue,
-          type: token.type,
-          description: updatedDesc,
+        entries.push({
+          path: token.path,
+          newValue: {
+            value: token.rawValue,
+            type: token.type,
+            description: updatedDesc,
+          },
         });
-        replacedCount++;
       }
     });
+    if (entries.length > 0) {
+      updateTokensBatch(entries);
+    }
     addToast({
       type: "success",
       title: "Find & Replace Complete",
-      message: `Updated descriptions in ${replacedCount} tokens.`,
+      message: `Updated descriptions in ${entries.length} tokens.`,
     });
   };
 
   const handleBulkMoveTo = (targetSet: string) => {
-    selectedTokensList.forEach((token) => {
-      // Add to target set
-      addNewToken(targetSet, token.name.split("."), {
+    const items = selectedTokensList.map((token) => ({
+      sourceSet: token.setName,
+      targetSet,
+      tokenPath: token.name.split("."),
+      tokenLeaf: {
         value: token.rawValue,
         type: token.type,
         description: token.description,
-      });
-      // Delete from old set
-      deleteToken(token.setName, token.name.split("."));
-    });
+      },
+    }));
+    moveTokensBatch(items);
     setSelectedTokenIds(new Set());
     addToast({
       type: "success",
@@ -510,20 +591,26 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   };
 
   // Keyboard shortcut Cmd+K or Ctrl+K for command palette when tokens selected
+  // With rows selected, Cmd/Ctrl+K opens bulk actions instead of the global jump palette.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k" && selectedTokenIds.size > 0) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && selectedTokenIds.size > 0) {
         e.preventDefault();
+        e.stopImmediatePropagation();
         setIsCommandPaletteOpen(true);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [selectedTokenIds]);
 
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   // JSON CODE EDITOR STATE
-  // -------------------------------------------------------------
+  TokenTableRow.displayName = "TokenTableRow";
+
+// -------------------------------------------------------------
   const [code, setCode] = useState<string>("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
@@ -613,6 +700,50 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     return parts[parts.length - 1] || activeSet;
   }, [activeSet]);
 
+  // Ctrl/Cmd+S saves the JSON editor, as the Save button's tooltip advertises.
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+  useEffect(() => {
+    if (tokensViewMode !== "json") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (hasUnsavedChanges) handleSaveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [tokensViewMode, hasUnsavedChanges]);
+
+  // First-run state: a project without any token set yet.
+  if (allSetKeys.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background font-sans">
+        <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+          <Layers className="w-6 h-6" />
+        </div>
+        <h2 className="text-base font-bold text-foreground">Add your first token set</h2>
+        <p className="text-xs text-muted-foreground mt-1.5 max-w-sm leading-relaxed">
+          Add a token set to store colors, type, and space. Tokens can reference each other with curly braces, like{" "}
+          <code className="font-mono text-foreground">{"{color.brand.primary}"}</code>.
+        </p>
+        <Button
+          size="sm"
+          className="mt-4 gap-1.5 text-xs font-semibold"
+          disabled={!isEditable}
+          onClick={() => setIsAddSetOpen(true)}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add set</span>
+        </Button>
+        {!isEditable && (
+          <p className="text-[11px] text-muted-foreground mt-2">Viewers can&apos;t add token sets.</p>
+        )}
+        <AddSetModal isOpen={isAddSetOpen} onClose={() => setIsAddSetOpen(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background font-sans select-none">
       {/* 1. Main Workspace Top Header Toolbar (Pixel-perfect to Video Frames 011 & 014) */}
@@ -624,7 +755,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               variant="outline"
               size="icon-sm"
               onClick={onOpenContextNavigation}
-              className="xl:hidden h-7 w-7 flex-shrink-0"
+              className="xl:hidden h-8 w-8 flex-shrink-0"
               aria-label="Open token sets"
               title="Open token sets"
             >
@@ -642,40 +773,55 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
-                  title="Token set options"
+                  aria-label="Token set options"
+                  className="p-2 rounded text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
                 >
                   <MoreVertical className="w-3.5 h-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44 text-xs">
                 <DropdownMenuItem
-                  onClick={() => {
-                    const newName = prompt("Rename set to:", activeSet);
-                    if (newName && newName.trim() && newName.trim() !== activeSet) {
-                      // Rename set in rawTokens
-                      const oldData = rawTokens[activeSet];
-                      updateSetJson(newName.trim(), oldData);
-                      addToast({
-                        type: "success",
-                        title: "Set Renamed",
-                        message: `Renamed set to "${newName.trim()}".`,
-                      });
+                  onClick={async () => {
+                    const entered = await dialogs.prompt({
+                      title: "Rename set",
+                      label: "Set name",
+                      defaultValue: activeSetDisplayName,
+                      confirmLabel: "Rename",
+                    });
+                    if (!entered || entered === activeSetDisplayName) return;
+                    // Keep the folder prefix unless a full path was typed.
+                    let newName = entered;
+                    if (activeSet.includes("/") && !entered.includes("/")) {
+                      const parts = activeSet.split("/");
+                      parts.pop();
+                      newName = `${parts.join("/")}/${entered}`;
                     }
+                    renameSet(activeSet, newName);
+                    addToast({
+                      type: "success",
+                      title: "Set renamed",
+                      message: `Renamed set to "${newName}".`,
+                    });
                   }}
                   className="gap-2 cursor-pointer"
                 >
                   <Edit2 className="w-3.5 h-3.5 text-primary" />
-                  <span>Edit set</span>
+                  <span>Rename set</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
-                    if (confirm(`Are you sure you want to delete the set "${activeSet}"?`)) {
-                      deleteToken(activeSet, []);
+                  onClick={async () => {
+                    const confirmed = await dialogs.confirm({
+                      title: `Delete "${activeSet}"?`,
+                      description: "This deletes the set and every token in it.",
+                      confirmLabel: "Delete set",
+                      destructive: true,
+                    });
+                    if (confirmed) {
+                      deleteSet(activeSet);
                       addToast({
                         type: "info",
-                        title: "Set Deleted",
+                        title: "Set deleted",
                         message: `Deleted token set "${activeSet}".`,
                       });
                     }
@@ -689,75 +835,28 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </DropdownMenu>
           )}
 
-          {/* Active Branch Pill & Quick Switcher */}
-          {!isGitConfigured && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-medium border border-border/80 bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
-                  title={`Native branch: ${activeBranch || "main"} (Supabase Cloud)`}
-                >
-                  <GitBranch className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:inline">Native:</span>
-                  <span className="max-w-[120px] truncate">{activeBranch || "main"}</span>
-                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-60 text-xs">
-                <div className="px-2 py-1.5 text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-                  <Database className="w-3 h-3 text-emerald-500" />
-                  <span>Native Branches (Supabase)</span>
-                </div>
-                <DropdownMenuSeparator />
-                <div className="max-h-56 overflow-y-auto space-y-0.5">
-                  {(branches && branches.length > 0 ? branches : [{ id: "main", name: "main", title: "Main branch" }]).map((b) => {
-                    const bName = typeof b === "string" ? b : b.name;
-                    const isCurrent = bName === (activeBranch || "main");
-                    return (
-                      <DropdownMenuItem
-                        key={bName}
-                        onClick={() => switchBranchAction(bName)}
-                        className={cn(
-                          "flex items-center justify-between font-mono cursor-pointer",
-                          isCurrent && "font-semibold text-primary bg-primary/10"
-                        )}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="truncate">{bName}</span>
-                        </div>
-                        {isCurrent && <Check className="w-3.5 h-3.5 text-primary" />}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setSidebarTab("branches")}
-                  className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
-                >
-                  <FolderGit2 className="w-3.5 h-3.5" />
-                  <span>Manage all branches</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
           {/* Inactive in themes pill badge */}
           {isInactiveInThemes && (
-            <div className="group relative flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-border/70 bg-muted/40 text-[11px] font-medium text-foreground cursor-default select-none">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>Inactive in themes</span>
-
-              {/* Dark Hover Tooltip */}
-              <div className="absolute top-full left-0 mt-1.5 hidden group-hover:block z-50 w-72 p-2.5 rounded-md bg-zinc-900 text-white text-[11px] leading-snug shadow-xl border border-zinc-800 pointer-events-none">
-                This token set is not enabled in the current theme selections, so its values are not part of the active resolving path.
-              </div>
-            </div>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-border/70 bg-muted/40 text-[11px] font-medium text-foreground select-none"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Inactive in themes</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="start" className="max-w-72 text-[11px] leading-snug">
+                  This token set is not enabled in the current theme selections, so its values are not part of the active resolving path.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {tokensViewMode === "json" && hasUnsavedChanges && (
-            <Badge variant="warning" className="text-[10px] font-mono animate-pulse py-0 px-1.5">
+            <Badge variant="warning" className="text-[10px] font-mono motion-safe:animate-pulse py-0 px-1.5">
               Unsaved
             </Badge>
           )}
@@ -832,7 +931,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               size="icon-sm"
               onClick={() => setIsSearchOpen(true)}
               className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs border-border bg-background hover:bg-muted/80"
-              title="Search tokens"
+              aria-label="Search tokens"
             >
               <Search className="w-3.5 h-3.5" />
             </Button>
@@ -978,7 +1077,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
           <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
             <button
               onClick={() => setTokensViewMode("preview")}
-              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+              className={`p-1.5 rounded-md               transition cursor-pointer ${
                 tokensViewMode === "preview"
                   ? "bg-background text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -989,7 +1088,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
             </button>
             <button
               onClick={() => setTokensViewMode("json")}
-              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+              className={`p-1.5 rounded-md               transition cursor-pointer ${
                 tokensViewMode === "json"
                   ? "bg-background text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -1092,7 +1191,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="name"
                       style={{ width: `${colWidths.name}px` }}
-                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="sticky left-10 z-30 relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
                     >
                       <div
                         onClick={() => handleSortToggle("name")}
@@ -1239,18 +1338,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         onToggleGroup={toggleGroup}
                         groupDepth={groupDepth}
                         selectedTokenIds={selectedTokenIds}
-                        onToggleSelect={toggleSelectToken}
-                        onEdit={setEditingToken}
+                        onToggleSelect={handleToggleSelect}
+                        onEdit={handleEditToken}
                         onUpdate={updateSingleToken}
-                        onDuplicate={(setName, nameSegments, newName) =>
-                          duplicateToken(setName, nameSegments, newName)
-                        }
-                        onDelete={(setName, nameSegments) =>
-                          deleteToken(setName, nameSegments)
-                        }
+                        onDuplicate={handleDuplicateToken}
+                        onDelete={handleDeleteToken}
                         startResizing={startResizing}
                         isEditable={isEditable}
                         onCopy={handleCopy}
+                        latestVersion={latestVersion}
                       />
                     ))
                   : visibleFlatTokens.map((token) => (
@@ -1258,18 +1354,15 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         key={token.id}
                         token={token}
                         isSelected={selectedTokenIds.has(token.id)}
-                        onToggleSelect={() => toggleSelectToken(token.id)}
-                        onEdit={() => setEditingToken(token)}
+                        onToggleSelect={handleToggleSelect}
+                        onEdit={handleEditToken}
                         onUpdate={updateSingleToken}
-                        onDuplicate={(newName) =>
-                          duplicateToken(token.setName, token.name.split("."), newName)
-                        }
-                        onDelete={() =>
-                          deleteToken(token.setName, token.name.split("."))
-                        }
+                        onDuplicate={handleDuplicateToken}
+                        onDelete={handleDeleteToken}
                         startResizing={startResizing}
                         isEditable={isEditable}
                         onCopy={handleCopy}
+                        latestVersion={latestVersion}
                       />
                     ))}
 
@@ -1445,23 +1538,26 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   );
 };
 
+
 // -------------------------------------------------------------
 // TABLE ROW COMPONENT (Matches Video Frames 011, 015, 016, 020, 025)
+
 // -------------------------------------------------------------
 interface TokenTableRowProps {
   token: FlattenedToken;
   isSelected: boolean;
-  onToggleSelect: () => void;
-  onEdit: () => void;
+  onToggleSelect: (id: string) => void;
+  onEdit: (token: FlattenedToken) => void;
   onUpdate: (path: string[], newValue: any) => void;
-  onDuplicate: (newName: string) => void;
-  onDelete: () => void;
+  onDuplicate: (token: FlattenedToken, newName: string) => void;
+  onDelete: (token: FlattenedToken) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
   isEditable?: boolean;
   onCopy?: (text: string, label: string) => void;
+  latestVersion?: string;
 }
 
-const TokenTableRow = React.memo<TokenTableRowProps>(({
+const TokenTableRow = React.memo(function TokenTableRow({
   token,
   isSelected,
   onToggleSelect,
@@ -1471,7 +1567,9 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
   startResizing,
   isEditable = true,
   onCopy,
-}) => {
+  latestVersion,
+}: TokenTableRowProps) {
+  const dialogs = useDialogs();
   const handleCopy = (text: string, label: string) => {
     if (onCopy) {
       onCopy(text, label);
@@ -1493,14 +1591,6 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     String(token.resolvedValue).includes("unresolved") ||
     String(token.rawValue).includes("unresolved");
 
-  const releases = useTokenStore((s) => s.releases);
-  const latestVersion = useMemo(() => {
-    let latest: { version: string; createdAt: string } | undefined;
-    for (const r of releases || []) {
-      if (!latest || r.createdAt > latest.createdAt) latest = r;
-    }
-    return latest?.version;
-  }, [releases]);
   const isRemovalDue = token.deprecated
     ? isDeprecationOverdue(token.deprecatedRemoveAfter, { currentVersion: latestVersion })
     : false;
@@ -1527,7 +1617,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     if (rawValueStr.startsWith("{") && rawValueStr.endsWith("}")) {
       return (
         <span
-          onClick={onEdit}
+          onClick={() => onEdit(token)}
           className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground cursor-pointer transition-colors"
         >
           {rawValueStr}
@@ -1539,7 +1629,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
     if (rawValueStr.includes("{") && rawValueStr.includes("}")) {
       const parts = rawValueStr.split(/(\{.*?\})/g);
       return (
-        <span onClick={onEdit} className="cursor-pointer hover:text-primary transition-colors">
+        <span onClick={() => onEdit(token)} className="cursor-pointer hover:text-primary transition-colors">
           {parts.map((part, i) => {
             if (part.startsWith("{") && part.endsWith("}")) {
               return (
@@ -1559,7 +1649,7 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
 
     return (
       <span
-        onClick={onEdit}
+        onClick={() => onEdit(token)}
         className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
       >
         {rawValueStr}
@@ -1617,16 +1707,19 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={onToggleSelect}
+          onChange={() => onToggleSelect(token.id)}
           className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
         />
       </td>
 
       {/* 2. NAME */}
-      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden">
+      <td className={cn(
+        "sticky left-10 z-10 relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden",
+        isSelected ? "bg-muted group-hover:bg-muted" : "bg-background group-hover:bg-muted/20"
+      )}>
         <div className="flex items-center gap-1.5 min-w-0">
           <span
-            onClick={onEdit}
+            onClick={() => onEdit(token)}
             className="font-medium text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
             title={token.name}
           >
@@ -1763,23 +1856,26 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
           <DropdownMenuContent align="end" className="w-52">
             {isEditable && (
               <>
-                <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => onEdit(token)} className="cursor-pointer">
                   <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   <span>Edit token</span>
-                  <DropdownMenuShortcut>⌘E</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => {
-                    const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
-                    if (newName && newName.trim()) {
-                      onDuplicate(newName.trim());
+                  onClick={async () => {
+                    const newName = await dialogs.prompt({
+                      title: "Duplicate token",
+                      label: "Name for the copy",
+                      defaultValue: `${token.name}-copy`,
+                      confirmLabel: "Duplicate",
+                    });
+                    if (newName) {
+                      onDuplicate(token, newName);
                     }
                   }}
                   className="cursor-pointer"
                 >
                   <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   <span>Duplicate token</span>
-                  <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
@@ -1790,7 +1886,6 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
             >
               <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Copy CSS Var</span>
-              <DropdownMenuShortcut>⌥C</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleCopy(token.name, "Token Name")}
@@ -1798,22 +1893,26 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
             >
               <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Copy token name</span>
-              <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
             </DropdownMenuItem>
             {isEditable && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
-                    if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
-                      onDelete();
+                  onClick={async () => {
+                    const confirmed = await dialogs.confirm({
+                      title: `Delete "${token.name}"?`,
+                      description: `This removes the token from the set "${token.setName}".`,
+                      confirmLabel: "Delete token",
+                      destructive: true,
+                    });
+                    if (confirmed) {
+                      onDelete(token);
                     }
                   }}
                   className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
                   <span>Delete token</span>
-                  <DropdownMenuShortcut className="text-destructive">⌫</DropdownMenuShortcut>
                 </DropdownMenuItem>
               </>
             )}
@@ -1825,23 +1924,26 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
       <ContextMenuContent className="w-52">
         {isEditable && (
           <>
-            <ContextMenuItem onClick={onEdit} className="cursor-pointer">
+            <ContextMenuItem onClick={() => onEdit(token)} className="cursor-pointer">
               <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Edit token</span>
-              <ContextMenuShortcut>⌘E</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
-              onClick={() => {
-                const newName = prompt("Enter name for duplicate token:", `${token.name}-copy`);
-                if (newName && newName.trim()) {
-                  onDuplicate(newName.trim());
+              onClick={async () => {
+                const newName = await dialogs.prompt({
+                  title: "Duplicate token",
+                  label: "Name for the copy",
+                  defaultValue: `${token.name}-copy`,
+                  confirmLabel: "Duplicate",
+                });
+                if (newName) {
+                  onDuplicate(token, newName);
                 }
               }}
               className="cursor-pointer"
             >
               <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
               <span>Duplicate token</span>
-              <ContextMenuShortcut>⌘D</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
@@ -1852,7 +1954,6 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
         >
           <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
           <span>Copy CSS Var</span>
-          <ContextMenuShortcut>⌥C</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => handleCopy(token.name, "Token Name")}
@@ -1860,22 +1961,26 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
         >
           <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
           <span>Copy token name</span>
-          <ContextMenuShortcut>⌘C</ContextMenuShortcut>
         </ContextMenuItem>
         {isEditable && (
           <>
             <ContextMenuSeparator />
             <ContextMenuItem
-              onClick={() => {
-                if (confirm(`Are you sure you want to delete token "${token.name}"?`)) {
-                  onDelete();
+              onClick={async () => {
+                const confirmed = await dialogs.confirm({
+                  title: `Delete "${token.name}"?`,
+                  description: `This removes the token from the set "${token.setName}".`,
+                  confirmLabel: "Delete token",
+                  destructive: true,
+                });
+                if (confirmed) {
+                  onDelete(token);
                 }
               }}
               className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
             >
               <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
               <span>Delete token</span>
-              <ContextMenuShortcut className="text-destructive">⌫</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}
@@ -1884,8 +1989,12 @@ const TokenTableRow = React.memo<TokenTableRowProps>(({
   );
 });
 
+TokenTableRow.displayName = "TokenTableRow";
+
 // -------------------------------------------------------------
 // WORKSPACE GROUP NODE COMPONENT (For nested groupings)
+TokenTableRow.displayName = "TokenTableRow";
+
 // -------------------------------------------------------------
 interface WorkspaceGroupNodeProps {
   node: TokenGroupNode<FlattenedToken>;
@@ -1896,14 +2005,15 @@ interface WorkspaceGroupNodeProps {
   onToggleSelect: (id: string) => void;
   onEdit: (token: FlattenedToken) => void;
   onUpdate: (path: string[], newValue: any) => void;
-  onDuplicate: (setName: string, nameSegments: string[], newName: string) => void;
-  onDelete: (setName: string, nameSegments: string[]) => void;
+  onDuplicate: (token: FlattenedToken, newName: string) => void;
+  onDelete: (token: FlattenedToken) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
   isEditable?: boolean;
   onCopy?: (text: string, label: string) => void;
+  latestVersion?: string;
 }
 
-const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
+const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
   node,
   collapsedGroups,
   onToggleGroup,
@@ -1917,7 +2027,8 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
   startResizing,
   isEditable = true,
   onCopy,
-}) => {
+  latestVersion,
+}: WorkspaceGroupNodeProps) {
   if (node.isRoot) {
     return (
       <React.Fragment>
@@ -1926,16 +2037,15 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
             key={token.id}
             token={token}
             isSelected={selectedTokenIds.has(token.id)}
-            onToggleSelect={() => onToggleSelect(token.id)}
-            onEdit={() => onEdit(token)}
+            onToggleSelect={onToggleSelect}
+            onEdit={onEdit}
             onUpdate={onUpdate}
-            onDuplicate={(newName) =>
-              onDuplicate(token.setName, token.name.split("."), newName)
-            }
-            onDelete={() => onDelete(token.setName, token.name.split("."))}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
             startResizing={startResizing}
             isEditable={isEditable}
             onCopy={onCopy}
+            latestVersion={latestVersion}
           />
         ))}
       </React.Fragment>
@@ -1993,6 +2103,7 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
               startResizing={startResizing}
               isEditable={isEditable}
               onCopy={onCopy}
+              latestVersion={latestVersion}
             />
           ))}
           {node.items.map((token) => (
@@ -2000,16 +2111,15 @@ const WorkspaceGroupNode = React.memo<WorkspaceGroupNodeProps>(({
               key={token.id}
               token={token}
               isSelected={selectedTokenIds.has(token.id)}
-              onToggleSelect={() => onToggleSelect(token.id)}
-              onEdit={() => onEdit(token)}
+              onToggleSelect={onToggleSelect}
+              onEdit={onEdit}
               onUpdate={onUpdate}
-              onDuplicate={(newName) =>
-                onDuplicate(token.setName, token.name.split("."), newName)
-              }
-              onDelete={() => onDelete(token.setName, token.name.split("."))}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
               startResizing={startResizing}
               isEditable={isEditable}
               onCopy={onCopy}
+              latestVersion={latestVersion}
             />
           ))}
         </>

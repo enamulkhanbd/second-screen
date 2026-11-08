@@ -7,7 +7,6 @@ import {
   DEFAULT_COMPILER_CONFIG,
 } from "@/types/tokens";
 import { evaluateTokenMath } from "./transformTokens";
-import JSZip from "jszip";
 
 /**
  * Transforms token name according to casing rules and optional prefix
@@ -785,6 +784,7 @@ export function getPlatformArtifactContent(
  * Downloads a complete ZIP bundle of all release artifacts
  */
 export async function downloadReleaseZip(pkg: ReleasePackage) {
+  const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
 
   // Root files

@@ -164,7 +164,7 @@ function ConnectPageContent() {
       </header>
 
       {/* Main Center Card */}
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main id="main-content" tabIndex={-1} className="flex-1 flex items-center justify-center p-4 focus:outline-none">
         <div className="w-full max-w-[420px]">
           {status === "success" ? (
             <Card className="border-border bg-card shadow-xl p-8 space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
@@ -174,7 +174,7 @@ function ConnectPageContent() {
 
               <div className="space-y-1.5">
                 <CardTitle className="text-xl font-bold text-foreground tracking-tight">
-                  Device Connected!
+                  Device connected
                 </CardTitle>
                 <CardDescription className="text-sm text-muted-foreground">
                   You can close this window and return to your plugin.
@@ -259,6 +259,36 @@ function ConnectPageContent() {
                   />
                 </div>
 
+                {/* Which workspace and project this device will link to */}
+                {activeOrg && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-foreground">Linking to</Label>
+                    <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs">
+                      <span className="text-muted-foreground">{activeOrg.name}</span>
+                      {activeProj && (
+                        <>
+                          <span className="mx-1.5 text-muted-foreground/50">/</span>
+                          <span className="font-semibold text-foreground">{activeProj.name}</span>
+                        </>
+                      )}
+                    </div>
+                    {orgProjects.length > 1 && (
+                      <Select value={activeProj?.id || ""} onValueChange={setSelectedProjId}>
+                        <SelectTrigger aria-label="Project to link" className="h-9 text-xs">
+                          <SelectValue placeholder="Choose a project" />
+                        </SelectTrigger>
+                        <SelectContent className="text-xs">
+                          {orgProjects.map((proj) => (
+                            <SelectItem key={proj.id} value={proj.id}>
+                              {proj.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
                 {/* Status / Error Alert */}
                 {status === "error" && errorMessage && (
                   <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-500 text-xs flex items-center gap-2">
@@ -305,7 +335,7 @@ function ConnectPageContent() {
 
 export default function ConnectPage() {
   return (
-    <Suspense fallback={<div className="p-12 text-center text-xs text-muted-foreground">Loading connect page...</div>}>
+    <Suspense fallback={<div className="p-12 text-center text-xs text-muted-foreground">Loading connect page…</div>}>
       <ConnectPageContent />
     </Suspense>
   );

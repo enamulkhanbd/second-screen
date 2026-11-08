@@ -179,6 +179,7 @@ async function fetchAzureItemText(
           Pragma: "no-cache",
         },
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
       });
       if (blobRes.ok) {
         return await blobRes.text();
@@ -202,6 +203,7 @@ async function fetchAzureItemText(
           Pragma: "no-cache",
         },
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
       });
       if (itemRes.ok) {
         return await itemRes.text();
@@ -222,6 +224,7 @@ async function fetchAzureItemText(
           Accept: "application/json",
         },
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
       });
       if (itemRes.ok) {
         const itemJson = await itemRes.json();
@@ -337,7 +340,7 @@ export async function POST(req: NextRequest) {
         cache: "no-store",
         signal: AbortSignal.timeout(20000),
       });
-      treePromise.catch(() => {});
+      treePromise.catch(() => { });
 
       const clientSha = (rawCreds as { lastCommitSha?: unknown }).lastCommitSha;
       if (typeof clientSha === "string" && clientSha) {
@@ -355,7 +358,7 @@ export async function POST(req: NextRequest) {
         try {
           const errObj = JSON.parse(errorText);
           parsedMessage = errObj.message || parsedMessage;
-        } catch {}
+        } catch { }
 
         if (treeRes.status === 404) {
           // Check whether the repo itself exists to provide a specific, actionable error
@@ -382,7 +385,7 @@ export async function POST(req: NextRequest) {
                 { status: 404 }
               );
             }
-          } catch {}
+          } catch { }
 
           return NextResponse.json(
             {
@@ -503,7 +506,10 @@ export async function POST(req: NextRequest) {
       const filesMeta: Record<string, string> = {};
 
       // Profile lookup is independent of blob downloads, so run it concurrently.
-      const userProfilePromise: Promise<any> = fetch("https://api.github.com/user", { headers })
+      const userProfilePromise: Promise<any> = fetch("https://api.github.com/user", {
+        headers,
+        signal: AbortSignal.timeout(10000),
+      })
         .then(async (uRes) => {
           if (!uRes.ok) return undefined;
           const uData = await uRes.json();
@@ -517,7 +523,11 @@ export async function POST(req: NextRequest) {
 
       // Concurrency-limited batching (12 at a time) to prevent GitHub 429 rate-limiting
       await batchProcess(targetBlobs, 12, async (blob) => {
-        const blobRes = await fetch(blob.url, { headers, cache: "no-store" });
+        const blobRes = await fetch(blob.url, {
+          headers,
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000),
+        });
         if (blobRes.ok) {
           const bData = await blobRes.json();
           if (bData.content) {
@@ -605,6 +615,7 @@ export async function POST(req: NextRequest) {
         method: "GET",
         headers,
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
       });
 
       // Fallback to root query if scoped query failed

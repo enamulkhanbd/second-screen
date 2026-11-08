@@ -52,7 +52,8 @@ export const TokenRawValueCell: React.FC<{
   token: FlattenedToken;
   onUpdate: (path: string[], newValue: string | Record<string, any>) => void;
 }> = ({ token, onUpdate }) => {
-  const { canUserEdit, addToast } = useTokenStore();
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const addToast = useTokenStore((s) => s.addToast);
   const [localVal, setLocalVal] = useState(token.rawValue);
   const [isSaved, setIsSaved] = useState(false);
   const isEditable = canUserEdit();
@@ -128,7 +129,7 @@ export const TokenRawValueCell: React.FC<{
           disabled={!isEditable}
           readOnly={!isEditable}
           placeholder="e.g. #3b82f6 or {colors.brand.500}"
-          className={`w-full font-mono text-xs px-3 py-1.5 rounded-md border transition-all outline-none ${
+          className={`w-full font-mono text-xs px-3 py-1.5 rounded-md border transition outline-none ${
             !isEditable
               ? "border-border/60 bg-muted/20 text-foreground cursor-default select-text"
               : token.isAlias

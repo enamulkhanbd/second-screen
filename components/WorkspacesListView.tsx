@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Organization } from "@/types/tenant";
@@ -90,7 +91,6 @@ export const WorkspacesListView: React.FC = () => {
     setCurrentOrg(org);
     setCurrentProject(null);
     setSidebarTab("dashboard");
-    router.push(`/${encodeURIComponent(org.slug)}/overview`);
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -99,7 +99,11 @@ export const WorkspacesListView: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const created = await createOrgAction(newOrgName.trim(), "🏢", newOrgColor);
+      const created = await createOrgAction(
+        newOrgName.trim(),
+        newOrgName.trim().charAt(0).toUpperCase(),
+        newOrgColor
+      );
       if (created) {
         addToast({
           type: "success",
@@ -126,11 +130,11 @@ export const WorkspacesListView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#09090d] text-zinc-100 font-sans overflow-y-auto select-none">
+    <div className="flex-1 flex flex-col h-full bg-background text-foreground font-sans overflow-y-auto select-none">
       <div className="max-w-4xl w-full mx-auto px-6 py-12 sm:py-16 space-y-6">
         {/* Header matching Screenshot */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Workspaces
           </h1>
           <Button
@@ -169,10 +173,21 @@ export const WorkspacesListView: React.FC = () => {
             const initialLetter = org.name ? org.name.charAt(0).toUpperCase() : "W";
 
             return (
-              <div
+              <Link
                 key={org.id}
-                onClick={() => handleSelectWorkspace(org)}
-                className="group p-5 sm:p-6 rounded-2xl border border-[#1f2126] bg-[#0e0e11] hover:bg-[#131418] hover:border-zinc-700/80 transition-all cursor-pointer shadow-xs flex items-center justify-between gap-4"
+                href={`/${encodeURIComponent(org.slug)}/overview`}
+                onClick={(event) => {
+                  if (
+                    event.button === 0 &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.shiftKey &&
+                    !event.altKey
+                  ) {
+                    handleSelectWorkspace(org);
+                  }
+                }}
+                className="group p-5 sm:p-6 rounded-2xl border border-border bg-card hover:bg-muted/40 hover:border-border/80 transition-colors shadow-xs flex items-center justify-between gap-4"
               >
                 {/* Left side: Avatar + Name + Subtitle */}
                 <div className="flex items-center gap-4 min-w-0">
@@ -202,42 +217,42 @@ export const WorkspacesListView: React.FC = () => {
                   </div>
 
                   <div className="min-w-0 space-y-1">
-                    <h2 className="font-bold text-base sm:text-lg text-white group-hover:text-primary transition-colors truncate">
+                    <h2 className="font-bold text-base sm:text-lg text-foreground group-hover:text-primary transition-colors truncate">
                       {org.name || "Untitled Workspace"}
                     </h2>
 
-                    <p className="text-xs text-zinc-400 font-normal">
+                    <p className="text-xs text-muted-foreground font-normal">
                       Workspace
                     </p>
                   </div>
                 </div>
 
                 {/* Right side: Project Count & Member Count matching Screenshot */}
-                <div className="flex items-center gap-5 sm:gap-7 text-xs sm:text-sm text-zinc-400 font-mono shrink-0">
+                <div className="flex items-center gap-5 sm:gap-7 text-xs sm:text-sm text-muted-foreground font-mono shrink-0">
                   <div className="flex items-center gap-2" title={`${projectCount} Projects`}>
-                    <Folder className="w-4 h-4 text-zinc-400/80" strokeWidth={1.75} />
+                    <Folder className="w-4 h-4 text-muted-foreground/80" strokeWidth={1.75} />
                     <span>{projectCount}</span>
                   </div>
                   <div className="flex items-center gap-2" title={`${memberCount} Members`}>
-                    <Users className="w-4 h-4 text-zinc-400/80" strokeWidth={1.75} />
+                    <Users className="w-4 h-4 text-muted-foreground/80" strokeWidth={1.75} />
                     <span>{memberCount}</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
 
           {userOrgs.length === 0 && (
-            <div className="text-center p-12 border border-dashed border-[#1f2126] rounded-2xl bg-[#0e0e11]/60 space-y-3">
+            <div className="text-center p-12 border border-dashed border-border rounded-2xl bg-card/60 space-y-3">
               <Building2 className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-              <h3 className="font-semibold text-sm text-white">No workspaces found</h3>
+              <h3 className="font-semibold text-sm text-foreground">No workspaces found</h3>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 Get started by creating your first workspace to organize design tokens and projects.
               </p>
               <Button
                 onClick={() => setIsCreateOpen(true)}
                 size="sm"
-                className="mt-2 text-xs bg-[#22c55e] text-zinc-950 hover:bg-[#16a34a] font-semibold"
+                className="mt-2 text-xs font-semibold"
               >
                 Create workspace
               </Button>
@@ -248,15 +263,15 @@ export const WorkspacesListView: React.FC = () => {
 
       {/* Create Workspace Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md font-sans bg-[#121316] border-[#1f2126] text-white">
+        <DialogContent className="sm:max-w-md font-sans bg-card border-border text-card-foreground">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-white">Create New Workspace</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5 text-zinc-400">
+                <DialogTitle className="text-base font-bold text-foreground">Create New Workspace</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5 text-muted-foreground">
                   Set up a shared space for your design tokens, themes, and projects.
                 </DialogDescription>
               </div>
@@ -265,27 +280,28 @@ export const WorkspacesListView: React.FC = () => {
 
           <form onSubmit={handleCreateWorkspace} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-zinc-200">Workspace Name *</Label>
+              <Label htmlFor="workspace-name" className="text-xs font-semibold text-foreground">Workspace Name *</Label>
               <Input
+                id="workspace-name"
                 type="text"
                 required
                 placeholder="e.g. Acme Design System, Planet2"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
-                className="text-xs h-9 bg-[#0c0d10] border-[#27292e] text-white"
+                className="text-xs h-9 bg-background border-input text-foreground"
                 autoFocus
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-zinc-200">Workspace Color</Label>
+              <Label className="text-xs font-semibold text-foreground">Workspace Color</Label>
               <div className="flex items-center gap-2">
                 {COLOR_PRESETS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setNewOrgColor(color)}
-                    className={`w-7 h-7 rounded-lg transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-lg transition cursor-pointer ${
                       newOrgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-90"
                     }`}
                     style={{ backgroundColor: color }}
@@ -300,7 +316,7 @@ export const WorkspacesListView: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-xs border-[#27292e] text-zinc-300 hover:bg-[#1f2126]"
+                className="text-xs border-border text-muted-foreground hover:bg-muted"
               >
                 Cancel
               </Button>
@@ -308,7 +324,7 @@ export const WorkspacesListView: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={isSubmitting || !newOrgName.trim()}
-                className="text-xs font-semibold bg-[#22c55e] text-zinc-950 hover:bg-[#16a34a]"
+                className="text-xs font-semibold"
               >
                 {isSubmitting ? "Creating..." : "Create Workspace"}
               </Button>

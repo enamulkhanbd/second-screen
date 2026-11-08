@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { buttonProps } from "@/utils/a11y";
 import { ProjectDocumentation } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
 import {
@@ -149,7 +150,7 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
               return (
                 <div
                   key={page.id}
-                  onClick={() => onSelectPage(page.id)}
+                  {...buttonProps(() => onSelectPage(page.id))}
                   className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs transition-colors hover:bg-accent/40 hover:border-foreground/20"
                 >
                   <div className="space-y-3">

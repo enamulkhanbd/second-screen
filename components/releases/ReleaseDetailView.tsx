@@ -26,6 +26,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDialogs } from "@/components/DialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -51,6 +52,7 @@ interface ReleaseDetailViewProps {
 const BATCH_SIZE = 150;
 
 export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, onBack }) => {
+  const dialogs = useDialogs();
   const { addToast, deleteRelease, toggleDeprecateRelease, canUserEdit } = useTokenStore();
   const isEditable = canUserEdit();
   const [collapsedSets, setCollapsedSets] = useState<Record<string, boolean>>({});
@@ -171,7 +173,7 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
     });
   };
 
-  const handleToggleDeprecate = () => {
+  const handleToggleDeprecate = async () => {
     if (release.isDeprecated) {
       toggleDeprecateRelease(release.id);
       addToast({
@@ -180,10 +182,14 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
         message: `Version ${release.version} is now active again.`,
       });
     } else {
-      const reason = prompt(
-        `Why is release ${release.version} being deprecated? (Optional - e.g. "Superseded by v1.1.0")`,
-        ""
-      );
+      const reason = await dialogs.prompt({
+        title: `Deprecate ${release.version}?`,
+        description: "Tell consumers why, for example \"Superseded by v1.1.0\".",
+        label: "Reason",
+        placeholder: "Superseded by v1.1.0",
+        confirmLabel: "Deprecate",
+        allowEmpty: true,
+      });
       if (reason !== null) {
         toggleDeprecateRelease(release.id, reason);
         addToast({
@@ -195,12 +201,14 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
     }
   };
 
-  const handleDelete = () => {
-    if (
-      confirm(
-        `Are you sure you want to permanently delete release ${release.version}? This action cannot be undone.`
-      )
-    ) {
+  const handleDelete = async () => {
+    const confirmed = await dialogs.confirm({
+      title: `Delete release ${release.version}?`,
+      description: "This permanently deletes the release and can't be undone.",
+      confirmLabel: "Delete release",
+      destructive: true,
+    });
+    if (confirmed) {
       deleteRelease(release.id);
       addToast({
         type: "info",
@@ -496,7 +504,7 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Manifest Card */}
-            <div className="p-3.5 rounded-xl border border-border bg-card transition-all flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl border border-border bg-card transition-colors flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                   <Box className="w-4 h-4" />
@@ -524,7 +532,7 @@ export const ReleaseDetailView: React.FC<ReleaseDetailViewProps> = ({ release, o
             </div>
 
             {/* Raw JSON Card */}
-            <div className="p-3.5 rounded-xl border border-border bg-card transition-all flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl border border-border bg-card transition-colors flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center flex-shrink-0">
                   <FileCode2 className="w-4 h-4" />

@@ -160,7 +160,7 @@ export const TokenAccessibilityCard: React.FC<TokenAccessibilityCardProps> = ({
             <button
               key={cvd.id}
               onClick={() => setSelectedCvd(cvd.id as any)}
-              className={`p-2 rounded-lg border text-left text-xs font-medium transition-all ${
+              className={`p-2 rounded-lg border text-left text-xs font-medium transition ${
                 selectedCvd === cvd.id
                   ? "bg-primary/10 border-primary text-primary font-semibold shadow-xs"
                   : "bg-card border-border text-foreground hover:bg-muted"

@@ -3,6 +3,8 @@ import { authenticateRequest } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
+const FIGMA_VARIABLES_TIMEOUT_MS = 20_000;
+
 /**
  * Parses Figma URL into fileKey
  */
@@ -38,13 +40,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Call Figma REST API Local Variables Endpoint
+    // Call Figma REST API Local Variables Endpoint with 20s deadline
     const figmaRes = await fetch(
       `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/variables/local`,
       {
         headers: {
           "X-Figma-Token": pat.trim(),
         },
+        signal: AbortSignal.timeout(FIGMA_VARIABLES_TIMEOUT_MS),
       }
     );
 
@@ -90,6 +93,16 @@ export async function POST(req: NextRequest) {
       totalCount: variablesList.length,
     });
   } catch (err: any) {
+    if (
+      err?.name === "TimeoutError" ||
+      err?.name === "AbortError" ||
+      /timed?\s*out|aborted/i.test(String(err?.message || ""))
+    ) {
+      return NextResponse.json(
+        { error: "Figma Variables API request timed out.", code: "timeout" },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: err.message || "Failed to fetch variables from Figma." },
       { status: 500 }

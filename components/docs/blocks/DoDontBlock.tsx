@@ -48,14 +48,14 @@ export const DoDontBlock: React.FC<DoDontBlockProps> = ({
             className="flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-3 w-3" />
-            <span>Remove Do's & Don'ts</span>
+            <span>Remove Do&apos;s &amp; Don&apos;ts</span>
           </button>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Do Card */}
-        <div className="overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/[0.04] shadow-sm transition-all">
+        <div className="overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/[0.04] shadow-sm transition-colors">
           <div className="flex items-center gap-2 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
             <div className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white">
               <Check className="h-3 w-3 stroke-[3]" />
@@ -80,7 +80,7 @@ export const DoDontBlock: React.FC<DoDontBlockProps> = ({
         </div>
 
         {/* Don't Card */}
-        <div className="overflow-hidden rounded-xl border border-rose-500/30 bg-rose-500/[0.04] shadow-sm transition-all">
+        <div className="overflow-hidden rounded-xl border border-rose-500/30 bg-rose-500/[0.04] shadow-sm transition-colors">
           <div className="flex items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
             <div className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white">
               <X className="h-3 w-3 stroke-[3]" />

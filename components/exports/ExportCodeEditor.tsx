@@ -37,7 +37,7 @@ export const ExportCodeEditor: React.FC<ExportCodeEditorProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const lines = file.content.split("\n");
+
 
   return (
     <div className="flex-1 flex flex-col h-full bg-card rounded-xl border border-border/60 overflow-hidden shadow-sm">

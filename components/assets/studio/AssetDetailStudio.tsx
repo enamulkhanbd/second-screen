@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AssetCollection, ProjectAsset } from "@/types/tenant";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -197,6 +197,7 @@ export function AssetDetailStudio({
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent hideClose className="h-[75dvh] max-h-[75dvh] w-[calc(100vw-2rem)] max-w-none gap-0 overflow-hidden p-0 sm:h-[75dvh] sm:w-[85vw] sm:p-0 md:w-[75vw] lg:w-[min(75vw,1600px)]">
+        <DialogTitle className="sr-only">{asset.title || asset.name || "Asset details"}</DialogTitle>
         <div className="flex h-full min-h-0 flex-col">
           <header className="flex min-h-14 items-center gap-3 border-b border-border px-4 py-2">
             <div className="min-w-0 flex-1">

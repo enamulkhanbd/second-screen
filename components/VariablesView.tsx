@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import { FlattenedToken, TokenType } from "@/types/tokens";
 import {
   Layers,
@@ -77,14 +78,24 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
     figmaVariables,
     figmaResolvedVariables,
     figmaUpdatedAt,
-    setFigmaVariables,
-    desyncFigmaVariablesAction,
-    deleteFigmaVariableAction,
-    deleteFigmaCollectionAction,
-    canUserEdit,
-    addToast,
-    setSidebarTab,
-  } = useTokenStore();
+  } = useTokenStore(
+    useShallow((s) => ({
+      currentOrg: s.currentOrg,
+      currentProject: s.currentProject,
+      figmaVariables: s.figmaVariables,
+      figmaResolvedVariables: s.figmaResolvedVariables,
+      figmaUpdatedAt: s.figmaUpdatedAt,
+    }))
+  );
+  const setFigmaVariables = useTokenStore((s) => s.setFigmaVariables);
+  const desyncFigmaVariablesAction = useTokenStore((s) => s.desyncFigmaVariablesAction);
+  const deleteFigmaVariableAction = useTokenStore((s) => s.deleteFigmaVariableAction);
+  const deleteFigmaCollectionAction = useTokenStore((s) => s.deleteFigmaCollectionAction);
+  const canUserEdit = useTokenStore((s) => s.canUserEdit);
+  const addToast = useTokenStore((s) => s.addToast);
+  const setSidebarTab = useTokenStore((s) => s.setSidebarTab);
+  const setProjectSettingsTab = useTokenStore((s) => s.setProjectSettingsTab);
+  const [visibleCount, setVisibleCount] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
@@ -93,6 +104,10 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [sortField, setSortField] = useState<"name" | "resolved" | "collection">("resolved");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setVisibleCount(100);
+  }, [searchQuery, selectedCollection, selectedType]);
 
   const handleSortToggle = (field: "name" | "resolved" | "collection") => {
     if (sortField === field) {
@@ -279,17 +294,17 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                 <h1 className="text-base font-bold text-foreground leading-tight">Figma Variables</h1>
                 {hasVariables ? (
                   <Badge variant="success" className="text-[10px] gap-1 px-2 py-0.5 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Live Synced</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>Synced</span>
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-[10px] px-2 py-0.5 text-muted-foreground font-medium">
-                    Not Synced
+                    Not connected
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Native variable collections &amp; modes synced directly from Figma companion plugin.
+                These are Figma Variables mapped from this project&apos;s tokens. Tokens stay the source.
               </p>
             </div>
           </div>
@@ -340,16 +355,19 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
             className="h-8 text-xs gap-1.5"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
+            <span>Pull latest</span>
           </Button>
 
           <Button
             size="sm"
-            onClick={() => setSidebarTab("project-settings")}
+            onClick={() => {
+              setProjectSettingsTab("sync");
+              setSidebarTab("project-settings");
+            }}
             className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <FolderGit2 className="w-3.5 h-3.5" />
-            <span>Plugin Settings</span>
+            <span>Figma settings</span>
           </Button>
         </div>
       </header>
@@ -364,29 +382,32 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
             </div>
 
             <div className="space-y-1.5">
-              <h2 className="text-base font-bold text-foreground">No Figma Variables Synced Yet</h2>
+              <h2 className="text-base font-bold text-foreground">No Figma Variables yet</h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Connect your desktop Figma file with our companion plugin to push your variable collections, color modes, and typography styles directly into this workspace.
+                Pull Figma Variables into this project. Tokens stay the source.
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 text-left space-y-2 text-xs">
               <div className="font-semibold text-foreground flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                <span>Quick 2-Step Sync:</span>
+                <span>Two steps:</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 text-[11px] text-muted-foreground leading-relaxed">
-                <li>Run <strong>Tokens Platform</strong> plugin inside your Figma desktop canvas.</li>
-                <li>Click <strong>Push Figma to Cloud</strong> to automatically export all variables.</li>
+                <li>Run the <strong>Tokens Platform</strong> plugin in Figma desktop.</li>
+                <li>Choose <strong>Push Figma to Cloud</strong> to export your variables.</li>
               </ol>
             </div>
 
             <div className="pt-2 flex items-center justify-center gap-3">
               <Button
-                onClick={() => setSidebarTab("project-settings")}
+                onClick={() => {
+                  setProjectSettingsTab("sync");
+                  setSidebarTab("project-settings");
+                }}
                 className="text-xs font-bold gap-1.5 h-9"
               >
-                <span>Pair Figma Plugin</span>
+                <span>Connect Figma</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -493,7 +514,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted/60 border border-border/60 text-xs">
                 <button
                   onClick={() => setSelectedType("ALL")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition  ${
                     selectedType === "ALL"
                       ? "bg-background text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground"
@@ -503,7 +524,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                 </button>
                 <button
                   onClick={() => setSelectedType("color")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition  ${
                     selectedType === "color"
                       ? "bg-background text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground"
@@ -513,7 +534,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                 </button>
                 <button
                   onClick={() => setSelectedType("dimension")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition  ${
                     selectedType === "dimension"
                       ? "bg-background text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground"
@@ -523,7 +544,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                 </button>
                 <button
                   onClick={() => setSelectedType("alias")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition  ${
                     selectedType === "alias"
                       ? "bg-background text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground"
@@ -538,7 +559,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
             <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted/60 border border-border/60">
               <button
                 onClick={() => setViewLayout("grid")}
-                className={`p-1.5 rounded-md transition-all ${
+                                className={`p-1.5 rounded-md transition  ${
                   viewLayout === "grid"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -549,7 +570,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               </button>
               <button
                 onClick={() => setViewLayout("table")}
-                className={`p-1.5 rounded-md transition-all ${
+                                className={`p-1.5 rounded-md transition  ${
                   viewLayout === "table"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -572,7 +593,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
             ) : viewLayout === "grid" ? (
               /* GRID VIEW */
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                {sortedVariables.map((item) => {
+                {sortedVariables.slice(0, visibleCount).map((item) => {
                   const isColor = item.type === "color";
                   const isCopied = copiedId === item.id;
 
@@ -580,7 +601,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                     <ContextMenu key={item.id}>
                       <ContextMenuTrigger asChild>
                         <Card
-                          className="border-border transition-all shadow-xs group flex flex-col justify-between cursor-default"
+                          className="border-border transition-colors shadow-xs group flex flex-col justify-between cursor-default"
                         >
                       <CardHeader className="p-3.5 pb-2 space-y-1.5">
                         <div className="flex items-center justify-between">
@@ -780,7 +801,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
-                    {sortedVariables.map((item) => {
+                    {sortedVariables.slice(0, visibleCount).map((item) => {
                       const isColor = item.type === "color";
 
                       return (
@@ -884,6 +905,18 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {sortedVariables.length > visibleCount && (
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
+                <span>Showing {Math.min(visibleCount, sortedVariables.length)} of {sortedVariables.length} variables</span>
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => Math.min(prev + 100, sortedVariables.length))}
+                  className="rounded px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors border border-border/50"
+                >
+                  Load more (+100)
+                </button>
               </div>
             )}
           </div>

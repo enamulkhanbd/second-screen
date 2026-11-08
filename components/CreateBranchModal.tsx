@@ -140,7 +140,7 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
       <DialogContent className="sm:max-w-[480px] bg-card border border-border text-foreground p-6 rounded-2xl shadow-2xl">
         <DialogHeader className="space-y-1 text-left pb-2">
           <DialogTitle className="text-lg font-bold text-foreground tracking-tight">
-            Create New Branch
+            Create branch
           </DialogTitle>
         </DialogHeader>
 
@@ -211,10 +211,10 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
           {/* Based On Branch */}
           <div className="space-y-1.5">
             <Label htmlFor="based-on" className="text-xs font-semibold text-foreground">
-              Based On Branch
+              Branch from
             </Label>
             <p className="text-[11px] text-muted-foreground">
-              This branch will start with all tokens from the selected branch
+              The new branch starts with all tokens from this branch
             </p>
             <Select value={basedOn} onValueChange={setBasedOn}>
               <SelectTrigger id="based-on" className="text-xs bg-background border-input h-9 focus:ring-1 focus:ring-primary">
@@ -247,7 +247,7 @@ export const CreateBranchModal: React.FC<CreateBranchModalProps> = ({
               disabled={isSubmitting || !title.trim() || !name.trim()}
               className="h-8 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer px-4 shadow-xs"
             >
-              {isSubmitting ? "Creating..." : "Create Branch"}
+              {isSubmitting ? "Creating..." : "Create branch"}
             </Button>
           </DialogFooter>
         </form>

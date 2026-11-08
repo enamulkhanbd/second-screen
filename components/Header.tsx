@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
@@ -32,6 +33,7 @@ import {
   ArrowLeft,
   Database,
   FolderGit2,
+  MoreHorizontal,
 } from "lucide-react";
 import { CreateBranchModal } from "@/components/CreateBranchModal";
 import { AuthModal } from "@/components/AuthModal";
@@ -39,7 +41,6 @@ import { AcceptInviteModal } from "@/components/AcceptInviteModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -57,12 +58,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { DocumentDiffSummary } from "@/utils/tokenDiff";
 
 const EMPTY_DIFF_SUMMARY: DocumentDiffSummary = {
@@ -180,16 +175,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     }))
   );
 
-  const getProviderIcon = (prov?: string) => {
-    switch (prov) {
-      case "github": return "🐙";
-      case "gitlab": return "🦊";
-      case "azure": return "🔷";
-      case "bitbucket": return "🪣";
-      default: return "🔗";
-    }
-  };
-
   const [isPushing, setIsPushing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -231,11 +216,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
   // Global Breadcrumb computation
   const breadcrumbItems = useMemo(() => {
-    const orgName = currentOrg?.name || "Planet Design System";
+    const orgName = currentOrg?.name || "Workspace";
     const currentBranchName = credentials.branch || activeBranch || "main";
 
     const items: Array<{
       label: string;
+      href?: string;
       onClick?: () => void;
       isLast?: boolean;
       isBranch?: boolean;
@@ -246,6 +232,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       const project = syncTargetProject || currentProject;
       items.push({
         label: "Projects",
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/projects` : undefined,
         hasBackButton: true,
         onClick: () => {
           setCurrentProject(null);
@@ -254,6 +241,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       });
       items.push({
         label: orgName,
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : undefined,
         onClick: () => {
           setCurrentProject(null);
           setSidebarTab("dashboard");
@@ -262,6 +250,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       if (project) {
         items.push({
           label: project.name,
+          href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(project.slug)}/tokens` : undefined,
           onClick: () => {
             setCurrentProject(project);
             setSidebarTab("tokens");
@@ -291,11 +280,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
       items.push({
         label: "Overview",
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : undefined,
         hasBackButton: true,
         onClick: () => setSidebarTab("dashboard"),
       });
       items.push({
         label: orgName,
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : undefined,
         onClick: () => setSidebarTab("dashboard"),
       });
       items.push({
@@ -309,11 +300,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     if (sidebarTab === "dashboard") {
       items.push({
         label: "Workspaces",
+        href: "/",
         hasBackButton: true,
         onClick: () => setSidebarTab("workspaces"),
       });
       items.push({
         label: orgName,
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : undefined,
         onClick: () => setSidebarTab("dashboard"),
       });
       items.push({
@@ -326,6 +319,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
     if (currentProject) {
       items.push({
         label: orgName,
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : undefined,
         onClick: () => {
           setCurrentProject(null);
           setSidebarTab("dashboard");
@@ -333,11 +327,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       });
       items.push({
         label: currentProject.name,
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/tokens` : undefined,
         onClick: () => setSidebarTab("tokens"),
       });
     } else {
       items.push({
         label: orgName,
+        href: currentOrg ? `/${encodeURIComponent(currentOrg.slug)}/overview` : undefined,
         onClick: () => setSidebarTab("dashboard"),
       });
     }
@@ -346,6 +342,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       items.push({
         label: currentBranchName,
         isBranch: true,
+        href: !isGitConfigured && currentOrg && currentProject
+          ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/branches`
+          : undefined,
         onClick: !isGitConfigured ? () => setSidebarTab("branches") : undefined,
       });
       items.push({
@@ -361,6 +360,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       items.push({
         label: currentBranchName,
         isBranch: true,
+        href: !isGitConfigured && currentOrg && currentProject
+          ? `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(currentProject.slug)}/branches`
+          : undefined,
         onClick: !isGitConfigured ? () => setSidebarTab("branches") : undefined,
       });
       items.push({
@@ -390,7 +392,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
       const tabLabels: Record<string, string> = {
         dashboard: "Overview",
         projects: "Projects",
-        variables: "Variables",
+        variables: "Figma Variables",
         documentation: "Documentation",
         assets: "Assets",
         exports: "Exports",
@@ -689,11 +691,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   };
 
 
+  const saveStatusLabel = hasRemoteChanges
+    ? "Updates"
+    : isDirty
+    ? "Unsaved"
+    : cloudSaveStatus === "saving"
+    ? "Saving"
+    : cloudSaveStatus === "error"
+    ? "Save failed"
+    : cloudSaveStatus === "offline"
+    ? "Offline"
+    : "Saved";
+
   return (
-    <TooltipProvider>
-      <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 text-xs select-none transition-colors">
+    <>
+      <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 text-xs select-none transition-colors">
         {/* Left: Mobile Navigation Button & Global Breadcrumbs */}
-        <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
           {onOpenNavigation && (
             <Button
               variant="ghost"
@@ -717,6 +731,31 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                     {item.isBranch && <GitBranch className="w-3 h-3 mr-1 text-primary shrink-0 inline" />}
                     <span>{item.label}</span>
                   </span>
+                ) : item.href ? (
+                  <Link
+                    href={item.href}
+                    onClick={(event) => {
+                      if (
+                        event.button === 0 &&
+                        !event.metaKey &&
+                        !event.ctrlKey &&
+                        !event.shiftKey &&
+                        !event.altKey
+                      ) {
+                        item.onClick?.();
+                      }
+                    }}
+                    className={cn(
+                      "truncate transition-colors inline-flex items-center group",
+                      item.onClick ? "hover:text-foreground" : ""
+                    )}
+                  >
+                    {item.hasBackButton && (
+                      <ArrowLeft className="w-3.5 h-3.5 mr-1 text-muted-foreground/80 group-hover:text-foreground transition-transform group-hover:-translate-x-0.5 shrink-0 inline" />
+                    )}
+                    {item.isBranch && <GitBranch className="w-3 h-3 mr-1 text-primary shrink-0 inline" />}
+                    <span>{item.label}</span>
+                  </Link>
                 ) : (
                   <span
                     onClick={item.onClick}
@@ -739,167 +778,100 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
         {/* Right: Conditional Controls */}
         {!hideVersionControls && (
-          <div className="flex items-center gap-2">
-
-          {/* 1. Supabase Cloud Database Indicator */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border border-border/80 bg-muted/30 select-none cursor-default">
-                  <Database className="w-3 h-3 text-muted-foreground" />
-                  <span className="hidden sm:inline font-semibold text-foreground/80">Supabase</span>
+          <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="order-2 h-8 gap-1.5 text-xs" aria-label={`Save status: ${saveStatusLabel}`}>
                   <span
                     className={cn(
-                      "w-1.5 h-1.5 rounded-full shrink-0",
-                      cloudSaveStatus === "saving" && "bg-amber-500 animate-pulse",
-                      cloudSaveStatus === "error" && "bg-red-500",
+                      "size-1.5 rounded-full",
+                      cloudSaveStatus === "saving" && "bg-amber-500",
+                      cloudSaveStatus === "error" && "bg-destructive",
                       cloudSaveStatus === "synced" && "bg-emerald-500",
-                      cloudSaveStatus === "offline" && "bg-zinc-400"
+                      cloudSaveStatus === "offline" && "bg-muted-foreground"
                     )}
                   />
-                  <span className="text-[10px] text-muted-foreground hidden md:inline">
-                    {cloudSaveStatus === "saving" ? "Saving..." : cloudSaveStatus === "error" ? "Error" : "Synced"}
-                  </span>
+                  <span className="hidden md:inline">{saveStatusLabel}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <div className="px-2 py-1.5">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Database className="size-4 text-muted-foreground" />
+                    <span>{cloudSaveStatus === "synced" ? "Saved to workspace" : cloudSaveStatus === "saving" ? "Saving to workspace" : cloudSaveStatus === "error" ? "Save failed" : cloudSaveStatus === "offline" ? "Offline" : "Unsaved changes"}</span>
+                  </div>
+                  {lastCloudSaveTime && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Last saved {new Date(lastCloudSaveTime).toLocaleTimeString()}
+                    </p>
+                  )}
+                  {isGitConfigured && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {hasRemoteChanges
+                        ? "Git: updates available"
+                        : isDirty
+                        ? "Git: changes not pushed"
+                        : `Git: ${credentials.owner}/${credentials.repo}`}
+                    </p>
+                  )}
                 </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="end" className="text-xs max-w-xs space-y-1 p-2.5">
-                <div className="font-semibold text-foreground flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-primary" />
-                  <span>Cloud Database: Supabase PostgreSQL</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Project <span className="font-medium text-foreground">"{currentProject?.name}"</span> tokens, branches, and theme sets are persistently stored in Supabase.
-                </p>
-                {lastCloudSaveTime && (
-                  <p className="text-[10px] font-mono text-muted-foreground pt-1 border-t border-border/50">
-                    Last Cloud Sync: {new Date(lastCloudSaveTime).toLocaleTimeString()}
-                  </p>
+                {!isGitConfigured && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setProjectSettingsTab("sync");
+                        setSidebarTab("project-settings");
+                      }}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <FolderGit2 className="size-4" />
+                      Connect Git
+                    </DropdownMenuItem>
+                  </>
                 )}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* 2. Git Sync Provider Indicator */}
-          {isGitConfigured ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
+            {isGitConfigured && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="order-4 h-8 gap-1 px-2 text-xs" aria-label="More Git actions">
+                    <MoreHorizontal className="size-4" />
+                    <span className="hidden sm:inline">More</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => hasRemoteChanges ? setShowPullModal(true) : handlePull()}
+                    disabled={isPulling}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <DownloadCloud className="size-4" />
+                    {hasRemoteChanges ? "Review updates" : "Pull from Git"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => {
                       setProjectSettingsTab("sync");
                       setSidebarTab("project-settings");
                     }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono border border-border/80 bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer"
+                    className="gap-2 cursor-pointer"
                   >
-                    <span>{getProviderIcon(credentials.provider)}</span>
-                    <span className="max-w-[100px] truncate text-foreground font-semibold">
-                      {credentials.repo}
-                    </span>
-                    {hasRemoteChanges ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
-                    ) : isDirty ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    ) : (
-                      <Check className="w-3 h-3 text-emerald-500" />
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end" className="text-xs max-w-xs space-y-1 p-2.5">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <span>{getProviderIcon(credentials.provider)}</span>
-                    <span>Git Provider: {credentials.provider?.toUpperCase()}</span>
-                  </div>
-                  <p className="text-[11px] font-mono text-muted-foreground">
-                    Repo: {credentials.owner}/{credentials.repo}
-                  </p>
-                  <p className="text-[11px] font-mono text-muted-foreground">
-                    Remote Branch: {credentials.branch || "main"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-                    {hasRemoteChanges ? "Remote updates available to pull." : isDirty ? "Local unpushed token changes ready to commit." : "In sync with remote branch."}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setProjectSettingsTab("sync");
-                      setSidebarTab("project-settings");
-                    }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    <FolderGit2 className="w-3 h-3 text-muted-foreground" />
-                    <span className="text-[10px] font-medium">Cloud Only</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end" className="text-xs max-w-xs space-y-1 p-2.5">
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <FolderGit2 className="w-3.5 h-3.5 text-primary" />
-                    <span>External Git Sync: Not Connected</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Tokens are currently managed exclusively in Supabase Cloud. Click to optionally connect GitHub, Azure DevOps, or GitLab.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {/* Git Pull Button with Remote Changes Indicator - ONLY if Git Sync is configured */}
-          {isGitConfigured && (
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (hasRemoteChanges) {
-                    setShowPullModal(true);
-                  } else {
-                    handlePull();
-                  }
-                }}
-                disabled={isPulling}
-                className={`h-8 gap-1.5 text-xs cursor-pointer shadow-2xs transition-colors ${hasRemoteChanges
-                  ? "border-blue-500/50 bg-blue-500/10 text-foreground font-semibold"
-                  : ""
-                  }`}
-                title={
-                  hasRemoteChanges
-                    ? "Remote changes detected on repository branch - click to review and pull"
-                    : "Pull latest tokens from current branch"
-                }
-              >
-                <DownloadCloud
-                  className={`w-3.5 h-3.5 ${hasRemoteChanges ? "text-blue-500" : "text-muted-foreground"
-                    } ${isPulling ? "animate-bounce" : ""}`}
-                />
-                <span>Git Pull</span>
-              </Button>
-
-              {/* Pulsating Remote Updates Notification Badge */}
-              {hasRemoteChanges && (
-                <span
-                  className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none"
-                  title="Remote updates available"
-                >
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600 ring-2 ring-background" />
-                </span>
-              )}
-            </div>
-          )}
+                    <FolderGit2 className="size-4" />
+                    Git settings
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
           {/* Commit / Push Button - Works natively on active branch, pushes to Git if connected */}
           <Button
             variant={isDirty && canUserEdit() ? "default" : "outline"}
             size="sm"
             onClick={() => setShowPushModal(true)}
+            aria-label={isGitConfigured ? "Push to Git" : "Commit"}
             disabled={!isDirty || isPushing || !canUserEdit()}
-            className={`h-8 gap-1.5 text-xs shadow-2xs font-medium transition-all ${!isDirty || !canUserEdit()
+            className={`order-3 h-8 gap-1.5 whitespace-nowrap text-xs shadow-2xs font-medium transition-colors ${!isDirty || !canUserEdit()
               ? "opacity-50 cursor-not-allowed"
               : "cursor-pointer"
               }`}
@@ -918,25 +890,28 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             ) : (
               <GitCommit className="w-3.5 h-3.5" />
             )}
-            <span>{isGitConfigured ? "Push" : "Commit"}</span>
+            <span className="hidden lg:inline">{isGitConfigured ? "Push to Git" : "Commit"}</span>
           </Button>
 
           {/* Branch Pill Dropdown - Native branches + Git remote branches */}
-          <div className="relative">
+          <div className="relative order-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowBranchMenu(!showBranchMenu)}
+              aria-haspopup="true"
+              aria-expanded={showBranchMenu}
+              aria-label={`Branch: ${isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}`}
               className="h-8 gap-1.5 font-mono text-xs cursor-pointer shadow-2xs"
               title={
                 isGitConfigured
                   ? `Git branch: ${credentials.branch || "main"} (${credentials.provider})`
-                  : `Native branch: ${activeBranch || "main"} (Supabase Cloud)`
+                  : `Workspace branch: ${activeBranch || "main"}`
               }
             >
               <GitBranch className="w-3.5 h-3.5 text-primary" />
               <span className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:inline">
-                {isGitConfigured ? "Git:" : "Native:"}
+                {isGitConfigured ? "Git" : "Branch"}
               </span>
               <span className="max-w-[120px] truncate">
                 {isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}
@@ -1017,7 +992,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                         <div>
                           <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
                             <Database className="w-2.5 h-2.5 text-emerald-500" />
-                            <span>Native Branch (Supabase)</span>
+                            <span>Workspace branch</span>
                           </div>
                           <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5 flex items-center gap-1.5">
                             <GitBranch className="w-3 h-3 text-primary" />
@@ -1050,7 +1025,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
 
                       <div className="flex-1 overflow-y-auto max-h-52 space-y-1 pr-0.5">
                         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-1">
-                          Project Branches ({nativeBranches.length})
+                          Workspace branches ({nativeBranches.length})
                         </div>
                         {nativeBranches
                           .filter(
@@ -1141,11 +1116,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 text-xs space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-foreground flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                  <span className="inline-flex rounded-full h-2 w-2 bg-blue-500">
                   </span>
-                  New Remote Commits Detected
+                  Updates available
                 </span>
                 <span className="text-[10px] font-mono text-muted-foreground">Remote Branch</span>
               </div>
@@ -1210,7 +1183,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                   <DialogDescription className="font-mono text-xs">
                     {isGitConfigured
                       ? `${credentials.repo} @ ${credentials.branch || activeBranch || "main"}`
-                      : `Native Branch: ${activeBranch || "main"}`}
+                      : `Branch: ${activeBranch || "main"}`}
                   </DialogDescription>
                 </div>
               </div>
@@ -1286,7 +1259,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
             <div className="bg-muted/60 p-3 rounded-lg border border-border text-xs text-muted-foreground space-y-1">
               <p className="flex items-center gap-1.5 text-foreground font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />{" "}
-                {isGitConfigured ? "Direct Branch & Push Rule" : "Native Branch Commit"}
+                {isGitConfigured ? "Direct branch push" : "Workspace branch commit"}
               </p>
               <p className="text-[11px] leading-relaxed">
                 Tokens will be committed directly to{" "}
@@ -1361,6 +1334,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
         onClose={() => setIsCreateBranchOpen(false)}
         defaultBasedOn={activeBranch || "main"}
       />
-    </TooltipProvider>
+    </>
   );
 };

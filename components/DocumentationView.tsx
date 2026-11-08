@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useTokenStore } from "@/store/useTokenStore";
 import { createEmptyDocumentation } from "@/types/documentation";
 import { DocTreeNav } from "./docs/DocTreeNav";
@@ -55,6 +56,17 @@ export const DocumentationView: React.FC = () => {
   } = useTokenStore();
 
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [isWideScreen, setIsWideScreen] = useState(true);
+
+  // Below 1280px the inspector is a sheet that starts closed instead of a third column.
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1280px)");
+    setIsWideScreen(query.matches);
+    setInspectorOpen(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setIsWideScreen(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [isViewingOverview, setIsViewingOverview] = useState(false);
 
@@ -87,6 +99,20 @@ export const DocumentationView: React.FC = () => {
   const handleAddFolder = async () => {
     await addDocFolder("New Section");
   };
+
+  const showInspector = activeDoc.pages.length > 0 && !isViewingOverview;
+  const inspector = (
+    <DocBlockInspector
+      page={activePage}
+      selectedBlockId={selectedDocBlockId}
+      onUpdatePage={(updates) => activePage && updateDocPage(activePage.id, updates)}
+      onUpdateBlock={(blockId, updates) =>
+        activePage && updateDocBlock(activePage.id, blockId, updates)
+      }
+      onDeleteBlock={(blockId) => activePage && deleteDocBlock(activePage.id, blockId)}
+      onClose={() => setInspectorOpen(false)}
+    />
+  );
 
   const handleExportMarkdown = () => {
     if (!activePage) return;
@@ -197,7 +223,7 @@ export const DocumentationView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsDocEditing(false)}
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium                 transition cursor-pointer ${
                   !isDocEditing
                     ? "bg-muted text-foreground font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -209,7 +235,7 @@ export const DocumentationView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsDocEditing(true)}
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium                 transition cursor-pointer ${
                   isDocEditing
                     ? "bg-muted text-foreground font-semibold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -244,7 +270,7 @@ export const DocumentationView: React.FC = () => {
             <Globe className="w-3.5 h-3.5" />
             <span>Publish</span>
             {activeDoc.isPublishedGlobally && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
             )}
           </Button>
 
@@ -255,7 +281,7 @@ export const DocumentationView: React.FC = () => {
               size="icon-sm"
               onClick={() => setInspectorOpen((prev) => !prev)}
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title="Toggle Inspector Drawer"
+              aria-label={inspectorOpen ? "Close page inspector" : "Open page inspector"}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
             </Button>
@@ -309,20 +335,18 @@ export const DocumentationView: React.FC = () => {
           />
         )}
 
-        {/* Right: Inspector Panel (only when pages exist and not viewing overview) */}
-        {inspectorOpen && activeDoc.pages.length > 0 && !isViewingOverview && (
-          <DocBlockInspector
-            page={activePage}
-            selectedBlockId={selectedDocBlockId}
-            onUpdatePage={(updates) => activePage && updateDocPage(activePage.id, updates)}
-            onUpdateBlock={(blockId, updates) =>
-              activePage && updateDocBlock(activePage.id, blockId, updates)
-            }
-            onDeleteBlock={(blockId) => activePage && deleteDocBlock(activePage.id, blockId)}
-            onClose={() => setInspectorOpen(false)}
-          />
-        )}
+        {/* Right: inspector column on wide screens; a sheet below 1280px (see below) */}
+        {inspectorOpen && isWideScreen && showInspector && inspector}
       </div>
+
+      {!isWideScreen && showInspector && (
+        <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
+          <SheetContent side="right" className="w-[min(20rem,100vw)] p-0 sm:max-w-none">
+            <SheetTitle className="sr-only">Page inspector</SheetTitle>
+            {inspector}
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Publish & Share Modal */}
       <DocPublishModal
