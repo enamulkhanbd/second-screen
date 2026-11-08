@@ -953,92 +953,88 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               >
                 {groupDepth === 1 ? (
                   <List className="w-3.5 h-3.5 text-muted-foreground" />
-                ) : groupDepth === 2 ? (
-                  <FolderTree className="w-3.5 h-3.5 text-blue-500" />
-                ) : groupDepth === 3 ? (
-                  <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
-                ) : groupDepth === 4 ? (
-                  <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                ) : groupDepth === 0 ? (
+                  <Layers className="w-3.5 h-3.5 text-foreground" />
                 ) : (
-                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                  <FolderTree className="w-3.5 h-3.5 text-primary" />
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lg border-border">
-              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Group By Level
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground select-none">
+                Group hierarchy
               </div>
-              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setGroupDepth(1)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <List className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 1 (Flat)</span>
+                    <span className="font-medium text-foreground">Level 1 (Flat)</span>
                     <span className="text-[10px] text-muted-foreground">No groups, flat token names</span>
                   </div>
                 </div>
-                {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(2)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <FolderTree className="w-3.5 h-3.5 text-blue-500" />
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 2 (1 Group)</span>
+                    <span className="font-medium text-foreground">Level 2 (1 Group)</span>
                     <span className="text-[10px] text-muted-foreground">Break by 1st segment</span>
                   </div>
                 </div>
-                {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(3)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 3 (2 Groups)</span>
-                    <span className="text-[10px] text-muted-foreground">Break by 1st & 2nd segments</span>
+                    <span className="font-medium text-foreground">Level 3 (2 Groups)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st &amp; 2nd segments</span>
                   </div>
                 </div>
-                {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(4)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 4 (3 Groups)</span>
-                    <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd & 3rd</span>
+                    <span className="font-medium text-foreground">Level 4 (3 Groups)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd &amp; 3rd</span>
                   </div>
                 </div>
-                {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(0)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                <div className="flex items-center gap-2.5">
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">All Levels (Deepest)</span>
+                    <span className="font-medium text-foreground">All Levels (Deepest)</span>
                     <span className="text-[10px] text-muted-foreground">Fully nested hierarchy</span>
                   </div>
                 </div>
-                {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

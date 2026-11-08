@@ -2408,18 +2408,27 @@ export const AssetsWorkspace: React.FC = () => {
 
           {displayAssets.length > 0 && (
             <>
-              <details className="relative">
-                <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-muted-foreground hover:bg-muted">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Filters
-                  {(selectedFormats.size > 0 || selectedTag !== "all") && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                </summary>
-                <div className="absolute right-0 top-10 z-30 w-64 space-y-3 rounded-lg border border-border bg-card p-3 shadow-xl">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    <span>Filters</span>
+                    {(selectedFormats.size > 0 || selectedTag !== "all") && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 p-3 space-y-3" onCloseAutoFocus={(e) => e.preventDefault()}>
                   <div className="space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Format</p>
+                    <p className="text-[11px] font-medium text-muted-foreground">Format</p>
                     <div className="grid grid-cols-2 gap-1.5">
                       {["png", "jpg", "svg", "webp", "gif", "pdf"].map((format) => (
-                        <label key={format} className="flex items-center gap-2 text-xs uppercase">
+                        <label key={format} className="flex items-center gap-2 text-xs font-mono uppercase cursor-pointer">
                           <input
                             type="checkbox"
                             checked={selectedFormats.has(format)}
@@ -2429,38 +2438,56 @@ export const AssetsWorkspace: React.FC = () => {
                               else next.add(format);
                               return next;
                             })}
+                            className="rounded border-border text-primary"
                           />
-                          {format}
+                          <span>{format}</span>
                         </label>
                       ))}
                     </div>
                   </div>
-                  <label className="block space-y-1 text-xs">
-                    <span className="font-semibold text-muted-foreground">Tag</span>
-                    <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)} className="h-8 w-full rounded-md border border-input bg-background px-2">
-                      <option value="all">All tags</option>
-                      {assetTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
-                    </select>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="space-y-1 text-xs">
-                      <span className="font-semibold text-muted-foreground">Sort by</span>
-                      <select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="h-8 w-full rounded-md border border-input bg-background px-2">
-                        <option value="date">Date</option>
-                        <option value="name">Name</option>
-                        <option value="size">Size</option>
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-xs">
-                      <span className="font-semibold text-muted-foreground">Order</span>
-                      <select value={sortDirection} onChange={(event) => setSortDirection(event.target.value as typeof sortDirection)} className="h-8 w-full rounded-md border border-input bg-background px-2">
-                        <option value="asc">Ascending</option>
-                        <option value="desc">Descending</option>
-                      </select>
-                    </label>
+                  <div className="space-y-1 text-xs">
+                    <span className="text-[11px] font-medium text-muted-foreground block">Tag</span>
+                    <Select value={selectedTag} onValueChange={(val) => setSelectedTag(val)}>
+                      <SelectTrigger className="h-8 w-full text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All tags</SelectItem>
+                        {assetTags.map((tag) => (
+                          <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              </details>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1 text-xs">
+                      <span className="text-[11px] font-medium text-muted-foreground block">Sort by</span>
+                      <Select value={sortBy} onValueChange={(val) => setSortBy(val as typeof sortBy)}>
+                        <SelectTrigger className="h-8 w-full text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="date">Date</SelectItem>
+                          <SelectItem value="name">Name</SelectItem>
+                          <SelectItem value="size">Size</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <span className="text-[11px] font-medium text-muted-foreground block">Order</span>
+                      <Select value={sortDirection} onValueChange={(val) => setSortDirection(val as typeof sortDirection)}>
+                        <SelectTrigger className="h-8 w-full text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="asc">Ascending</SelectItem>
+                          <SelectItem value="desc">Descending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="flex items-center rounded-md border border-border">
                 <Button type="button" variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" onClick={() => setViewMode("grid")} aria-label="Grid view" className="h-8 w-8">
                   <Grid className="h-3.5 w-3.5" />
@@ -3561,18 +3588,24 @@ export const AssetsWorkspace: React.FC = () => {
                       <Label className="text-[11px] font-medium text-foreground block">
                         Filter Grid by Figma Source
                       </Label>
-                      <select
+                      <Select
                         value={selectedFigmaSource}
-                        onChange={(e) => setSelectedFigmaSource(e.target.value)}
-                        className="w-full h-8 text-xs bg-muted/60 border border-border rounded-lg px-2.5 text-foreground cursor-pointer focus:outline-none"
+                        onValueChange={(val) => setSelectedFigmaSource(val)}
                       >
-                        <option value="all">All Sources ({displayAssets.filter((a) => a.source === "figma").length} icons)</option>
-                        {assetFigmaConfig.sources.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} ({displayAssets.filter((a) => a.figmaSourceId === s.id).length} icons)
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            All Sources ({displayAssets.filter((a) => a.source === "figma").length} icons)
+                          </SelectItem>
+                          {assetFigmaConfig.sources.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name} ({displayAssets.filter((a) => a.figmaSourceId === s.id).length} icons)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>

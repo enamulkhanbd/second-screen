@@ -813,13 +813,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             </TooltipTrigger>
             {isCollapsed && <TooltipContent side="right">Help</TooltipContent>}
           </Tooltip>
-          <DropdownMenuContent side={isCollapsed ? "right" : "top"} align={isCollapsed ? "end" : "start"}>
+          <DropdownMenuContent side={isCollapsed ? "right" : "top"} align={isCollapsed ? "end" : "start"} className="w-48">
             <DropdownMenuItem onClick={() => setSidebarTab("system-docs")} className="gap-2 cursor-pointer">
-              <BookOpen className="size-4" />
+              <BookOpen className="size-3.5 text-muted-foreground" />
               <span>Product docs</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSidebarTab("changelog")} className="gap-2 cursor-pointer">
-              <Sparkles className="size-4" />
+              <Layers className="size-3.5 text-muted-foreground" />
               <span>Changelog</span>
             </DropdownMenuItem>
           </DropdownMenuContent>

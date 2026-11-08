@@ -3,6 +3,13 @@
 import React from "react";
 import { DocBlock } from "@/types/documentation";
 import { Info, CheckCircle2, AlertTriangle, XCircle, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CalloutBlockProps {
   block: DocBlock;
@@ -75,23 +82,27 @@ export const CalloutBlock: React.FC<CalloutBlockProps> = ({
 
         {isEditing && (
           <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-            <select
+            <Select
               value={variant}
-              onChange={(e) =>
+              onValueChange={(val) =>
                 onUpdate({
                   settings: {
                     ...block.settings,
-                    calloutVariant: e.target.value as any,
+                    calloutVariant: val as any,
                   },
                 })
               }
-              className="rounded-md border border-border/60 bg-background/80 px-2 py-1 text-xs font-medium text-foreground focus:outline-none"
             >
-              <option value="info">Info</option>
-              <option value="success">Success</option>
-              <option value="warning">Warning</option>
-              <option value="error">Error</option>
-            </select>
+              <SelectTrigger className="h-7 w-24 text-xs px-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="info">Info</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
+              </SelectContent>
+            </Select>
             {onDelete && (
               <button
                 type="button"

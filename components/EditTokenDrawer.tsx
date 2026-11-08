@@ -425,17 +425,17 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 </div>
 
                 {picker === "references" && (
-                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-background border border-border rounded-xl shadow-2xl overflow-hidden">
-                    <div className="relative px-3 py-2 border-b border-border">
+                  <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div className="relative px-2.5 py-2 border-b border-border/60">
                       <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-5 top-1/2 -translate-y-1/2" />
                       <input
                         value={refSearch}
                         onChange={(e) => setRefSearch(e.target.value)}
                         placeholder="Search tokens..."
-                        className="w-full pl-7 h-8 bg-muted/40 border border-border rounded-md text-xs outline-none"
+                        className="w-full pl-7 h-8 bg-background border border-border/80 rounded-lg text-xs font-mono outline-none focus:border-primary"
                       />
                     </div>
-                    <div className="max-h-56 overflow-y-auto p-1">
+                    <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
                       {filteredReferences.slice(0, 40).map((refToken) => (
                         <button
                           key={refToken.id}
@@ -444,10 +444,10 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                             setValue(`{${refToken.name}}`);
                             setPicker("none");
                           }}
-                          className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs hover:bg-muted cursor-pointer"
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-accent cursor-pointer transition-colors"
                         >
                           <span className="font-mono truncate">{refToken.name}</span>
-                          <span className="text-muted-foreground truncate ml-2 max-w-[40%]">
+                          <span className="text-muted-foreground font-mono truncate ml-2 max-w-[40%]">
                             {refToken.resolvedValue}
                           </span>
                         </button>
@@ -457,11 +457,11 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                 )}
 
                 {picker === "functions" && (
-                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-background border border-border rounded-xl shadow-2xl overflow-hidden">
-                    <div className="px-3 py-2 text-[11px] font-semibold text-muted-foreground border-b">
-                      Search functions...
+                  <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground border-b border-border/60">
+                      Token functions
                     </div>
-                    <div className="max-h-56 overflow-y-auto p-1">
+                    <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
                       {TOKEN_FUNCTIONS.map((fn) => (
                         <button
                           key={fn.name}
@@ -470,7 +470,7 @@ export const EditTokenDrawer: React.FC<EditTokenDrawerProps> = ({
                             setValue(`${fn.name}(${value || "$value"})`);
                             setPicker("none");
                           }}
-                          className="w-full text-left px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer"
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-accent cursor-pointer transition-colors"
                         >
                           <div className="text-xs font-mono font-semibold">{fn.name}</div>
                           <div className="text-[11px] text-muted-foreground">{fn.description}</div>
