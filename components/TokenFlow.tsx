@@ -340,7 +340,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
       <div className="p-5 space-y-5 flex-1 overflow-y-auto font-sans text-sm">
         {/* Full Path */}
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Full Key Path</label>
+          <label className="text-xs text-muted-foreground font-semibold">Full key path</label>
           <div className="p-3 rounded-lg bg-muted border border-border text-foreground select-text text-[13px] break-all leading-relaxed font-mono font-medium">
             {token.key}
           </div>
@@ -348,7 +348,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
 
         {/* Live Swatch / Composite Preview */}
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Computed Value</label>
+          <label className="text-xs text-muted-foreground font-semibold">Computed value</label>
           <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
             <div className="flex items-center gap-3.5">
               {token.category === "color" ? (
@@ -366,7 +366,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <span className="text-xs text-muted-foreground uppercase font-bold block">Resolved:</span>
+                <span className="text-xs text-muted-foreground font-medium block">Resolved</span>
                 <span className="text-sm font-semibold text-foreground font-mono break-all block select-text">
                   {typeof token.resolvedValue === "string" && !isComposite
                     ? token.resolvedValue
@@ -381,7 +381,7 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {Object.entries(isComposite).map(([prop, propVal]) => (
                     <div key={prop} className="p-2.5 rounded-lg bg-card border border-border">
-                      <span className="text-[11px] text-muted-foreground block uppercase font-bold">{prop}</span>
+                      <span className="text-[11px] text-muted-foreground block font-mono font-medium">{prop}</span>
                       <span className="text-foreground font-mono break-all select-text font-medium text-xs">
                         {String(propVal)}
                       </span>
@@ -411,11 +411,11 @@ const TokenInspectorDrawer: React.FC<TokenInspectorDrawerProps> = ({
         {/* Editable Raw Value */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
-              Raw / Alias Value
+            <label className="text-xs text-muted-foreground font-semibold">
+              Raw / alias value
             </label>
             {val !== token.rawValue && (
-              <Badge variant="warning" className="text-xs font-semibold motion-safe:animate-pulse">Unsaved</Badge>
+              <Badge variant="warning" className="text-xs font-semibold">Unsaved</Badge>
             )}
           </div>
 

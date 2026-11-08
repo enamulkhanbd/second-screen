@@ -536,14 +536,14 @@ export const InviteLandingView: React.FC<{ token: string }> = ({ token }) => {
 
   return (
     <main className="min-h-screen grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] bg-background text-foreground font-sans">
-      <section className="relative flex flex-col justify-between p-8 sm:p-12 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border-b lg:border-b-0 lg:border-r border-border">
+      <section className="relative flex flex-col justify-between p-8 sm:p-12 bg-muted/20 border-b lg:border-b-0 lg:border-r border-border">
         <TokensPlatformLogo variant="full" />
 
         <div className="py-10 lg:py-0 space-y-6 max-w-md">
           <OrgAvatar info={info} />
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">You&apos;re invited</p>
-            <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
+          <div className="space-y-2.5">
+            <p className="text-xs font-mono font-medium text-muted-foreground">Workspace invitation</p>
+            <h1 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight">
               Join <span className="text-primary">{info.orgName}</span>
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -552,10 +552,9 @@ export const InviteLandingView: React.FC<{ token: string }> = ({ token }) => {
               <strong className="text-foreground">{roleDef.title}</strong>.
             </p>
           </div>
-          <div className="p-4 rounded-xl border border-border bg-card/60 text-xs space-y-1.5">
-            <div className="font-semibold flex items-center gap-1.5">
-              <span>{roleDef.icon}</span>
-              <span>What you can do as {roleDef.title}</span>
+          <div className="p-4 rounded-xl border border-border bg-card text-xs space-y-1.5">
+            <div className="font-semibold text-foreground">
+              {roleDef.title} permissions
             </div>
             <p className="text-muted-foreground leading-relaxed">{roleDef.description}</p>
           </div>

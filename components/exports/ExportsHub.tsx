@@ -103,16 +103,16 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
           description="Configure how your design tokens are exported to code."
         />
 
-        {/* CREATE NEW Section */}
+        {/* Code Compilers Section */}
         <div className="space-y-3 mb-8">
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              CREATE NEW
+            <span className="text-xs font-semibold text-foreground">
+              Code compilers
             </span>
             <div className="flex-1 h-px bg-border/60" />
           </div>
 
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-sm">
+          <div className="rounded-xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-2xs">
             {/* CSS Variables Row */}
             <div
               {...buttonProps(() => onSelectExport("css"))}
@@ -123,7 +123,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   <Css3Icon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground group-hover:text-blue-500 transition-colors">
+                  <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     CSS Variables
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -131,7 +131,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-border/80 bg-background text-foreground shadow-xs">
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold border border-border bg-muted/40 text-foreground">
                 CSS
               </span>
             </div>
@@ -146,7 +146,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   <SassIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground group-hover:text-pink-500 transition-colors">
+                  <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     SCSS Variables
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -154,7 +154,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-border/80 bg-background text-foreground shadow-xs">
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold border border-border bg-muted/40 text-foreground">
                 SCSS
               </span>
             </div>
@@ -169,7 +169,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   <TypeScriptIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground group-hover:text-blue-500 transition-colors">
+                  <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     TypeScript
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -177,23 +177,23 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-border/80 bg-background text-foreground shadow-xs">
-                TYPESCRIPT
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold border border-border bg-muted/40 text-foreground">
+                TS
               </span>
             </div>
           </div>
         </div>
 
-        {/* OTHER EXPORTS Section */}
+        {/* Specification & Interchange Formats Section */}
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              OTHER EXPORTS
+            <span className="text-xs font-semibold text-foreground">
+              Specification &amp; interchange formats
             </span>
             <div className="flex-1 h-px bg-border/60" />
           </div>
 
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-sm">
+          <div className="rounded-xl border border-border/80 bg-card overflow-hidden divide-y divide-border/60 shadow-2xs">
             {/* Raw JSON Row */}
             <div
               {...buttonProps(() => onSelectExport("raw-json"))}
@@ -204,7 +204,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   <TokenCoinIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground group-hover:text-amber-500 transition-colors">
+                  <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     Raw JSON
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -212,7 +212,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-border/80 bg-background text-foreground shadow-xs">
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold border border-border bg-muted/40 text-foreground">
                 RAW
               </span>
             </div>
@@ -227,7 +227,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   <TokenCoinIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground group-hover:text-amber-500 transition-colors">
+                  <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     DTCG JSON
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -235,7 +235,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-border/80 bg-background text-foreground shadow-xs">
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold border border-border bg-muted/40 text-foreground">
                 DTCG
               </span>
             </div>
@@ -250,7 +250,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   <TokenCoinIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground group-hover:text-amber-500 transition-colors">
+                  <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     Figma Variables
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -258,7 +258,7 @@ export const ExportsHub: React.FC<ExportsHubProps> = ({ onSelectExport }) => {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-border/80 bg-background text-foreground shadow-xs">
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold border border-border bg-muted/40 text-foreground">
                 FIGMA
               </span>
             </div>

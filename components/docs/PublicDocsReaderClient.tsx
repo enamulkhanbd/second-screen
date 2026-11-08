@@ -280,7 +280,7 @@ export function PublicDocsReaderClient({
                 }
               >
                 <div className="mx-auto max-w-4xl space-y-3">
-                  <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                     {activePage.title}
                   </h1>
                   {activePage.description && (
