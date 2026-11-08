@@ -654,22 +654,42 @@ export function resolveTokenAlias(
     visited.add(cleanPath);
 
     try {
+      const resolveFoundLeaf = (leafNode: RawTokenLeaf, leafSet?: string): string => {
+        const rawVal = getLeafValue(leafNode);
+        const targetSet = leafSet || currentSet;
+        const baseResolved = resolveTokenAlias(rawVal, allTokens, targetSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+        const modifier = extractColorModifier(leafNode);
+        let finalResolved = baseResolved;
+        if (modifier) {
+          let resolvedMixColor: string | undefined = undefined;
+          if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
+            resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, targetSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+          }
+          let resolvedModValue = modifier.value;
+          if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
+            resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, targetSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
+          }
+          const modToApply: ColorModifier = {
+            ...modifier,
+            value: resolvedModValue,
+          };
+          const modResult = applyColorModifier(baseResolved, modToApply, resolvedMixColor);
+          finalResolved = modResult.resolvedValue;
+        }
+        if (resolutionMemo) resolutionMemo.set(pathMemoKey, finalResolved);
+        return finalResolved;
+      };
+
       // 0. Instant O(1) index lookup if index provided
       if (lookupIndex) {
         const direct = lookupIndex.get(cleanPath) || lookupIndex.get(cleanPath.toLowerCase());
         if (direct?.leaf && isTokenLeaf(direct.leaf)) {
-          const rawVal = getLeafValue(direct.leaf);
-          const resolved = resolveTokenAlias(rawVal, allTokens, direct.setName || currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
-          if (resolutionMemo) resolutionMemo.set(pathMemoKey, resolved);
-          return resolved;
+          return resolveFoundLeaf(direct.leaf, direct.setName);
         }
         if (currentSet) {
           const withSet = lookupIndex.get(`${currentSet}.${cleanPath}`) || lookupIndex.get(`${currentSet}.${cleanPath}`.toLowerCase());
           if (withSet?.leaf && isTokenLeaf(withSet.leaf)) {
-            const rawVal = getLeafValue(withSet.leaf);
-            const resolved = resolveTokenAlias(rawVal, allTokens, withSet.setName || currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
-            if (resolutionMemo) resolutionMemo.set(pathMemoKey, resolved);
-            return resolved;
+            return resolveFoundLeaf(withSet.leaf, withSet.setName);
           }
         }
       }
@@ -751,28 +771,7 @@ export function resolveTokenAlias(
       }
 
       if (foundLeaf) {
-        const rawVal = getLeafValue(foundLeaf);
-        const baseResolved = resolveTokenAlias(rawVal, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
-        const modifier = extractColorModifier(foundLeaf);
-        let finalResolved = baseResolved;
-        if (modifier) {
-          let resolvedMixColor: string | undefined = undefined;
-          if (modifier.color && typeof modifier.color === "string" && modifier.color.includes("{")) {
-            resolvedMixColor = resolveTokenAlias(modifier.color, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
-          }
-          let resolvedModValue = modifier.value;
-          if (typeof resolvedModValue === "string" && resolvedModValue.includes("{")) {
-            resolvedModValue = resolveTokenAlias(resolvedModValue, allTokens, currentSet, visited, lookupIndex, depth + 1, resolutionMemo, negativeCache);
-          }
-          const modToApply: ColorModifier = {
-            ...modifier,
-            value: resolvedModValue,
-          };
-          const modResult = applyColorModifier(baseResolved, modToApply, resolvedMixColor);
-          finalResolved = modResult.resolvedValue;
-        }
-        if (resolutionMemo) resolutionMemo.set(pathMemoKey, finalResolved);
-        return finalResolved;
+        return resolveFoundLeaf(foundLeaf, currentSet);
       }
 
       if (negativeCache) {
@@ -1430,45 +1429,70 @@ export function buildTokenDependencyGraph(tokens: FlattenedToken[]): Map<string,
 
   const graph = new Map<string, Set<string>>();
 
-  for (const token of tokens) {
-    if (!token.isAlias && !token.modify) continue;
+  const addEdge = (rawRef: string, tokenId: string) => {
+    const cleanRef = rawRef.trim().replace(/^[./\s]+|[./\s]+$/g, "").toLowerCase();
+    if (!cleanRef) return;
+    let set = graph.get(cleanRef);
+    if (!set) {
+      set = new Set<string>();
+      graph.set(cleanRef, set);
+    }
+    set.add(tokenId);
+  };
 
-    const matches: string[] = [];
+  for (const token of tokens) {
     if (token.rawValue && typeof token.rawValue === "string") {
-      const aliasRegex = /\{([^}]+)\}/g;
-      let match: RegExpExecArray | null;
-      while ((match = aliasRegex.exec(token.rawValue)) !== null) {
-        matches.push(match[1]);
+      if (token.rawValue.includes("{")) {
+        const aliasRegex = /\{([^}]+)\}/g;
+        let match: RegExpExecArray | null;
+        while ((match = aliasRegex.exec(token.rawValue)) !== null) {
+          addEdge(match[1], token.id);
+        }
+      }
+      if (token.rawValue.includes("roundTo") || /^[a-zA-Z0-9_\-\.\s\+\-\*\/,()]+$/.test(token.rawValue)) {
+        const wordRegex = /[a-zA-Z0-9_\-]+(\.[a-zA-Z0-9_\-]+)+/g;
+        let match: RegExpExecArray | null;
+        while ((match = wordRegex.exec(token.rawValue)) !== null) {
+          if (!match[0].startsWith("Math.") && match[0] !== "roundTo") {
+            addEdge(match[0], token.id);
+          }
+        }
       }
     }
-    if (token.modify?.color && typeof token.modify.color === "string") {
+    if (token.modify?.color && typeof token.modify.color === "string" && token.modify.color.includes("{")) {
       const aliasRegex = /\{([^}]+)\}/g;
       let match: RegExpExecArray | null;
       while ((match = aliasRegex.exec(token.modify.color)) !== null) {
-        matches.push(match[1]);
+        addEdge(match[1], token.id);
       }
     }
-    if (token.modify?.value && typeof token.modify.value === "string") {
+    if (token.modify?.value && typeof token.modify.value === "string" && token.modify.value.includes("{")) {
       const aliasRegex = /\{([^}]+)\}/g;
       let match: RegExpExecArray | null;
       while ((match = aliasRegex.exec(token.modify.value)) !== null) {
-        matches.push(match[1]);
+        addEdge(match[1], token.id);
       }
-    }
-
-    for (const ref of matches) {
-      const cleanRef = ref.trim();
-      let set = graph.get(cleanRef);
-      if (!set) {
-        set = new Set<string>();
-        graph.set(cleanRef, set);
-      }
-      set.add(token.id);
     }
   }
 
   dependencyGraphCache.set(tokens, graph);
   return graph;
+}
+
+function getLookupKeysForToken(setName: string, tokenName: string): string[] {
+  const keys = [
+    tokenName.toLowerCase(),
+    `${setName}.${tokenName}`.toLowerCase(),
+  ];
+  const normSet = setName.replace(/\.json$/i, "").replace(/[/\\]/g, ".");
+  if (normSet !== setName) {
+    keys.push(`${normSet}.${tokenName}`.toLowerCase());
+  }
+  const dotIdx = tokenName.indexOf(".");
+  if (dotIdx > 0) {
+    keys.push(tokenName.slice(dotIdx + 1).toLowerCase());
+  }
+  return keys;
 }
 
 /**
@@ -1481,7 +1505,8 @@ export function getTransitiveDependents(
   graph: Map<string, Set<string>>,
   visited = new Set<string>()
 ): Set<string> {
-  const direct = graph.get(changedRef);
+  const cleanRef = changedRef.trim().replace(/^[./\s]+|[./\s]+$/g, "").toLowerCase();
+  const direct = graph.get(cleanRef);
   if (!direct) return visited;
 
   direct.forEach((depId) => {
@@ -1489,9 +1514,9 @@ export function getTransitiveDependents(
       visited.add(depId);
       const depToken = tokensById.get(depId);
       if (depToken) {
-        getTransitiveDependents(depToken.name, tokensById, graph, visited);
-        if (depToken.setName) {
-          getTransitiveDependents(`${depToken.setName}.${depToken.name}`, tokensById, graph, visited);
+        const nextKeys = getLookupKeysForToken(depToken.setName || "", depToken.name);
+        for (const k of nextKeys) {
+          getTransitiveDependents(k, tokensById, graph, visited);
         }
       }
     }
@@ -1517,43 +1542,42 @@ export function patchResolvedTokensIncremental(
   if (!changedPath || changedPath.length < 2) return null;
 
   const setName = changedPath[0];
-  let tokenPathSegments = changedPath.slice(1);
-  const lastSegment = tokenPathSegments[tokenPathSegments.length - 1];
-  if (
-    lastSegment === "value" ||
-    lastSegment === "$value" ||
-    lastSegment === "description" ||
-    lastSegment === "$description" ||
-    lastSegment === "$type" ||
-    lastSegment === "type" ||
-    lastSegment === "$extensions"
-  ) {
-    tokenPathSegments = tokenPathSegments.slice(0, -1);
+  const tokensById = new Map<string, FlattenedToken>();
+  for (let i = 0; i < currentTokens.length; i++) {
+    tokensById.set(currentTokens[i].id, currentTokens[i]);
   }
 
-  if (tokenPathSegments.length === 0) return null;
-  const tokenName = tokenPathSegments.join(".");
-  const tokenId = `${setName}.${tokenName}`;
+  let tokenPathSegments = changedPath.slice(1);
+  let tokenName = tokenPathSegments.join(".");
+  let tokenId = `${setName}.${tokenName}`;
 
-  const tokensById = new Map<string, FlattenedToken>();
-  let changedTokenIndex = -1;
-  for (let i = 0; i < currentTokens.length; i++) {
-    const t = currentTokens[i];
-    tokensById.set(t.id, t);
-    if (t.id === tokenId) {
-      changedTokenIndex = i;
+  if (!tokensById.has(tokenId) && tokenPathSegments.length > 1) {
+    const lastSegment = tokenPathSegments[tokenPathSegments.length - 1];
+    if (
+      lastSegment === "value" ||
+      lastSegment === "$value" ||
+      lastSegment === "description" ||
+      lastSegment === "$description" ||
+      lastSegment === "$type" ||
+      lastSegment === "type" ||
+      lastSegment === "$extensions"
+    ) {
+      tokenPathSegments = tokenPathSegments.slice(0, -1);
+      tokenName = tokenPathSegments.join(".");
+      tokenId = `${setName}.${tokenName}`;
     }
   }
 
-  if (changedTokenIndex === -1) return null;
+  if (!tokensById.has(tokenId)) return null;
 
   const depGraph = buildTokenDependencyGraph(currentTokens);
   const affectedIds = new Set<string>([tokenId]);
-  getTransitiveDependents(tokenName, tokensById, depGraph, affectedIds);
-  getTransitiveDependents(tokenId, tokensById, depGraph, affectedIds);
+  for (const key of getLookupKeysForToken(setName, tokenName)) {
+    getTransitiveDependents(key, tokensById, depGraph, affectedIds);
+  }
 
   const lookupIndex = buildTokenLookupIndex(rawDoc, themeConfig);
-  const resolutionMemo = new Map<string, any>();
+  const resolutionMemo = new Map<string, string>();
   const negativeCache = new Set<string>();
 
   const nextTokens = currentTokens.slice();
@@ -1564,18 +1588,13 @@ export function patchResolvedTokensIncremental(
 
     const nodePath = token.path.slice(1);
     const node = getNestedValue(rawDoc[token.setName], nodePath);
-    if (!node || typeof node !== "object") {
+    if (!node || typeof node !== "object" || !isTokenLeaf(node)) {
       return null;
     }
 
-    const rawValue = node.$value !== undefined ? node.$value : node.value;
-    if (rawValue === undefined) {
-      return null;
-    }
-
-    const isAlias =
-      typeof rawValue === "string" && rawValue.includes("{") && rawValue.includes("}");
-    const aliasMatch = isAlias ? String(rawValue).match(/\{([^}]+)\}/) : null;
+    const rawValue = getLeafValue(node);
+    const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
+    const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
     let resolvedValue = resolveTokenAlias(rawValue, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
 
     const modifier = extractColorModifier(node);
@@ -1621,14 +1640,21 @@ export function patchResolvedTokensIncremental(
         ? extensions["studio.tokens"]
         : {};
     const deprecation = readDeprecation(node, studioExt);
+    const figmaKey =
+      typeof node.$figmaVariableReferences === "string"
+        ? node.$figmaVariableReferences
+        : typeof node.figmaVariableKey === "string"
+        ? node.figmaVariableKey
+        : undefined;
 
     nextTokens[i] = {
       ...token,
+      type: getLeafType(node, token.group),
       rawValue: typeof rawValue === "string" ? rawValue : JSON.stringify(rawValue),
       resolvedValue: typeof resolvedValue === "string" ? resolvedValue : JSON.stringify(resolvedValue),
       resolvedHex,
       modify: modifier || undefined,
-      isAlias: !!isAlias,
+      isAlias,
       aliasTarget: aliasMatch ? String(aliasMatch[1]) : undefined,
       description,
       deprecated: deprecation ? true : undefined,
@@ -1636,6 +1662,8 @@ export function patchResolvedTokensIncremental(
       deprecatedReplacement: deprecation?.replacementToken,
       deprecatedSeverity: deprecation?.severity,
       deprecatedRemoveAfter: deprecation?.removeAfter,
+      figmaVariableKey: figmaKey,
+      category: typeof node.category === "string" ? node.category : undefined,
     };
   }
 

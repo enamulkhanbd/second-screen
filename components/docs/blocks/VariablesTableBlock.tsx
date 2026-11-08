@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDocsTokens } from "@/components/docs/DocsTokensContext";
 import {
   Search,
   Copy,
@@ -31,9 +32,13 @@ export const VariablesTableBlock: React.FC<VariablesTableBlockProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  const figmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
-  const figmaVariables = useTokenStore((s) => s.figmaVariables);
-  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const docsTokens = useDocsTokens();
+  const storeFigmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const storeFigmaVariables = useTokenStore((s) => s.figmaVariables);
+  const storeResolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const figmaResolvedVariables = docsTokens ? docsTokens.figmaResolvedVariables : storeFigmaResolvedVariables;
+  const figmaVariables = docsTokens ? docsTokens.figmaVariables : storeFigmaVariables;
+  const resolvedTokens = docsTokens ? docsTokens.resolvedTokens : storeResolvedTokens;
   const addToast = useTokenStore((s) => s.addToast);
   const [visibleCount, setVisibleCount] = useState(60);
   const [localSearch, setLocalSearch] = useState("");

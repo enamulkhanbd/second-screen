@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 export interface CodeViewerProps {
   content: string;
@@ -201,30 +201,42 @@ export function getTokenClass(type: Token["type"]): string {
   }
 }
 
+type CodeLangType = "json" | "ts" | "bash" | "css";
+
 const CodeLine = React.memo<{
+  line: string;
   idx: number;
   showLineNumbers: boolean;
-  tokens: Token[];
-}>(({ idx, showLineNumbers, tokens }) => (
-  <div className="flex items-start hover:bg-muted/30 dark:hover:bg-zinc-800/30 transition-colors px-4 py-0.5">
-    {showLineNumbers && (
-      <span className="w-10 pr-4 text-right select-none text-muted-foreground/50 font-mono text-[11px]">
-        {idx + 1}
-      </span>
-    )}
-    <span className="flex-1 whitespace-pre">
-      {tokens.length === 0 ? (
-        "\u00A0"
-      ) : (
-        tokens.map((t, tIdx) => (
-          <span key={tIdx} className={getTokenClass(t.type)}>
-            {t.value}
-          </span>
-        ))
+  langType: CodeLangType;
+}>(({ line, idx, showLineNumbers, langType }) => {
+  const tokens = useMemo(() => {
+    if (langType === "json") return tokenizeJsonLine(line);
+    if (langType === "ts") return tokenizeTsLine(line);
+    if (langType === "bash") return tokenizeBashLine(line);
+    return tokenizeCssLine(line);
+  }, [line, langType]);
+
+  return (
+    <div className="flex items-start hover:bg-muted/30 dark:hover:bg-zinc-800/30 transition-colors px-4 py-0.5">
+      {showLineNumbers && (
+        <span className="w-10 pr-4 text-right select-none text-muted-foreground/50 font-mono text-[11px]">
+          {idx + 1}
+        </span>
       )}
-    </span>
-  </div>
-));
+      <span className="flex-1 whitespace-pre">
+        {tokens.length === 0 ? (
+          "\u00A0"
+        ) : (
+          tokens.map((t, tIdx) => (
+            <span key={tIdx} className={getTokenClass(t.type)}>
+              {t.value}
+            </span>
+          ))
+        )}
+      </span>
+    </div>
+  );
+});
 CodeLine.displayName = "CodeLine";
 
 export const CodeViewer: React.FC<CodeViewerProps> = ({
@@ -236,49 +248,44 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   const lines = useMemo(() => content.split("\n"), [content]);
   const [visibleLines, setVisibleLines] = useState(500);
 
+  useEffect(() => {
+    setVisibleLines(500);
+  }, [content]);
+
   const lang = (language || "").toLowerCase();
-  const isJson = lang.includes("json");
-  const isTs =
-    lang.includes("typescript") ||
-    lang.includes("javascript") ||
-    lang.includes("ts") ||
-    lang.includes("js") ||
-    lang.includes("d.ts") ||
-    lang.includes("cjs");
-  const isBash =
-    lang.includes("bash") ||
-    lang.includes("sh") ||
-    lang.includes("shell") ||
-    lang.includes("cli");
+  const langType: CodeLangType = lang.includes("json")
+    ? "json"
+    : lang.includes("typescript") ||
+      lang.includes("javascript") ||
+      lang.includes("ts") ||
+      lang.includes("js") ||
+      lang.includes("d.ts") ||
+      lang.includes("cjs")
+    ? "ts"
+    : lang.includes("bash") ||
+      lang.includes("sh") ||
+      lang.includes("shell") ||
+      lang.includes("cli")
+    ? "bash"
+    : "css";
 
-  const tokenizeLine = useCallback(
-    (line: string): Token[] => {
-      if (isJson) return tokenizeJsonLine(line);
-      if (isTs) return tokenizeTsLine(line);
-      if (isBash) return tokenizeBashLine(line);
-      return tokenizeCssLine(line);
-    },
-    [isJson, isTs, isBash]
+  const displayedLines = useMemo(
+    () => lines.slice(0, visibleLines),
+    [lines, visibleLines]
   );
-
-  const displayedLines = useMemo(() => {
-    return lines.slice(0, visibleLines).map((line, idx) => ({
-      idx,
-      tokens: tokenizeLine(line),
-    }));
-  }, [lines, visibleLines, tokenizeLine]);
 
   return (
     <div
       className={`font-mono text-xs md:text-[13px] leading-relaxed select-text bg-white dark:bg-[#0d0d12] text-foreground ${className}`}
     >
       <div className="min-w-fit w-full">
-        {displayedLines.map((item) => (
+        {displayedLines.map((line, idx) => (
           <CodeLine
-            key={item.idx}
-            idx={item.idx}
+            key={idx}
+            line={line}
+            idx={idx}
             showLineNumbers={showLineNumbers}
-            tokens={item.tokens}
+            langType={langType}
           />
         ))}
       </div>

@@ -3,9 +3,8 @@
 
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { getPublishedProjectDocs } from "@/services/organizationService";
 import { ProjectDocumentation, DocPage } from "@/types/documentation";
+import { DocsTokensProvider, DocsTokensContextValue } from "@/components/docs/DocsTokensContext";
 import { CalloutBlock } from "@/components/docs/blocks/CalloutBlock";
 import { DoDontBlock } from "@/components/docs/blocks/DoDontBlock";
 import { VariablesTableBlock } from "@/components/docs/blocks/VariablesTableBlock";
@@ -41,70 +40,46 @@ interface PublicDocsReaderClientProps {
 
 export function PublicDocsReaderClient({
   initialData,
-  orgSlug: propOrgSlug,
-  projectSlug: propProjectSlug,
 }: PublicDocsReaderClientProps) {
-  const params = useParams();
-  const orgSlug = propOrgSlug || (Array.isArray(params?.orgSlug) ? params.orgSlug[0] : params?.orgSlug);
-  const projectSlug = propProjectSlug || (Array.isArray(params?.projectSlug) ? params.projectSlug[0] : params?.projectSlug);
-
-  const [loading, setLoading] = useState(!initialData);
-  const [docData, setDocData] = useState<{
-    orgName: string;
-    projectName: string;
-    documentation: ProjectDocumentation;
-    rawTokens?: any;
-    figmaVariables?: any;
-  } | null>(initialData);
+  const docData = initialData;
   const [activePageId, setActivePageId] = useState<string | null>(() => {
     return initialData?.documentation?.pages?.find((p) => p.isPublished)?.id || null;
   });
   const [navSearch, setNavSearch] = useState("");
 
-  const populateStore = (data: NonNullable<typeof initialData>) => {
-    const rawToUse = data.documentation?.publishedTokens || data.rawTokens || {};
-    const figmaToUse = data.documentation?.publishedVariables || data.figmaVariables || {};
-
-    if (Object.keys(rawToUse).length > 0) {
-      const resolved = flattenAndResolveTokens(rawToUse, "ALL");
-      useTokenStore.setState({
-        rawTokens: rawToUse,
-        resolvedTokens: resolved,
-      });
+  const docsTokensValue = useMemo<DocsTokensContextValue>(() => {
+    if (!docData) {
+      return {
+        resolvedTokens: [],
+        figmaResolvedVariables: [],
+        figmaVariables: {},
+      };
     }
+    const rawToUse = docData.documentation?.publishedTokens || docData.rawTokens || {};
+    const figmaToUse = docData.documentation?.publishedVariables || docData.figmaVariables || {};
 
-    if (Object.keys(figmaToUse).length > 0) {
-      const resolvedFigma = flattenAndResolveTokens(figmaToUse, "ALL");
-      useTokenStore.setState({
-        figmaVariables: figmaToUse,
-        figmaResolvedVariables: resolvedFigma,
-      });
-    }
-  };
+    const resolvedTokens =
+      Object.keys(rawToUse).length > 0 ? flattenAndResolveTokens(rawToUse, "ALL") : [];
+    const figmaResolvedVariables =
+      Object.keys(figmaToUse).length > 0 ? flattenAndResolveTokens(figmaToUse, "ALL") : [];
+
+    return {
+      resolvedTokens,
+      figmaResolvedVariables,
+      figmaVariables: figmaToUse,
+    };
+  }, [docData]);
 
   useEffect(() => {
-    if (initialData) {
-      populateStore(initialData);
-      return;
-    }
-
-    async function loadDocs() {
-      setLoading(true);
-      if (orgSlug && projectSlug) {
-        const result = await getPublishedProjectDocs(orgSlug, projectSlug);
-        if (result) {
-          setDocData(result);
-          const firstPub = result.documentation.pages.find((p) => p.isPublished);
-          if (firstPub) {
-            setActivePageId(firstPub.id);
-          }
-          populateStore(result);
-        }
-      }
-      setLoading(false);
-    }
-    loadDocs();
-  }, [initialData, orgSlug, projectSlug]);
+    if (!docData) return;
+    const rawToUse = docData.documentation?.publishedTokens || docData.rawTokens || {};
+    useTokenStore.setState({
+      rawTokens: rawToUse,
+      resolvedTokens: docsTokensValue.resolvedTokens,
+      figmaVariables: docsTokensValue.figmaVariables,
+      figmaResolvedVariables: docsTokensValue.figmaResolvedVariables,
+    });
+  }, [docData, docsTokensValue]);
 
   const documentation = docData?.documentation;
   const publishedPages = useMemo(() => {
@@ -124,17 +99,6 @@ export function PublicDocsReaderClient({
   }, [publishedPages, navSearch]);
 
   const folders = documentation?.folders || [];
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-xs text-muted-foreground font-mono">Loading documentation…</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!docData || !documentation || publishedPages.length === 0) {
     return (
@@ -158,6 +122,7 @@ export function PublicDocsReaderClient({
   }
 
   return (
+    <DocsTokensProvider value={docsTokensValue}>
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground antialiased">
       {/* Top Reader Navbar */}
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/70 bg-background/80 px-6 backdrop-blur-xl">
@@ -389,5 +354,6 @@ export function PublicDocsReaderClient({
         </main>
       </div>
     </div>
+    </DocsTokensProvider>
   );
 }

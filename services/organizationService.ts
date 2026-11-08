@@ -1706,7 +1706,11 @@ export async function getPublishedProjectDocs(
 
     if (!targetProject) return null;
     const proj = mapDbProjectToProject(targetProject);
-    if (!proj.documentation || !proj.documentation.isPublishedGlobally) {
+    if (
+      !proj.documentation ||
+      !proj.documentation.isPublishedGlobally ||
+      proj.documentation.allowPublicAccess === false
+    ) {
       return null;
     }
 
@@ -1735,7 +1739,10 @@ export async function getPublishedProjectDocs(
     return {
       orgName: orgData.name,
       projectName: proj.name,
-      documentation: proj.documentation,
+      documentation: {
+        ...proj.documentation,
+        pages: (proj.documentation.pages || []).filter((p) => p.isPublished),
+      },
       rawTokens: rawTokensToReturn || {},
       figmaVariables: figmaVariablesToReturn || {},
       themeGroups: proj.themeGroups || [],

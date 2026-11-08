@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDocsTokens } from "@/components/docs/DocsTokensContext";
 import { Type, Copy, Check } from "lucide-react";
 
 interface VariableTypographyBlockProps {
@@ -18,8 +19,11 @@ export const VariableTypographyBlock: React.FC<VariableTypographyBlockProps> = (
   onUpdate,
   onDelete,
 }) => {
-  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
-  const figmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const docsTokens = useDocsTokens();
+  const storeResolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const storeFigmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const resolvedTokens = docsTokens ? docsTokens.resolvedTokens : storeResolvedTokens;
+  const figmaResolvedVariables = docsTokens ? docsTokens.figmaResolvedVariables : storeFigmaResolvedVariables;
   const addToast = useTokenStore((s) => s.addToast);
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
 

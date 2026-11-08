@@ -1,8 +1,11 @@
+import { cache } from "react";
 import { getPublishedProjectDocs } from "@/services/organizationService";
 import { PublicDocsReaderClient } from "@/components/docs/PublicDocsReaderClient";
 import type { Metadata } from "next";
 
 export const revalidate = 300; // ISR cache for 5 minutes
+
+const getCachedPublishedProjectDocs = cache(getPublishedProjectDocs);
 
 interface PublicDocsReaderPageProps {
   params: {
@@ -14,7 +17,7 @@ interface PublicDocsReaderPageProps {
 export async function generateMetadata({
   params,
 }: PublicDocsReaderPageProps): Promise<Metadata> {
-  const result = await getPublishedProjectDocs(params.orgSlug, params.projectSlug);
+  const result = await getCachedPublishedProjectDocs(params.orgSlug, params.projectSlug);
   if (!result) {
     return {
       title: "Documentation Unavailable | Second Screen",
@@ -29,7 +32,7 @@ export async function generateMetadata({
 export default async function PublicDocsReaderPage({
   params,
 }: PublicDocsReaderPageProps) {
-  const initialData = await getPublishedProjectDocs(params.orgSlug, params.projectSlug);
+  const initialData = await getCachedPublishedProjectDocs(params.orgSlug, params.projectSlug);
 
   return (
     <PublicDocsReaderClient

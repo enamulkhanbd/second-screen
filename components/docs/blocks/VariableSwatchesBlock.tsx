@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDocsTokens } from "@/components/docs/DocsTokensContext";
 import { Search, Copy, Check, Palette } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,8 +20,11 @@ export const VariableSwatchesBlock: React.FC<VariableSwatchesBlockProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  const figmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
-  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const docsTokens = useDocsTokens();
+  const storeFigmaResolvedVariables = useTokenStore((s) => s.figmaResolvedVariables);
+  const storeResolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const figmaResolvedVariables = docsTokens ? docsTokens.figmaResolvedVariables : storeFigmaResolvedVariables;
+  const resolvedTokens = docsTokens ? docsTokens.resolvedTokens : storeResolvedTokens;
   const addToast = useTokenStore((s) => s.addToast);
   const [visibleCount, setVisibleCount] = useState(60);
   const [search, setSearch] = useState("");

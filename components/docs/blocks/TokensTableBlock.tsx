@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { DocBlock } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useDocsTokens } from "@/components/docs/DocsTokensContext";
 import {
   Layers,
   Search,
@@ -30,7 +31,9 @@ export const TokensTableBlock: React.FC<TokensTableBlockProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  const resolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const docsTokens = useDocsTokens();
+  const storeResolvedTokens = useTokenStore((s) => s.resolvedTokens);
+  const resolvedTokens = docsTokens ? docsTokens.resolvedTokens : storeResolvedTokens;
   const addToast = useTokenStore((s) => s.addToast);
   const [visibleCount, setVisibleCount] = useState(60);
   const [search, setSearch] = useState("");
