@@ -8,6 +8,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -54,7 +56,7 @@ export const ThemeSwitcherDropdown: React.FC<ThemeSwitcherDropdownProps> = ({
           title="Switch active themes"
         >
           <SwatchBook className="size-3.5 text-foreground/80 shrink-0" />
-          <span>
+          <span className="tabular-nums">
             {activeCount} {activeCount === 1 ? "theme" : "themes"}
           </span>
           {isOpen ? (
@@ -68,28 +70,27 @@ export const ThemeSwitcherDropdown: React.FC<ThemeSwitcherDropdownProps> = ({
       <DropdownMenuContent
         align="end"
         sideOffset={6}
-        className="w-56 p-2 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl space-y-2.5 max-h-[80vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 select-none"
+        className="w-56 max-h-[80vh] overflow-y-auto select-none"
       >
         {themeGroups.length === 0 ? (
           <div className="py-4 text-center text-xs text-muted-foreground">
             No theme groups defined
           </div>
         ) : (
-          themeGroups.map((group) => {
+          themeGroups.map((group, groupIdx) => {
             const currentActiveOptionId = activeThemeOptionIds[group.id];
 
             return (
-              <div key={group.id} className="space-y-1">
-                {/* Group Header: Uppercase title + color dot indicator */}
-                <div className="flex items-center gap-1.5 px-1.5 pt-0.5 text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-                  <span>{group.name}</span>
+              <React.Fragment key={group.id}>
+                {groupIdx > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuLabel className="flex items-center justify-between gap-2">
+                  <span className="truncate">{group.name}</span>
                   <span
                     className="size-2 rounded-full shrink-0"
                     style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
                   />
-                </div>
+                </DropdownMenuLabel>
 
-                {/* Group Options List */}
                 <div className="space-y-0.5">
                   {group.options.map((option) => {
                     const isSelected = currentActiveOptionId === option.id;
@@ -102,31 +103,23 @@ export const ThemeSwitcherDropdown: React.FC<ThemeSwitcherDropdownProps> = ({
                           setActiveThemeOptionForGroup(group.id, option.id);
                         }}
                         className={cn(
-                          "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors outline-none",
-                          isSelected
-                            ? "bg-muted/80 text-foreground font-semibold"
-                            : "text-foreground/90 hover:bg-muted/40 font-medium"
+                          "justify-between",
+                          isSelected && "bg-accent/60 font-semibold text-foreground"
                         )}
                       >
-                        {/* Custom Square Checkbox */}
-                        <div
-                          className={cn(
-                            "size-4 rounded-[4px] flex items-center justify-center shrink-0 transition-colors",
-                            isSelected
-                              ? "bg-primary text-primary-foreground shadow-2xs"
-                              : "border border-muted-foreground/40 bg-transparent"
-                          )}
-                        >
-                          {isSelected && <Check className="size-3 stroke-[3]" />}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="size-2 rounded-full shrink-0"
+                            style={{ backgroundColor: option.color || group.color || "hsl(var(--primary))" }}
+                          />
+                          <span className="truncate">{option.name}</span>
                         </div>
-
-                        {/* Option Name */}
-                        <span className="truncate flex-1">{option.name}</span>
+                        {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
                       </DropdownMenuItem>
                     );
                   })}
                 </div>
-              </div>
+              </React.Fragment>
             );
           })
         )}

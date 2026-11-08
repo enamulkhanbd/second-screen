@@ -4,15 +4,13 @@ import React from "react";
 import { buttonProps } from "@/utils/a11y";
 import { ProjectDocumentation } from "@/types/documentation";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import {
   BookOpen,
-  Folder,
   FileText,
   Palette,
   Type,
   Layers,
-  Sparkles,
-  ExternalLink,
   Copy,
   Check,
   Globe,
@@ -32,7 +30,15 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
   onOpenPublishModal,
 }) => {
   const { currentProject, currentOrg, figmaResolvedVariables, resolvedTokens, addToast } =
-    useTokenStore();
+    useTokenStore(
+      useShallow((s) => ({
+        currentProject: s.currentProject,
+        currentOrg: s.currentOrg,
+        figmaResolvedVariables: s.figmaResolvedVariables,
+        resolvedTokens: s.resolvedTokens,
+        addToast: s.addToast,
+      }))
+    );
   const [copiedLink, setCopiedLink] = React.useState(false);
 
   const pages = documentation.pages || [];
@@ -41,7 +47,9 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
   const publicUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/docs/${currentOrg?.slug || currentOrg?.id || "org"}/${
-          currentProject?.name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project"
+          currentProject?.slug ||
+          currentProject?.name?.toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+          "project"
         }`
       : "";
 
@@ -57,89 +65,87 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-background/50 p-6 md:p-10">
-      <div className="mx-auto max-w-5xl space-y-8">
-        {/* Welcome Hero Card */}
-        <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-linear-to-br from-primary/10 via-card to-background p-8 md:p-12 shadow-sm">
-          <div className="relative z-10 space-y-4">
+    <div className="flex-1 overflow-y-auto bg-background p-6 md:p-8">
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* Studio Documentation Header */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="px-2.5 py-1 text-xs font-semibold">
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                Living Design Documentation
-              </Badge>
+              <span className="text-xs font-mono text-muted-foreground">
+                /{currentOrg?.slug || "workspace"}/{currentProject?.slug || "project"}/docs
+              </span>
               {documentation.isPublishedGlobally ? (
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs">
-                  <Globe className="mr-1 h-3 w-3" /> Live Public Access
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px]">
+                  <Globe className="mr-1 h-3 w-3" /> Published
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-xs text-muted-foreground">
-                  Draft Mode
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  Draft
                 </Badge>
               )}
             </div>
 
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl md:text-5xl">
-              {currentProject?.name || "Design System"} Living Docs
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              {currentProject?.name || "Design System"} Documentation
             </h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Synchronized, multi-mode design tokens and Figma variables rendered as interactive,
-              living design guidelines.
+            <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+              Synchronized design tokens and Figma variables rendered as living reference pages.
             </p>
+          </div>
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={onOpenPublishModal}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
-              >
-                <Globe className="h-4 w-4" />
-                <span>Publish Settings</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-background/80 px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
-              >
-                {copiedLink ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                <span>Copy Public Link</span>
-              </button>
-            </div>
+          {/* Quick Actions */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+              <span>{copiedLink ? "Copied URL" : "Copy public URL"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenPublishModal}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              <span>Publish settings</span>
+            </button>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
-            <div className="text-xs text-muted-foreground">Documented Pages</div>
-            <div className="mt-1 text-2xl font-bold tracking-tight text-foreground">{pages.length}</div>
+        {/* Stats Strip */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 tabular-nums">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-2xs flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Pages</span>
+            <span className="text-base font-semibold font-mono text-foreground">{pages.length}</span>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
-            <div className="text-xs text-muted-foreground">Sections & Folders</div>
-            <div className="mt-1 text-2xl font-bold tracking-tight text-foreground">{folders.length}</div>
+          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-2xs flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Folders</span>
+            <span className="text-base font-semibold font-mono text-foreground">{folders.length}</span>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
-            <div className="text-xs text-muted-foreground">Connected Variables</div>
-            <div className="mt-1 text-2xl font-bold tracking-tight text-primary">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-2xs flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Figma variables</span>
+            <span className="text-base font-semibold font-mono text-foreground">
               {figmaResolvedVariables.length}
-            </div>
+            </span>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs">
-            <div className="text-xs text-muted-foreground">Design Tokens</div>
-            <div className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-2xs flex items-baseline justify-between">
+            <span className="text-xs text-muted-foreground">Design tokens</span>
+            <span className="text-base font-semibold font-mono text-foreground">
               {resolvedTokens.length}
-            </div>
+            </span>
           </div>
         </div>
 
-        {/* Sections & Pages Elements Directory */}
-        <div className="space-y-4">
+        {/* Sections & Pages Directory */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-foreground">Documentation Directory</h2>
-            <span className="text-xs text-muted-foreground">{pages.length} Pages Available</span>
+            <h2 className="text-sm font-semibold text-foreground">Pages</h2>
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">{pages.length} total</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {pages.map((page) => {
               const folder = folders.find((f) => f.id === page.folderId);
               const isColorPage = page.title.toLowerCase().includes("color");
@@ -151,11 +157,11 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
                 <div
                   key={page.id}
                   {...buttonProps(() => onSelectPage(page.id))}
-                  className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs transition-colors hover:bg-accent/40 hover:border-foreground/20"
+                  className="group flex cursor-pointer flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-2xs transition-colors hover:bg-muted/35 hover:border-border/90"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-foreground">
                         {isColorPage ? (
                           <Palette className="h-4 w-4" />
                         ) : isTypePage ? (
@@ -163,32 +169,32 @@ export const DocOverviewRoot: React.FC<DocOverviewRootProps> = ({
                         ) : isTokensPage ? (
                           <Layers className="h-4 w-4" />
                         ) : isSchemaPage ? (
-                          <Sparkles className="h-4 w-4" />
+                          <BookOpen className="h-4 w-4" />
                         ) : (
                           <FileText className="h-4 w-4" />
                         )}
                       </div>
-                      <Badge variant="outline" className="text-[10px]">
-                        {page.blocks.length} block{page.blocks.length === 1 ? "" : "s"}
+                      <Badge variant="outline" className="text-[10px] font-mono tabular-nums">
+                        {page.blocks.length} {page.blocks.length === 1 ? "block" : "blocks"}
                       </Badge>
                     </div>
 
                     <div>
-                      <div className="text-xs font-semibold text-primary/80">
+                      <div className="text-[11px] font-medium text-muted-foreground">
                         {folder ? folder.title : "General"}
                       </div>
-                      <h3 className="mt-0.5 text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                      <h3 className="mt-0.5 text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                         {page.title}
                       </h3>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {page.description || "Living design system element guidelines."}
+                        {page.description || "Design token reference page."}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3 text-xs font-medium text-muted-foreground group-hover:text-foreground">
-                    <span>View Page</span>
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  <div className="mt-3.5 flex items-center justify-between border-t border-border/60 pt-2.5 text-xs font-medium text-muted-foreground group-hover:text-foreground">
+                    <span>Open page</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
               );

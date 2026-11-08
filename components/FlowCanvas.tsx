@@ -13,7 +13,7 @@ import {
   ZoomOut,
   Maximize2,
   RotateCcw,
-  Sparkles,
+  Workflow,
   LayoutGrid,
 } from "lucide-react";
 
@@ -452,8 +452,8 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       {/* Empty Graph State */}
       {graphData.nodes.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center pointer-events-none">
-          <div className="w-12 h-12 rounded-2xl bg-muted/60 dark:bg-zinc-900 border border-border dark:border-zinc-800 flex items-center justify-center text-muted-foreground mb-3">
-            <Sparkles className="w-5 h-5" />
+          <div className="w-12 h-12 rounded-xl bg-muted/60 dark:bg-zinc-900 border border-border dark:border-zinc-800 flex items-center justify-center text-muted-foreground mb-3">
+            <Workflow className="w-5 h-5" />
           </div>
           <h4 className="text-sm font-semibold text-foreground">No Flow Nodes Found</h4>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm">

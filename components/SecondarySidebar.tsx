@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useDeferredValue } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -99,6 +99,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const [addSetInitialName, setAddSetInitialName] = useState("");
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [searchFilter, setSearchFilter] = useState("");
+  const deferredSearchFilter = useDeferredValue(searchFilter);
 
   // Token counts by set name
   const setCounts = useMemo(() => {
@@ -256,14 +257,15 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   };
 
   const renderTreeNode = (node: SetTreeNode, depth: number = 0) => {
+    const normalizedFilter = deferredSearchFilter.trim().toLowerCase();
     if (node.isFolder) {
       const isCollapsed = Boolean(collapsedFolders[node.id]);
       const folderCount = getFolderTotalCount(node);
 
-      if (searchFilter) {
-        const matchesName = node.name.toLowerCase().includes(searchFilter.toLowerCase());
+      if (normalizedFilter) {
+        const matchesName = node.name.toLowerCase().includes(normalizedFilter);
         const hasMatchingChild = node.children?.some((c) =>
-          c.fullPath.toLowerCase().includes(searchFilter.toLowerCase())
+          c.fullPath.toLowerCase().includes(normalizedFilter)
         );
         if (!matchesName && !hasMatchingChild) return null;
       }
@@ -417,7 +419,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     }
 
     // Leaf token set file
-    if (searchFilter && !node.name.toLowerCase().includes(searchFilter.toLowerCase())) {
+    if (normalizedFilter && !node.name.toLowerCase().includes(normalizedFilter)) {
       return null;
     }
 

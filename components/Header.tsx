@@ -894,196 +894,188 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
           </Button>
 
           {/* Branch Pill Dropdown - Native branches + Git remote branches */}
-          <div className="relative order-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBranchMenu(!showBranchMenu)}
-              aria-haspopup="true"
-              aria-expanded={showBranchMenu}
-              aria-label={`Branch: ${isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}`}
-              className="h-8 gap-1.5 font-mono text-xs cursor-pointer shadow-2xs"
-              title={
-                isGitConfigured
-                  ? `Git branch: ${credentials.branch || "main"} (${credentials.provider})`
-                  : `Workspace branch: ${activeBranch || "main"}`
-              }
+          <DropdownMenu open={showBranchMenu} onOpenChange={setShowBranchMenu}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={`Branch: ${isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}`}
+                className="order-1 h-8 gap-1.5 font-mono text-xs cursor-pointer shadow-2xs"
+                title={
+                  isGitConfigured
+                    ? `Git branch: ${credentials.branch || "main"} (${credentials.provider})`
+                    : `Workspace branch: ${activeBranch || "main"}`
+                }
+              >
+                <GitBranch className="w-3.5 h-3.5 text-primary" />
+                <span className="max-w-[140px] truncate">
+                  {isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-72 p-2.5 space-y-2.5 max-h-[85vh] flex flex-col"
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
-              <GitBranch className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] uppercase font-bold text-muted-foreground hidden sm:inline">
-                {isGitConfigured ? "Git" : "Branch"}
-              </span>
-              <span className="max-w-[120px] truncate">
-                {isGitConfigured ? credentials.branch || "main" : activeBranch || "main"}
-              </span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-            </Button>
+              {isGitConfigured ? (
+                /* External Sync Provider Branches */
+                <>
+                  <div className="px-2.5 py-2 bg-muted/40 border border-border rounded-lg">
+                    <div className="text-[11px] font-medium text-muted-foreground">
+                      Git repository
+                    </div>
+                    <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5">
+                      {credentials.repo} @ {credentials.branch || "main"}
+                    </div>
+                  </div>
 
-            {/* Branch Switcher Dropdown */}
-            {showBranchMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowBranchMenu(false)}
-                />
-                <div className="absolute right-0 top-full mt-1.5 w-72 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2.5 max-h-[85vh] flex flex-col">
-                  {isGitConfigured ? (
-                    /* External Sync Provider Branches */
-                    <>
-                      <div className="px-2.5 py-2 bg-muted/60 border border-border rounded-lg">
-                        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                          Git Repository
-                        </div>
-                        <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5">
-                          {credentials.repo} @ {credentials.branch || "main"}
-                        </div>
+                  <div className="relative" onKeyDown={(e) => e.stopPropagation()}>
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search remote branch..."
+                      value={branchSearch}
+                      onChange={(e) => setBranchSearch(e.target.value)}
+                      className="h-8 pl-8 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto max-h-52 space-y-0.5 pr-0.5">
+                    {loadingBranches ? (
+                      <div className="flex items-center justify-center py-6 text-muted-foreground gap-2">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                        <span className="text-xs">Fetching branches...</span>
                       </div>
-
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          placeholder="Search remote branch..."
-                          value={branchSearch}
-                          onChange={(e) => setBranchSearch(e.target.value)}
-                          className="h-8 pl-8 text-xs font-mono"
-                          autoFocus
-                        />
+                    ) : filteredBranches.length === 0 ? (
+                      <div className="py-4 text-center text-xs text-muted-foreground">
+                        {branches.length === 0 ? "No branches available" : "No matching branch"}
                       </div>
+                    ) : (
+                      filteredBranches.map((b) => {
+                        const isCurrent = b === credentials.branch;
+                        return (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => {
+                              handlePullForBranch(b);
+                              setShowBranchMenu(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
+                                ? "bg-primary/10 text-primary font-semibold"
+                                : "text-foreground hover:bg-accent"
+                              }`}
+                          >
+                            <span className="truncate">{b}</span>
+                            {isCurrent && (
+                              <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Native Branch System (Only when NO sync provider is set up) */
+                <>
+                  <div className="px-2.5 py-2 bg-muted/40 border border-border rounded-lg flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+                        <Database className="w-3 h-3 text-emerald-500" />
+                        <span>Active branch</span>
+                      </div>
+                      <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5 flex items-center gap-1.5">
+                        <GitBranch className="w-3 h-3 text-primary" />
+                        <span>{activeBranch || "main"}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBranchMenu(false);
+                        setIsCreateBranchOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                      title="Create new branch"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New</span>
+                    </button>
+                  </div>
 
-                      <div className="flex-1 overflow-y-auto max-h-52 space-y-0.5 pr-0.5">
-                        {loadingBranches ? (
-                          <div className="flex items-center justify-center py-6 text-muted-foreground gap-2">
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
-                            <span className="text-xs">Fetching branches...</span>
-                          </div>
-                        ) : filteredBranches.length === 0 ? (
-                          <div className="py-4 text-center text-xs text-muted-foreground">
-                            {branches.length === 0 ? "No branches available" : "No matching branch"}
-                          </div>
-                        ) : (
-                          filteredBranches.map((b) => {
-                            const isCurrent = b === credentials.branch;
-                            return (
-                              <button
-                                key={b}
-                                onClick={() => {
-                                  handlePullForBranch(b);
-                                  setShowBranchMenu(false);
-                                }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "text-foreground hover:bg-muted"
+                  <div className="relative" onKeyDown={(e) => e.stopPropagation()}>
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search branches..."
+                      value={branchSearch}
+                      onChange={(e) => setBranchSearch(e.target.value)}
+                      className="h-8 pl-8 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto max-h-52 space-y-0.5 pr-0.5">
+                    <div className="text-[11px] font-medium text-muted-foreground px-1.5 py-0.5 tabular-nums">
+                      Branches ({nativeBranches.length})
+                    </div>
+                    {nativeBranches
+                      .filter(
+                        (b) =>
+                          b.name.toLowerCase().includes(branchSearch.toLowerCase()) ||
+                          b.title.toLowerCase().includes(branchSearch.toLowerCase())
+                      )
+                      .map((b) => {
+                        const isCurrent = b.name === (activeBranch || "main");
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={async () => {
+                              await switchBranchAction(b.name);
+                              setShowBranchMenu(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
+                                ? "bg-primary/10 text-primary font-semibold"
+                                : "text-foreground hover:bg-accent"
+                              }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <GitBranch
+                                className={`w-3 h-3 flex-shrink-0 ${isCurrent ? "text-primary" : "text-muted-foreground"
                                   }`}
-                              >
-                                <span className="truncate">{b}</span>
-                                {isCurrent && (
-                                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                                )}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    /* Native Branch System (Only when NO sync provider is set up) */
-                    <>
-                      <div className="px-2.5 py-2 bg-muted/60 border border-border rounded-lg flex items-center justify-between">
-                        <div>
-                          <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-                            <Database className="w-2.5 h-2.5 text-emerald-500" />
-                            <span>Workspace branch</span>
-                          </div>
-                          <div className="font-mono text-xs text-foreground font-semibold truncate mt-0.5 flex items-center gap-1.5">
-                            <GitBranch className="w-3 h-3 text-primary" />
-                            <span>{activeBranch || "main"}</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setShowBranchMenu(false);
-                            setIsCreateBranchOpen(true);
-                          }}
-                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors cursor-pointer"
-                          title="Create new branch"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>New</span>
-                        </button>
-                      </div>
+                              />
+                              <span className="truncate">{b.name}</span>
+                              {b.isDefault && (
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-muted text-muted-foreground font-sans">
+                                  default
+                                </span>
+                              )}
+                            </div>
+                            {isCurrent && (
+                              <Check className="w-3.5 h-3.5 text-primary flex-shrink-0 ml-1.5" />
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
 
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          placeholder="Search branches..."
-                          value={branchSearch}
-                          onChange={(e) => setBranchSearch(e.target.value)}
-                          className="h-8 pl-8 text-xs font-mono"
-                          autoFocus
-                        />
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto max-h-52 space-y-1 pr-0.5">
-                        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-1">
-                          Workspace branches ({nativeBranches.length})
-                        </div>
-                        {nativeBranches
-                          .filter(
-                            (b) =>
-                              b.name.toLowerCase().includes(branchSearch.toLowerCase()) ||
-                              b.title.toLowerCase().includes(branchSearch.toLowerCase())
-                          )
-                          .map((b) => {
-                            const isCurrent = b.name === (activeBranch || "main");
-                            return (
-                              <button
-                                key={b.id}
-                                onClick={async () => {
-                                  await switchBranchAction(b.name);
-                                  setShowBranchMenu(false);
-                                }}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors text-left cursor-pointer ${isCurrent
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "text-foreground hover:bg-muted"
-                                  }`}
-                              >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <GitBranch
-                                    className={`w-3 h-3 flex-shrink-0 ${isCurrent ? "text-primary" : "text-muted-foreground"
-                                      }`}
-                                  />
-                                  <span className="truncate">{b.name}</span>
-                                  {b.isDefault && (
-                                    <span className="text-[9px] px-1 py-0.2 rounded bg-muted text-muted-foreground font-sans">
-                                      default
-                                    </span>
-                                  )}
-                                </div>
-                                {isCurrent && (
-                                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0 ml-1.5" />
-                                )}
-                              </button>
-                            );
-                          })}
-                      </div>
-
-                      <div className="pt-1.5 border-t border-border flex items-center justify-between text-xs">
-                        <button
-                          onClick={() => {
-                            setSidebarTab("branches");
-                            setShowBranchMenu(false);
-                          }}
-                          className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer font-medium"
-                        >
-                          <span>View Branches &amp; History &rarr;</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+                  <div className="pt-1.5 border-t border-border/60 flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSidebarTab("branches");
+                        setShowBranchMenu(false);
+                      }}
+                      className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer font-medium px-1"
+                    >
+                      <span>View branches &amp; history &rarr;</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
         </div>
         )}

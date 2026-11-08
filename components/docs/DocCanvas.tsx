@@ -8,7 +8,7 @@ import {
   ArrowDown,
   Trash2,
   Calendar,
-  Sparkles,
+  FileText,
   Layers,
   Settings,
 } from "lucide-react";
@@ -196,22 +196,22 @@ export const DocCanvas: React.FC<DocCanvasProps> = ({
       {/* Main Content Area */}
       <div className="mx-auto max-w-4xl p-6 md:p-8 space-y-6">
         {page.blocks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 p-12 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="h-5 w-5" />
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border p-10 text-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+              <FileText className="h-4 w-4" />
             </div>
-            <h3 className="mt-3 text-sm font-semibold text-foreground">Empty Page</h3>
+            <h3 className="mt-3 text-sm font-semibold text-foreground">No blocks on this page</h3>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-              Add living documentation blocks such as color swatches, variable tables, Do's & Don'ts, or markdown guidelines.
+              Add documentation blocks such as color swatches, variable tables, Do&apos;s &amp; Don&apos;ts, or markdown guidelines.
             </p>
             {isEditing && (
               <button
                 type="button"
                 onClick={() => handleOpenSlashMenu(0)}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-2xs cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>Add First Block</span>
+                <span>Add first block</span>
               </button>
             )}
           </div>

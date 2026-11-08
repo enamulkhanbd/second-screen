@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, startTransition } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
@@ -259,8 +259,10 @@ export default function Home() {
     if (targetPath && targetPath !== pathname) {
       pendingRoutePath.current = targetPath;
     }
-    setCurrentProject(null);
-    setSidebarTab(tab);
+    startTransition(() => {
+      setCurrentProject(null);
+      setSidebarTab(tab);
+    });
 
     if (targetPath && targetPath !== pathname) {
       router.push(targetPath);
@@ -278,8 +280,10 @@ export default function Home() {
       pendingRoutePath.current = targetPath;
     }
 
-    setCurrentProject(project);
-    setSidebarTab(targetTab);
+    startTransition(() => {
+      setCurrentProject(project);
+      setSidebarTab(targetTab);
+    });
 
     if (targetPath !== pathname) {
       router.push(targetPath);
@@ -294,10 +298,12 @@ export default function Home() {
       pendingRoutePath.current = targetPath;
     }
 
-    setSidebarTab("project-settings");
-    setSyncTargetProject(project);
-    setCurrentProject(project, { skipHydration: true });
-    setProjectSettingsTab(tab);
+    startTransition(() => {
+      setSidebarTab("project-settings");
+      setSyncTargetProject(project);
+      setCurrentProject(project, { skipHydration: true });
+      setProjectSettingsTab(tab);
+    });
 
     if (targetPath !== pathname) {
       router.push(targetPath);
@@ -489,6 +495,24 @@ export default function Home() {
     // Restore tokens, theme matrix, and credentials securely from client storage on reload
     initializeFromStorage();
   }, [initializeFromStorage]);
+
+  useEffect(() => {
+    // Pre-warm primary studio workspace bundles during browser idle time so tab switching is instant
+    if (!currentUser || isLoadingTenant || typeof window === "undefined") return;
+    const warmChunks = () => {
+      void import("@/components/TokensWorkspace");
+      void import("@/components/ThemeMatrix");
+      void import("@/components/VariablesView");
+      void import("@/components/ExportsView");
+      void import("@/components/WorkspacesProjectsView");
+    };
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(warmChunks, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(warmChunks, 600);
+    return () => clearTimeout(timer);
+  }, [currentUser, isLoadingTenant]);
 
   useEffect(() => {
     setIsPrimaryNavOpen(false);

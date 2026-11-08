@@ -45,11 +45,11 @@ export const PluginDistributionModal: React.FC = () => {
   return (
     <div className="space-y-6 font-sans text-xs text-foreground">
       {/* Header Banner */}
-      <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 flex items-start justify-between">
+      <div className="p-5 rounded-xl bg-muted/40 border border-border flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Badge variant="violet" className="text-[10px] font-bold">
-              Private Companion Plugin
+            <Badge variant="outline" className="text-[10px] font-mono">
+              Companion plugin
             </Badge>
             <span className="text-muted-foreground font-mono text-[10px]">v0.1.0</span>
           </div>
@@ -73,8 +73,8 @@ export const PluginDistributionModal: React.FC = () => {
 
       {/* 3-Step Setup Instructions */}
       <div>
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-          Installation Guide (Figma Desktop)
+        <h4 className="text-xs font-semibold text-foreground mb-3">
+          Installation guide (Figma Desktop)
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

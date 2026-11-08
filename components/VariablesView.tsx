@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import { FlattenedToken, TokenType } from "@/types/tokens";
@@ -39,7 +39,7 @@ import {
   ArrowUp01,
   ArrowDown01,
 } from "lucide-react";
-import { compareTokens, compareTokenNames } from "@/utils/transformTokens";
+import { compareTokens, compareTokenNames, sortFlattenedTokens } from "@/utils/transformTokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +98,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const [visibleCount, setVisibleCount] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [viewLayout, setViewLayout] = useState<"grid" | "table">("grid");
@@ -107,7 +108,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
   useEffect(() => {
     setVisibleCount(100);
-  }, [searchQuery, selectedCollection, selectedType]);
+  }, [deferredSearchQuery, selectedCollection, selectedType]);
 
   const handleSortToggle = (field: "name" | "resolved" | "collection") => {
     if (sortField === field) {
@@ -161,6 +162,11 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
   // Filtered variables
   const filteredVariables = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    if (selectedCollection === "ALL" && selectedType === "ALL" && !q) {
+      return allVariables;
+    }
+
     return allVariables.filter((item) => {
       // Collection filter
       if (selectedCollection !== "ALL" && item.setName !== selectedCollection) {
@@ -176,8 +182,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
       }
 
       // Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (q) {
         const matchName = String(item.name || "").toLowerCase().includes(q);
         const matchValue = String(item.resolvedValue || item.rawValue || "").toLowerCase().includes(q);
         const matchSet = String(item.setName || "").toLowerCase().includes(q);
@@ -187,18 +192,18 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
 
       return true;
     });
-  }, [allVariables, selectedCollection, selectedType, searchQuery]);
+  }, [allVariables, selectedCollection, selectedType, deferredSearchQuery]);
 
   // Sorted variables
   const sortedVariables = useMemo(() => {
+    if (sortField !== "collection") {
+      return sortFlattenedTokens(filteredVariables, sortField, sortDirection);
+    }
     const list = [...filteredVariables];
     list.sort((a, b) => {
-      if (sortField === "collection") {
-        const cmp = compareTokenNames(a.setName, b.setName, sortDirection);
-        if (cmp !== 0) return cmp;
-        return compareTokenNames(a.name, b.name, sortDirection);
-      }
-      return compareTokens(a, b, sortField, sortDirection);
+      const cmp = compareTokenNames(a.setName, b.setName, sortDirection);
+      if (cmp !== 0) return cmp;
+      return compareTokenNames(a.name, b.name, sortDirection);
     });
     return list;
   }, [filteredVariables, sortField, sortDirection]);
@@ -283,15 +288,15 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background text-foreground font-sans select-none">
       {/* 1. Header with Stats & Actions */}
-      <header className="px-6 py-4 border-b border-border/80 bg-card/60 backdrop-blur flex-shrink-0 flex items-center justify-between z-10">
+      <header className="px-6 py-3.5 border-b border-border bg-background flex-shrink-0 flex items-center justify-between z-10">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-muted border border-border text-foreground flex items-center justify-center">
+              <Layers className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-foreground leading-tight">Figma Variables</h1>
+                <h1 className="text-sm font-semibold text-foreground leading-tight">Figma Variables</h1>
                 {hasVariables ? (
                   <Badge variant="success" className="text-[10px] gap-1 px-2 py-0.5 font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -304,7 +309,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                These are Figma Variables mapped from this project&apos;s tokens. Tokens stay the source.
+                Figma Variables mapped from this project&apos;s tokens. Tokens remain the source of truth.
               </p>
             </div>
           </div>
@@ -376,38 +381,36 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
       {!hasVariables ? (
         /* Empty State: Prompt to sync from Figma */
         <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center text-center">
-          <div className="max-w-md w-full p-8 rounded-2xl bg-card border border-border shadow-sm space-y-5">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-500/20 to-indigo-500/20 text-violet-500 flex items-center justify-center">
-              <Sparkles className="w-7 h-7" />
+          <div className="max-w-md w-full p-7 rounded-xl bg-card border border-border shadow-2xs space-y-5">
+            <div className="mx-auto w-11 h-11 rounded-xl bg-muted border border-border text-foreground flex items-center justify-center">
+              <Layers className="w-5 h-5" />
             </div>
 
             <div className="space-y-1.5">
-              <h2 className="text-base font-bold text-foreground">No Figma Variables yet</h2>
+              <h2 className="text-base font-semibold text-foreground">No Figma Variables synced</h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Pull Figma Variables into this project. Tokens stay the source.
+                Pull Figma Variables into this project while keeping your DTCG tokens as the source of truth.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 text-left space-y-2 text-xs">
-              <div className="font-semibold text-foreground flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                <span>Two steps:</span>
-              </div>
+            <div className="p-3.5 rounded-lg bg-muted/40 border border-border/80 text-left space-y-2 text-xs">
+              <div className="font-medium text-foreground">How to sync from Figma:</div>
               <ol className="list-decimal list-inside space-y-1 text-[11px] text-muted-foreground leading-relaxed">
-                <li>Run the <strong>Tokens Platform</strong> plugin in Figma desktop.</li>
-                <li>Choose <strong>Push Figma to Cloud</strong> to export your variables.</li>
+                <li>Open the <strong>Tokens Platform</strong> companion plugin in Figma.</li>
+                <li>Select <strong>Push Figma to Cloud</strong> to sync your variable collections.</li>
               </ol>
             </div>
 
-            <div className="pt-2 flex items-center justify-center gap-3">
+            <div className="pt-1 flex items-center justify-center gap-3">
               <Button
                 onClick={() => {
                   setProjectSettingsTab("sync");
                   setSidebarTab("project-settings");
                 }}
-                className="text-xs font-bold gap-1.5 h-9"
+                size="sm"
+                className="text-xs font-semibold gap-1.5 h-8"
               >
-                <span>Connect Figma</span>
+                <span>Configure Figma sync</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -417,40 +420,30 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
         /* Variables Workspace */
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Quick Metrics Ribbon */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 px-6 border-b border-border/60 bg-muted/20 flex-shrink-0 text-xs">
-            <div className="p-2.5 rounded-xl bg-card border border-border shadow-2xs space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                Total Variables
-              </span>
-              <div className="text-lg font-black text-foreground font-mono">{stats.total}</div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-6 py-3 border-b border-border/70 bg-muted/15 flex-shrink-0 text-xs tabular-nums">
+            <div className="px-3 py-2 rounded-lg bg-card border border-border flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">Total variables</span>
+              <span className="text-sm font-semibold text-foreground font-mono">{stats.total}</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-card border border-border shadow-2xs space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                Collections
-              </span>
-              <div className="text-lg font-black text-violet-500 font-mono">{stats.collectionsCount}</div>
+            <div className="px-3 py-2 rounded-lg bg-card border border-border flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">Collections</span>
+              <span className="text-sm font-semibold text-foreground font-mono">{stats.collectionsCount}</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-card border border-border shadow-2xs space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                Color Variables
-              </span>
-              <div className="text-lg font-black text-emerald-500 font-mono">{stats.colors}</div>
+            <div className="px-3 py-2 rounded-lg bg-card border border-border flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">Colors</span>
+              <span className="text-sm font-semibold text-foreground font-mono">{stats.colors}</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-card border border-border shadow-2xs space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                Dimensions / Numbers
-              </span>
-              <div className="text-lg font-black text-blue-500 font-mono">{stats.dimensions}</div>
+            <div className="px-3 py-2 rounded-lg bg-card border border-border flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">Dimensions</span>
+              <span className="text-sm font-semibold text-foreground font-mono">{stats.dimensions}</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-card border border-border shadow-2xs space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                Bound Aliases
-              </span>
-              <div className="text-lg font-black text-amber-500 font-mono">{stats.aliases}</div>
+            <div className="px-3 py-2 rounded-lg bg-card border border-border flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">Bound aliases</span>
+              <span className="text-sm font-semibold text-foreground font-mono">{stats.aliases}</span>
             </div>
           </div>
 
@@ -605,7 +598,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                         >
                       <CardHeader className="p-3.5 pb-2 space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <Badge variant="outline" className="text-[9px] font-mono uppercase px-1.5 py-0">
+                          <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0">
                             {item.setName}
                           </Badge>
 
@@ -677,10 +670,10 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                           </div>
                         ) : (
                           <div className="p-2 rounded-lg bg-muted/40 border border-border/80 flex items-center justify-between">
-                            <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                            <span className="text-[11px] font-mono text-muted-foreground">
                               {item.type}
                             </span>
-                            <span className="font-mono text-xs font-bold text-foreground">
+                            <span className="font-mono text-xs font-semibold text-foreground">
                               {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
                             </span>
                           </div>
@@ -732,7 +725,7 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               /* TABLE VIEW */
               <div className="w-full min-w-0 sm:min-w-[640px] rounded-xl border border-border bg-card shadow-xs overflow-x-auto">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-muted/40 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                  <thead className="bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
                     <tr>
                       <th
                         onClick={() => handleSortToggle("collection")}

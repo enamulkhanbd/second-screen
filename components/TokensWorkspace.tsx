@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -148,14 +148,11 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
   const currentSetKey = activeSet && activeSet !== "ALL" ? activeSet : allSetKeys[0] || "";
 
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   // PREVIEW MODE STATE & FILTERING
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showDeprecatedOnly, setShowDeprecatedOnly] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [editingToken, setEditingToken] = useState<FlattenedToken | null>(null);
@@ -267,12 +264,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const deprecatedCount = useMemo(() => setTokens.filter((t) => t.deprecated).length, [setTokens]);
 
   const displayedTokens = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    if (!showDeprecatedOnly && !q) return setTokens;
+
     return setTokens.filter((token) => {
       if (showDeprecatedOnly && !token.deprecated) return false;
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (q) {
         const matchName = String(token.name || "").toLowerCase().includes(q);
         const matchRaw = String(token.rawValue || "").toLowerCase().includes(q);
         const matchResolved = String(token.resolvedValue || "").toLowerCase().includes(q);
@@ -282,7 +280,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
       return true;
     });
-  }, [setTokens, searchQuery, showDeprecatedOnly]);
+  }, [setTokens, deferredSearchQuery, showDeprecatedOnly]);
 
   // Grouping depth state (default to 0: All Levels)
   const [groupDepth, setGroupDepth] = useState<number>(0);
@@ -322,12 +320,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   // Reset infinite scroll count whenever filters, active set, or sort changes
   useEffect(() => {
     setVisibleCount(INITIAL_BATCH_SIZE);
-  }, [searchQuery, showDeprecatedOnly, activeSet, groupDepth, sortField, sortDirection]);
+  }, [deferredSearchQuery, showDeprecatedOnly, activeSet, groupDepth, sortField, sortDirection]);
 
   const totalCount = displayedTokens.length;
 
   // Multi-level recursive group tree from displayed tokens with chosen grouping depth and sort field
   const groupTree = useMemo(() => {
+    if (tokensViewMode !== "preview" || groupDepth === 1) return [];
     return buildTokenGroupTree(
       displayedTokens,
       (token) => token.name.split("."),
@@ -335,13 +334,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
       sortDirection,
       sortField
     );
-  }, [displayedTokens, groupDepth, sortDirection, sortField]);
+  }, [tokensViewMode, displayedTokens, groupDepth, sortDirection, sortField]);
 
   const sortedTokens = useMemo(() => {
+    if (tokensViewMode !== "preview" || groupDepth !== 1) return [];
     return sortFlattenedTokens(displayedTokens, sortField, sortDirection);
-
-
-  }, [displayedTokens, sortField, sortDirection]);
+  }, [tokensViewMode, groupDepth, displayedTokens, sortField, sortDirection]);
 
   // Sliced tokens for flat view
   const visibleFlatTokens = useMemo(() => {
@@ -604,13 +602,9 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [selectedTokenIds]);
 
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   // JSON CODE EDITOR STATE
-  TokenTableRow.displayName = "TokenTableRow";
-
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   const [code, setCode] = useState<string>("");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
@@ -959,92 +953,88 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               >
                 {groupDepth === 1 ? (
                   <List className="w-3.5 h-3.5 text-muted-foreground" />
-                ) : groupDepth === 2 ? (
-                  <FolderTree className="w-3.5 h-3.5 text-blue-500" />
-                ) : groupDepth === 3 ? (
-                  <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
-                ) : groupDepth === 4 ? (
-                  <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                ) : groupDepth === 0 ? (
+                  <Layers className="w-3.5 h-3.5 text-foreground" />
                 ) : (
-                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                  <FolderTree className="w-3.5 h-3.5 text-primary" />
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lg border-border">
-              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Group By Level
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground select-none">
+                Group hierarchy
               </div>
-              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setGroupDepth(1)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <List className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 1 (Flat)</span>
+                    <span className="font-medium text-foreground">Level 1 (Flat)</span>
                     <span className="text-[10px] text-muted-foreground">No groups, flat token names</span>
                   </div>
                 </div>
-                {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 1 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(2)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <FolderTree className="w-3.5 h-3.5 text-blue-500" />
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 2 (1 Group)</span>
+                    <span className="font-medium text-foreground">Level 2 (1 Group)</span>
                     <span className="text-[10px] text-muted-foreground">Break by 1st segment</span>
                   </div>
                 </div>
-                {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 2 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(3)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <FolderTree className="w-3.5 h-3.5 text-emerald-500" />
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 3 (2 Groups)</span>
-                    <span className="text-[10px] text-muted-foreground">Break by 1st & 2nd segments</span>
+                    <span className="font-medium text-foreground">Level 3 (2 Groups)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st &amp; 2nd segments</span>
                   </div>
                 </div>
-                {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 3 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(4)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <FolderTree className="w-3.5 h-3.5 text-purple-500" />
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">Level 4 (3 Groups)</span>
-                    <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd & 3rd</span>
+                    <span className="font-medium text-foreground">Level 4 (3 Groups)</span>
+                    <span className="text-[10px] text-muted-foreground">Break by 1st, 2nd &amp; 3rd</span>
                   </div>
                 </div>
-                {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 4 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 onClick={() => setGroupDepth(0)}
-                className="flex items-center justify-between text-xs py-1.5 px-2 rounded cursor-pointer"
+                className="flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                <div className="flex items-center gap-2.5">
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex flex-col">
-                    <span className="font-medium">All Levels (Deepest)</span>
+                    <span className="font-medium text-foreground">All Levels (Deepest)</span>
                     <span className="text-[10px] text-muted-foreground">Fully nested hierarchy</span>
                   </div>
                 </div>
-                {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-2 flex-shrink-0" />}
+                {groupDepth === 0 && <Check className="w-3.5 h-3.5 text-primary ml-2 flex-shrink-0" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

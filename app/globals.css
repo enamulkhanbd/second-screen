@@ -4,64 +4,64 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 220 20% 98.5%;
+    --foreground: 224 25% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 224 25% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
+    --popover-foreground: 224 25% 7%;
+    --primary: 224 25% 9%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 220 14% 94.5%;
+    --secondary-foreground: 224 25% 9%;
+    --muted: 220 14% 94.5%;
+    --muted-foreground: 220 9% 42%;
+    --accent: 220 14% 94%;
+    --accent-foreground: 224 25% 9%;
+    --destructive: 0 78% 52%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 220 13% 89%;
+    --input: 220 13% 88%;
+    --ring: 224 25% 15%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 0 0% 9%;
+    --sidebar-background: 220 18% 97%;
+    --sidebar-foreground: 224 20% 18%;
+    --sidebar-primary: 224 25% 9%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 96.1%;
-    --sidebar-accent-foreground: 0 0% 9%;
-    --sidebar-border: 0 0% 89.8%;
-    --sidebar-ring: 0 0% 3.9%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 224 25% 9%;
+    --sidebar-border: 220 13% 89%;
+    --sidebar-ring: 224 25% 15%;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 240 18% 4.3%;
+    --foreground: 240 10% 96%;
+    --card: 225 10% 7.8%;
+    --card-foreground: 240 10% 96%;
+    --popover: 224 13% 9.6%;
+    --popover-foreground: 240 10% 96%;
+    --primary: 240 10% 96%;
+    --primary-foreground: 240 18% 5%;
+    --secondary: 225 11% 12.5%;
+    --secondary-foreground: 240 10% 96%;
+    --muted: 225 11% 12%;
+    --muted-foreground: 225 8% 64%;
+    --accent: 225 12% 13.5%;
+    --accent-foreground: 240 10% 96%;
+    --destructive: 0 65% 42%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --sidebar-background: 0 0% 9%;
-    --sidebar-foreground: 0 0% 96.1%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 0 0% 14.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 14.9%;
-    --sidebar-ring: 0 0% 83.1%;
+    --border: 225 10% 14.5%;
+    --input: 225 10% 14.5%;
+    --ring: 225 12% 78%;
+    --sidebar-background: 230 15% 6%;
+    --sidebar-foreground: 240 8% 92%;
+    --sidebar-primary: 240 10% 96%;
+    --sidebar-primary-foreground: 240 18% 5%;
+    --sidebar-accent: 225 12% 12.5%;
+    --sidebar-accent-foreground: 240 10% 96%;
+    --sidebar-border: 225 10% 13.5%;
+    --sidebar-ring: 225 12% 78%;
   }
 }
 
@@ -82,8 +82,16 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1, "cv11" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+  }
+  .font-mono,
+  .tabular-nums,
+  table td,
+  table th {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -105,8 +113,6 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
-
-
 
 @media (prefers-reduced-motion: reduce) {
   * {

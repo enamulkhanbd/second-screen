@@ -16,6 +16,13 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DocBlockInspectorProps {
   page: DocPage | null;
@@ -200,23 +207,27 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
             {selectedBlock.type === "callout" && (
               <div className="space-y-2">
                 <label className="text-xs font-medium text-foreground">Alert Variant</label>
-                <select
+                <Select
                   value={selectedBlock.settings?.calloutVariant || "info"}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     onUpdateBlock(selectedBlock.id, {
                       settings: {
                         ...selectedBlock.settings,
-                        calloutVariant: e.target.value as any,
+                        calloutVariant: val as any,
                       },
                     })
                   }
-                  className="w-full rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                 >
-                  <option value="info">Information (Blue)</option>
-                  <option value="success">Success (Green)</option>
-                  <option value="warning">Warning (Amber)</option>
-                  <option value="error">Important / Error (Red)</option>
-                </select>
+                  <SelectTrigger className="w-full h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="info">Information (Blue)</SelectItem>
+                    <SelectItem value="success">Success (Green)</SelectItem>
+                    <SelectItem value="warning">Warning (Amber)</SelectItem>
+                    <SelectItem value="error">Important / Error (Red)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -226,25 +237,29 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                 {/* Collection Selector (Screenshot 4) */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-foreground">Collection</label>
-                  <select
+                  <Select
                     value={selectedBlock.settings?.collection || "all"}
-                    onChange={(e) =>
+                    onValueChange={(val) =>
                       onUpdateBlock(selectedBlock.id, {
                         settings: {
                           ...selectedBlock.settings,
-                          collection: e.target.value,
+                          collection: val,
                         },
                       })
                     }
-                    className="w-full rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                   >
-                    <option value="all">All Collections</option>
-                    {availableCollections.map((col) => (
-                      <option key={col} value={col}>
-                        {col}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Collections</SelectItem>
+                      {availableCollections.map((col) => (
+                        <SelectItem key={col} value={col}>
+                          {col}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Type Filter Pills (Screenshot 4: Color, Float, String, Boolean) */}
@@ -289,21 +304,25 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-foreground">Name Filter</label>
                   <div className="flex gap-2">
-                    <select
+                    <Select
                       value={selectedBlock.settings?.filterCondition || "includes"}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         onUpdateBlock(selectedBlock.id, {
                           settings: {
                             ...selectedBlock.settings,
-                            filterCondition: e.target.value as any,
+                            filterCondition: val as any,
                           },
                         })
                       }
-                      className="w-28 shrink-0 rounded-lg border border-border/60 bg-background/80 px-2 py-1.5 text-xs text-foreground focus:outline-none"
                     >
-                      <option value="includes">Includes</option>
-                      <option value="startsWith">Starts with</option>
-                    </select>
+                      <SelectTrigger className="w-28 shrink-0 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="includes">Includes</SelectItem>
+                        <SelectItem value="startsWith">Starts with</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <input
                       type="text"
                       value={selectedBlock.settings?.filterQuery || ""}
@@ -383,39 +402,47 @@ export const DocBlockInspector: React.FC<DocBlockInspectorProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium text-muted-foreground">Sort By</label>
-                    <select
+                    <Select
                       value={selectedBlock.settings?.sortField || "name"}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         onUpdateBlock(selectedBlock.id, {
                           settings: {
                             ...selectedBlock.settings,
-                            sortField: e.target.value as any,
+                            sortField: val as any,
                           },
                         })
                       }
-                      className="w-full rounded-lg border border-border/60 bg-background/80 px-2 py-1.5 text-xs text-foreground focus:outline-none"
                     >
-                      <option value="name">Name</option>
-                      <option value="value">Value</option>
-                    </select>
+                      <SelectTrigger className="w-full h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="value">Value</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium text-muted-foreground">Direction</label>
-                    <select
+                    <Select
                       value={selectedBlock.settings?.sortOrder || "asc"}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         onUpdateBlock(selectedBlock.id, {
                           settings: {
                             ...selectedBlock.settings,
-                            sortOrder: e.target.value as any,
+                            sortOrder: val as any,
                           },
                         })
                       }
-                      className="w-full rounded-lg border border-border/60 bg-background/80 px-2 py-1.5 text-xs text-foreground focus:outline-none"
                     >
-                      <option value="asc">Ascending (A-Z)</option>
-                      <option value="desc">Descending (Z-A)</option>
-                    </select>
+                      <SelectTrigger className="w-full h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">Ascending (A-Z)</SelectItem>
+                        <SelectItem value="desc">Descending (Z-A)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

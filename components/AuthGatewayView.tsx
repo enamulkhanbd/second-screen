@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
+import { useShallow } from "zustand/react/shallow";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { LATEST_VERSION } from "@/data/systemChangelog";
 import {
-  Sparkles,
   ArrowRight,
-  ShieldCheck,
   FolderGit2,
   Lock,
   Mail,
@@ -15,14 +15,14 @@ import {
   Moon,
   AlertCircle,
   Code2,
-  Palette,
   Github,
   Loader2,
+  GitBranch,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { TokensPlatformLogo } from "@/components/TokensPlatformLogo";
 
 const getOAuthCallbackUrl = () => {
@@ -35,8 +35,16 @@ const getOAuthCallbackUrl = () => {
 };
 
 export const AuthGatewayView: React.FC = () => {
-  const { setCurrentUser, themeMode, setThemeMode, addToast } = useTokenStore();
+  const { setCurrentUser, themeMode, setThemeMode, addToast } = useTokenStore(
+    useShallow((s) => ({
+      setCurrentUser: s.setCurrentUser,
+      themeMode: s.themeMode,
+      setThemeMode: s.setThemeMode,
+      addToast: s.addToast,
+    }))
+  );
   const [isSignUp, setIsSignUp] = useState(false);
+  const [specimenTheme, setSpecimenTheme] = useState<"dark" | "light">("dark");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -199,88 +207,177 @@ export const AuthGatewayView: React.FC = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen w-full flex flex-col justify-between bg-[#fbfbfe] dark:bg-[#08080c] text-foreground font-sans relative overflow-hidden select-none transition-colors">
-      {/* Background Subtle Gradient Blobs */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 -right-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+  const specimenRows =
+    specimenTheme === "dark"
+      ? [
+          {
+            name: "color.surface.elevated",
+            alias: "{color.neutral.900}",
+            resolved: "#121316",
+            swatch: "#121316",
+          },
+          {
+            name: "color.accent.primary",
+            alias: "{color.indigo.400}",
+            resolved: "#818cf8",
+            swatch: "#818cf8",
+          },
+          {
+            name: "color.status.synced",
+            alias: "{color.emerald.400}",
+            resolved: "#34d399",
+            swatch: "#34d399",
+          },
+          {
+            name: "space.control.height",
+            alias: "{dimension.scale.8}",
+            resolved: "32px",
+            swatch: null,
+          },
+        ]
+      : [
+          {
+            name: "color.surface.elevated",
+            alias: "{color.neutral.0}",
+            resolved: "#ffffff",
+            swatch: "#ffffff",
+          },
+          {
+            name: "color.accent.primary",
+            alias: "{color.indigo.600}",
+            resolved: "#4f46e5",
+            swatch: "#4f46e5",
+          },
+          {
+            name: "color.status.synced",
+            alias: "{color.emerald.600}",
+            resolved: "#059669",
+            swatch: "#059669",
+          },
+          {
+            name: "space.control.height",
+            alias: "{dimension.scale.8}",
+            resolved: "32px",
+            swatch: null,
+          },
+        ];
 
+  return (
+    <div className="min-h-screen w-full flex flex-col justify-between bg-background text-foreground font-sans relative overflow-hidden select-none transition-colors">
       {/* Top Bar */}
-      <header className="h-16 px-6 sm:px-12 flex items-center justify-between border-b border-border/40 backdrop-blur-md z-10">
-        <TokensPlatformLogo variant="full" badge="v1.3.0" />
+      <header className="h-14 px-6 sm:px-10 flex items-center justify-between border-b border-border/70 bg-background/90 backdrop-blur-md z-10">
+        <TokensPlatformLogo variant="full" badge={LATEST_VERSION} />
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
             title="Toggle theme"
+            aria-label="Toggle color theme"
           >
             {themeMode === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
       </header>
 
-      {/* Main Authentication Hero Container */}
-      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col lg:flex-row items-center justify-center p-6 sm:p-12 gap-12 max-w-6xl mx-auto w-full z-10 focus:outline-none">
-        {/* Left Column: Product Value Proposition */}
-        <div className="flex-1 space-y-6 max-w-lg text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Next-Gen Design System Hub</span>
+      {/* Main Authentication Container */}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col lg:flex-row items-center justify-center px-6 py-10 sm:px-10 gap-10 lg:gap-16 max-w-6xl mx-auto w-full z-10 focus:outline-none"
+      >
+        {/* Left Column: Editorial Heading + Live Token Specimen */}
+        <div className="flex-1 space-y-6 max-w-xl w-full text-left">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 text-xs font-mono text-muted-foreground">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              <span>DTCG 2025.10 compliant token studio</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight leading-[1.15] text-foreground">
+              One source of truth for design tokens, themes, and code.
+            </h1>
+
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
+              Author multi-brand token sets, resolve deep alias chains across theme matrices, and sync bi-directionally with Figma Variables and Git repositories.
+            </p>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-foreground">
-            Govern, collaborate &amp; sync your{" "}
-            <span className="bg-gradient-to-r from-primary via-violet-500 to-indigo-500 bg-clip-text text-transparent">
-              design tokens
-            </span>
-          </h1>
-
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Multi-theme token matrix, real-time bi-directional Git and Figma variable synchronization, and instant code generation for modern design engineering teams.
-          </p>
-
-          {/* Feature Highlights Grid */}
-          <div className="grid grid-cols-2 gap-3 pt-2 text-left">
-            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <Palette className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                <span>Multi-Theme Matrix</span>
+          {/* Interactive Token Resolution Specimen */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-2 text-xs font-mono text-foreground">
+                <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="font-medium"> semantic / surface.tokens.json</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Manage Light, Dark, Brand and density modes seamlessly.
-              </p>
+              <div
+                role="group"
+                aria-label="Preview theme mode"
+                className="inline-flex items-center rounded-md border border-border bg-background p-0.5 text-[11px] font-medium"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSpecimenTheme("dark")}
+                  aria-pressed={specimenTheme === "dark"}
+                  className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                    specimenTheme === "dark"
+                      ? "bg-muted text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Dark
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSpecimenTheme("light")}
+                  aria-pressed={specimenTheme === "light"}
+                  className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                    specimenTheme === "light"
+                      ? "bg-muted text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Light
+                </button>
+              </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <FolderGit2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                <span>Bi-Directional Sync</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Pull &amp; push directly to GitHub, GitLab &amp; Figma Plugin.
-              </p>
+            <div className="divide-y divide-border/70 text-xs font-mono">
+              {specimenRows.map((row) => (
+                <div
+                  key={row.name}
+                  className="px-3.5 py-2.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                >
+                  <span className="text-foreground font-medium truncate">{row.name}</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-muted-foreground hidden sm:inline">{row.alias}</span>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted/60 text-foreground tabular-nums min-w-[78px] justify-end">
+                      {row.swatch && (
+                        <span
+                          className="size-2.5 rounded-xs border border-border shrink-0"
+                          style={{ backgroundColor: row.swatch }}
+                        />
+                      )}
+                      <span>{row.resolved}</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <Code2 className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
-                <span>Multi-Target Compilers</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Instant CSS, Tailwind, SCSS &amp; Style Dictionary exports.
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                <span>Private workspaces</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Secure workspaces with role-based member permissions.
-              </p>
+            <div className="px-3.5 py-2 border-t border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <FolderGit2 className="w-3.5 h-3.5" />
+                <span>GitHub, GitLab &amp; Bitbucket</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <GitBranch className="w-3.5 h-3.5" />
+                <span>Figma Variables Sync</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Code2 className="w-3.5 h-3.5" />
+                <span>CSS, TS, Swift &amp; Kotlin</span>
+              </span>
             </div>
           </div>
         </div>
@@ -488,13 +585,10 @@ export const AuthGatewayView: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 px-6 text-center text-xs text-foreground/75 bg-background/85 backdrop-blur-sm border-t border-border/30 z-10">
-        <div className="flex flex-wrap items-center justify-center gap-4 text-[11px]">
-          <span>Protected by Supabase Cloud Authentication</span>
-          <span>•</span>
-          <span>End-to-End Git &amp; Figma Encryption</span>
-          <span>•</span>
-          <span>Tokens Platform © 2026</span>
+      <footer className="py-3.5 px-6 sm:px-10 text-xs text-muted-foreground bg-background border-t border-border/70 z-10">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">
+          <span>Tokens Platform {LATEST_VERSION}</span>
+          <span>Self-hosted DTCG 2025.10 schema registry &amp; role-based workspace access</span>
         </div>
       </footer>
     </div>

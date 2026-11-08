@@ -11,6 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type AssetDimensions = NonNullable<ProjectAsset["dimensions"]>;
 
@@ -146,17 +153,27 @@ export function UploadAssetsModal({
           <DialogDescription>Stage several files, review their details, and choose a destination collection.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <label className="block space-y-2 text-sm font-medium">
-            Target collection
-            <select
-              value={collectionId}
-              onChange={(event) => setCollectionId(event.target.value)}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-foreground">
+              Target collection
+            </label>
+            <Select
+              value={collectionId || "__none__"}
+              onValueChange={(val) => setCollectionId(val === "__none__" ? "" : val)}
             >
-              <option value="">All Assets (no collection)</option>
-              {collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
-            </select>
-          </label>
+              <SelectTrigger className="h-9 w-full text-xs">
+                <SelectValue placeholder="All Assets (no collection)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">All Assets (no collection)</SelectItem>
+                {collections.map((collection) => (
+                  <SelectItem key={collection.id} value={collection.id}>
+                    {collection.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div
             onDragOver={(event) => event.preventDefault()}

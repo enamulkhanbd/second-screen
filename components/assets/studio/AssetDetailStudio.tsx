@@ -14,6 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ChevronDown,
   Copy,
   Download,
@@ -465,16 +472,26 @@ export function AssetDetailStudio({
                               disabled={!canEdit}
                             />
                           ) : field.type === "select" ? (
-                            <select
-                              value={String(customMetadata[field.id] ?? "")}
-                              onChange={(event) => setCustomMetadata((current) => ({ ...current, [field.id]: event.target.value }))}
-                              onBlur={saveDetails}
+                            <Select
+                              value={String(customMetadata[field.id] ?? "__empty__") || "__empty__"}
+                              onValueChange={(val) => {
+                                const nextVal = val === "__empty__" ? "" : val;
+                                setCustomMetadata((current) => ({ ...current, [field.id]: nextVal }));
+                              }}
                               disabled={!canEdit}
-                              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                             >
-                              <option value="">Select…</option>
-                              {(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}
-                            </select>
+                              <SelectTrigger onBlur={saveDetails} className="h-8 w-full text-xs">
+                                <SelectValue placeholder="Select…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__empty__">Select…</SelectItem>
+                                {(field.options || []).map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           ) : (
                             <input
                               type={field.type}

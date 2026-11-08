@@ -22,6 +22,13 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Link from "next/link";
 import { useTokenStore } from "@/store/useTokenStore";
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
@@ -247,21 +254,24 @@ export function PublicDocsReaderClient({
             <label htmlFor="mobile-page-picker" className="sr-only">
               Choose a page
             </label>
-            <select
-              id="mobile-page-picker"
+            <Select
               value={activePage?.id ?? ""}
-              onChange={(event) => setActivePageId(event.target.value)}
-              className="h-9 w-full rounded-lg border border-border/60 bg-background px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+              onValueChange={(val) => setActivePageId(val)}
             >
-              {publishedPages.map((page) => {
-                const folder = folders.find((f) => f.id === page.folderId);
-                return (
-                  <option key={page.id} value={page.id}>
-                    {folder ? `${folder.title} / ${page.title}` : page.title}
-                  </option>
-                );
-              })}
-            </select>
+              <SelectTrigger id="mobile-page-picker" className="h-9 w-full text-xs">
+                <SelectValue placeholder="Choose a page" />
+              </SelectTrigger>
+              <SelectContent>
+                {publishedPages.map((page) => {
+                  const folder = folders.find((f) => f.id === page.folderId);
+                  return (
+                    <SelectItem key={page.id} value={page.id}>
+                      {folder ? `${folder.title} / ${page.title}` : page.title}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
           </div>
           {activePage ? (
             <div>
@@ -280,7 +290,7 @@ export function PublicDocsReaderClient({
                 }
               >
                 <div className="mx-auto max-w-4xl space-y-3">
-                  <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                     {activePage.title}
                   </h1>
                   {activePage.description && (

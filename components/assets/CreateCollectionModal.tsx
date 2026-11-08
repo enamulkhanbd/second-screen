@@ -15,6 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ASSET_TYPES: { value: AssetType; label: string }[] = [
   { value: "image", label: "Image" },
@@ -177,14 +184,21 @@ export function CreateCollectionModal({ open, onOpenChange, onCreate }: CreateCo
                   onChange={(event) => updateField(field.id, { label: event.target.value })}
                   className="h-8 text-xs"
                 />
-                <select
-                  aria-label="Metadata field type"
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                <Select
                   value={field.type}
-                  onChange={(event) => updateField(field.id, { type: event.target.value as CustomMetadataField["type"] })}
+                  onValueChange={(val) => updateField(field.id, { type: val as CustomMetadataField["type"] })}
                 >
-                  {FIELD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                </select>
+                  <SelectTrigger aria-label="Metadata field type" className="h-8 text-xs capitalize">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIELD_TYPES.map((type) => (
+                      <SelectItem key={type} value={type} className="capitalize">
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {field.type === "select" && (
                   <Input
                     aria-label="Select field options"

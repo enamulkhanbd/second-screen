@@ -225,9 +225,9 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">🛡️ Admin</SelectItem>
-                        <SelectItem value="editor">✏️ Editor</SelectItem>
-                        <SelectItem value="viewer">👁️ Viewer</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="editor">Editor</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -246,7 +246,6 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
 
                 {/* Role Description Preview */}
                 <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
-                  <span>{ROLE_DEFINITIONS[inviteRole].icon}</span>
                   <span>{ROLE_DEFINITIONS[inviteRole].description}</span>
                 </div>
               </form>
@@ -255,8 +254,8 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
             {/* TAB 1: MEMBERS */}
             {activeTab === "members" && (
               <div className="space-y-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Organization Roster
+                <div className="text-xs font-semibold text-foreground">
+                  Organization roster
                 </div>
 
                 <div className="space-y-2">
@@ -301,14 +300,13 @@ export const ManageOrgModal: React.FC<ManageOrgModalProps> = ({ isOpen, onClose 
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="admin">🛡️ Admin</SelectItem>
-                                <SelectItem value="editor">✏️ Editor</SelectItem>
-                                <SelectItem value="viewer">👁️ Viewer</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="editor">Editor</SelectItem>
+                                <SelectItem value="viewer">Viewer</SelectItem>
                               </SelectContent>
                             </Select>
                           ) : (
                             <Badge variant={isOrgOwner ? "violet" : "secondary"} className="gap-1 text-[11px]">
-                              <span>{roleInfo.icon}</span>
                               <span>{roleInfo.title}</span>
                             </Badge>
                           )}

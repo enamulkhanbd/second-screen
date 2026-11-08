@@ -263,15 +263,15 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
 
             {/* References Popover */}
             {isRefPopoverOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-background border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                <div className="relative px-3 py-2 border-b border-border">
+              <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <div className="relative px-2.5 py-2 border-b border-border/60">
                   <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={refSearch}
                     onChange={(e) => setRefSearch(e.target.value)}
                     placeholder="Search references..."
-                    className="w-full pl-7 pr-7 h-8 bg-muted/40 border border-border rounded-md text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+                    className="w-full pl-7 pr-7 h-8 bg-background border border-border/80 rounded-lg text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
                   />
                   {refSearch && (
                     <button
@@ -283,7 +283,7 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
                   )}
                 </div>
 
-                <div className="max-h-56 overflow-y-auto p-1 divide-y divide-border/30">
+                <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
                   {filteredReferences.length === 0 ? (
                     <div className="p-4 text-center text-xs text-muted-foreground">
                       No matching tokens found
@@ -300,7 +300,7 @@ export const AddTokenModal: React.FC<AddTokenModalProps> = ({
                           key={refToken.id}
                           type="button"
                           onClick={() => handleInsertReference(refToken.name)}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-muted/70 text-left transition-colors cursor-pointer group"
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-accent text-left transition-colors cursor-pointer group"
                         >
                           <span className="font-mono text-xs text-foreground group-hover:text-primary transition-colors truncate">
                             {refToken.name}

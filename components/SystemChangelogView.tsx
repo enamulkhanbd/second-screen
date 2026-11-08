@@ -5,7 +5,7 @@ import { SYSTEM_CHANGELOG, LATEST_VERSION } from "@/data/systemChangelog";
 import { SystemChangelogEntry, ChangelogCategory } from "@/types/changelog";
 import {
   Rocket,
-  Sparkles,
+  Layers,
   Zap,
   Wrench,
   Link2,
@@ -13,14 +13,9 @@ import {
   Shield,
   Search,
   Calendar,
-  Tag,
   Copy,
   Check,
   CheckCircle2,
-  ChevronRight,
-  ExternalLink,
-  Layers,
-  ArrowRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +27,7 @@ const CATEGORY_CONFIG: Record<
 > = {
   feature: {
     label: "New Feature",
-    icon: Sparkles,
+    icon: Layers,
     color: "text-primary bg-primary/10 border-primary/20",
     badgeVariant: "default",
   },
@@ -150,16 +145,16 @@ export const SystemChangelogView: React.FC = () => {
       {/* 1. Header Toolbar */}
       <header className="h-16 border-b border-border px-6 flex items-center justify-between bg-card/60 backdrop-blur-md flex-shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-md">
-            <Rocket className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-lg bg-muted border border-border text-foreground flex items-center justify-center">
+            <Rocket className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-bold text-foreground tracking-tight">
                 System Changelog &amp; Releases
               </h1>
-              <Badge variant="violet" className="text-[10px] font-mono py-0 px-1.5 font-semibold">
-                {LATEST_VERSION} Latest
+              <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 font-semibold">
+                {LATEST_VERSION}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -190,7 +185,7 @@ export const SystemChangelogView: React.FC = () => {
         <div className="w-full lg:w-80 xl:w-88 border-b lg:border-b-0 lg:border-r border-border bg-muted/15 flex flex-col flex-shrink-0 h-64 lg:h-full overflow-hidden">
           {/* Sub-Header */}
           <div className="px-4 py-2.5 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
-            <span className="font-mono text-[11px] font-bold text-foreground uppercase tracking-wider">
+            <span className="text-xs font-semibold text-foreground">
               Releases ({SYSTEM_CHANGELOG.length})
             </span>
             <span className="text-[10px] text-muted-foreground font-mono">
@@ -242,7 +237,7 @@ export const SystemChangelogView: React.FC = () => {
                   <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                     {featureCount > 0 && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                        <Sparkles className="w-2.5 h-2.5" />
+                        <Layers className="w-2.5 h-2.5" />
                         <span>{featureCount} {featureCount === 1 ? "feature" : "features"}</span>
                       </span>
                     )}
@@ -270,7 +265,7 @@ export const SystemChangelogView: React.FC = () => {
         {/* ============================================================= */}
         <div className="flex-1 flex flex-col h-full overflow-y-auto p-6 lg:p-8 bg-background space-y-6 min-w-0">
           {/* 1. Release Hero Card */}
-          <div className="p-6 rounded-2xl border border-border bg-card shadow-xs space-y-4">
+          <div className="p-6 rounded-xl border border-border bg-card shadow-2xs space-y-4">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="space-y-1.5 max-w-2xl">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -320,10 +315,9 @@ export const SystemChangelogView: React.FC = () => {
 
             {/* Highlights Box */}
             {activeEntry.highlights && activeEntry.highlights.length > 0 && (
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/15 space-y-2">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Release Highlights</span>
+              <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <span>Release highlights</span>
                 </span>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-foreground/90 font-medium">
                   {activeEntry.highlights.map((hl, idx) => (
