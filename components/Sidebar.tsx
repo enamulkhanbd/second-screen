@@ -247,7 +247,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
   }, [rawTokens]);
 
   const isGitConfigured = Boolean(
-    credentials.provider && credentials.owner && credentials.repo
+    (credentials.provider && credentials.repo) ||
+    (currentProject?.gitConfig?.provider && currentProject?.gitConfig?.repo)
   );
 
   const isCustomOrgColor = useMemo(() => {
@@ -771,7 +772,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   <section className="space-y-0.5" aria-label="Connect">
                     {!isCollapsed && <div className={groupTitle}>Connect</div>}
                     <SidebarNavItem href={projectHref("variables")} label="Figma Variables" active={sidebarTab === "variables"} collapsed={isCollapsed} icon={<FigmaVariableIcon className="size-4 shrink-0" />} onClick={selectProjectTab("variables")} />
-                    <SidebarNavItem href={projectHref("branches")} label="Branches" active={sidebarTab === "branches"} collapsed={isCollapsed} icon={<GitBranch className="size-4 shrink-0" />} count={branches.length || 1} onClick={selectProjectTab("branches")} />
+                    {!isGitConfigured && (
+                      <SidebarNavItem href={projectHref("branches")} label="Branches" active={sidebarTab === "branches"} collapsed={isCollapsed} icon={<GitBranch className="size-4 shrink-0" />} count={branches.length || 1} onClick={selectProjectTab("branches")} />
+                    )}
                   </section>
                   <section className="space-y-0.5" aria-label="Publish">
                     {!isCollapsed && <div className={groupTitle}>Publish</div>}

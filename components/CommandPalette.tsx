@@ -49,6 +49,7 @@ export const CommandPalette: React.FC = () => {
     orgProjects,
     currentProject,
     rawTokens,
+    credentials,
     setCurrentOrg,
     setCurrentProject,
     setSidebarTab,
@@ -62,6 +63,7 @@ export const CommandPalette: React.FC = () => {
       orgProjects: state.orgProjects,
       currentProject: state.currentProject,
       rawTokens: state.rawTokens,
+      credentials: state.credentials,
       setCurrentOrg: state.setCurrentOrg,
       setCurrentProject: state.setCurrentProject,
       setSidebarTab: state.setSidebarTab,
@@ -133,11 +135,17 @@ export const CommandPalette: React.FC = () => {
     }
 
     if (currentProject) {
+      const isGitConfigured = Boolean(
+        (credentials.provider && credentials.repo) ||
+        (currentProject?.gitConfig?.provider && currentProject?.gitConfig?.repo)
+      );
       const projectPages: Array<[SidebarTabId, string, PaletteItem["icon"]]> = [
         ["tokens", "Tokens", Layers],
         ["themes", "Themes", Palette],
         ["variables", "Figma Variables", Hexagon],
-        ["branches", "Branches", GitBranch],
+        ...(!isGitConfigured
+          ? ([["branches", "Branches", GitBranch]] as Array<[SidebarTabId, string, PaletteItem["icon"]]>)
+          : []),
         ["documentation", "Documentation", FileText],
         ["assets", "Assets", ImageIcon],
         ["exports", "Exports", Download],

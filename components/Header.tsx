@@ -196,7 +196,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
   // Specific Showing Logic:
   // 1. Git Sync is configured -> show Git Pull, Push, and Branch dropdown
   const isGitConfigured = Boolean(
-    credentials.provider && credentials.repo && credentials.owner
+    (credentials.provider && credentials.repo) ||
+    (currentProject?.gitConfig?.provider && currentProject?.gitConfig?.repo)
   );
 
   // Token versioning, commit, and branch controls belong strictly to token editing/design workflows.

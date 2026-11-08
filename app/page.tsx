@@ -229,6 +229,7 @@ export default function Home() {
     setCurrentOrg,
     setCurrentProject,
     setSidebarTab,
+    credentials,
   } = useTokenStore(
     useShallow((state) => ({
       initializeFromStorage: state.initializeFromStorage,
@@ -236,6 +237,7 @@ export default function Home() {
       currentUser: state.currentUser,
       currentOrg: state.currentOrg,
       currentProject: state.currentProject,
+      credentials: state.credentials,
       syncTargetProject: state.syncTargetProject,
       setSyncTargetProject: state.setSyncTargetProject,
       setProjectSettingsTab: state.setProjectSettingsTab,
@@ -249,6 +251,11 @@ export default function Home() {
       setCurrentProject: state.setCurrentProject,
       setSidebarTab: state.setSidebarTab,
     }))
+  );
+
+  const isGitConfigured = Boolean(
+    (credentials.provider && credentials.repo) ||
+    (currentProject?.gitConfig?.provider && currentProject?.gitConfig?.repo)
   );
 
   const navigateToWorkspaceTab = (tab: WorkspaceNavigationTab) => {
@@ -399,6 +406,18 @@ export default function Home() {
       return;
     }
 
+    const isProjectGitConfigured = Boolean(
+      (matchingProject?.gitConfig?.provider && matchingProject?.gitConfig?.repo) ||
+      (credentials.provider && credentials.repo)
+    );
+
+    // If an external sync provider is connected, native branching is disabled; route to tokens
+    if (routeTab === "branches" && isProjectGitConfigured) {
+      const tokensPath = `/${encodeURIComponent(currentOrg.slug)}/${encodeURIComponent(matchingProject.slug)}/tokens`;
+      router.replace(tokensPath);
+      return;
+    }
+
     const isProjectChanging = currentProject?.id !== matchingProject.id;
     const isTabChanging = sidebarTab !== routeTab;
 
@@ -422,6 +441,8 @@ export default function Home() {
   }, [
     currentProject?.id,
     currentOrg?.id,
+    currentOrg?.slug,
+    credentials,
     isLoadingProjects,
     isLoadingTenant,
     orgProjects,
@@ -648,7 +669,14 @@ export default function Home() {
           ) : sidebarTab === "releases" ? (
             <ReleasesWorkspace />
           ) : sidebarTab === "branches" ? (
-            <BranchesView />
+            !isGitConfigured ? (
+              <BranchesView />
+            ) : (
+              <TokensWorkspace
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenContextNavigation={() => setIsContextNavOpen(true)}
+              />
+            )
           ) : sidebarTab === "mcp" ? (
             <McpCliView />
           ) : sidebarTab === "project-settings" ? (

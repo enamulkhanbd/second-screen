@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ProjectBranch, BranchChangeCategory } from "@/types/tokens";
 import { CreateBranchModal } from "@/components/CreateBranchModal";
@@ -70,7 +70,8 @@ export const BranchesView: React.FC = () => {
   } = useTokenStore();
 
   const isGitConfigured = Boolean(
-    credentials.provider && credentials.owner && credentials.repo
+    (credentials.provider && credentials.repo) ||
+    (currentProject?.gitConfig?.provider && currentProject?.gitConfig?.repo)
   );
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -231,7 +232,13 @@ export const BranchesView: React.FC = () => {
     }
   };
 
-  // If a sync provider is active, native branching is disabled (placed after all hooks)
+  // If an external sync provider is active, native branching is disabled; auto-redirect to tokens
+  useEffect(() => {
+    if (isGitConfigured) {
+      setSidebarTab("tokens");
+    }
+  }, [isGitConfigured, setSidebarTab]);
+
   if (isGitConfigured) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-background text-foreground">
