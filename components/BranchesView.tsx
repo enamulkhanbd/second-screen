@@ -28,6 +28,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -270,20 +278,29 @@ export const BranchesView: React.FC = () => {
       <div className="flex-1 flex flex-col h-full bg-background text-foreground overflow-hidden">
         {/* Detail View Sub-Header */}
         <div className="h-13 px-6 border-b border-border flex items-center justify-between flex-shrink-0 bg-card/60">
-          <div className="flex items-center gap-3 text-xs">
-            <button
-              onClick={() => setSelectedBranchName(null)}
-              className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Branches</span>
-            </button>
-            <span className="text-muted-foreground/40">/</span>
-            <span className="font-mono text-foreground font-semibold flex items-center gap-1.5">
-              <GitBranch className="w-3.5 h-3.5 text-primary" />
-              {selectedBranch.name}
-            </span>
-          </div>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranchName(null)}
+                    className="inline-flex items-center gap-1.5 font-medium transition-colors cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Branches</span>
+                  </button>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-mono font-semibold flex items-center gap-1.5 text-foreground">
+                  <GitBranch className="w-3.5 h-3.5 text-primary" />
+                  {selectedBranch.name}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
