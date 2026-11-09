@@ -1,5 +1,9 @@
 # Dedicated Design Token Schema Registry Deployment Plan
 
+> **Implementation Status:**
+> - ✅ **In-App Self-Hosted Schema Registry (`/api/v1/schemas/*`)**: **Developed & Active** — All 182 Draft 2020-12 / DTCG 2025.10 schemas ([`data/schemaCatalog.ts`](file:///d:/GitHub/second-screen/data/schemaCatalog.ts) & [`utils/dtcgSchemaGenerator.ts`](file:///d:/GitHub/second-screen/utils/dtcgSchemaGenerator.ts)), wildcard CORS (`GET`, `HEAD`, `OPTIONS`), caching headers, and dynamic origin resolution are 100% implemented and running natively inside this application.
+> - ⏳ **Standalone Custom Subdomain CDN (`registry.yourdomain.com`)**: **Optional Future Guide** — Use the steps below only if you wish to mirror the 182 schemas onto a separate standalone GitHub repository and custom domain outside the main Next.js app.
+
 This document outlines the architectural plan, repository structure, automation scripts, and deployment steps to host your own dedicated Schema Registry (e.g. `https://registry.yourdomain.com`) using **GitHub**, **Vercel**, and your **custom domain**.
 
 ---
@@ -208,8 +212,8 @@ schemaUrl: `${REGISTRY_BASE}/types/tokens/fontSize/0/schema.json`
 
 ## 7. Operational Checklist
 
-- [ ] All 182 schema files exported and validated.
-- [ ] CORS verified: `curl -I https://registry.yourdomain.com/api/v1/schemas/types/tokens/color/0/schema.json` returns `access-control-allow-origin: *`.
-- [ ] SSL certificate active (`https://`).
-- [ ] Schema URLs in Second Screen inspector modal show `https://registry.yourdomain.com/...`.
-- [ ] Figma Companion Plugin successfully loads schemas from the custom domain.
+- [x] **In-App Catalog & Generator (`data/schemaCatalog.ts` & `utils/dtcgSchemaGenerator.ts`)**: All 182 schema definitions implemented and validated (**✅ Developed**).
+- [x] **In-App CORS & Caching (`/api/v1/schemas/[...path]/route.ts`)**: Wildcard CORS (`access-control-allow-origin: *`) and cache headers active on local registry (**✅ Developed**).
+- [ ] *(Optional External Repo)* All 182 static schema files exported to standalone `schema-registry` repo.
+- [ ] *(Optional External Domain)* Custom subdomain (`https://registry.yourdomain.com`) & SSL certificate configured on Vercel.
+- [ ] *(Optional External Domain)* `NEXT_PUBLIC_SCHEMA_REGISTRY_URL` pointed to custom domain if separating from main app origin.

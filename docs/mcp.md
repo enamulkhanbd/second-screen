@@ -1,10 +1,14 @@
 # Model Context Protocol (MCP) Server: Complete Guide, Architecture & Implementation Plan (`mcp.md`)
 
+> **Implementation Status Summary:**
+> - ✅ **Core Platform Services, PAT Auth & Developers UI (80% Foundation):** **Developed & Active** — `components/McpCliView.tsx`, `components/ApiKeysManager.tsx`, `utils/patAuth.ts`, `utils/auth.ts`, `app/api/v1/auth/pat/route.ts`, $O(1)$ Token Engine (`utils/transformTokens.ts`), Multi-Platform Compilers (`utils/exportsCompiler.ts`), WCAG/CVD Engine (`utils/accessibility.ts`), 182 Self-Hosted Schemas (`utils/dtcgSchemaGenerator.ts`), and R2 Asset Services (`lib/r2.ts`) are already 100% implemented.
+> - ⏳ **MCP JSON-RPC Server Backend & 16 Agent Tools (Part 5 Phases 1–6):** **Pending Implementation** — `lib/mcp/*`, `app/api/v1/mcp/route.ts`, `scripts/mcp-server.mjs`, Slug/UUID resolver, and the live MCP connection tester in `McpCliView.tsx` are planned for implementation per Part 5 below.
+
 এই ডকুমেন্টটি **Second Screen / Tokens Platform**-এর জন্য **Model Context Protocol (MCP)**-এর একটি সম্পূর্ণ A-to-Z গাইড এবং ইঞ্জিনিয়ারিং ইমপ্লিমেন্টেশন প্ল্যান। আপনি যদি আগে কখনো MCP ব্যবহার না-ও করে থাকেন, এই ডকুমেন্টটি পড়লে MCP কী, কেন দরকার, আমাদের সিস্টেমে এটি কীভাবে কাজ করবে, আমরা কীভাবে এটি কোডবেসে ইমপ্লিমেন্ট করব এবং ইমপ্লিমেন্টেশনের পর কীভাবে ব্যবহার করবেন—সবকিছু একদম পরিষ্কার বুঝতে পারবেন।
 
 
-> **Status: 📝 Planned — NOT implemented yet.** `/api/v1/mcp`, `lib/mcp/*` এবং `@tokens-platform/mcp-server` প্যাকেজ কোডবেসে/npm-এ এখনো নেই। বর্তমানে [`components/McpCliView.tsx`](../components/McpCliView.tsx) যে `npx -y @tokens-platform/mcp-server ...` স্নিপেট ও "MCP v1.0" ব্যাজ দেখায় সেটি কাজ করবে না — Phase 5 শেষ না হওয়া পর্যন্ত UI-তে "Coming soon" দেখানো উচিত।
-> **Revision:** এই সংস্করণে কোডবেস রিভিউয়ের P0/P1 ফিক্সগুলো (নিচে **২.৩**) এবং `docs/UX_UI_UPDATE_PLAN.md`-এর সাথে alignment (Workspace শব্দভান্ডার, Developers নেভিগেশন) যুক্ত করা হয়েছে। যেসব দাবি এখনো কোডে যাচাই করা হয়নি সেগুলো **(verify)** চিহ্নিত।
+> **⚠️ Note:** `/api/v1/mcp`, `lib/mcp/*` এবং `@tokens-platform/mcp-server` প্যাকেজ কোডবেসে/npm-এ এখনো নেই। বর্তমানে [`components/McpCliView.tsx`](../components/McpCliView.tsx) যে `npx -y @tokens-platform/mcp-server ...` স্নিপেট ও "MCP v1.0" ব্যাজ দেখায় সেটি কাজ করবে না — Phase 5 শেষ না হওয়া পর্যন্ত UI-তে "Coming soon" দেখানো উচিত।
+> **Revision:** এই সংস্করণে কোডবেস রিভিউয়ের P0/P1 ফিক্সগুলো (নিচে **২.৩**) এবং UX plan (`docs/UX_UI_UPDATE_PLAN.md`, main থেকে সরানো হয়েছে — আগের সংস্করণ git history-তে)-এর সাথে alignment (Workspace শব্দভান্ডার, Developers নেভিগেশন) যুক্ত করা হয়েছে। যেসব দাবি এখনো কোডে যাচাই করা হয়নি সেগুলো **(verify)** চিহ্নিত।
 
 ---
 
@@ -96,22 +100,22 @@ MCP-তে যোগাযোগের জন্য দুটি প্রধা
 
 আমরা পুরো **Second Screen / Tokens Platform** কোডবেস বিশ্লেষণ করে দেখেছি। সুখবর হলো—আমাদের সিস্টেমের **৮০% কোর লজিক ইতিমধ্যেই অত্যন্ত মজবুতভাবে তৈরি আছে**! নিচে বর্তমান অবস্থা এবং কী কী নতুন যোগ করতে হবে তার বিশ্লেষণ দেওয়া হলো:
 
-### ২.১ আমাদের সিস্টেমে যা যা ইতিমধ্যে প্রস্তুত আছে (Existing Strengths)
+### ২.১ আমাদের সিস্টেমে যা যা ইতিমধ্যে প্রস্তুত আছে (Existing Strengths — `✅ Developed`)
 
-| মডিউল / ফিচার | বর্তমান ফাইল পাথ | কীভাবে MCP-তে কাজে লাগবে? |
-| :--- | :--- | :--- |
-| **Developers UI & PAT Manager** | [`components/McpCliView.tsx`](../components/McpCliView.tsx), [`components/ApiKeysManager.tsx`](../components/ApiKeysManager.tsx) | সাইডবারে `Developers` ট্যাব এবং PAT (`sec_pat_live_*`) জেনারেট করার সম্পূর্ণ UI ইতিমধ্যে তৈরি আছে। |
-| **PAT Auth & RBAC Security** | [`utils/patAuth.ts`](../utils/patAuth.ts), [`utils/auth.ts`](../utils/auth.ts), [`app/api/v1/auth/pat/route.ts`](../app/api/v1/auth/pat/route.ts) | SHA-256 হ্যাশড API Key (`public.api_keys` টেবিলে $O(1)$ লুকআপ), স্কোপ চেকিং (`read:tokens`, `write:tokens`, `manage:releases`) এবং মাল্টি-টেন্যান্ট মেম্বারশিপ ভেরিফিকেশন (`authorizeProjectRequest`) একদম রেডি। |
-| **High-Scale Token Engine** | [`utils/transformTokens.ts`](../utils/transformTokens.ts), [`utils/themeHelpers.ts`](../utils/themeHelpers.ts) | ১৩,০০০+ টোকেনের জন্য $O(1)$ ইন্ডেক্সিং, Alias Resolution (`{colors.brand.500}`), Math Evaluation (`{spacing.sm} * 2`), এবং DTCG 2025.10 পার্সার প্রস্তুত। |
-| **Smart Delta & Branching** | [`utils/tokenDiff.ts`](../utils/tokenDiff.ts), [`app/api/v1/tokens/route.ts`](../app/api/v1/tokens/route.ts) | টোকেন আপডেট করলে কী কী পরিবর্তন হলো (`added`, `modified`, `deleted`) তা বের করে ব্রাঞ্চে অটোমেটিক কমিট হিস্ট্রি সেভ করার লজিক তৈরি আছে। |
-| **Multi-Platform Compilers** | [`utils/exportsCompiler.ts`](../utils/exportsCompiler.ts), [`utils/releaseCompiler.ts`](../utils/releaseCompiler.ts) | টোকেন থেকে সরাসরি CSS Variables, SCSS, Tailwind, React TS, Flutter Dart, SwiftUI, ও Android XML জেনারেট করার ফাংশন রেডি। |
-| **WCAG & CVD Accessibility** | [`utils/accessibility.ts`](../utils/accessibility.ts) | যেকোনো দুটি রঙের মধ্যে WCAG 2.1 AA/AAA কন্ট্রাস্ট রেশিও এবং Color Blindness (Protanopia, Deuteranopia, ইত্যাদি) সিমুলেশন করার ফাংশন তৈরি আছে। |
-| **182 Local Schema Registry** | [`data/schemaCatalog.ts`](../data/schemaCatalog.ts), [`utils/dtcgSchemaGenerator.ts`](../utils/dtcgSchemaGenerator.ts) | ১০০% সেলফ-হোস্টেড DTCG Draft 2020-12 স্কিমা ক্যাটালগ ও ভ্যালিডেটর রেডি। |
-| **Cloudflare R2 Assets** | [`lib/r2.ts`](../lib/r2.ts), [`app/api/assets/list/route.ts`](../app/api/assets/list/route.ts) | প্রজেক্টের ভেক্টর SVG আইকন ও অ্যাসেট লিস্ট এবং কন্টেন্ট ফেচ করার সিস্টেম রেডি। |
+| মডিউল / ফিচার | স্ট্যাটাস | বর্তমান ফাইল পাথ | কীভাবে MCP-তে কাজে লাগবে? |
+| :--- | :--- | :--- | :--- |
+| **Developers UI & PAT Manager** | ✅ **Developed** | [`components/McpCliView.tsx`](../components/McpCliView.tsx), [`components/ApiKeysManager.tsx`](../components/ApiKeysManager.tsx) | সাইডবারে `Developers` ট্যাব এবং PAT (`sec_pat_live_*`) জেনারেট করার সম্পূর্ণ UI ইতিমধ্যে তৈরি আছে। |
+| **PAT Auth & RBAC Security** | ✅ **Developed** | [`utils/patAuth.ts`](../utils/patAuth.ts), [`utils/auth.ts`](../utils/auth.ts), [`app/api/v1/auth/pat/route.ts`](../app/api/v1/auth/pat/route.ts) | SHA-256 হ্যাশড API Key (`public.api_keys` টেবিলে $O(1)$ লুকআপ), স্কোপ চেকিং (`read:tokens`, `write:tokens`, `manage:releases`) এবং মাল্টি-টেন্যান্ট মেম্বারশিপ ভেরিফিকেশন (`authorizeProjectRequest`) একদম রেডি। |
+| **High-Scale Token Engine** | ✅ **Developed** | [`utils/transformTokens.ts`](../utils/transformTokens.ts), [`utils/themeHelpers.ts`](../utils/themeHelpers.ts) | ১৩,০০০+ টোকেনের জন্য $O(1)$ ইন্ডেক্সিং, Alias Resolution (`{colors.brand.500}`), Math Evaluation (`{spacing.sm} * 2`), এবং DTCG 2025.10 পার্সার প্রস্তুত। |
+| **Smart Delta & Branching** | ✅ **Developed** | [`utils/tokenDiff.ts`](../utils/tokenDiff.ts), [`app/api/v1/tokens/route.ts`](../app/api/v1/tokens/route.ts) | টোকেন আপডেট করলে কী কী পরিবর্তন হলো (`added`, `modified`, `deleted`) তা বের করে ব্রাঞ্চে অটোমেটিক কমিট হিস্ট্রি সেভ করার লজিক তৈরি আছে। |
+| **Multi-Platform Compilers** | ✅ **Developed** | [`utils/exportsCompiler.ts`](../utils/exportsCompiler.ts), [`utils/releaseCompiler.ts`](../utils/releaseCompiler.ts) | টোকেন থেকে সরাসরি CSS Variables, SCSS, Tailwind, React TS, Flutter Dart, SwiftUI, ও Android XML জেনারেট করার ফাংশন রেডি। |
+| **WCAG & CVD Accessibility** | ✅ **Developed** | [`utils/accessibility.ts`](../utils/accessibility.ts) | যেকোনো দুটি রঙের মধ্যে WCAG 2.1 AA/AAA কন্ট্রাস্ট রেশিও এবং Color Blindness (Protanopia, Deuteranopia, ইত্যাদি) সিমুলেশন করার ফাংশন তৈরি আছে। |
+| **182 Local Schema Registry** | ✅ **Developed** | [`data/schemaCatalog.ts`](../data/schemaCatalog.ts), [`utils/dtcgSchemaGenerator.ts`](../utils/dtcgSchemaGenerator.ts) | ১০০% সেলফ-হোস্টেড DTCG Draft 2020-12 স্কিমা ক্যাটালগ ও ভ্যালিডেটর রেডি। |
+| **Cloudflare R2 Assets** | ✅ **Developed** | [`lib/r2.ts`](../lib/r2.ts), [`app/api/assets/list/route.ts`](../app/api/assets/list/route.ts) | প্রজেক্টের ভেক্টর SVG আইকন ও অ্যাসেট লিস্ট এবং কন্টেন্ট ফেচ করার সিস্টেম রেডি। |
 
 ---
 
-### ২.২ বর্তমানে কী কী ঘাটতি আছে? (Gap Analysis — What We Need to Build)
+### ২.২ বর্তমানে কী কী ঘাটতি আছে? (Gap Analysis — What We Need to Build — `⏳ Pending Implementation`)
 
 1. **MCP Server Backend নেই**:
    * [`components/McpCliView.tsx`](../components/McpCliView.tsx)-এ বর্তমানে একটি স্ট্যাটিক JSON স্নিপেট দেখানো হচ্ছে (`@tokens-platform/mcp-server`), কিন্তু ব্যাকএন্ডে কোনো `/api/v1/mcp` রাউট বা লোকাল MCP সার্ভার স্ক্রিপ্ট এখনো তৈরি করা হয়নি।
@@ -160,7 +164,7 @@ MCP-তে যোগাযোগের জন্য দুটি প্রধা
 * `/api/assets/content` বর্তমানে unauthenticated; MCP-তে `search_project_assets(includeSvgContent)` আগে authorize করে তারপর `loadAssetRawContent` কল করবে — ওই রুট reuse করবে না।
 * ফাইল ম্যাপে `docs/ARCHITECTURE.md`, `AGENTS.md` Key File Map ও `data/systemChangelog.ts` আপডেট এবং টেস্ট `lib/__tests__/` কনভেনশনে রাখুন (vitest glob **(verify)**)।
 
-#### 🎨 UX Plan Alignment (`docs/UX_UI_UPDATE_PLAN.md`)
+#### 🎨 UX Plan Alignment (UX plan (`docs/UX_UI_UPDATE_PLAN.md`, main থেকে সরানো হয়েছে — আগের সংস্করণ git history-তে))
 * **শব্দভান্ডার:** ইউজার-ফেসিং টেক্সটে (টুল description, UI, error, ডক) **"Workspace"**, "Organization" নয়। কোড/DB ফিল্ড (`orgId`, `organizations`) অপরিবর্তিত।
 * **নেভিগেশন:** MCP/Developers পেজ top-level sidebar আইটেম নয় — **Advanced** অথবা **Project settings → Developers**-এর ভেতরে থাকবে।
 
@@ -326,7 +330,7 @@ AI ক্লায়েন্টগুলো চাইলে সরাসরি �
 
 ---
 
-## Part 5: Step-by-Step Implementation Plan (আমরা কীভাবে Implementation করব?)
+## Part 5: Step-by-Step Implementation Plan (আমরা কীভাবে Implementation করব? — `⏳ Pending Implementation`)
 
 এখানে আমাদের কোডবেসে MCP সার্ভার যুক্ত করার সম্পূর্ণ ধাপে ধাপে ইঞ্জিনিয়ারিং প্ল্যান দেওয়া হলো। আমরা আমাদের প্রজেক্টের **৫টি Critical Architectural Rules (`AGENTS.md`)** অক্ষুণ্ণ রেখে এটি বাস্তবায়ন করব।
 

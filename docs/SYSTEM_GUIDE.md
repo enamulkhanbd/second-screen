@@ -1,5 +1,7 @@
 # Second Screen / Tokens Platform: Comprehensive System Guide & Operations Manual
 
+> **Implementation Status:** ✅ **Developed & Active (v1.7.0)** — All 11 studio modules, multi-tenant RBAC, Cloudflare R2 Digital Asset Management (DAM), Living Documentation Studio, Figma Companion Plugin, and REST APIs documented below are implemented in production code. (For the upcoming MCP JSON-RPC Server backend `/api/v1/mcp`, see [`docs/mcp.md`](./mcp.md)).
+
 This document provides a complete, option-by-option reference and operational guide for the **Second Screen / Tokens Platform**. It covers every module, screen, modal, control, setting, and integration workflow across the application.
 
 ---
@@ -222,12 +224,14 @@ The **Schema Marketplace** (`components/ExtensionsView.tsx`) provides 182 self-h
 
 ---
 
-## 8. Studio: Assets & Multi-Platform Exporters
+## 8. Studio: Assets & Multi-Platform Exporters (`✅ Developed`)
 
-### Assets Studio (Beta)
-- **Asset Library**: Store, inspect, and organize vector SVGs, brand icons, and raster assets.
-- **Figma Asset Sync**: Pull icons and component frames directly from Figma documents.
-- **Batch Export**: Download optimized SVG or PNG asset archives.
+### Unified Digital Asset Management (DAM) & Asset Studio (`components/assets/AssetsWorkspace.tsx`)
+- **Cloudflare R2 Storage & Presigned Streaming**: Store, inspect, and organize vector SVGs, brand icons, raster images, illustrations, videos, audio, fonts, Lottie animations, and documents backed by Cloudflare R2 with ETag-conditional metadata indexing.
+- **Asset Collections & Custom Metadata (`CreateCollectionModal.tsx`)**: Organize assets into typed collections with custom metadata schema fields (`text`, `number`, `select`, `date`, `boolean`) and allowed asset type restrictions.
+- **Dual Grid & List Views (`AssetListView.tsx`)**: Switch seamlessly between aspect-ratio grid cards and high-density tabular list views with multi-format filtering and sorting.
+- **Asset Detail Studio (`studio/AssetDetailStudio.tsx`)**: Interactive inspection canvas with pan/zoom controls, background mode toggles (`dark`, `light`, `grid`, `checkerboard`), SVG markup/React copy, technical specifications, custom metadata editing, perceptual similarity detection, and version history timeline.
+- **External Sync & Bulk ZIP Export**: Pull icons and component frames directly from Figma (`fetch-assets`) or Git repositories, and export selected assets as optimized ZIP archives.
 
 ### Multi-Platform Exporters Engine (`components/ExportsView.tsx`)
 Transforms token sets into production code for any platform:
@@ -290,10 +294,5 @@ Active when connected to GitHub, Azure DevOps, GitLab, or Bitbucket.
 - `GET /api/v1/tokens/branches?orgId=...&projectId=...`: Loads remote Git branches separately from token retrieval; requires `read:tokens` access.
 
 ### MCP (Model Context Protocol) Server & CLI
-The platform includes an embedded MCP server (`components/MCPCliView.tsx`) allowing AI developer assistants (such as Antigravity, Claude, or Cursor) to programmatically interact with the design system:
-- **Available Agent Tools**:
-  - `list_tokens`: Query tokens with type, set, and alias filtering.
-  - `update_token`: Modify token values and metadata.
-  - `export_tokens`: Generate platform formats programmatically.
-  - `inspect_variables`: Read Figma variable collections.
-- **CLI Workflows**: Scriptable terminal workflows for token linting, contrast validation, and automated exports.
+- **Developers UI & PAT Manager (`components/McpCliView.tsx`, `components/ApiKeysManager.tsx`) — ✅ Developed**: Provides Personal Access Token (`sec_pat_live_*`) generation, revocation, and IDE configuration snippets.
+- **MCP JSON-RPC Server Backend (`/api/v1/mcp` & `lib/mcp/*`) — ⏳ Pending Implementation**: See [`docs/mcp.md`](./mcp.md) for the complete architecture and implementation plan for the 16 MCP agent tools (`search_tokens`, `upsert_tokens`, `export_tokens_code`, `check_color_contrast`, `inspect_figma_variables`, etc.).

@@ -1,5 +1,7 @@
 # System Architecture (`ARCHITECTURE.md`)
 
+> **Implementation Status:** ✅ **Developed & Active (v1.7.0)** — All architectural layers, multi-tenant RLS policies, $O(1)$ token lookup indices, R2 conditional metadata storage, and sync engines described in this document are fully implemented in production code.
+
 This document provides a comprehensive technical overview of the **Second Screen / Tokens Platform** architecture, data flow, synchronization engines, and component layout.
 
 ---

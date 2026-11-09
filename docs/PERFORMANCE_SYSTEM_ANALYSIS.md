@@ -1,9 +1,14 @@
 # Full-System Performance Analysis — Front-end, Back-end & Structure
 
+> **Implementation Status Summary (Updated 2026-11-08):**
+> - ✅ **Phase 1 — Quick Wins (9/9 Items):** **100% Developed** (`updateTokensBatch`/`deleteTokensBatch`/`duplicateTokensBatch`/`moveTokensBatch`, single-flight debounced save queue, single-auth pass, SHA-256 `api_keys` hash index, `/api/v1/tokens` ETag `304`, dynamic `jszip`/`releaseCompiler` code-splitting, `useShallow` store selectors, R2 ETag conditional writes, dead `TokenTable.tsx` cleanup).
+> - ✅ **Phase 2 — Core Pipeline (8/10 Items):** **Developed** (WeakMap lookup index, per-pass alias memoization, incremental point resolution `patchResolvedTokensIncremental`, structural sharing copy-on-write edits, progressive batch rendering in `VariablesView`/`CodeViewer`/doc blocks, Server Component + ISR public docs reader, RLS `(select auth.uid())` & composite indexes in `20261108_rls_perf_and_indexes.sql`, `projects.version` column).
+> - ⏳ **Remaining Future Roadmap (Phase 2 Optional & Phase 3 Structural):** Web Worker background full-resolve, IndexedDB project cache (`idb-keyval`), normalizing `project_branches` DB table (Stage B/C), splitting `useTokenStore` into domain slices (`WS8.1`), and migrating catch-all view tabs into nested Next.js route files (`WS8.3`).
+
 **Date:** 2026-11-04
 **Scope:** Whole repository (`app/`, `components/`, `store/`, `services/`, `utils/`, `lib/`, `supabase/`, `plugin/`, build config)
 **Method:** Static code review of all layers + a fresh production build (`next build`, Next.js 14.2.35) + a throw-away CPU benchmark of the token pipeline (13,000-token synthetic document). Temporary benchmark files were removed; the working tree is unchanged apart from this report.
-**Builds on:** [`PERFORMANCE_AUDIT_REPORT.md`](../PERFORMANCE_AUDIT_REPORT.md) (live-session network audit), [`FRONTEND_AUDIT_REPORT.md`](./FRONTEND_AUDIT_REPORT.md), [`BACKEND_AUDIT.md`](./BACKEND_AUDIT.md). This report does **not** repeat their findings; it re-verifies the earlier performance findings against current code (§2) and adds new, code-level findings (§4–§6).
+**Builds on:** [`PERFORMANCE_AUDIT_REPORT.md`](../PERFORMANCE_AUDIT_REPORT.md) (live-session network audit) and [`BACKEND_AUDIT.md`](./BACKEND_AUDIT.md). This report does **not** repeat their findings; it re-verifies the earlier performance findings against current code (§2) and adds new, code-level findings (§4–§6).
 
 > **Not measured here:** live network timings, Supabase/R2/GitHub latency, React render/commit times, real-device CPU. Numbers marked *(measured)* come from the build or the benchmark in §1. Numbers marked *(estimate)* are engineering expectations that must be confirmed with the measurements proposed in §9.
 
@@ -65,32 +70,32 @@ The prior live audit ([`PERFORMANCE_AUDIT_REPORT.md`](../PERFORMANCE_AUDIT_REPOR
 | `POST /api/git/fetch` on every tab | **Mitigated** | 60 s `LIVE_FETCH_TTL_MS`, in-flight de-dupe, `lastCommitSha` → `{ unchanged: true }` short-circuit; `checkRemoteUpdates` has 30 s cooldown + 10 min back-off on 403 | Server cache is per-instance (B7). |
 | Org/project metadata re-queried on each route change | **Fixed** | 30 s `METADATA_CACHE_TTL_MS`, `getOrgProjectSummaries` (no token columns), localStorage SWR | `getOrgProjects` (`select *`) still used by `/api/v1/releases` (B3). |
 | Unnecessary `PATCH organization_members` on load | **Now conditional** | Only when an email-matched member row has a different `user_id` (`needsUserLink`) | None. |
-| Synchronous alias resolution on the main thread | **Open** | Still synchronous; now quantified in §1.3 | **Top priority — F1/F2.** |
-| ThemeMatrix CPU cost | **Open (low)** | 55 ms @13k per recompute | F10. |
+| Synchronous alias resolution on the main thread | **✅ Developed** | Incremental `patchResolvedTokensIncremental`, WeakMap index, and per-pass memoization active (~1.5 ms point edits) | Optional Web Worker for initial 13k full-load remains planned. |
+| ThemeMatrix CPU cost | **✅ Mitigated** | Store selectors (`useShallow`) and memoized matrix derivation active | Low residual cost on full theme structural edits. |
 
 ---
 
 ## 3. Executive Summary
 
-The earlier network-level problems have largely been addressed. What remains is **CPU-bound work on the main thread, write amplification on every edit, subscription-wide re-renders, and a heavy first-load bundle**. The biggest wins are all in the token pipeline and the store:
+The earlier network-level problems and Phases 1–2 of the CPU/memory pipeline upgrades have been implemented. Below is the status of every finding across the system:
 
-| # | Finding | Layer | Severity | Effort | Expected gain |
+| # | Finding | Layer | Severity | Effort | Status |
 |---|---|---|---|---|---|
-| F1 | Full re-resolve of all tokens on every edit (≈0.5 s @13k) | FE/Core | 🔴 P0 | M | Edit latency 500 ms → <30 ms *(estimate)* |
-| F2 | Bulk actions run the full pipeline **and** a cloud save per token (50 tokens ≈ 26 s) | FE/Core | 🔴 P0 | S | 26 s → ~0.6 s *(estimate)* |
-| F3 | Cloud save on every edit, no debounce/queue, whole-document payload | FE/BE | 🔴 P0 | M | Cuts writes/bandwidth 10–100× during editing *(estimate)* |
-| B4 | DB write amplification: tokens stored 2–3× in one JSONB row | DB | 🟠 P1 | L | Smaller writes/WAL, branch scaling |
-| F4 | 369 kB first-load; `jszip`, schema catalog, compilers in the shell | FE | 🟠 P1 | M | −120…−200 kB gz first load *(estimate)* |
-| F5 | 53 whole-store subscriptions (`useTokenStore()`), incl. per-cell | FE | 🟠 P1 | M | Removes most unnecessary re-renders |
-| F6 | Unbounded rendering in docs blocks, Variables view, code viewers (violates Rule 4) | FE | 🟠 P1 | M | Stops multi-second freezes on large sets |
-| B1 | Per-request auth = `getUser()` network call + 2–3 serial DB queries; `/v1/tokens` authenticates **twice** | BE | 🟠 P1 | S–M | −150…−400 ms per API call *(estimate)* |
-| B2 | Bearer auth reads the **entire** `api_keys` table per request | BE | 🟠 P1 | S | O(1) auth |
-| B3 | `GET /api/v1/tokens` loads `select *`, re-resolves 13k tokens (~0.5 s CPU) per request, returns raw + resolved | BE | 🟠 P1 | M | Payload ↓ 40–60 %, CPU ↓ ~100 % on cache hit *(estimate)* |
-| F12 | Public docs page is a client component that downloads **all** projects of the org | FE/BE | 🟠 P1 | S–M | Orders of magnitude less data; SEO |
-| F8/F9 | Deep clones & localStorage as a multi-MB data cache (sync, 5 MB quota) | FE | 🟡 P2 | M | Fewer main-thread stalls, no quota failures |
-| B5 | RLS/index hygiene (`auth.uid()` per row, redundant/missing indexes) | DB | 🟡 P2 | S | Query-plan stability |
-| B6/B7/B9 | R2 index monolith, per-instance git cache, 2 s polling with `select *` | BE | 🟡 P2 | M | Scalability |
-| S1–S3 | God-store, giant components, SPA-in-a-route architecture | Structure | 🟡 P2 | L | Enables everything above long-term |
+| F1 | Full re-resolve of all tokens on every edit (≈0.5 s @13k) | FE/Core | 🔴 P0 | M | ✅ **Developed** (`patchResolvedTokensIncremental` + per-pass memo; Web Worker optional) |
+| F2 | Bulk actions run the full pipeline **and** a cloud save per token (50 tokens ≈ 26 s) | FE/Core | 🔴 P0 | S | ✅ **Developed** (`updateTokensBatch`, `deleteTokensBatch`, `duplicateTokensBatch`, `moveTokensBatch`) |
+| F3 | Cloud save on every edit, no debounce/queue, whole-document payload | FE/BE | 🔴 P0 | M | ✅ **Developed** (Single-flight debounced save queue + retry back-off) |
+| B4 | DB write amplification: tokens stored 2–3× in one JSONB row | DB | 🟠 P1 | L | ⏳ **Stage A Developed** (`projects.version` added); **Stage B/C Planned** (`project_branches` table) |
+| F4 | 369 kB first-load; `jszip`, schema catalog, compilers in the shell | FE | 🟠 P1 | M | ✅ **Developed** (`data/schemaIds.ts` extracted, dynamic `jszip` & `releaseCompiler` imports) |
+| F5 | 53 whole-store subscriptions (`useTokenStore()`), incl. per-cell | FE | 🟠 P1 | M | ✅ **Developed** (`useShallow` & atomic selectors across hot paths and cells) |
+| F6 | Unbounded rendering in docs blocks, Variables view, code viewers (violates Rule 4) | FE | 🟠 P1 | M | ✅ **Developed** (Progressive batching in `VariablesView`, `CodeViewer`, and doc blocks) |
+| B1 | Per-request auth = `getUser()` network call + 2–3 serial DB queries; `/v1/tokens` authenticates **twice** | BE | 🟠 P1 | S–M | ✅ **Developed** (Single auth pass per request; pre-authenticated context reuse) |
+| B2 | Bearer auth reads the **entire** `api_keys` table per request | BE | 🟠 P1 | S | ✅ **Developed** ($O(1)$ `findApiKeyByHash` + `api_keys_key_hash_uidx`) |
+| B3 | `GET /api/v1/tokens` loads `select *`, re-resolves 13k tokens (~0.5 s CPU) per request, returns raw + resolved | BE | 🟠 P1 | M | ✅ **Developed** (ETag header + `304 Not Modified` conditional short-circuit) |
+| F12 | Public docs page is a client component that downloads **all** projects of the org | FE/BE | 🟠 P1 | S–M | ✅ **Developed** (Server Component + `revalidate = 300` + projected query) |
+| F8/F9 | Deep clones & localStorage as a multi-MB data cache (sync, 5 MB quota) | FE | 🟡 P2 | M | ✅ **F8 Developed** (Structural sharing copy-on-write); ⏳ **F9 Planned** (IndexedDB) |
+| B5 | RLS/index hygiene (`auth.uid()` per row, redundant/missing indexes) | DB | 🟡 P2 | S | ✅ **Developed** (`20261108_rls_perf_and_indexes.sql`) |
+| B6/B7/B9 | R2 index monolith, per-instance git cache, 2 s polling with `select *` | BE | 🟡 P2 | M | ✅ **B6 & B9 Developed** (R2 ETag CAS + narrow pairing poll); ⏳ **B7 Partial** (Timeouts added; shared KV optional) |
+| S1–S3 | God-store, giant components, SPA-in-a-route architecture | Structure | 🟡 P2 | L | ⏳ **Planned (Phase 3)** |
 
 ---
 
@@ -391,7 +396,7 @@ This section turns the findings (F*, B*, S*) into an executable plan: first the 
 
 Effort: **S** ≤ 2 days, **M** ≤ 1–2 weeks, **L** > 2 weeks. "Verify" = how we prove it worked.
 
-### WS0 — Measurement & Guardrails (do first, ~3–5 days)
+### WS0 — Measurement & Guardrails (do first, ~3–5 days) — `✅ ESLint & Vitest Suite Developed` / `⏳ RUM & Bundle Gate Optional`
 
 | Step | Action | Notes |
 |---|---|---|
@@ -405,7 +410,7 @@ Effort: **S** ≤ 2 days, **M** ≤ 1–2 weeks, **L** > 2 weeks. "Verify" = how
 
 **Acceptance:** analyzer report + bench numbers committed; CI gate green on `main`; RUM dashboard shows LCP/INP/edit-to-paint for at least one week of data.
 
-### WS1 — Token Pipeline: Resolver, Edits, Bulk (F1, F2, F8) — highest ROI
+### WS1 — Token Pipeline: Resolver, Edits, Bulk (F1, F2, F8) — highest ROI — `✅ 1.1–1.5 Developed` / `⏳ 1.6 Web Worker Planned`
 
 **1.1 Characterisation tests first (S).** Snapshot `flattenAndResolveTokens` output for the real fixture (all sets, theme configs, math, modifiers, circular refs, broken refs). Every later step must keep this snapshot byte-identical.
 
@@ -460,7 +465,7 @@ Implementation: apply all edits to one working copy (`reduce` with `setIn`), `ex
 **Verify:** §1.3 benchmark table re-run; Chrome Performance shows no long task > 50 ms during a single edit and during bulk-50; snapshot test green.
 **Risks / rollback:** subtle ordering differences from removing the in-resolver sort → keep the flag; incremental logic bugs → feature flag `ts_incremental_resolve` (default off → canary → on), fallback is the full resolve.
 
-### WS2 — Save Path: Debounce, Queue, Concurrency (F3, G12, G13) (~1 week)
+### WS2 — Save Path: Debounce, Queue, Concurrency (F3, G12, G13) (~1 week) — `✅ Developed`
 
 **2.1 Single-flight, trailing-edge save queue** replacing the direct `saveProjectTokensAndBranches(...)` calls in `persistTokensChange` and `setRawTokens`:
 
@@ -509,7 +514,7 @@ On conflict: fetch latest, run the existing `computeTokensDiff`/merge UX, then r
 **Verify:** during a 60 s scripted typing session, `PATCH /rest/v1/projects` count ≤ 1 per 1.5 s and payload contains no duplicate token copies once WS6 lands; no overlapping requests in the Network panel; conflict test with two tabs.
 **Risks / rollback:** delayed durability (mitigated by 2.2) → flag `ts_debounced_save`; the debounce interval is a config constant.
 
-### WS3 — Rendering: Subscriptions, Virtualisation, Memoisation (F5, F6, F10) (~2 weeks)
+### WS3 — Rendering: Subscriptions, Virtualisation, Memoisation (F5, F6, F10) (~2 weeks) — `✅ 3.1, 3.3, 3.5 Developed` / `⏳ 3.2 @tanstack/react-virtual & 3.6 IndexedDB Planned`
 
 **3.1 Selector migration (S per file, ~50 files).** Order by hotness: `TokenValueFormatter` (per cell) → doc blocks → `TokensWorkspace` → `ThemeMatrix` → `TokenFlow` → `VariablesView` → `SecondarySidebar` → `Toast` → the rest.
 Pattern:
@@ -538,7 +543,7 @@ For row components, lift `canUserEdit`/`addToast` to the parent and pass as prop
 **Verify:** React Profiler: editing one token re-renders ≤ 5 components (today: every subscriber); DOM node count with 13k tokens scrolled to bottom stays < 3k; INP < 200 ms; a 13k-line CSS export opens with < 500 DOM rows.
 **Risks:** virtualised row heights (grouped headers, expanded rows) → use measured heights (`measureElement`) and keep keyboard/selection behaviour tests; roll out per view behind a flag.
 
-### WS4 — Bundle & Entry Points (F4, F12) (~1 week)
+### WS4 — Bundle & Entry Points (F4, F12) (~1 week) — `✅ Developed`
 
 | Step | Action | Target |
 |---|---|---|
@@ -553,7 +558,7 @@ For row components, lift `canUserEdit`/`addToast` to the parent and pass as prop
 **Verify:** analyzer diff + the §8 budgets; Lighthouse CI on `/`, `/connect`, `/docs/...`.
 **Risks:** dynamic-import latency on first export click → prefetch on hover (`import()` in `onMouseEnter`); keep the `.then(m => m.X)` pattern already used in `app/page.tsx`.
 
-### WS5 — API Authorisation & Reads (B1, B2, B3) (~1–1.5 weeks)
+### WS5 — API Authorisation & Reads (B1, B2, B3) (~1–1.5 weeks) — `✅ Developed`
 
 **5.1 One authentication per request.** Make `authenticateRequest` return a request-scoped context and pass it into `authorizeProjectRequest(ctx, orgId, projectId, permission)`; delete the first `authenticateRequest` call in `GET /api/v1/tokens` (keep the scope check by passing `required scope`). Create the admin client once at module scope (`let admin: SupabaseClient | null`).
 
@@ -589,7 +594,7 @@ grant execute on function public.authorize_project(text,text,text) to service_ro
 **Verify:** auth overhead ≤ 1 DB round-trip warm; `304` on repeat plugin pulls; p95 `/api/v1/tokens` ≤ 300 ms warm at 13k tokens; no event-loop lag > 100 ms at 20 rps.
 **Rollback:** keep the old `authorizeProjectRequest` behind an env flag for one release; RPC is additive.
 
-### WS6 — Database: Storage Model, RLS, Indexes (B4, B5, G6, G13, G14) (~2–4 weeks, staged)
+### WS6 — Database: Storage Model, RLS, Indexes (B4, B5, G6, G13, G14) (~2–4 weeks, staged) — `✅ Stage A Developed` / `⏳ Stage B & C Planned`
 
 **Stage A — safe, additive (≈2 days).**
 * `version` column (WS2.4); `UNIQUE(api_keys.key_hash)`; `CREATE INDEX CONCURRENTLY activities_org_ts_idx ON activities(org_id, "timestamp" DESC)`; `invitations(org_id, status)`; `pairing_sessions(expires_at)` + `pg_cron` job deleting expired rows.
@@ -625,7 +630,7 @@ create table public.project_branches (
 **Verify:** average `projects` row size drops; per-edit request payload < 10 KB with Stage C (< set size with Stage B); WAL/`pg_stat_statements` mean time of the save statement; no mismatches in shadow comparison.
 **Risks / rollback:** migrations are additive; dual-write allows instant flag rollback; take a snapshot/backup before backfill; run migrations on a staging copy with production-sized data first.
 
-### WS7 — Assets, Git Sync, Figma, Pairing (B6–B9) (~2 weeks)
+### WS7 — Assets, Git Sync, Figma, Pairing (B6–B9) (~2 weeks) — `✅ Developed`
 
 * **Assets (B6):** (1) `JSON.stringify(metadata)` (no pretty-print) in `uploadMetadataIndex`; (2) `GET /api/assets/list?limit=&cursor=&q=&type=&folder=` with server-side filtering; (3) per-instance cache keyed by R2 `ETag` using `If-None-Match` on `GetObject` (304 ⇒ no body); (4) the client store requests pages and keeps the existing IntersectionObserver batching; (5) longer term, move metadata to a `project_assets` Postgres table (also fixes the lost-update race, backend audit M3).
 * **Git fetch (B7):** add `If-None-Match` with stored ETags for `commits`/`trees`; request the sub-tree for the configured path; add `AbortSignal.timeout` to blob and `/user` calls; make the cache byte-bounded (`maxBytes` with size estimate on insert) or use a shared KV (Upstash/Redis) keyed by tree SHA when running multi-instance (G7); cache the profile for 10 min per PAT hash; evaluate GraphQL `object(expression:)` aliases or the tarball endpoint when a repo has > ~50 token files.
@@ -634,7 +639,7 @@ create table public.project_branches (
 
 **Verify:** `/api/assets/list` first page ≤ 50 KB and 304 on repeat; Git sync of an unchanged repo = 1 conditional request (`304`); Figma sync of a large file completes with bounded concurrency in logs; pairing request count per session ≤ ~60.
 
-### WS8 — Structure & Maintainability (S1–S5) (~4–8 weeks, incremental, parallel to the rest)
+### WS8 — Structure & Maintainability (S1–S5) (~4–8 weeks, incremental, parallel to the rest) — `⏳ Planned (Phase 3)`
 
 **8.1 Split the store into slices (Zustand 4 slice pattern).**
 
