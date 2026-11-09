@@ -2,6 +2,10 @@
 
 এই ডকুমেন্টটি **Second Screen / Tokens Platform**-এর জন্য **Model Context Protocol (MCP)**-এর একটি সম্পূর্ণ A-to-Z গাইড এবং ইঞ্জিনিয়ারিং ইমপ্লিমেন্টেশন প্ল্যান। আপনি যদি আগে কখনো MCP ব্যবহার না-ও করে থাকেন, এই ডকুমেন্টটি পড়লে MCP কী, কেন দরকার, আমাদের সিস্টেমে এটি কীভাবে কাজ করবে, আমরা কীভাবে এটি কোডবেসে ইমপ্লিমেন্ট করব এবং ইমপ্লিমেন্টেশনের পর কীভাবে ব্যবহার করবেন—সবকিছু একদম পরিষ্কার বুঝতে পারবেন।
 
+
+> **Status: 📝 Planned — NOT implemented yet.** `/api/v1/mcp`, `lib/mcp/*` এবং `@tokens-platform/mcp-server` প্যাকেজ কোডবেসে/npm-এ এখনো নেই। বর্তমানে [`components/McpCliView.tsx`](../components/McpCliView.tsx) যে `npx -y @tokens-platform/mcp-server ...` স্নিপেট ও "MCP v1.0" ব্যাজ দেখায় সেটি কাজ করবে না — Phase 5 শেষ না হওয়া পর্যন্ত UI-তে "Coming soon" দেখানো উচিত।
+> **Revision:** এই সংস্করণে কোডবেস রিভিউয়ের P0/P1 ফিক্সগুলো (নিচে **২.৩**) এবং `docs/UX_UI_UPDATE_PLAN.md`-এর সাথে alignment (Workspace শব্দভান্ডার, Developers নেভিগেশন) যুক্ত করা হয়েছে। যেসব দাবি এখনো কোডে যাচাই করা হয়নি সেগুলো **(verify)** চিহ্নিত।
+
 ---
 
 ## সূচিপত্র (Table of Contents)
@@ -96,28 +100,69 @@ MCP-তে যোগাযোগের জন্য দুটি প্রধা
 
 | মডিউল / ফিচার | বর্তমান ফাইল পাথ | কীভাবে MCP-তে কাজে লাগবে? |
 | :--- | :--- | :--- |
-| **Developers UI & PAT Manager** | [`components/McpCliView.tsx`](file:///d:/GitHub/second-screen/components/McpCliView.tsx), [`components/ApiKeysManager.tsx`](file:///d:/GitHub/second-screen/components/ApiKeysManager.tsx) | সাইডবারে `Developers` ট্যাব এবং PAT (`sec_pat_live_*`) জেনারেট করার সম্পূর্ণ UI ইতিমধ্যে তৈরি আছে। |
-| **PAT Auth & RBAC Security** | [`utils/patAuth.ts`](file:///d:/GitHub/second-screen/utils/patAuth.ts), [`utils/auth.ts`](file:///d:/GitHub/second-screen/utils/auth.ts), [`app/api/v1/auth/pat/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/auth/pat/route.ts) | SHA-256 হ্যাশড API Key (`public.api_keys` টেবিলে $O(1)$ লুকআপ), স্কোপ চেকিং (`read:tokens`, `write:tokens`, `manage:releases`) এবং মাল্টি-টেন্যান্ট মেম্বারশিপ ভেরিফিকেশন (`authorizeProjectRequest`) একদম রেডি। |
-| **High-Scale Token Engine** | [`utils/transformTokens.ts`](file:///d:/GitHub/second-screen/utils/transformTokens.ts), [`utils/themeHelpers.ts`](file:///d:/GitHub/second-screen/utils/themeHelpers.ts) | ১৩,০০০+ টোকেনের জন্য $O(1)$ ইন্ডেক্সিং, Alias Resolution (`{colors.brand.500}`), Math Evaluation (`{spacing.sm} * 2`), এবং DTCG 2025.10 পার্সার প্রস্তুত। |
-| **Smart Delta & Branching** | [`utils/tokenDiff.ts`](file:///d:/GitHub/second-screen/utils/tokenDiff.ts), [`app/api/v1/tokens/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/tokens/route.ts) | টোকেন আপডেট করলে কী কী পরিবর্তন হলো (`added`, `modified`, `deleted`) তা বের করে ব্রাঞ্চে অটোমেটিক কমিট হিস্ট্রি সেভ করার লজিক তৈরি আছে। |
-| **Multi-Platform Compilers** | [`utils/exportsCompiler.ts`](file:///d:/GitHub/second-screen/utils/exportsCompiler.ts), [`utils/releaseCompiler.ts`](file:///d:/GitHub/second-screen/utils/releaseCompiler.ts) | টোকেন থেকে সরাসরি CSS Variables, SCSS, Tailwind, React TS, Flutter Dart, SwiftUI, ও Android XML জেনারেট করার ফাংশন রেডি। |
-| **WCAG & CVD Accessibility** | [`utils/accessibility.ts`](file:///d:/GitHub/second-screen/utils/accessibility.ts) | যেকোনো দুটি রঙের মধ্যে WCAG 2.1 AA/AAA কন্ট্রাস্ট রেশিও এবং Color Blindness (Protanopia, Deuteranopia, ইত্যাদি) সিমুলেশন করার ফাংশন তৈরি আছে। |
-| **182 Local Schema Registry** | [`data/schemaCatalog.ts`](file:///d:/GitHub/second-screen/data/schemaCatalog.ts), [`utils/dtcgSchemaGenerator.ts`](file:///d:/GitHub/second-screen/utils/dtcgSchemaGenerator.ts) | ১০০% সেলফ-হোস্টেড DTCG Draft 2020-12 স্কিমা ক্যাটালগ ও ভ্যালিডেটর রেডি। |
-| **Cloudflare R2 Assets** | [`lib/r2.ts`](file:///d:/GitHub/second-screen/lib/r2.ts), [`app/api/assets/list/route.ts`](file:///d:/GitHub/second-screen/app/api/assets/list/route.ts) | প্রজেক্টের ভেক্টর SVG আইকন ও অ্যাসেট লিস্ট এবং কন্টেন্ট ফেচ করার সিস্টেম রেডি। |
+| **Developers UI & PAT Manager** | [`components/McpCliView.tsx`](../components/McpCliView.tsx), [`components/ApiKeysManager.tsx`](../components/ApiKeysManager.tsx) | সাইডবারে `Developers` ট্যাব এবং PAT (`sec_pat_live_*`) জেনারেট করার সম্পূর্ণ UI ইতিমধ্যে তৈরি আছে। |
+| **PAT Auth & RBAC Security** | [`utils/patAuth.ts`](../utils/patAuth.ts), [`utils/auth.ts`](../utils/auth.ts), [`app/api/v1/auth/pat/route.ts`](../app/api/v1/auth/pat/route.ts) | SHA-256 হ্যাশড API Key (`public.api_keys` টেবিলে $O(1)$ লুকআপ), স্কোপ চেকিং (`read:tokens`, `write:tokens`, `manage:releases`) এবং মাল্টি-টেন্যান্ট মেম্বারশিপ ভেরিফিকেশন (`authorizeProjectRequest`) একদম রেডি। |
+| **High-Scale Token Engine** | [`utils/transformTokens.ts`](../utils/transformTokens.ts), [`utils/themeHelpers.ts`](../utils/themeHelpers.ts) | ১৩,০০০+ টোকেনের জন্য $O(1)$ ইন্ডেক্সিং, Alias Resolution (`{colors.brand.500}`), Math Evaluation (`{spacing.sm} * 2`), এবং DTCG 2025.10 পার্সার প্রস্তুত। |
+| **Smart Delta & Branching** | [`utils/tokenDiff.ts`](../utils/tokenDiff.ts), [`app/api/v1/tokens/route.ts`](../app/api/v1/tokens/route.ts) | টোকেন আপডেট করলে কী কী পরিবর্তন হলো (`added`, `modified`, `deleted`) তা বের করে ব্রাঞ্চে অটোমেটিক কমিট হিস্ট্রি সেভ করার লজিক তৈরি আছে। |
+| **Multi-Platform Compilers** | [`utils/exportsCompiler.ts`](../utils/exportsCompiler.ts), [`utils/releaseCompiler.ts`](../utils/releaseCompiler.ts) | টোকেন থেকে সরাসরি CSS Variables, SCSS, Tailwind, React TS, Flutter Dart, SwiftUI, ও Android XML জেনারেট করার ফাংশন রেডি। |
+| **WCAG & CVD Accessibility** | [`utils/accessibility.ts`](../utils/accessibility.ts) | যেকোনো দুটি রঙের মধ্যে WCAG 2.1 AA/AAA কন্ট্রাস্ট রেশিও এবং Color Blindness (Protanopia, Deuteranopia, ইত্যাদি) সিমুলেশন করার ফাংশন তৈরি আছে। |
+| **182 Local Schema Registry** | [`data/schemaCatalog.ts`](../data/schemaCatalog.ts), [`utils/dtcgSchemaGenerator.ts`](../utils/dtcgSchemaGenerator.ts) | ১০০% সেলফ-হোস্টেড DTCG Draft 2020-12 স্কিমা ক্যাটালগ ও ভ্যালিডেটর রেডি। |
+| **Cloudflare R2 Assets** | [`lib/r2.ts`](../lib/r2.ts), [`app/api/assets/list/route.ts`](../app/api/assets/list/route.ts) | প্রজেক্টের ভেক্টর SVG আইকন ও অ্যাসেট লিস্ট এবং কন্টেন্ট ফেচ করার সিস্টেম রেডি। |
 
 ---
 
 ### ২.২ বর্তমানে কী কী ঘাটতি আছে? (Gap Analysis — What We Need to Build)
 
 1. **MCP Server Backend নেই**:
-   * [`components/McpCliView.tsx`](file:///d:/GitHub/second-screen/components/McpCliView.tsx)-এ বর্তমানে একটি স্ট্যাটিক JSON স্নিপেট দেখানো হচ্ছে (`@tokens-platform/mcp-server`), কিন্তু ব্যাকএন্ডে কোনো `/api/v1/mcp` রাউট বা লোকাল MCP সার্ভার স্ক্রিপ্ট এখনো তৈরি করা হয়নি।
+   * [`components/McpCliView.tsx`](../components/McpCliView.tsx)-এ বর্তমানে একটি স্ট্যাটিক JSON স্নিপেট দেখানো হচ্ছে (`@tokens-platform/mcp-server`), কিন্তু ব্যাকএন্ডে কোনো `/api/v1/mcp` রাউট বা লোকাল MCP সার্ভার স্ক্রিপ্ট এখনো তৈরি করা হয়নি।
 2. **Slug vs. UUID Resolution**:
-   * [`components/McpCliView.tsx`](file:///d:/GitHub/second-screen/components/McpCliView.tsx)-এ `--org=${currentOrg?.slug}` এবং `--project=${currentProject?.slug}` (যেমন `acme` এবং `design-system`) ব্যবহার করা হয়েছে। কিন্তু আমাদের [`services/organizationService.ts`](file:///d:/GitHub/second-screen/services/organizationService.ts)-এর `getProject(orgId, projectId)` ফাংশনটি কেবল UUID আশা করে। তাই আমাদের একটি **Smart Identifier Resolver** লাগবে যা **UUID বা Slug—যেকোনোটি দিলেই** সঠিক Organization এবং Project খুঁজে বের করবে।
+   * [`components/McpCliView.tsx`](../components/McpCliView.tsx)-এ `--org=${currentOrg?.slug}` এবং `--project=${currentProject?.slug}` (যেমন `acme` এবং `design-system`) ব্যবহার করা হয়েছে। কিন্তু আমাদের [`services/organizationService.ts`](../services/organizationService.ts)-এর `getProject(orgId, projectId)` ফাংশনটি কেবল UUID আশা করে। তাই আমাদের একটি **Smart Identifier Resolver** লাগবে যা **UUID বা Slug—যেকোনোটি দিলেই** সঠিক Organization এবং Project খুঁজে বের করবে।
 3. **High-Scale Context Window Protection (Rule 4 Compliance)**:
    * আমাদের প্রজেক্টগুলোতে **১৩,০০০+ টোকেন** থাকতে পারে। যদি কোনো AI Agent একবারে সব টোকেন চায় আর আমরা ১৩,০০০ টোকেনের পুরো JSON পাঠিয়ে দিই, তাহলে AI-এর Context Window (যেমন 128k বা 200k টোকেন লিমিট) সাথে সাথে পূর্ণ হয়ে ক্র্যাশ করবে!
    * তাই আমাদের MCP টুলগুলোতে **Smart Pagination (`limit`, `offset`), Category Summary, এবং Fuzzy Search** থাকতে হবে যাতে প্রতি কলে শুধুমাত্র প্রাসঙ্গিক ৫০-১০০টি টোকেন পাঠানো হয়।
-4. **Scope Selection in `ApiKeysManager.tsx`**:
-   * [`utils/patAuth.ts`](file:///d:/GitHub/second-screen/utils/patAuth.ts)-এ ৩টি স্কোপ সাপোর্ট করে (`read:tokens`, `write:tokens`, `manage:releases`), কিন্তু [`app/api/v1/auth/pat/route.ts`](file:///d:/GitHub/second-screen/app/api/v1/auth/pat/route.ts) এবং [`components/ApiKeysManager.tsx`](file:///d:/GitHub/second-screen/components/ApiKeysManager.tsx)-এ কেবল `read:tokens` ও `write:tokens` চেকবক্স আছে। আমরা সেখানে `manage:releases` অপশনটিও যুক্ত করতে পারি।
+4. **PAT Scope ও Project Binding (`ApiKeysManager.tsx` + `auth/pat/route.ts`)**:
+   * [`utils/patAuth.ts`](../utils/patAuth.ts) ৩টি স্কোপ সাপোর্ট করে (`read:tokens`, `write:tokens`, `manage:releases`), কিন্তু [`app/api/v1/auth/pat/route.ts`](../app/api/v1/auth/pat/route.ts)-এর `allowedScopes` কেবল `read:tokens` ও `write:tokens`।
+   * `manage:releases` MCP-তে যুক্ত **করা হবে না** — যতক্ষণ না কোনো release টুল থাকে (বাড়তি ক্ষমতা = বাড়তি ঝুঁকি)।
+   * PAT রেকর্ডে `orgId`/`projectId` ফিল্ড আছে, কিন্তু `POST /api/v1/auth/pat` কখনো এগুলো সেট করে না, ফলে আজকের PAT ইউজারের **সব** Organization/Project-এ কাজ করে। MCP কী-এর জন্য এটি অনিরাপদ — দেখুন **২.৩ P0-১**।
+
+### ২.৩ Code Review Findings — Implementation-এর আগে যা ঠিক করতে হবে
+
+#### 🔴 P0 (Blocker — এগুলো ছাড়া implement করা যাবে না)
+
+| # | সমস্যা | ডক/প্ল্যানে সংশোধন |
+| :- | :--- | :--- |
+| **P0-১** | PAT unbound — একটি লিক হওয়া MCP কী ইউজারের সব workspace-এ write করতে পারে। | MCP উদ্দেশ্যে তৈরি কী **ডিফল্টভাবে একটি project-এ bound** হবে (`orgId`+`projectId` সেট)। `pat/route.ts` এই ফিল্ড গ্রহণ করে `generateApiKey(...)`-এ পাস করবে; `authorizeProjectRequest` bound কী-এর বাইরের project reject করবে। Unbound কী কেবল read-only। |
+| **P0-২** | Resolver auto-pick (`/api/v1/tokens`-এর মতো "প্রথম org/project") লেখার সময় ভুল প্রজেক্টে ডেটা বদলে দিতে পারে। | Auto-pick শুধু **read/discovery** টুলে। যেকোনো write টুলে `org`+`project` (বা bound PAT) **বাধ্যতামূলক**; না থাকলে error। |
+| **P0-৩** | `POST /api/v1/tokens` `{...currentDoc, ...rawDoc}` shallow merge করে এবং `main` ব্রাঞ্চে root tokens ওভাররাইট করে — `upsert_tokens`/`delete_tokens` এটি reuse করলে সেট/টোকেন হারাবে। | নতুন **deep-merge ও path-level delete** ফাংশন (`lib/mcp/mutations.ts`) লিখতে হবে; পুরো doc replace নয়। `computeTokensDiff` দিয়ে diff, `saveProjectTokensAndBranches` দিয়ে সেভ। |
+| **P0-৪** | Concurrent edit (UI/Figma plugin/অন্য AI) নীরবে ওভাররাইট হতে পারে। | Write টুলে `expectedUpdatedAt` (বা ETag — `projectId:updatedAt:branch`) আর্গুমেন্ট; mismatch হলে `conflict` error, retry-র আগে re-read। |
+| **P0-৫** | AI `main`-এ সরাসরি লিখতে পারে। | Write টুলের ডিফল্ট: `main`-এ লেখা **অস্বীকৃত** যদি না `allowDefaultBranch: true` দেওয়া হয়; সাথে `dryRun: true` (diff প্রিভিউ, কোনো সেভ নয়)। প্রম্পট `generate-color-scale` ফিচার-ব্রাঞ্চ ফ্লো মেনে চলে। |
+| **P0-৬** | "Streamable HTTP" স্পেক-সম্মত নয় — batch, notification, GET, version negotiation অস্পষ্ট। | অফিসিয়াল `@modelcontextprotocol/sdk` (stateless transport) ব্যবহারের সম্ভাবনা যাচাই করুন — Next 14 App Router সামঞ্জস্য **(verify)**। নিজে লিখলে: `notifications/*` → `202 Accepted` (বডি ছাড়া); `GET` → `405` (SSE না দিলে); `initialize`-এ ক্লায়েন্টের `protocolVersion` negotiate (সমর্থিত না হলে সার্ভারের সর্বশেষ সমর্থিত ভার্সন ফেরত); JSON-RPC batch **বাদ** (2025-06-18 স্পেকে batching সরানো হয়েছে)। রুটে `export const runtime = "nodejs"` ও `maxDuration` সেট। |
+| **P0-৭** | CORS: IDE/ব্রাউজার ক্লায়েন্ট MCP হেডার পাঠালে preflight ব্যর্থ হবে। | [`utils/cors.ts`](../utils/cors.ts)-এর `Access-Control-Allow-Headers`-এ `Accept`, `Mcp-Session-Id`, `Mcp-Protocol-Version` যোগ; `Access-Control-Expose-Headers: Mcp-Session-Id`। |
+| **P0-৮** | Output আকার নিয়ন্ত্রণ নেই — ১৩k+ টোকেনে `export_tokens_code`, `get_project_overview`, `get_token_details` LLM context ভরে দেবে। | সব টুলে হার্ড cap (যেমন ৫০–২০০ আইটেম / ~২৫k অক্ষর) + `truncated: true`, `nextOffset`; `JSON.stringify` **compact** (pretty-print নয়); export-এ `setName` না দিলে সারসংক্ষেপ + ফাইল ম্যাপ, পুরো কোড নয়। |
+| **P0-৯** | Rate limit ও abuse সুরক্ষা নেই। | Per-key (SHA-256 hash id) rate limit, `tools/call`-এ সময়সীমা; write টুলে আরও কড়া সীমা। |
+
+#### 🟠 P1 (Implementation চলাকালীন ঠিক করতে হবে)
+
+| # | সমস্যা | সংশোধন |
+| :- | :--- | :--- |
+| **P1-১** | দুটি আলাদা কম্পাইলার: [`utils/exportsCompiler.ts`](../utils/exportsCompiler.ts) (css/scss/ts/raw/dtcg/figma-variables) বনাম [`utils/releaseCompiler.ts`](../utils/releaseCompiler.ts) (`compileStyleDictionary`: css/scss/esm/dts/tailwind/react/flutter/swift/android)। ডক এ-দুটো গুলিয়ে একটি `format` enum দিয়েছিল। | `export_tokens_code` → `releaseCompiler`-ভিত্তিক; `format` enum কেবল যেগুলো সত্যিই সাপোর্টেড। `figma-variables` এক্সপোর্ট প্লেসহোল্ডার ও approximate `oklch` রূপান্তর এক্সপোজ করা যাবে না। `/api/v1/releases` লজিক কপি নয় — শেয়ার্ড ফাংশন কল করুন। |
+| **P1-২** | প্রতি কলে পুরো প্রজেক্ট লোড = ধীর। | Per-project short-TTL cache (key: `projectId:updatedAt:branch`) + সংকীর্ণ `select`। |
+| **P1-৩** | `check_color_contrast` (`calculateContrastRatio` alpha উপেক্ষা করে) এবং `colorjs.io` `package.json`-এ তালিকাভুক্ত নয় (`utils/accessibility.ts` ডিপেন্ডেন্সি)। | আউটপুটে `alphaIgnored` সতর্কতা; `colorjs.io` স্পষ্টভাবে dependency-তে যোগ **(verify)**। |
+| **P1-৪** | `validate_tokens_schema`: ১৮২টি স্কিমার বিপরীতে ভ্যালিডেশনের জন্য `ajv` বা কাস্টম চেক দরকার। | `ajv` (Draft 2020-12) যোগ অথবা কাস্টম চেকে সীমিত করুন; ডকে ভ্যালিডেশনের পরিধি স্পষ্ট করুন **(verify)**। |
+| **P1-৫** | `get_themes_matrix`/`themeMode` — per-theme resolution এখনো UI-তে ThemeMatrix-এর ভেতরে। | `utils/themeHelpers.ts` থেকে `extractThemeGroups` ও রেজোলিউশন লজিক আলাদা শেয়ার্ড ফাংশনে বের করুন **(verify)**। |
+| **P1-৬** | `create_branch`, used-by (`get_token_details`) হেল্পার কোডে আছে কি না অনিশ্চিত। | বিদ্যমান `ProjectBranch` সেভ লজিক ও `buildTokenLookupIndex` দিয়ে reverse-index বানান **(verify)**। |
+| **P1-৭** | Slug collision — একই slug একাধিক org/project-এ থাকতে পারে। | Resolver ক্রম: exact ID → exact slug → একাধিক ম্যাচ হলে **error + candidates তালিকা** (অনুমান নয়)। |
+| **P1-৮** | Commit SHA-তে `Math.random` ও author অস্পষ্ট। | Audit: author = ইউজার ইমেইল + `via MCP key "<name>"`; commitMessage prefix `[mcp]`; টুলে MCP `annotations` (`readOnlyHint`, `destructiveHint`) সেট। |
+
+#### 🟡 P2 (ডকুমেন্টেশন ও পরিচ্ছন্নতা)
+* এই ডকের `file:///d:/...` লিংকগুলো রিপোজিটরি-রিলেটিভ লিংকে বদলানো হয়েছে; কোরিয়ান "컴포넌트" টাইপো ঠিক করা হয়েছে।
+* HTTP হলো **প্রাইমারি** ট্রান্সপোর্ট; stdio ব্রিজ ঐচ্ছিক ও সীমিত (Phase 4 দেখুন)।
+* `/api/assets/content` বর্তমানে unauthenticated; MCP-তে `search_project_assets(includeSvgContent)` আগে authorize করে তারপর `loadAssetRawContent` কল করবে — ওই রুট reuse করবে না।
+* ফাইল ম্যাপে `docs/ARCHITECTURE.md`, `AGENTS.md` Key File Map ও `data/systemChangelog.ts` আপডেট এবং টেস্ট `lib/__tests__/` কনভেনশনে রাখুন (vitest glob **(verify)**)।
+
+#### 🎨 UX Plan Alignment (`docs/UX_UI_UPDATE_PLAN.md`)
+* **শব্দভান্ডার:** ইউজার-ফেসিং টেক্সটে (টুল description, UI, error, ডক) **"Workspace"**, "Organization" নয়। কোড/DB ফিল্ড (`orgId`, `organizations`) অপরিবর্তিত।
+* **নেভিগেশন:** MCP/Developers পেজ top-level sidebar আইটেম নয় — **Advanced** অথবা **Project settings → Developers**-এর ভেতরে থাকবে।
 
 ---
 
@@ -171,7 +216,7 @@ flowchart TD
 ### ৩.২ একটি রিকোয়েস্ট শুরু থেকে শেষ পর্যন্ত কীভাবে কাজ করবে? (Step-by-Step Execution Flow)
 
 ধরুন, আপনি **Cursor** বা **Antigravity**-তে কোড লিখছেন এবং প্রম্পট দিলেন:
-> *"আমাদের ডিজাইন সিস্টেমের brand এবং surface টোকেন ব্যবহার করে একটি Dark Mode Card কম্পোনেন্ট বানিয়ে দাও এবং দেখো টেক্সট কন্ট্রাস্ট ঠিক আছে কি না। 컴포넌트-এ আমাদের 'arrow-right' আইকনটিও বসাও।"*
+> *"আমাদের ডিজাইন সিস্টেমের brand এবং surface টোকেন ব্যবহার করে একটি Dark Mode Card কম্পোনেন্ট বানিয়ে দাও এবং দেখো টেক্সট কন্ট্রাস্ট ঠিক আছে কি না। কম্পোনেন্ট-এ আমাদের 'arrow-right' আইকনটিও বসাও।"*
 
 আমাদের সিস্টেমের ভেতরে নিচের ধাপগুলো স্বয়ংক্রিয়ভাবে ঘটবে:
 
@@ -219,7 +264,7 @@ sequenceDiagram
 #### Category A: Workspace & Project Discovery (`read:tokens`)
 | # | Tool Name | কী কাজ করে? (Description) | Input Arguments | Output Summary |
 | :- | :--- | :--- | :--- | :--- |
-| **1** | `list_workspaces` | ইউজারের অ্যাক্সেস থাকা সব Organization এবং তার ভেতরের Project-গুলোর তালিকা (slug, ID, activeBranch সহ) রিটার্ন করে। | `orgSlug?: string` | Organizations ও Projects-এর তালিকা এবং ইউজারের Role (`owner`/`admin`/`editor`/`viewer`)। |
+| **1** | `list_workspaces` | ইউজারের অ্যাক্সেস থাকা সব Workspace এবং তার ভেতরের Project-গুলোর তালিকা (slug, ID, activeBranch সহ) রিটার্ন করে। | `orgSlug?: string` | Organizations ও Projects-এর তালিকা এবং ইউজারের Role (`owner`/`admin`/`editor`/`viewer`)। |
 | **2** | `get_project_overview` | একটি প্রজেক্টের সম্পূর্ণ সারসংক্ষেপ দেয়: কয়টি টোকেন সেট আছে, প্রতি সেটে কয়টি টোকেন, কী কী Theme Group/Mode আছে, কয়টি Figma Variable ও Asset আছে। | `org?: string`, `project?: string`, `branch?: string` | Token sets summary, Theme groups, Enabled schemas count, Active branch, Latest commit info। |
 
 #### Category B: High-Scale Token Search & Inspection (`read:tokens`)
@@ -233,19 +278,19 @@ sequenceDiagram
 | # | Tool Name | কী কাজ করে? (Description) | Input Arguments | Output Summary |
 | :- | :--- | :--- | :--- | :--- |
 | **6** | `get_themes_matrix` | প্রজেক্টের সব Theme Group (যেমন `Mode`: `Light`/`Dark`, `Brand`: `Brand A`/`Brand B`) এবং কোন মোডে কোন Token Set অ্যাক্টিভ তা রিটার্ন করে। চাইলে নির্দিষ্ট কিছু টোকেনের Mode-by-Mode তুলনাও দেয়। | `tokenNames?: string[]`, `groupName?: string` | থিম গ্রুপ কনফিগারেশন এবং টোকেনগুলোর পাশাপাশি (Side-by-side) সব মোডের Resolved Value। |
-| **7** | `check_color_contrast` | দুটি টোকেন নাম (যেমন `text.primary` ও `bg.surface`) অথবা দুটি সরাসরি রঙের মধ্যে **WCAG 2.1 AA/AAA Contrast Ratio** এবং **Color Blindness (CVD)** সিমুলেশন চেক করে। | `foreground: string`, `background: string`, `themeMode?: string` | Contrast ratio (`e.g. 7.42:1`), `scoreLabel` (`AAA`/`AA`/`AA Large`/`FAIL`), এবং Protanopia/Deuteranopia/Tritanopia প্রিভিউ Hex। |
+| **7** | `check_color_contrast` | দুটি টোকেন নাম (যেমন `text.primary` ও `bg.surface`) অথবা দুটি সরাসরি রঙের মধ্যে **WCAG 2.1 AA/AAA Contrast Ratio** এবং **Color Blindness (CVD)** সিমুলেশন চেক করে। | `foreground: string`, `background: string`, `themeMode?: string` (alpha চ্যানেল উপেক্ষিত — আউটপুটে `alphaIgnored` ওয়ার্নিং) | Contrast ratio (`e.g. 7.42:1`), `scoreLabel` (`AAA`/`AA`/`AA Large`/`FAIL`), এবং Protanopia/Deuteranopia/Tritanopia প্রিভিউ Hex। |
 
 #### Category D: Code Compilation & Schema Validation (`read:tokens`)
 | # | Tool Name | কী কাজ করে? (Description) | Input Arguments | Output Summary |
 | :- | :--- | :--- | :--- | :--- |
-| **8** | `export_tokens_code` | প্রজেক্টের টোকেনগুলোকে তাৎক্ষণিকভাবে যেকোনো প্ল্যাটফর্মের প্রোডাকশন কোডে কম্পাইল করে দেয়। | `format: "css" \| "scss" \| "tailwind" \| "typescript" \| "flutter" \| "swift" \| "android" \| "dtcg_json"`, `setName?: string`, `prefix?: string`, `casing?: string`, `colorSpace?: string` | রেডিমেড কম্পাইলড কোড স্ট্রিং বা ফাইল ম্যাপ যা AI সরাসরি আপনার প্রজেক্টের ফাইলে বসাতে পারবে। |
+| **8** | `export_tokens_code` | প্রজেক্টের টোকেনগুলোকে তাৎক্ষণিকভাবে যেকোনো প্ল্যাটফর্মের প্রোডাকশন কোডে কম্পাইল করে দেয়। | `format: "css" \| "scss" \| "tailwind" \| "typescript" \| "flutter" \| "swift" \| "android" \| "dtcg_json"`, `setName?: string`, `prefix?: string`, `casing?: string`, `colorSpace?: string`, `limit?: number` — **`releaseCompiler` (`compileStyleDictionary`)-ভিত্তিক; তালিকা ইমপ্লিমেন্টেশনের সময় আসলে সাপোর্টেড ফরম্যাটে সীমিত হবে, `figma-variables` নয় (P1-১)** | কম্পাইলড কোড/ফাইল ম্যাপ — আকার cap-সহ, বড় হলে `truncated` + `nextOffset` (P0-৮)। |
 | **9** | `validate_tokens_schema` | আমাদের সেলফ-হোস্টেড ১৮২টি DTCG 2025.10 JSON Schema-র বিপরীতে টোকেনগুলো ভ্যালিডেট করে এবং কোনো ভুল বা ভাঙ্গা Alias (Broken Reference) থাকলে রিপোর্ট দেয়। | `setName?: string`, `branch?: string` | ভ্যালিডেশন রিপোর্ট: Broken aliases, missing types, deprecated tokens in use, এবং DTCG schema compliance status। |
 
 #### Category E: Token Authoring & Branch Version Control (`write:tokens`)
 | # | Tool Name | কী কাজ করে? (Description) | Input Arguments | Output Summary |
 | :- | :--- | :--- | :--- | :--- |
-| **10** | `upsert_tokens` | প্রজেক্টের নির্দিষ্ট Token Set ও Branch-এ এক বা একাধিক টোকেন তৈরি বা আপডেট করে এবং অটোমেটিক ডেল্টা (Diff) হিসাব করে কমিট হিস্ট্রিতে সেভ করে। | `setName: string`, `tokens: Array<{ path: string; value: any; type?: string; description?: string }>`, `branch?: string`, `commitMessage?: string` | কয়টি টোকেন Added/Modified হলো তার সামারি, নতুন Resolved Value এবং Commit SHA। |
-| **11** | `delete_tokens` | নির্দিষ্ট Token Set থেকে টোকেন ডিলিট করে। ডিলিট করার আগে চেক করে অন্য কোনো টোকেন এটির ওপর নির্ভরশীল (Alias) কি না! | `setName: string`, `tokenPaths: string[]`, `branch?: string`, `force?: boolean`, `commitMessage?: string` | ডিলিট হওয়া টোকেনের তালিকা অথবা Broken Alias ওয়ার্নিং। |
+| **10** | `upsert_tokens` | প্রজেক্টের নির্দিষ্ট Token Set ও Branch-এ এক বা একাধিক টোকেন তৈরি বা আপডেট করে এবং অটোমেটিক ডেল্টা (Diff) হিসাব করে কমিট হিস্ট্রিতে সেভ করে। | `setName: string`, `tokens: Array<{ path: string; value: any; type?: string; description?: string }>`, `branch?: string`, `commitMessage?: string`, `expectedUpdatedAt?: string`, `dryRun?: boolean`, `allowDefaultBranch?: boolean` (প্রজেক্ট স্পষ্ট বাধ্যতামূলক — P0-২/৪/৫) | কয়টি টোকেন Added/Modified হলো তার সামারি, নতুন Resolved Value এবং Commit SHA। |
+| **11** | `delete_tokens` | নির্দিষ্ট Token Set থেকে টোকেন ডিলিট করে। ডিলিট করার আগে চেক করে অন্য কোনো টোকেন এটির ওপর নির্ভরশীল (Alias) কি না! | `setName: string`, `tokenPaths: string[]`, `branch?: string`, `force?: boolean`, `commitMessage?: string`, `expectedUpdatedAt?: string`, `dryRun?: boolean`, `allowDefaultBranch?: boolean` | ডিলিট হওয়া টোকেনের তালিকা অথবা Broken Alias ওয়ার্নিং। |
 | **12** | `list_branches` | প্রজেক্টের সব Native ও Git ব্রাঞ্চ এবং সাম্প্রতিক কমিট হিস্ট্রি (কে কখন কোন টোকেন পরিবর্তন করেছে) দেখায়। | `limitCommits?: number` | ব্রাঞ্চের তালিকা, ডিফল্ট ব্রাঞ্চ এবং সাম্প্রতিক কমিট লগ। |
 | **13** | `create_branch` | বিদ্যমান কোনো ব্রাঞ্চ (যেমন `main`) থেকে ফর্ক করে নতুন একটি ব্রাঞ্চ তৈরি করে, যাতে AI মূল ব্রাঞ্চ নষ্ট না করে নিরাপদে নতুন ব্রাঞ্চে কাজ করতে পারে। | `branchName: string`, `title?: string`, `basedOn?: string`, `description?: string` | নতুন তৈরি হওয়া ব্রাঞ্চের তথ্য এবং টোকেন স্ন্যাপশট। |
 
@@ -288,11 +333,12 @@ AI ক্লায়েন্টগুলো চাইলে সরাসরি �
 ### নতুন যে ফাইলগুলো তৈরি ও আপডেট করা হবে (File Map)
 
 ```
-d:\GitHub\second-screen/
+second-screen/
 ├── lib/
 │   └── mcp/
 │       ├── types.ts                # [NEW] MCP context, tool parameter schemas & response types
-│       ├── resolver.ts             # [NEW] Smart Org/Project UUID-or-Slug resolver & branch loader
+│       ├── resolver.ts             # [NEW] UUID/Slug resolver (ambiguity → error; auto-pick read-only) & branch loader
+│       ├── mutations.ts            # [NEW] Deep-merge upsert / path-level delete, optimistic concurrency, dryRun
 │       ├── tools.ts                # [NEW] Implementation of all 16 MCP tools
 │       ├── resources.ts            # [NEW] Implementation of 5 MCP URI resources
 │       ├── prompts.ts              # [NEW] Implementation of 4 MCP prompt templates
@@ -302,19 +348,21 @@ d:\GitHub\second-screen/
 │       └── v1/
 │           ├── mcp/
 │           │   ├── route.ts        # [NEW] Streamable HTTP / JSON-RPC 2.0 MCP endpoint
-│           │   └── __tests__/
-│           │       └── mcpRoute.test.ts # [NEW] Automated unit & integration tests
 │           └── auth/
 │               └── pat/
-│                   └── route.ts    # [MODIFY] Support optional orgId/projectId binding & manage:releases scope
+│                   └── route.ts    # [MODIFY] Accept & persist orgId/projectId binding (MCP keys bound by default)
+├── lib/__tests__/
+│   └── mcp*.test.ts                # [NEW] Tests (repo convention; vitest glob verify)
+├── utils/cors.ts                   # [MODIFY] Add Accept, Mcp-Session-Id, Mcp-Protocol-Version
 ├── scripts/
-│   └── mcp-server.mjs              # [NEW] Local Stdio MCP bridge CLI for Claude Desktop / Cursor / npx
+│   └── mcp-server.mjs              # [NEW, OPTIONAL] Thin stdio→HTTP bridge (HTTP is primary)
 ├── services/
 │   └── organizationService.ts      # [MODIFY] Add resolveOrgAndProjectBySlugOrId() helper
+├── docs/ARCHITECTURE.md · AGENTS.md (Key File Map) · data/systemChangelog.ts  # [MODIFY] Document MCP
 └── components/
     ├── McpCliView.tsx              # [MODIFY] Upgrade with IDE tabs (Antigravity, Cursor, Claude, VS Code),
     │                               #          Remote HTTP vs Local Stdio toggle & Live Connection Tester
-    └── ApiKeysManager.tsx          # [MODIFY] Add optional scope/project binding indicator for MCP keys
+    └── ApiKeysManager.tsx          # [MODIFY] Show project-binding + scope indicator for MCP keys (no manage:releases)
 ```
 
 ---
@@ -322,25 +370,26 @@ d:\GitHub\second-screen/
 ### Phase 1: Slug/UUID Tenant Resolver তৈরি (`services/organizationService.ts` & `lib/mcp/resolver.ts`)
 
 **কেন দরকার?**
-ইউজারের কনফিগারেশনে `--org=acme` (Slug) অথবা `orgId=uuid`—যেকোনোটি থাকতে পারে। এছাড়া কেউ যদি `--org` বা `--project` না-ও দেয়, তাহলে তার PAT (`sec_pat_live_*`) দিয়ে তার প্রথম অ্যাক্সেসযোগ্য প্রজেক্টটি স্বয়ংক্রিয়ভাবে খুঁজে নেওয়া উচিত।
+ইউজারের কনফিগারেশনে `--org=acme` (Slug) অথবা `orgId=uuid`—যেকোনোটি থাকতে পারে। কেউ `--org`/`--project` না দিলে **শুধু read-only টুলের জন্য** PAT (`sec_pat_live_*`) দিয়ে প্রথম অ্যাক্সেসযোগ্য প্রজেক্ট নেওয়া যাবে; লেখার জন্য নয়।
 
 **কীভাবে করব?**
 `lib/mcp/resolver.ts`-এ আমরা `resolveMcpProjectContext()` ফাংশন লিখব:
 1. প্রথমে চেক করবে রিকোয়েস্টের Query Params (`?org=...&project=...`), Headers (`x-org-id`, `x-project-id`), অথবা Tool Arguments-এ `org` এবং `project` দেওয়া আছে কি না।
-2. যদি না থাকে, তাহলে PAT রেকর্ডের `orgId` / `projectId` চেক করবে।
+2. যদি না থাকে, তাহলে PAT রেকর্ডের `orgId` / `projectId` চেক করবে। **Bound PAT হলে অন্য project অনুরোধ reject করবে (P0-১)।**
 3. `getUserOrganizations(uid, userEmail)` থেকে ইউজারের সব Organization লোড করে `id === orgInput || slug.toLowerCase() === orgInput.toLowerCase()` দিয়ে ম্যাচ করবে।
-4. এরপর `getOrgProjectSummaries(org.id)` থেকে `id === projInput || slug.toLowerCase() === projInput.toLowerCase()` দিয়ে সঠিক প্রজেক্টটি বের করবে এবং `authorizeProjectRequest()` দিয়ে পারমিশন (`read` বা `write`) নিশ্চিত করবে।
+4. এরপর `getOrgProjectSummaries(org.id)` থেকে **আগে exact ID, তারপর exact slug** দিয়ে প্রজেক্ট বের করবে; একাধিক ম্যাচ হলে অনুমান না করে candidates-সহ error (P1-৭); এবং `authorizeProjectRequest()` দিয়ে পারমিশন (`read` বা `write`) নিশ্চিত করবে।
+5. **Auto-pick নিয়ম (P0-২):** `--org/--project` ও bound PAT না থাকলে প্রথম অ্যাক্সেসযোগ্য প্রজেক্ট **শুধু read/discovery টুলে** নেওয়া হবে। write টুলে স্পষ্ট প্রজেক্ট না থাকলে error।
 
 ---
 
 ### Phase 2: Unified MCP Engine & 16 Tools তৈরি (`lib/mcp/*`)
 
 **কেন দরকার?**
-আমরা চাই আমাদের MCP ইঞ্জিনটি একদম হালকা, দ্রুত, টাইপ-সেফ এবং Vercel/Next.js Serverless ও Local Stdio—উভয় পরিবেশেই নির্বিঘ্নে কাজ করুক।
+আমরা চাই আমাদের MCP ইঞ্জিনটি একদম হালকা, দ্রুত, টাইপ-সেফ এবং Vercel/Next.js Serverless-এ (HTTP প্রাইমারি) নির্বিঘ্নে কাজ করুক; stdio কেবল ঐচ্ছিক ব্রিজ।
 
 **কীভাবে করব?**
 1. **`lib/mcp/types.ts`**:
-   * JSON-RPC 2.0 (`jsonrpc: "2.0"`, `id`, `method`, `params`, `result`, `error`) এবং MCP Protocol (`protocolVersion: "2025-03-26"` ও `"2024-11-05"` ব্যাকওয়ার্ড কম্প্যাটিবিলিটি সহ) টাইপ ডেফিনিশন।
+   * JSON-RPC 2.0 (`jsonrpc: "2.0"`, `id`, `method`, `params`, `result`, `error`) এবং MCP Protocol (`protocolVersion` **negotiation** সহ — ক্লায়েন্টের ভার্সন সমর্থিত হলে সেটি, নইলে সার্ভারের সর্বশেষ সমর্থিত ভার্সন; সমর্থিত ভার্সনের তালিকা ইমপ্লিমেন্টেশনের সময় স্পেক দেখে ঠিক করুন) টাইপ ডেফিনিশন।
    * `McpExecutionContext` ইন্টারফেস যেখানে থাকবে: `origin` (ডাইনামিক স্কিমা URL-এর জন্য, Rule 1), `authRecord` (`ApiKeyRecord`), `defaultOrg`, `defaultProject`, `defaultBranch`।
 2. **`lib/mcp/tools.ts`**:
    * উপরে বর্ণিত ১৬টি টুলের JSON Schema (`inputSchema`) এবং এক্সিকিউশন হ্যান্ডলার।
@@ -349,12 +398,12 @@ d:\GitHub\second-screen/
 3. **`lib/mcp/resources.ts` & `lib/mcp/prompts.ts`**:
    * `resources/list`, `resources/read`, `prompts/list`, এবং `prompts/get` মেথডগুলোর হ্যান্ডলার।
 4. **`lib/mcp/server.ts`**:
-   * একটি পিওর, স্টেটলেস ডিসপ্যাচার `handleMcpJsonRpcRequest(payload, context)` যা নিচের সব স্ট্যান্ডার্ড MCP মেথড হ্যান্ডেল করবে:
+   * একটি পিওর, স্টেটলেস ডিসপ্যাচার (অথবা অফিসিয়াল SDK-র stateless transport — P0-৬) `handleMcpJsonRpcRequest(payload, context)` যা নিচের সব স্ট্যান্ডার্ড MCP মেথড হ্যান্ডেল করবে:
      * `initialize` ➔ সার্ভারের নাম (`second-screen-tokens-mcp`), ভার্সন (`1.7.0`), এবং capabilities (`tools`, `resources`, `prompts`) রিটার্ন করবে।
-     * `notifications/initialized` ➔ একনলেজমেন্ট।
+     * `notifications/initialized` ➔ কোনো বডি ছাড়া `202 Accepted`।
      * `ping` ➔ `{}` রিটার্ন করবে।
      * `tools/list` ➔ ১৬টি টুলের নাম, বিবরণ এবং JSON Schema রিটার্ন করবে।
-     * `tools/call` ➔ নির্দিষ্ট টুলটি রান করে `{ content: [{ type: "text", text: JSON.stringify(result, null, 2) }], isError: false }` ফরম্যাটে রিটার্ন করবে।
+     * `tools/call` ➔ নির্দিষ্ট টুলটি রান করে `{ content: [{ type: "text", text: JSON.stringify(result) }], isError: false }` (compact JSON, আকার cap-সহ — P0-৮) রিটার্ন করবে; ব্যবসায়িক ত্রুটি `isError: true` দিয়ে, প্রোটোকল ত্রুটি JSON-RPC error দিয়ে।
      * `resources/list` ও `resources/read` ➔ প্রজেক্টের লাইভ রিসোর্স রিটার্ন করবে।
      * `prompts/list` ও `prompts/get` ➔ রেডিমেড প্রম্পট টেমপ্লেট রিটার্ন করবে।
 
@@ -368,12 +417,13 @@ d:\GitHub\second-screen/
 **কীভাবে করব?**
 * `app/api/v1/mcp/route.ts` তৈরি করব:
   * **`POST /api/v1/mcp`**:
+    0. রুটে `export const runtime = "nodejs"` এবং `maxDuration` সেট; per-key rate limit (P0-৯)।
     1. `authenticateRequest(req, "read:tokens")` দিয়ে `Authorization: Bearer sec_pat_live_...` অথবা ব্রাউজার সেশন ভেরিফাই করবে।
-    2. যদি কোনো রাইট টুল (`upsert_tokens`, `delete_tokens`, `create_branch`) কল করা হয়, তাহলে অতিরিক্তভাবে `write:tokens` স্কোপ এবং `authorizeProjectRequest(..., "write")` চেক করবে।
-    3. সিঙ্গেল JSON-RPC রিকোয়েস্ট অথবা Batch JSON-RPC রিকোয়েস্ট (`Array.isArray(body)`) উভয়ই সাপোর্ট করবে।
-    4. স্ট্যান্ডার্ড JSON রেসপন্স (`application/json`) এবং প্রয়োজনে `text/event-stream` (SSE) হেডার সাপোর্ট করবে।
+    2. যদি কোনো রাইট টুল (`upsert_tokens`, `delete_tokens`, `create_branch`) কল করা হয়, তাহলে অতিরিক্তভাবে `write:tokens` স্কোপ, স্পষ্ট প্রজেক্ট (P0-২), `authorizeProjectRequest(..., "write")` (owner/admin/editor) এবং `expectedUpdatedAt` চেক করবে।
+    3. সিঙ্গেল JSON-RPC রিকোয়েস্ট সাপোর্ট করবে। **Batch সমর্থিত নয়** (2025-06-18 স্পেকে বাদ); `notifications/*` → `202`।
+    4. স্ট্যান্ডার্ড JSON রেসপন্স (`application/json`); SSE ঐচ্ছিক। `Accept` হেডার যাচাই।
   * **`GET /api/v1/mcp`**:
-    * ব্রাউজার বা ডেভেলপার টুল থেকে হেলথ-চেক ও সার্ভার ডিসকভারি ইনফরমেশন দেখার জন্য (এবং SSE কানেকশন প্রোব হ্যান্ডেল করার জন্য)।
+    * SSE না দিলে `405 Method Not Allowed` (স্পেক-সম্মত)। হেলথ-চেক আলাদা রুটে (`/api/v1/mcp/health`) রাখা যায়।
   * **`OPTIONS /api/v1/mcp`**:
     * CORS Preflight (`handleOptionsCors()`) হ্যান্ডেল করবে।
 
@@ -382,7 +432,7 @@ d:\GitHub\second-screen/
 ### Phase 4: Local Stdio Bridge Script তৈরি (`scripts/mcp-server.mjs`)
 
 **কেন দরকার?**
-যেসব AI অ্যাপ্লিকেশন (যেমন **Claude Desktop** বা স্ট্যান্ডার্ড `command` + `args` ভিত্তিক MCP ক্লায়েন্ট) লোকাল কমান্ডের মাধ্যমে (`stdin`/`stdout`) MCP সার্ভার চালায়, তাদের জন্য একটি জিরো-ডিপেন্ডেন্সি Node.js স্ক্রিপ্ট থাকা দরকার।
+যেসব AI অ্যাপ্লিকেশন (যেমন **Claude Desktop** বা স্ট্যান্ডার্ড `command` + `args` ভিত্তিক MCP ক্লায়েন্ট) লোকাল কমান্ডের মাধ্যমে (`stdin`/`stdout`) MCP সার্ভার চালায়, তাদের জন্য একটি জিরো-ডিপেন্ডেন্সি Node.js স্ক্রিপ্ট **ঐচ্ছিকভাবে** থাকতে পারে। মনে রাখুন: `@tokens-platform/mcp-server` নামে কোনো npm প্যাকেজ আজ নেই — প্রকাশ না করা পর্যন্ত UI-তে `npx` স্নিপেট দেখানো যাবে না; বিকল্প `node scripts/mcp-server.mjs` বা সরাসরি HTTP।
 
 **কীভাবে করব?**
 * `scripts/mcp-server.mjs` তৈরি করব যা:
@@ -396,7 +446,7 @@ d:\GitHub\second-screen/
 ### Phase 5: Developers UI আপগ্রেড (`components/McpCliView.tsx`)
 
 **কেন দরকার?**
-ইউজারের যাতে কোনো কনফিগারেশন মুখস্থ লিখতে না হয়! ইউজার ওয়েব অ্যাপের **Sidebar ➔ Developers** পেজে যাবে, এক ক্লিকে PAT তৈরি করবে, নিজের IDE (Antigravity / Cursor / Claude Desktop / VS Code) সিলেক্ট করবে, আর সাথে সাথে তার আসল প্রজেক্ট স্লাগ, ডোমেইন অরিজিন এবং নতুন তৈরি করা PAT সহ **১০০% রেডি-টু-কপি কনফিগারেশন** পেয়ে যাবে!
+ইউজারের যাতে কোনো কনফিগারেশন মুখস্থ লিখতে না হয়! ইউজার ওয়েব অ্যাপের **Advanced / Project settings ➔ Developers** পেজে যাবে, এক ক্লিকে **প্রজেক্টে-bound** PAT তৈরি করবে, নিজের IDE (Antigravity / Cursor / Claude Desktop / VS Code) সিলেক্ট করবে, আর সাথে সাথে তার আসল প্রজেক্ট স্লাগ, ডোমেইন অরিজিন এবং নতুন তৈরি করা PAT সহ **১০০% রেডি-টু-কপি কনফিগারেশন** পেয়ে যাবে!
 
 **কীভাবে করব (`components/McpCliView.tsx`-এ নতুন ফিচারসমূহ)**:
 1. **Transport Mode Selector**:
@@ -415,10 +465,12 @@ d:\GitHub\second-screen/
 
 ইমপ্লিমেন্টেশন শেষে আমরা নিচের প্রতিটি ধাপ রান করে ভেরিফাই করব:
 1. **Unit & Integration Tests (`vitest`)**:
-   * `app/api/v1/mcp/__tests__/mcpRoute.test.ts` তৈরি করে টেস্ট করা:
+   * `lib/__tests__/` কনভেনশনে (vitest glob যাচাই করুন) MCP টেস্ট তৈরি:
      * `initialize` হ্যান্ডশেক ঠিকমতো কাজ করছে কি না।
      * `tools/list` সব ১৬টি টুল রিটার্ন করছে কি না।
      * `search_tokens`, `get_token_details`, `check_color_contrast`, `export_tokens_code`, এবং `upsert_tokens` সঠিক ডেটা রিটার্ন করছে কি না।
+     * Bound PAT অন্য প্রজেক্টে `403`; write টুলে প্রজেক্ট ছাড়া error; stale `expectedUpdatedAt`-এ `conflict`; `main`-এ `allowDefaultBranch` ছাড়া reject; `dryRun` কিছু সেভ করে না।
+     * `notifications/initialized` → `202`; `GET` → `405`; অসমর্থিত `protocolVersion` negotiation।
      * ভুয়া PAT দিলে `401 Unauthorized` এবং `write:tokens` স্কোপ ছাড়া `upsert_tokens` কল করলে `403 Forbidden` দিচ্ছে কি না।
 2. **TypeScript Type Check**:
    ```bash
@@ -441,14 +493,14 @@ d:\GitHub\second-screen/
 
 ### ধাপ ১: Personal Access Token (PAT) তৈরি করুন
 
-1. ব্রাউজারে আপনার **Second Screen / Tokens Platform** ওপেন করুন এবং আপনার পছন্দের **Organization** ও **Project** সিলেক্ট করুন।
-2. বাম পাশের **Sidebar** থেকে **Developers** (`McpCliView`) ট্যাবে ক্লিক করুন।
-3. **Personal Access Tokens (PATs)** কার্ডে **Generate New Key** বাটনে ক্লিক করুন:
+1. ব্রাউজারে আপনার **Second Screen / Tokens Platform** ওপেন করুন এবং আপনার পছন্দের **Workspace** ও **Project** সিলেক্ট করুন।
+2. **Advanced / Project settings ➔ Developers** (`McpCliView`) পেজে যান।
+3. **Personal Access Tokens (PATs)** কার্ডে **Generate New Key** বাটনে ক্লিক করুন (কী স্বয়ংক্রিয়ভাবে নির্বাচিত Project-এ bound হবে):
    * **Token Name**: যেমন `Antigravity MCP Key` বা `Cursor AI Key` দিন।
    * **Expiration**: `90 days` বা `No expiration` সিলেক্ট করুন।
    * **Permissions / Scopes**:
      * আপনি যদি চান AI শুধু টোকেন পড়বে এবং কোড লিখবে (কোনো টোকেন ডাটাবেসে পরিবর্তন করবে না), তাহলে কেবল **`read:tokens`** টিক দিন।
-     * আপনি যদি চান AI আপনার নির্দেশে নতুন টোকেন বা ব্রাঞ্চও তৈরি করতে পারবে, তাহলে **`read:tokens`** এবং **`write:tokens`** দুটোই টিক দিন।
+     * আপনি যদি চান AI আপনার নির্দেশে নতুন টোকেন বা ব্রাঞ্চও তৈরি করতে পারবে, তাহলে **`read:tokens`** এবং **`write:tokens`** দুটোই টিক দিন। (লেখা ডিফল্টভাবে `main`-এ নয়, ফিচার-ব্রাঞ্চে।)
 4. **Generate Token**-এ ক্লিক করার সাথে সাথে `sec_pat_live_...` টোকেনটি তৈরি হবে এবং নিচের **MCP Server Configuration** বক্সে স্বয়ংক্রিয়ভাবে বসে যাবে!
 
 ---
@@ -575,7 +627,9 @@ d:\GitHub\second-screen/
    * MCP সার্ভারের কোনো টুল বা রিসোর্স কখনোই কোনো বাহ্যিক ডোমেইনে (`registry.tokens.studio` ইত্যাদি) লিংক করবে না। সব স্কিমা ডাইনামিকভাবে আপনার নিজস্ব অরিজিন (`/api/v1/schemas/...`) থেকে লোড হবে।
 2. **High-Scale Memory & Context Window Safety (`AGENTS.md` Rule 4)**:
    * ১৩,০০০+ টোকেনের প্রজেক্টেও যাতে মেমোরি বা LLM Context Window ওভারফ্লো না হয়, তাই প্রতিটি লিস্ট টুলে পেজিনেশন (`limit <= 200`) এবং $O(1)$ ইন-মেমোরি লুকআপ বাধ্যতামূলক।
-3. **Strict Multi-Tenant Isolation & RBAC**:
+3. **Project-Bound Keys, Safe Writes & Rate Limits (P0)**:
+   * MCP কী একটি প্রজেক্টে bound; write-এ স্পষ্ট প্রজেক্ট, `expectedUpdatedAt`, `main`-এ ডিফল্ট নিষেধ, `dryRun`, per-key rate limit, আউটপুট cap।
+4. **Strict Multi-Tenant Isolation & RBAC**:
    * প্রতিটি MCP কলে PAT-এর SHA-256 হ্যাশ যাচাই করা হয় (`public.api_keys`) এবং চেক করা হয় ইউজার ওই Organization-এর সদস্য কি না।
    * যদি ইউজারের রোল `viewer` হয় অথবা PAT-এ `write:tokens` স্কোপ না থাকে, তবে কোনো রাইট টুল (`upsert_tokens`, `delete_tokens`, `create_branch`) কাজ করবে না—সরাসরি `403 Forbidden` রিটার্ন করবে।
 
@@ -583,8 +637,9 @@ d:\GitHub\second-screen/
 
 | সমস্যা / Error | কেন হয়? | কীভাবে সমাধান করবেন? |
 | :--- | :--- | :--- |
-| **`401 Unauthorized: Invalid or revoked API key`** | `TOKENS_PLATFORM_PAT` ভুল দেওয়া হয়েছে, মেয়াদ শেষ হয়েছে, অথবা রিভোক করা হয়েছে। | **Sidebar ➔ Developers** পেজে গিয়ে একটি নতুন PAT জেনারেট করুন এবং `mcp_config.json`-এ আপডেট করুন। |
+| **`401 Unauthorized: Invalid or revoked API key`** | `TOKENS_PLATFORM_PAT` ভুল দেওয়া হয়েছে, মেয়াদ শেষ হয়েছে, অথবা রিভোক করা হয়েছে। | **Developers** পেজে গিয়ে একটি নতুন PAT জেনারেট করুন এবং `mcp_config.json`-এ আপডেট করুন। |
 | **`403 Forbidden: Key lacks 'write:tokens' permission`** | আপনার PAT শুধুমাত্র `read:tokens` দিয়ে খোলা, কিন্তু আপনি AI-কে টোকেন তৈরি বা এডিট করতে বলেছেন। | নতুন একটি PAT জেনারেট করার সময় `write:tokens` চেকবক্সে টিক দিন। |
-| **`404 Project not found`** | কনফিগে দেওয়া `--org` বা `--project` স্লাগ/আইডি ভুল অথবা আপনি ওই অর্গানাইজেশনের মেম্বার নন। | AI-কে বলুন `"Run list_workspaces to see my available orgs and projects"` অথবা **Developers** পেজ থেকে সঠিক স্নিপেট কপি করুন। |
+| **`404 Project not found`** | কনফিগে দেওয়া `--org` বা `--project` স্লাগ/আইডি ভুল আপনি ওই Workspace-এর মেম্বার নন, অথবা PAT অন্য প্রজেক্টে bound। | AI-কে বলুন `"Run list_workspaces to see my available orgs and projects"` অথবা **Developers** পেজ থেকে সঠিক স্নিপেট কপি করুন। |
+| **`conflict` / `Ambiguous project`** | অন্য কেউ আগে টোকেন বদলেছে (`expectedUpdatedAt` মেলেনি), অথবা একই slug একাধিক প্রজেক্টে। | AI-কে আবার read করতে বলুন / project ID ব্যবহার করুন। |
 | **IDE-তে MCP Tools দেখাচ্ছে না** | কনফিগ ফাইল সেভ করার পর IDE রিলোড করা হয়নি বা ডেভ সার্ভার (`npm run dev`) বন্ধ আছে। | আপনার Next.js সার্ভার চালু আছে কি না নিশ্চিত করুন এবং IDE-তে MCP Server **Refresh / Restart** বাটনে ক্লিক করুন। |
 
