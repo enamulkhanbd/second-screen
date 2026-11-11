@@ -2,7 +2,7 @@
 
 > **Implementation Status Summary:**
 > - ✅ **Core Platform Services, PAT Auth & Developers UI (80% Foundation):** **Developed & Active** — `components/McpCliView.tsx`, `components/ApiKeysManager.tsx`, `utils/patAuth.ts`, `utils/auth.ts`, `app/api/v1/auth/pat/route.ts`, $O(1)$ Token Engine (`utils/transformTokens.ts`), Multi-Platform Compilers (`utils/exportsCompiler.ts`), WCAG/CVD Engine (`utils/accessibility.ts`), 182 Self-Hosted Schemas (`utils/dtcgSchemaGenerator.ts`), and R2 Asset Services (`lib/r2.ts`) are already 100% implemented.
-> - ⏳ **MCP Server — Release 1 (Read-only: ১৩ টুল, ৫ রিসোর্স, ৩ প্রম্পট) ও Release 2 (Write: ৩ টুল, ১ প্রম্পট) (Part 5 Phases 0–9):** **Pending Implementation** — `lib/mcp/*`, `app/api/v1/mcp/route.ts`, project-bound PAT creation, resolver, Developers UI-র আসল কনফিগ ও "Test Connection" প্ল্যান করা আছে।
+> - ⏳ **MCP Server — Milestone M1 (First 6 read tools) → M2 (বাকি ৭ read tool; মোট ১৩, ৫ রিসোর্স, ৩ প্রম্পট) → M3/Release 2 (Write: ৩ টুল, ১ প্রম্পট) (Part 5 Phases 0–9; AI-এজেন্টের জন্য Task Cards: Part 9):** **Pending Implementation** — `lib/mcp/*`, `app/api/v1/mcp/route.ts`, project-bound PAT creation, resolver, Developers UI-র আসল কনফিগ ও "Test Connection" প্ল্যান করা আছে।
 
 এই ডকুমেন্টটি **Second Screen / Tokens Platform**-এর জন্য **Model Context Protocol (MCP)**-এর একটি সম্পূর্ণ A-to-Z গাইড এবং ইঞ্জিনিয়ারিং ইমপ্লিমেন্টেশন প্ল্যান। আপনি যদি আগে কখনো MCP ব্যবহার না-ও করে থাকেন, এই ডকুমেন্টটি পড়লে MCP কী, কেন দরকার, আমাদের সিস্টেমে এটি কীভাবে কাজ করবে, আমরা কীভাবে এটি কোডবেসে ইমপ্লিমেন্ট করব এবং ইমপ্লিমেন্টেশনের পর কীভাবে ব্যবহার করবেন—সবকিছু একদম পরিষ্কার বুঝতে পারবেন।
 
@@ -22,6 +22,7 @@
 6. [Part 6: After Implementation — কীভাবে Use করতে হবে? (Usage & Prompt Guide)](#part-6-after-implementation--কীভাবে-use-করতে-হবে-usage--prompt-guide)
 7. [Part 7: Security, Guardrails & Troubleshooting](#part-7-security-guardrails--troubleshooting)
 8. [Part 8: Gap Closure Matrix, Protocol Behaviour, Decisions & Definition of Done](#part-8-gap-closure-matrix-protocol-behaviour-decisions--definition-of-done)
+9. [Part 9: AI Agent Playbook (Antigravity / Cursor / Claude Code দিয়ে Vibe-Coding)](#part-9-ai-agent-playbook-antigravity--cursor--claude-code-দিয়ে-vibe-coding-করার-গাইড)
 
 ---
 
@@ -269,7 +270,7 @@ sequenceDiagram
 
 ### ৪.১ MCP Tools Catalog (১৬টি টুলস)
 
-> **Release-ভিত্তিক বিভাজন:** ১৬টি টুলের মধ্যে **১৩টি read-only (Release 1)** — `1–9, 12, 14, 15, 16`; **৩টি write (Release 2)** — `10 upsert_tokens`, `11 delete_tokens`, `13 create_branch`। Release 1 শিপ হওয়ার আগে কোনো write টুল রেজিস্টারই হবে না (`tools/list`-এ দেখাও যাবে না)।
+> **Release-ভিত্তিক বিভাজন:** ১৬টি টুলের মধ্যে **১৩টি read-only (Release 1)** — `1–9, 12, 14, 15, 16`; **৩টি write (Release 2)** — `10 upsert_tokens`, `11 delete_tokens`, `13 create_branch`। **M1 (প্রথম ৬টি): #১, ২, ৩, ৪, ৭, ৮** — বাকি ৭টি M2-তে (§৫.১ক)। Release 1 শিপ হওয়ার আগে কোনো write টুল রেজিস্টারই হবে না (`tools/list`-এ দেখাও যাবে না)।
 > সব টুলের সাধারণ নিয়ম: (ক) আউটপুট compact JSON, হার্ড cap (§৫.৩ Limits), (খ) বড় রেজাল্টে `truncated: true` + `nextOffset`, (গ) ব্যবসায়িক ত্রুটি `isError: true` + `code` (§৮.২), (ঘ) প্রতিটি টুলে MCP `annotations` (`readOnlyHint: true` সব read টুলে; write-এ `destructiveHint`), (ঙ) user-facing description-এ "Workspace" শব্দ, (চ) টুলের আউটপুটের টেক্সট (টোকেন description, ডক, অ্যাসেট নাম) **অবিশ্বস্ত ডেটা** — ইনস্ট্রাকশন নয় (§৭.১ prompt-injection)।
 
 #### কোন টুল কোন বিদ্যমান কোডের ওপর দাঁড়াবে (Tool → Code Mapping)
@@ -325,6 +326,7 @@ sequenceDiagram
 
 #### Category E2: Token Authoring & Branch Creation (`write:tokens`) — **Release 2 (write phase)**
 > সব write টুলের সাধারণ আর্গুমেন্ট: `org`, `project` (**বাধ্যতামূলক**, বা bound PAT), `expectedUpdatedAt` (বাধ্যতামূলক — `get_project_overview`/`list_branches` থেকে), `dryRun?: boolean`, `allowDefaultBranch?: boolean` (ডিফল্ট ব্রাঞ্চে লিখতে স্পষ্ট `true` লাগে)। write শুধু `MCP_WRITE_ENABLED=true` হলে রেজিস্টার হয়।
+> **Write-Key Rule (W1):** write টুল কেবল **project-bound PAT**-এ কাজ করে; unbound কী-তে `write:tokens` থাকলেও `key_not_bound` (§৫.১ক)।
 
 | # | Tool Name | কী কাজ করে? (Description) | Input Arguments | Output Summary |
 | :- | :--- | :--- | :--- | :--- |
@@ -373,16 +375,32 @@ AI ক্লায়েন্টগুলো চাইলে সরাসরি �
 
 | Phase | কাজ | Release | আনুমানিক সময় | Exit Criteria |
 | :-: | :--- | :-: | :-: | :--- |
-| **0** | Prerequisites: dependency, SDK build spike, CORS, project-bound PAT route | R1 | ১–১.৫ দিন | `npm run build` পাস; bound PAT তৈরি ও enforcement টেস্ট সবুজ |
-| **1** | Context + Resolver (`lib/mcp/context.ts`, `resolver.ts`) | R1 | ১ দিন | UUID/slug/ambiguity/bound-PAT টেস্ট সবুজ |
-| **2** | Read engine: ১৩ টুল + ৫ রিসোর্স + ৩ প্রম্পট | R1 | ৩–৪ দিন | প্রতিটি টুলের unit test; ১৩k-টোকেন ফিক্সচারে cap ও পারফরম্যান্স ঠিক |
-| **3** | HTTP route (`/api/v1/mcp`, `/api/v1/mcp/health`) — read-only | R1 | ১ দিন | স্পেক-আচরণ টেস্ট (৮.২) সবুজ |
-| **4** | Developers UI আপগ্রেড (read-only setup + Test Connection) | R1 | ১–২ দিন | বাস্তব IDE (Cursor/VS Code/Claude Desktop) থেকে কানেক্ট ও `tools/list` সফল |
-| **5** | **Release 1 Verification & Rollout** | R1 | ১ দিন | §৫.৫ চেকলিস্ট ✔; ডক/changelog আপডেট; **R1 শিপ** |
-| **6** | Write foundation: optimistic concurrency, branch helper, mutation lib, audit | R2 | ২ দিন | mutation unit tests (conflict/dryRun/main-guard/proto-pollution) সবুজ |
-| **7** | ৩টি write টুল + `generate-color-scale` প্রম্পট + route write-guard + flag | R2 | ২ দিন | write টুল শুধু flag + scope + role থাকলেই কাজ করে |
-| **8** | **Release 2 Verification & Rollout** | R2 | ১ দিন | §৫.৬ চেকলিস্ট ✔; **R2 শিপ** (ধাপে ধাপে: প্রথমে নিজেদের প্রজেক্টে) |
+| **0** | Prerequisites: dependency, SDK build spike, CORS, project-bound PAT route | M1 | ১–১.৫ দিন | `npm run build` পাস; bound PAT তৈরি ও enforcement টেস্ট সবুজ |
+| **1** | Context + Resolver (`lib/mcp/context.ts`, `resolver.ts`) | M1 | ১ দিন | UUID/slug/ambiguity/bound-PAT টেস্ট সবুজ |
+| **2A** | **M1:** ৬টি read টুল (#১,২,৩,৪,৭,৮) + `use-design-tokens` প্রম্পট | M1 | ২ দিন | প্রতিটির unit test; ১৩k-টোকেন ফিক্সচারে cap ও cache ঠিক |
+| **2B** | **M2:** বাকি ৭ read টুল (#৫,৬,৯,১২,১৪,১৫,১৬) + ৫ রিসোর্স + ২ প্রম্পট | M2 | ২–৩ দিন | প্রতিটির unit test |
+| **3** | HTTP route (`/api/v1/mcp`, `/api/v1/mcp/health`) — read-only | M1 | ১ দিন | স্পেক-আচরণ টেস্ট (৮.২) সবুজ |
+| **4A** | Developers UI (ন্যূনতম): ভুয়া `npx` সরানো, HTTP কনফিগ, bound key বাটন | M1 | ১ দিন | `npm run build` সফল |
+| **4B** | Test Connection, Tools Explorer, IDE ট্যাব | M2 | ১ দিন | বাস্তব IDE-তে কানেক্ট |
+| **5A / 5B** | **M1 / M2 Verification & Rollout** (§৫.৫) | M1 / M2 | ১ + ১ দিন | M1: `tools/list`=৬ প্রোডাকশনে; M2: =১৩, **Release 1 সম্পূর্ণ** |
+| **6** | Write foundation: optimistic concurrency, branch helper, mutation lib, audit | M3 | ২ দিন | mutation unit tests (conflict/dryRun/main-guard/proto-pollution) সবুজ |
+| **7** | ৩টি write টুল + `generate-color-scale` প্রম্পট + route write-guard + flag | M3 | ২ দিন | write টুল শুধু flag + scope + role থাকলেই কাজ করে |
+| **8** | **Release 2 Verification & Rollout** | M3 | ১ দিন | §৫.৬ চেকলিস্ট ✔; **R2 শিপ** (ধাপে ধাপে: প্রথমে নিজেদের প্রজেক্টে) |
 | **9** | (ঐচ্ছিক) stdio ব্রিজ `scripts/mcp-server.mjs` | — | ১ দিন | Claude Desktop-এ কাজ করে; HTTP-ই প্রাইমারি |
+
+#### ৫.১ক Milestones — "First 6 Tools" দিয়ে দ্রুত শিপ (AI-এজেন্ট-বান্ধব ক্রম)
+
+Release 1 কে দুই ধাপে ভাগ করা হলো, যাতে ছোট ও যাচাইযোগ্য PR-এ এগোনো যায় এবং বাস্তব IDE-তে দ্রুত ফিডব্যাক পাওয়া যায়:
+
+| Milestone | কী শিপ হয় | Phase | Done-when |
+| :-: | :--- | :--- | :--- |
+| **M1 — "First 6 Tools"** | ৬টি টুল: `list_workspaces`, `get_project_overview`, `search_tokens`, `get_token_details`, `check_color_contrast`, `export_tokens_code` + প্রম্পট `use-design-tokens` + HTTP রুট + bound-key সহ ন্যূনতম Developers UI | 0, 1, **2A**, 3, **4A**, 5A | Cursor বা VS Code থেকে প্রোডাকশনে `tools/list` = ঠিক ৬টি; `search_tokens`+`export_tokens_code` সফল; ভুয়া `npx` স্নিপেট সরানো |
+| **M2 — Read Complete** | বাকি ৭ read টুল (`list_token_sets`, `get_themes_matrix`, `validate_tokens`, `list_branches`, `inspect_figma_variables`, `search_project_assets`, `get_documentation_pages`) + ৫ রিসোর্স + ২ প্রম্পট + Test Connection/Tools Explorer | **2B**, **4B**, 5B | `tools/list` = ১৩; §৫.৫ পুরো চেকলিস্ট ✔ |
+| **M3 — Write (Release 2)** | ৩ write টুল + `generate-color-scale` + flag + **bound-key-only write** | 6, 7, 8 | §৫.৬ পুরো চেকলিস্ট ✔ |
+
+**ক্রমের নিয়ম:** M1 প্রোডাকশনে শিপ না হওয়া পর্যন্ত Phase 2B/4B/6+ শুরু করবেন না। **Phase 2A = টুল ১, ২, ৩, ৪, ৭, ৮**; **Phase 2B = টুল ৫, ৬, ৯, ১২, ১৪, ১৫, ১৬**। (§৪.১-এর Release 1 তালিকা M1+M2 মিলিয়ে।) M1-এ `tools/list` শুধু ৬টি টুল দেখাবে — `server.ts`-এ একটি `MCP_TOOL_SET`/মাইলস্টোন-ভিত্তিক রেজিস্ট্রি রাখুন যাতে 2B-র টুল যোগ করা এক লাইনের কাজ হয়।
+
+> **Write-Key Rule (M3, নিয়ম W1):** write টুল **শুধু project-bound PAT**-এ কাজ করবে। `orgId`/`projectId` নেই এমন (পুরনো/unbound) কী-তে `write:tokens` থাকলেও MCP write টুল `key_not_bound` দিয়ে অস্বীকার করবে; এছাড়া bound কীর প্রজেক্টের বাইরের আর্গুমেন্ট → `forbidden`। এটি শুধু MCP রুটের নিয়ম — বিদ্যমান REST রুটের আচরণ অপরিবর্তিত। read টুল unbound কী-তেও চলবে (M1/M2)।
 
 ### ৫.২ নতুন যে ফাইলগুলো তৈরি ও আপডেট করা হবে (File Map)
 
@@ -453,7 +471,7 @@ second-screen/
 1. **Dependencies:** `npm i @modelcontextprotocol/sdk zod colorjs.io` (পিন করা ভার্সন; `colorjs.io` এখন কেবল transitive)। `package-lock.json` কমিট।
 2. **SDK Build Spike (১ ঘণ্টা):** একটি ডামি `app/api/v1/mcp/route.ts`-এ `McpServer` + `WebStandardStreamableHTTPServerTransport` import করে `npx tsc --noEmit` ও `npm run build`। ব্যর্থ হলে `next.config.js`-এ `experimental.serverComponentsExternalPackages`; তাতেও না হলে **Fallback Plan:** নিজস্ব ন্যূনতম JSON-RPC ডিসপ্যাচার (`initialize`, `ping`, `tools/list`, `tools/call`, `resources/*`, `prompts/*`, `notifications/*` → 202; ভার্সন negotiation) — বাকি `lib/mcp/*` অপরিবর্তিত। সিদ্ধান্ত এই ডকে `✅/❌` লিখে রাখুন।
 3. **CORS:** `utils/cors.ts`-এর `Access-Control-Allow-Headers`-এ `Accept, Mcp-Session-Id, Mcp-Protocol-Version` ও `Access-Control-Expose-Headers: Mcp-Session-Id`। (বিদ্যমান রুটগুলোর আচরণ অপরিবর্তিত — শুধু হেডার-তালিকা বাড়ে।)
-4. **Project-bound PAT (`app/api/v1/auth/pat/route.ts`):** body-তে ঐচ্ছিক `orgId`, `projectId`। দিলে → `authorizeProjectRequest(req, orgId, projectId, "read")`-এর মতো মেম্বারশিপ যাচাই (session ইউজার), তারপর `generateApiKey(..., { uid, userEmail, orgId, projectId, orgName, projectName })`। না দিলে আগের আচরণ (unbound) — কিন্তু **MCP UI সবসময় bound কী বানাবে**। `allowedScopes` অপরিবর্তিত (`manage:releases` যোগ **হবে না**)। `saveApiKey` ইতিমধ্যে `org_id/project_id` লেখে — migration নেই।
+4. **Project-bound PAT (`app/api/v1/auth/pat/route.ts`):** body-তে ঐচ্ছিক `orgId`, `projectId`। দিলে → `authorizeProjectRequest(req, orgId, projectId, "read")`-এর মতো মেম্বারশিপ যাচাই (session ইউজার), তারপর `generateApiKey(..., { uid, userEmail, orgId, projectId, orgName, projectName })`। না দিলে আগের আচরণ (unbound) — কিন্তু **MCP UI সবসময় bound কী বানাবে**। `allowedScopes` অপরিবর্তিত (`manage:releases` যোগ **হবে না**)। `saveApiKey` ইতিমধ্যে `org_id/project_id` লেখে — migration নেই। **এটিই Write-Key Rule (W1)-এর ভিত্তি।**
 5. **টেস্ট:** bound কী অন্য প্রজেক্টে `403`; অন্য ইউজারের প্রজেক্টে bind করার চেষ্টা `403`; unbound কী আগের মতো কাজ করে (regression)।
 
 ### Phase 1: Context + Resolver (`lib/mcp/context.ts`, `resolver.ts`) (R1)
@@ -470,6 +488,8 @@ second-screen/
 7. **Project load:** `getProject(orgId, projectId)` — **একটি প্রজেক্ট**, কখনো `getOrgProjects` নয়।
 
 ### Phase 2: Read Engine — ১৩ টুল, ৫ রিসোর্স, ৩ প্রম্পট (`lib/mcp/*`) (R1)
+
+> **ক্রম:** প্রথমে **2A (M1: টুল #১,২,৩,৪,৭,৮)**, M1 শিপের পর **2B (M2: টুল #৫,৬,৯,১২,১৪,১৫,১৬ + রিসোর্স + বাকি প্রম্পট)**। নিচের ধাপগুলো দুই উপ-ফেজেই প্রযোজ্য।
 
 1. **`server.ts` — `buildMcpServer(ctx)`:** প্রতি রিকোয়েস্টে নতুন `McpServer` (stateless); `registerTool(name, {description, inputSchema(zod), annotations}, handler)`। R1-এ কেবল read টুল রেজিস্টার। সার্ভার নাম `second-screen-tokens-mcp`, ভার্সন `package.json` থেকে।
 2. **টুল হ্যান্ডলার নিয়ম:** (ক) `ctx` থেকে resolved প্রজেক্ট/ব্রাঞ্চ; (খ) পড়ার আগে `clampLimit`; (গ) আউটপুট `truncate()` দিয়ে cap; (ঘ) `McpToolError` → `{isError:true, content:[{type:"text", text:"{\"code\":...,\"message\":...}"}]}`; (ঙ) আউটপুটে কখনো PAT/Git ক্রেডেনশিয়াল/`gitConfig.pat` নয়।
@@ -508,7 +528,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 
 ### Phase 5: Release 1 Verification & Rollout
 
-#### ৫.৫ Release 1 চেকলিস্ট
+#### ৫.৫ Release 1 চেকলিস্ট (M1: ৬ টুল/`tools/list`=৬ ধরে প্রযোজ্য আইটেম; M2: সব আইটেম, `tools/list`=১৩)
 - [ ] `npx tsc --noEmit` exit 0; `npm run build` সফল; `npm test` সবুজ।
 - [ ] §৮.২ স্পেক-আচরণ টেস্ট সবুজ (initialize, 202, 405, negotiation, batch reject, malformed JSON)।
 - [ ] Bound/unbound/expired/revoked/scope-less PAT টেস্ট; viewer/editor রোলে read কাজ করে।
@@ -517,7 +537,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 - [ ] আসল ক্লায়েন্টে (কমপক্ষে Cursor + VS Code) `tools/list` ও একটি `search_tokens` কল সফল।
 - [ ] `McpCliView`-এ ভুয়া `npx` স্নিপেট নেই।
 - [ ] `docs/ARCHITECTURE.md`, `AGENTS.md` Key File Map, `data/systemChangelog.ts` আপডেট; এই ডকের Status Summary আপডেট।
-- [ ] **শিপ:** write ফিচার নেই — `tools/list`-এ শুধু ১৩টি টুল।
+- [ ] **শিপ:** write ফিচার নেই — `tools/list`-এ M1-এ শুধু ৬টি, M2-তে ১৩টি টুল।
 
 ### Phase 6: Write Foundation (R2)
 
@@ -534,7 +554,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 ### Phase 7: Write Tools + Prompt + Flag (R2)
 
 1. `tools/write.ts`-এ টুল ১০, ১১, ১৩ — `registerTool` শুধু যদি `process.env.MCP_WRITE_ENABLED === "true"`।
-2. **Route write-guard:** write টুলের আগে (ক) কীতে `write:tokens`, (খ) `mode:"write"` resolve (স্পষ্ট প্রজেক্ট), (গ) `authorizeProjectRequest(..., "write")` (owner/admin/editor), (ঘ) কড়া rate limit। viewer → `403`।
+2. **Route write-guard (ক্রম গুরুত্বপূর্ণ):** (ক) কীতে `write:tokens`; (খ) **Write-Key Rule W1 — কী অবশ্যই project-bound** (`orgId`+`projectId` আছে), নয়তো `key_not_bound`; (গ) `mode:"write"` resolve, আর্গুমেন্টের প্রজেক্ট = কীর প্রজেক্ট; (ঘ) `authorizeProjectRequest(..., "write")` (owner/admin/editor) — viewer → `403`; (ঙ) কড়া rate limit; (চ) `expectedUpdatedAt`; (ছ) default-branch গার্ড।
 3. **Prompt:** `generate-color-scale` (ফিচার ব্রাঞ্চ তৈরি → `upsert_tokens` → `check_color_contrast`) — ডিফল্টে `allowDefaultBranch` কখনো নয়।
 4. **UI:** `ApiKeysManager`/`McpCliView`-এ `write:tokens` টগল চালু; সতর্কবার্তা "AI ডিফল্ট ব্রাঞ্চে সরাসরি লিখতে পারবে না — ফিচার ব্রাঞ্চ ব্যবহার হবে"।
 5. **Audit:** প্রতিটি write-এর commit-এ key নাম; (ঐচ্ছিক) `logOrganizationActivity` কল।
@@ -546,6 +566,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 - [ ] দুটি সমান্তরাল write-এর একটি `conflict` পায় (সিমুলেটেড)।
 - [ ] write টুল `MCP_WRITE_ENABLED` ছাড়া `tools/list`-এ নেই এবং সরাসরি কল করলে `unknown_tool`।
 - [ ] viewer/`read:tokens`-only কী দিয়ে write → `403`; bound কী অন্য প্রজেক্টে → `403`।
+- [ ] **W1:** unbound কী (`write:tokens` সহ) দিয়ে প্রতিটি write টুল → `key_not_bound`; bound কী অন্য প্রজেক্টে → `forbidden`; read টুল unbound কী-তে এখনো চলে।
 - [ ] AI থেকে `main`-এ লেখার চেষ্টা `default_branch_protected`; ফিচার ব্রাঞ্চে সফল; UI-র Branches ভিউতে ব্রাঞ্চ ও কমিট দেখা যায় এবং Figma plugin/UI `GET /api/v1/tokens` থেকে একই ডেটা পায়।
 - [ ] **Rollout:** প্রথমে শুধু নিজেদের প্রজেক্টে ফ্ল্যাগ চালু → ১ সপ্তাহ পর্যবেক্ষণ → সবার জন্য।
 - [ ] **Rollback:** `MCP_WRITE_ENABLED=false` (কোড ডিপ্লয় ছাড়াই); প্রয়োজনে সংশ্লিষ্ট ব্রাঞ্চ ডিলিট (UI থেকে) / commit revert।
@@ -702,7 +723,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 2. **High-Scale Memory & Context Window Safety (`AGENTS.md` Rule 4)**:
    * ১৩,০০০+ টোকেনের প্রজেক্টেও যাতে মেমোরি বা LLM Context Window ওভারফ্লো না হয়, তাই প্রতিটি লিস্ট টুলে পেজিনেশন (`limit <= 200`) এবং $O(1)$ ইন-মেমোরি লুকআপ বাধ্যতামূলক।
 3. **Project-Bound Keys, Safe Writes & Rate Limits**:
-   * MCP কী একটি প্রজেক্টে bound (UI সবসময় bound কী বানায়); write (R2): স্পষ্ট প্রজেক্ট, `expectedUpdatedAt`, `main`-এ ডিফল্ট নিষেধ, `dryRun`, `MCP_WRITE_ENABLED` ফ্ল্যাগ, per-key rate limit, আউটপুট cap।
+   * MCP কী একটি প্রজেক্টে bound (UI সবসময় bound কী বানায়); write (R2) **শুধু bound কী-তে (W1)**; স্পষ্ট প্রজেক্ট, `expectedUpdatedAt`, `main`-এ ডিফল্ট নিষেধ, `dryRun`, `MCP_WRITE_ENABLED` ফ্ল্যাগ, per-key rate limit, আউটপুট cap।
 4. **Strict Multi-Tenant Isolation & RBAC**:
    * প্রতিটি MCP কলে PAT-এর SHA-256 হ্যাশ যাচাই করা হয় (`public.api_keys`) এবং চেক করা হয় ইউজার ওই Organization-এর সদস্য কি না।
    * যদি ইউজারের রোল `viewer` হয় অথবা PAT-এ `write:tokens` স্কোপ না থাকে, তবে কোনো রাইট টুল (`upsert_tokens`, `delete_tokens`, `create_branch`) কাজ করবে না—সরাসরি `403 Forbidden` রিটার্ন করবে।
@@ -753,6 +774,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 | G22 | Slug/শব্দভান্ডার ("Workspace") | UI/tool description-এ "Workspace" | 2, 4 |
 | G23 | ডক/ম্যাপ/ChangeLog আপডেট, টেস্ট লোকেশন | Phase 5 চেকলিস্ট; `lib/__tests__/mcp/` | 5 |
 | G24 | Rollback | `MCP_WRITE_ENABLED` ফ্ল্যাগ; R1 read-only বলে কম ঝুঁকি | 8 |
+| G25 | Unbound কী-তে write স্কোপ থাকলে সব প্রজেক্টে লেখার ঝুঁকি | **Write-Key Rule W1**: MCP write টুল শুধু project-bound কী-তে; UI-তে write টগল শুধু bound কী-তে | 7 |
 
 ### ৮.২ Protocol Behaviour ও Error Codes (টেস্টের স্পেসিফিকেশন)
 
@@ -771,8 +793,9 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 | স্কোপ নেই | 403 |
 | `content-length` > `MAX_BODY_BYTES` | 413 |
 | Rate limit | 429 + `Retry-After` |
+| (R2) write টুল, unbound কী | `isError:true`, `code:"key_not_bound"` |
 
-**টুল ত্রুটি কোড (`isError: true` বডিতে `code`):** `project_required`, `not_found`, `ambiguous` (candidates সহ), `forbidden`, `invalid_argument`, `limit_exceeded`, `conflict` (R2), `default_branch_protected` (R2), `dependents_exist` (R2), `write_disabled` (R2), `r2_unavailable`, `internal`। ত্রুটিতে স্ট্যাক ট্রেস/অভ্যন্তরীণ বার্তা কখনো নয়।
+**টুল ত্রুটি কোড (`isError: true` বডিতে `code`):** `project_required`, `not_found`, `ambiguous` (candidates সহ), `forbidden`, `invalid_argument`, `limit_exceeded`, `conflict` (R2), `default_branch_protected` (R2), `dependents_exist` (R2), `write_disabled` (R2), `key_not_bound` (R2, W1), `r2_unavailable`, `internal`। ত্রুটিতে স্ট্যাক ট্রেস/অভ্যন্তরীণ বার্তা কখনো নয়।
 
 ### ৮.৩ সিদ্ধান্ত লগ (Decisions — আর খোলা প্রশ্ন নেই)
 
@@ -789,10 +812,183 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 | D9 | Developers পেজের স্থান অপরিবর্তিত (`Sidebar.tsx`) | UX plan ফাইল মুছে ফেলা হয়েছে; নেভিগেশন MCP স্কোপের বাইরে |
 | D10 | stdio ব্রিজ ঐচ্ছিক (Phase 9); `@tokens-platform/mcp-server` npm প্যাকেজ এই প্ল্যানে নেই | HTTP-ই প্রাইমারি |
 | D11 | Release 3 (ঐচ্ছিক, ভবিষ্যৎ): `ajv`-ভিত্তিক JSON-Schema ভ্যালিডেশন, shared rate-limit store, release টুল | স্কোপ নিয়ন্ত্রণ |
+| D12 | MCP write শুধু project-bound PAT-এ (W1); read unbound কী-তেও চলে | লিক হওয়া কীর ক্ষতি এক প্রজেক্টে সীমিত |
+| D13 | Release 1 → দুই মাইলস্টোন: M1 = "First 6 Tools", M2 = বাকি ৭ | দ্রুত শিপ ও বাস্তব ক্লায়েন্ট ফিডব্যাক |
+| D14 | ইমপ্লিমেন্টেশন AI-এজেন্টে (Antigravity ইত্যাদি) — Part 9 Task Cards, ১ Card = ১ PR | ছোট, যাচাইযোগ্য ধাপ |
 
 ### ৮.৪ Definition of Done
 
-**Release 1 Done =** §৫.৫ চেকলিস্ট ১০০% ✔ এবং ৮.১-এর G1–G3, G9–G19, G21–G23 সমাধিত।
-**Release 2 Done =** §৫.৬ চেকলিস্ট ১০০% ✔ এবং ৮.১-এর G4–G8, G20, G24 সমাধিত।
+**M1 Done =** §৫.৫-এর M1-প্রযোজ্য আইটেম ✔ ও `tools/list`=৬ প্রোডাকশনে। **Release 1 (M2) Done =** §৫.৫ চেকলিস্ট ১০০% ✔ এবং ৮.১-এর G1–G3, G9–G19, G21–G23 সমাধিত।
+**Release 2 (M3) Done =** §৫.৬ চেকলিস্ট ১০০% ✔ (W1 টেস্টসহ) এবং ৮.১-এর G4–G8, G20, G24, G25 সমাধিত।
 **প্রতিটি PR-এ:** `npx tsc --noEmit` + `npm run build` + `npm test`; `AGENTS.md` Rule 1–5 লঙ্ঘন নেই; বিদ্যমান মন্তব্য/ডক অক্ষত (Rule 5)।
 
+---
+
+## Part 9: AI Agent Playbook (Antigravity / Cursor / Claude Code দিয়ে Vibe-Coding করার গাইড)
+
+এই পার্টটি এমনভাবে লেখা যাতে একজন AI এজেন্ট **একটি Task Card = একটি PR** হিসেবে নিরাপদে ও ধাপে ধাপে কাজ করতে পারে। মানুষ-ডেভেলপার হিসেবে আপনি শুধু Task Card-এর প্রম্পট দেবেন, আউটপুট রিভিউ করবেন এবং Verify কমান্ড চালাবেন।
+
+### ৯.১ এজেন্টকে ডক দেওয়ার নিয়ম
+1. **পুরো `mcp.md` একবারে নয়।** প্রতিবার শুধু: (ক) ৯.২ Master Prompt, (খ) একটি Task Card (§৯.৪), (গ) Card-এ উল্লেখ করা §৫.৩ Limits / §৮.২ Protocol টেবিল / §৪.১ টুল সারি। বাকি ডক এজেন্ট প্রয়োজনে পড়বে।
+2. **প্রথমে `AGENTS.md` পড়াতে বলুন** (Rule 1–5, verification checklist)।
+3. **একটি Task Card = একটি ব্রাঞ্চ/PR**; Card শেষে Verify কমান্ড সবুজ না হলে পরের Card নয়।
+4. Card-এর "Don't" অংশ লঙ্ঘন করলে (যেমন বিদ্যমান রুট বদলানো) PR ফেরত দিন।
+
+### ৯.২ Master Prompt (প্রতিটি সেশনের শুরুতে পেস্ট করুন)
+
+```text
+You are implementing the MCP server for the "second-screen" (Tokens Platform) repo.
+Source of truth: docs/mcp.md (read ONLY the sections I reference) and AGENTS.md (read fully first).
+
+Rules:
+1. Do exactly ONE Task Card per session. Do not start the next one.
+2. Before using ANY existing helper, locate it with `grep -rn "export .*<name>" --include=*.ts` and read its real signature. Never guess or invent function names/params.
+3. Do not modify existing API routes, components or services except the files listed in the Task Card ("Files").
+4. Follow AGENTS.md Rules 1-5. No external schema-registry links. Preserve existing comments/docs.
+5. Pure logic goes in lib/mcp/* with unit tests in lib/__tests__/mcp/*.test.ts (vitest). Write the test first when the function is pure.
+6. Never log or return PATs, gitConfig.pat, R2 keys, or service-role keys. Tool output is compact JSON, capped by lib/mcp/limits.ts.
+7. Verify before reporting done: `npx tsc --noEmit` (exit 0), `npm test`, and for route/UI cards `npm run build`.
+8. If a test fails twice, or the card contradicts the code, STOP and report what you found. Do not work around it.
+9. Final message: files changed, commands run + results, anything you could not verify.
+```
+
+### ৯.৩ বিদ্যমান Helper-এর ঠিকানা (এজেন্ট এগুলো **reuse** করবে — signature আগে grep করে পড়বে)
+
+| কাজ | Helper | কোথায় (grep দিয়ে নিশ্চিত করুন) |
+| :--- | :--- | :--- |
+| PAT/session auth | `authenticateRequest`, `authorizeProjectRequest` | `utils/auth.ts` |
+| কী তৈরি/হ্যাশ | `generateApiKey`, `ApiKeyRecord` | `utils/patAuth.ts` |
+| কী সংরক্ষণ/খোঁজা | `saveApiKey`, `findApiKeyByHash` | `utils/cloudStorage.ts` |
+| Org/Project লোড | `getUserOrganizations`, `getOrgProjectSummaries`, `getProject`, `ensureProjectDefaultBranch` | `services/organizationService.ts` |
+| টোকেন সেভ | `saveProjectTokensAndBranches`, `saveProjectBranches` | `services/organizationService.ts` |
+| টোকেন flatten/resolve | `flattenAndResolveTokens`, `buildTokenLookupIndex`, `resolveTokenAlias` | `utils/transformTokens.ts` |
+| Diff | `computeTokensDiff` | `utils/tokenDiff.ts` |
+| Set নাম | `getValidTokenSetNames` | `utils/themeHelpers.ts` |
+| Activity log | `logOrganizationActivity` | `services/organizationService.ts` |
+| টোকেন সম্পাদনা | `createTokenAtKeyPath`, `setTokenAtKeyPath`, `deleteTokenAtKeyPath` | `utils/transformTokens.ts` |
+| Dependents | `buildTokenDependencyGraph`, `getTransitiveDependents` | `utils/transformTokens.ts` |
+| Theme | `extractThemeGroups`, `getActiveThemeSets`, `buildThemeMatrix` | `utils/themeHelpers.ts` |
+| Contrast/CVD | `calculateContrastRatio`, `simulateColorVisionDeficiency` | `utils/accessibility.ts` |
+| কম্পাইল | `compileStyleDictionary` (`CompilerConfig`), `generateDtcgExportFiles` | `utils/releaseCompiler.ts`, `utils/exportsCompiler.ts` |
+| Deprecation | `readDeprecation` | `utils/tokenDeprecation.ts` |
+| Assets (R2) | `loadMetadataIndexWithEtag`, `loadAssetRawContent`, `isR2Configured` | `lib/r2.ts` |
+| Docs | `getProjectDocumentation` | `services/organizationService.ts` |
+| CORS | `handleOptionsCors`, `utils/cors.ts` | `utils/cors.ts` |
+
+### ৯.৪ Task Cards
+
+> প্রতিটি Card: **Goal · Files · Steps · Done-when · Verify · Don't**। "Verify" সবসময় `npx tsc --noEmit` ও `npm test` ধরে নিন, বাড়তি কমান্ড আলাদা লেখা। রেফারেন্স = এই ডকের সেকশন।
+
+#### 🔹 Milestone M1 — First 6 Tools
+
+**T0.1 — Dependencies + SDK build spike** (Phase 0, ref §৫.২, Phase 0.1–0.2)
+* **Files:** `package.json`, `package-lock.json`, `app/api/v1/mcp/route.ts` (ডামি, পরে T3.1 এটি প্রতিস্থাপন করবে), (প্রয়োজনে) `next.config.js`
+* **Steps:** `npm i @modelcontextprotocol/sdk zod colorjs.io`; ডামি রুটে `McpServer` + `WebStandardStreamableHTTPServerTransport` import করে একটি `ping` টুল; `npm run build`।
+* **Done-when:** build সফল; ব্যর্থ হলে `serverComponentsExternalPackages` চেষ্টা; তাতেও ব্যর্থ হলে **থামুন** এবং ফলাফল রিপোর্ট করুন (fallback সিদ্ধান্ত মানুষ নেবে)। §২.৩ খ-এর "Next 14 bundling" সারিতে ✅/❌ লিখুন।
+* **Don't:** SDK ভার্সন ফ্লোটিং (`^`) রাখবেন না — পিন করুন।
+
+**T0.2 — CORS হেডার** (ref Phase 0.3)
+* **Files:** `utils/cors.ts`, `lib/__tests__/mcp/cors.test.ts`
+* **Steps:** `Allow-Headers`-এ `Accept, Mcp-Session-Id, Mcp-Protocol-Version`; `Expose-Headers: Mcp-Session-Id`।
+* **Done-when:** টেস্টে পুরনো হেডার (`Content-Type, Authorization, X-Requested-With`) অক্ষত + নতুনগুলো উপস্থিত।
+* **Don't:** `Allow-Origin` বা মেথড তালিকা বদলাবেন না।
+
+**T0.3 — Project-bound PAT তৈরি** (ref Phase 0.4–0.5, §২.৩ ক)
+* **Files:** `app/api/v1/auth/pat/route.ts`, `lib/__tests__/mcp/patBinding.test.ts`
+* **Steps:** body-তে ঐচ্ছিক `orgId`, `projectId`; থাকলে সেশন-ইউজারের মেম্বারশিপ যাচাই (`authorizeProjectRequest`), org/project নাম লোড করে `generateApiKey(..., {uid,userEmail,orgId,projectId,orgName,projectName})`। না থাকলে আগের আচরণ। `allowedScopes` অপরিবর্তিত।
+* **Done-when:** bound কী অন্য প্রজেক্টে `403`; অন্যের প্রজেক্টে bind চেষ্টা `403`; unbound কী regression-মুক্ত।
+* **Don't:** DB migration/নতুন কলাম নয় (কলাম আছে); `manage:releases` যোগ নয়।
+
+**T1.1 — types, limits, errors** (ref §৫.৩, §৮.২)
+* **Files:** `lib/mcp/types.ts`, `limits.ts`, `errors.ts`, `lib/__tests__/mcp/limits.test.ts`
+* **Steps:** §৫.৩-এর সব ধ্রুবক; `clampLimit(n)`, `truncateJson(obj, maxChars)` → `{text, truncated, nextOffset?}`; `McpToolError(code,message,details?)` + `toToolResult(err)` → `{isError:true, content:[{type:"text",text:"{\"code\":..}"}]}`; কোড তালিকা §৮.২।
+* **Done-when:** টেস্ট: cap ছাড়ালে `truncated:true`; অজানা ত্রুটি → `internal` (স্ট্যাক ট্রেস ছাড়া)।
+
+**T1.2 — Context + Resolver** (ref Phase 1)
+* **Files:** `lib/mcp/context.ts`, `lib/mcp/resolver.ts`, `lib/__tests__/mcp/resolver.test.ts`
+* **Steps:** Phase 1-এর ধাপ ১–৭ হুবহু; ডিপেন্ডেন্সি (`getUserOrganizations` ইত্যাদি) প্যারামিটার হিসেবে ইনজেক্ট করুন যাতে টেস্টে mock করা যায়।
+* **Done-when:** টেস্ট: ID/slug/case-insensitive; ambiguity → `ambiguous`+candidates; bound কী অন্য প্রজেক্টে `forbidden`; write-মোডে প্রজেক্ট ছাড়া `project_required`; read-মোডে auto-pick।
+* **Don't:** `getOrgProjects` (সব প্রজেক্ট লোড) ব্যবহার নয়।
+
+**T2A.1 — `server.ts` + রেজিস্ট্রি + `list_workspaces`** (ref Phase 2 ১–২, টুল #১)
+* **Files:** `lib/mcp/server.ts`, `lib/mcp/tools/discovery.ts`, `lib/__tests__/mcp/discovery.test.ts`
+* **Steps:** `buildMcpServer(ctx, {milestone})` — প্রতি রিকোয়েস্টে নতুন `McpServer`; টুল-মডিউল `{name, config(zod, annotations{readOnlyHint:true}), handler}` রূপে রেজিস্টার; M1 সেট = ৬টি টুলের নাম তালিকা; `list_workspaces` (bound কী হলে শুধু বাউন্ড প্রজেক্ট)।
+* **Done-when:** unit test: M1 সেটে ঠিক নিবন্ধিত টুলই `tools/list`-এ।
+
+**T2A.2 — `get_project_overview`** (টুল #২) — **Files:** `tools/discovery.ts`, test। **Steps:** §৪.১ সারি অনুযায়ী (`getProject`, `countTokensInDocument`, `extractThemeGroups`, ব্রাঞ্চ-তালিকা, `updatedAt`)। **Done-when:** ফাঁকা প্রজেক্টে ত্রুটি ছাড়া ফলাফল; আউটপুটে gitConfig/PAT নেই।
+
+**T2A.3 — `search_tokens` + cache** (টুল #৩, ref Phase 2 ৩)
+* **Files:** `lib/mcp/cache.ts`, `lib/mcp/tools/tokens.ts`, tests
+* **Steps:** LRU (৩ এন্ট্রি, TTL ৬০s, key `projectId:updatedAt:branch`); ফিল্টার (query/type/set/theme), `limit` default 50 max 200, `offset`।
+* **Done-when:** ১৩k সিনথেটিক টোকেনে ফলাফল cap-এর মধ্যে; দ্বিতীয় কল cache hit (টেস্টে flatten কল-কাউন্ট ১)।
+
+**T2A.4 — `get_token_details`** (টুল #৪) — **Files:** `tools/tokens.ts`, test। **Steps:** `buildTokenDependencyGraph` + `getTransitiveDependents` + resolved value; সর্বোচ্চ ২০ টোকেন। **Done-when:** alias শৃঙ্খল, dependents, deprecated ফ্ল্যাগ টেস্টে।
+
+**T2A.5 — `check_color_contrast`** (টুল #৭) — **Files:** `tools/themes.ts`, test। **Steps:** hex বা টোকেন-নাম (resolve) গ্রহণ; `calculateContrastRatio`; AA/AAA; alpha থাকলে `alphaIgnored:true` (§২.৩ গ #৩ — আগে একটি টেস্ট লিখে আচরণ নিশ্চিত করুন)।
+
+**T2A.6 — `export_tokens_code`** (টুল #৮, ref Phase 2 ৬)
+* **Files:** `lib/mcp/tools/compile.ts`, test
+* **Steps:** format→`compileStyleDictionary` কী ম্যাপ (§৫ Phase 2 ধাপ ৬); `dtcg_json`→`generateDtcgExportFiles`; `MAX_EXPORT_CHARS` ছাড়ালে ফাইল-ম্যাপ + `truncated`।
+* **Don't:** `colorSpace` অপশন যোগ নয়; `exportsCompiler`-এর figma-variables ব্যবহার নয়।
+* **Prompt:** `lib/mcp/prompts.ts`-এ `use-design-tokens` (নামে `validate_tokens` নয়, শুধু M1 টুল উল্লেখ)।
+
+**T3.1 — HTTP রুট** (ref Phase 3, §৮.২)
+* **Files:** `app/api/v1/mcp/route.ts` (T0.1-এর ডামি প্রতিস্থাপন), `lib/mcp/rateLimit.ts`, `lib/__tests__/mcp/route.test.ts`
+* **Steps:** `runtime="nodejs"`, `maxDuration`; POST: body-সাইজ → PAT-only (`Bearer sec_pat_`) → `authenticateRequest(req,"read:tokens")` → rate limit → transport; GET/DELETE → 405; OPTIONS; Array বডি → 400।
+* **Done-when:** §৮.২ টেবিলের প্রতিটি সারির জন্য টেস্ট (initialize, 202, 405, malformed, batch, 401, 403, 413, 429)।
+* **Don't:** কুকি-সেশন গ্রহণ নয়।
+
+**T3.2 — Health রুট** — **Files:** `app/api/v1/mcp/health/route.ts`, test। **Steps:** সেশন বা PAT; `{ok, serverVersion, release, toolCount}`; কোনো টোকেন ডেটা নয়।
+
+**T4A.1 — ন্যূনতম Developers UI** (ref Phase 4 ১, ৩, ৬)
+* **Files:** `components/McpCliView.tsx`, `components/ApiKeysManager.tsx`
+* **Steps:** ভুয়া `npx` স্নিপেট ও "MCP v1.0" ব্যাজ **সরান**; HTTP কনফিগ স্নিপেট (`${origin}/api/v1/mcp` + `Authorization: Bearer <PAT>`) — **IDE-র বর্তমান আসল ফরম্যাট তাদের অফিসিয়াল ডক দেখে নিশ্চিত করুন**; "Generate key for this project" (bound, `read:tokens`); write টগল লুকানো।
+* **Done-when:** `npm run build` সফল; UI-তে "Workspace" শব্দ।
+* **Don't:** `Sidebar.tsx` নেভিগেশন বদলাবেন না।
+
+**T5A — M1 Verification** (ref §৫.৫ — M1-প্রযোজ্য আইটেম)
+* **Steps:** `tsc`, `npm test`, `npm run build`; ১৩k-টোকেন ফিক্সচারে আউটপুট cap; আউটপুট/লগে সিক্রেট grep; **মানুষ:** প্রোডাকশন URL-এ Cursor/VS Code থেকে `tools/list` (=৬) ও `search_tokens` কল। docs/ARCHITECTURE.md, AGENTS.md Key File Map, `data/systemChangelog.ts`, মাইলস্টোন স্ট্যাটাস আপডেট।
+* **Done-when:** **M1 শিপ।**
+
+#### 🔹 Milestone M2 — Read Complete
+
+**T2B.1 — `list_token_sets` (#৫), `get_themes_matrix` (#৬)** — Files: `tools/tokens.ts`, `tools/themes.ts`, tests।
+**T2B.2 — `validate_tokens` (#৯)** — Files: `lib/mcp/validate.ts`, `tools/compile.ts`, tests; চেক কোড: `broken_alias`, `circular_alias`, `missing_type`, `invalid_type`, `deprecated_in_use`, `theme_missing_set`, `empty_set`; প্রতিটির জন্য ফেইলিং ফিক্সচার।
+**T2B.3 — `list_branches` (#১২)** — Files: `tools/branches.ts`; শুধু native; **বাইরের Git কল নয়**; আউটপুটে `updatedAt`।
+**T2B.4 — `inspect_figma_variables` (#১৪)** — Files: `tools/figma.ts`; ⏳ আসল ডেটার আকার আগে একটি স্যাম্পল দেখে নিশ্চিত করুন (§২.৩ গ #২); না মিললে থামুন।
+**T2B.5 — `search_project_assets` (#১৫)** — Files: `tools/assets.ts`; authorize → metadata → server-side key; `/api/assets/content` কল নয়; `isR2Configured=false` → খালি + warning।
+**T2B.6 — `get_documentation_pages` (#১৬)** — Files: `lib/mcp/docsToText.ts`, `tools/docs.ts`; ডিফল্ট শুধু published; `MAX_DOC_CHARS`।
+**T2B.7 — ৫ রিসোর্স + ২ প্রম্পট** — Files: `lib/mcp/resources.ts`, `prompts.ts`; `tokens/{branch}` শুধু সারসংক্ষেপ।
+**T4B.1 — Test Connection + Tools Explorer + IDE ট্যাব** — Files: `McpCliView.tsx`; `/api/v1/mcp/health` ব্যবহার।
+**T5B — M2 Verification** — §৫.৫ পুরো চেকলিস্ট; `tools/list` = ১৩।
+
+#### 🔹 Milestone M3 — Write (Release 2)
+
+**T6.1 — Optimistic concurrency** (ref Phase 6.১)
+* **Files:** `services/organizationService.ts`, `lib/__tests__/mcp/concurrency.test.ts`
+* **Steps:** `saveProjectTokensAndBranches`/`saveProjectBranches`-এ ঐচ্ছিক `expectedUpdatedAt` (UPDATE-এ `.eq("updated_at", …)`); ০ রো → `ProjectConflictError`।
+* **Don't:** বিদ্যমান কলারদের আচরণ বদলানো নয় (option ঐচ্ছিক)।
+
+**T6.2 — `mutations.ts`** (ref Phase 6.২–৪) — Files: `lib/mcp/mutations.ts`, tests; pure ফাংশন; যাচাই: `setName` ∈ `getValidTokenSetNames` ও `$`-প্রিফিক্স নয়, path-এ `__proto__/constructor/prototype` নিষিদ্ধ, ≤১০০ আইটেম, মান ≤১০KB; diff `computeTokensDiff`; commit `[mcp]` + `crypto.randomUUID()`; default-branch গার্ড।
+**T6.3 — Branch helper** — `createBranchFrom` (+`MAX_BRANCHES`); ⏳ UI-র branch-তৈরি লজিকের সাথে মিলিয়ে নিন (`CreateBranchModal`/`useTokenStore`)।
+**T7.1 — ৩ write টুল + flag + Write-Key Rule** (ref Phase 7, §৫.১ক W1)
+* **Files:** `lib/mcp/tools/write.ts`, `lib/mcp/server.ts`, `app/api/v1/mcp/route.ts`, tests
+* **Steps:** `MCP_WRITE_ENABLED==="true"` হলেই রেজিস্টার; write-গার্ড ক্রম: `write:tokens` স্কোপ → **কী bound (নয়তো `key_not_bound`)** → bound প্রজেক্টের সাথে আর্গুমেন্ট মিল → `authorizeProjectRequest(...,"write")` → write rate limit → `expectedUpdatedAt` → default-branch গার্ড।
+* **Done-when:** unbound write-কী → `key_not_bound`; viewer → `403`; stale → `conflict`; `dryRun` কিছু সেভ করে না; `main` → `default_branch_protected`; flag বন্ধ → `tools/list`-এ নেই।
+**T7.2 — UI write টগল + `generate-color-scale`** — write টগল শুধু bound কী-তে; সতর্কবার্তা; প্রম্পট ফিচার-ব্রাঞ্চ ফ্লো।
+**T8 — M3 Verification** — §৫.৬ চেকলিস্ট; প্রথমে নিজের প্রজেক্টে ফ্ল্যাগ।
+
+### ৯.৫ কখন থামবেন ও মানুষকে জিজ্ঞেস করবেন (Stop Conditions)
+* SDK build ব্যর্থ (T0.1) — fallback সিদ্ধান্ত মানুষের।
+* কোনো helper-এর আসল signature ডকের বর্ণনার সাথে মেলে না।
+* একই টেস্ট দুবার ব্যর্থ।
+* Card-এর "Files"-এর বাইরের ফাইল বদলানো দরকার মনে হলে।
+* DB স্কিমা/migration দরকার মনে হলে।
+* Figma variables বা IDE কনফিগের আসল ফরম্যাট ডকের সাথে না মিললে।
+
+### ৯.৬ Vibe-Coding টিপস
+* **Test-first:** pure ফাংশন (resolver, limits, validate, mutations) — আগে ফেইলিং টেস্ট, তারপর কোড।
+* **ছোট PR:** ২০০–৪০০ লাইনের বেশি হলে Card ভাগ করুন।
+* **`any` এড়ান:** বিদ্যমান টাইপ (`RawTokensDocument`, `ProjectBranch`, `ApiKeyRecord`) ব্যবহার করুন।
+* **Context বাঁচান:** Antigravity-তে Card-ভিত্তিক নতুন সেশন; `lib/mcp/*` ছাড়া বড় ফাইল (`organizationService.ts`, `transformTokens.ts`) পুরো না পড়ে `grep` + নির্দিষ্ট রেঞ্জ পড়ান।
+* **প্রতি Card শেষে** এজেন্টকে দিয়ে §২.৩ বা এই ডকের Status Summary-তে ✅ বসান।
