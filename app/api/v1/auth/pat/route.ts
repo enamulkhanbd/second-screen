@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { generateApiKey } from "@/utils/patAuth";
 import { listApiKeysForUser, saveApiKey, deleteApiKey } from "@/utils/cloudStorage";
-import { jsonWithCors, handleOptionsCors } from "@/utils/cors";
+import { jsonWithTrustedCors, handleTrustedOptionsCors } from "@/utils/cors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasTrustedMutationOrigin } from "@/utils/auth";
@@ -9,8 +9,8 @@ import type { ApiKeyCredentialType } from "@/utils/patAuth";
 
 export const dynamic = "force-dynamic";
 
-export async function OPTIONS() {
-  return handleOptionsCors();
+export async function OPTIONS(req: NextRequest) {
+  return handleTrustedOptionsCors(req);
 }
 
 async function getAuthenticatedUser(req: NextRequest) {
@@ -54,45 +54,46 @@ async function verifyProjectBinding(userId: string, orgId: string, projectId: st
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user) return jsonWithCors({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!user) return jsonWithTrustedCors(req, { success: false, error: "Unauthorized" }, { status: 401 });
 
     const keys = await listApiKeysForUser(user.id);
-    return jsonWithCors({
+    return jsonWithTrustedCors(req, {
       success: true,
       keys: keys.map(({ keyHash, ...safe }) => safe),
     });
-  } catch (err: any) {
-    return jsonWithCors({ success: false, error: err.message }, { status: 500 });
+  } catch {
+    return jsonWithTrustedCors(req, { success: false, error: "Could not load API keys." }, { status: 500 });
   }
 }
 
 /**
  * POST /api/v1/auth/pat
- * Dynamically generate and save a new Personal Access Token (PAT)
+ * Dynamically generate and save a new Personal Access Token (PAT).
  */
 export async function POST(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user) return jsonWithCors({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!user) return jsonWithTrustedCors(req, { success: false, error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
     const { name, scopes, expiresInDays, credentialType = "personal", orgId, projectId } = body;
     if (credentialType !== "personal" && credentialType !== "mcp_project") {
-      return jsonWithCors({ success: false, error: "Unsupported credential type." }, { status: 400 });
+      return jsonWithTrustedCors(req, { success: false, error: "Unsupported credential type." }, { status: 400 });
     }
     const safeCredentialType: ApiKeyCredentialType = credentialType;
     let binding: { orgName: string; projectName: string } | undefined;
 
     if (safeCredentialType === "mcp_project") {
       if (typeof orgId !== "string" || typeof projectId !== "string" || !orgId || !projectId) {
-        return jsonWithCors(
+        return jsonWithTrustedCors(
+          req,
           { success: false, error: "MCP credentials require a workspace and project binding." },
           { status: 400 },
         );
       }
       const verified = await verifyProjectBinding(user.id, orgId, projectId);
       if (!verified.ok) {
-        return jsonWithCors({ success: false, error: verified.error }, { status: verified.status });
+        return jsonWithTrustedCors(req, { success: false, error: verified.error }, { status: verified.status });
       }
       binding = { orgName: verified.orgName, projectName: verified.projectName };
     }
@@ -102,14 +103,14 @@ export async function POST(req: NextRequest) {
       ? scopes.filter((scope): scope is (typeof allowedScopes)[number] => allowedScopes.includes(scope))
       : safeCredentialType === "mcp_project" ? ["read:tokens"] : ["read:tokens", "write:tokens"];
     if (safeScopes.length === 0) {
-      return jsonWithCors({ success: false, error: "At least one valid permission scope is required." }, { status: 400 });
+      return jsonWithTrustedCors(req, { success: false, error: "At least one valid permission scope is required." }, { status: 400 });
     }
 
     const normalizedScopes = safeCredentialType === "mcp_project"
       ? safeScopes.filter((scope) => scope === "read:tokens")
       : safeScopes;
     if (normalizedScopes.length === 0) {
-      return jsonWithCors({ success: false, error: "MCP credentials are read-only until the write release is enabled." }, { status: 400 });
+      return jsonWithTrustedCors(req, { success: false, error: "MCP credentials are read-only until the write release is enabled." }, { status: 400 });
     }
 
     const { plaintextKey, record } = generateApiKey(
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
 
     await saveApiKey(record);
 
-    return jsonWithCors({
+    return jsonWithTrustedCors(req, {
       success: true,
       message: "Personal Access Token generated successfully. Store it safely; it will not be shown again.",
       token: plaintextKey,
@@ -144,8 +145,8 @@ export async function POST(req: NextRequest) {
         projectName: record.projectName,
       },
     });
-  } catch (err: any) {
-    return jsonWithCors({ success: false, error: err.message }, { status: 500 });
+  } catch {
+    return jsonWithTrustedCors(req, { success: false, error: "Could not create the API key." }, { status: 500 });
   }
 }
 
@@ -156,28 +157,29 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user) return jsonWithCors({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!user) return jsonWithTrustedCors(req, { success: false, error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     if (!id) {
-      return jsonWithCors({ success: false, error: "Missing key ID" }, { status: 400 });
+      return jsonWithTrustedCors(req, { success: false, error: "Missing key ID" }, { status: 400 });
     }
 
     const deleted = await deleteApiKey(id, user.id);
     if (!deleted) {
-      return jsonWithCors({ success: false, error: "API key not found." }, { status: 404 });
+      return jsonWithTrustedCors(req, { success: false, error: "API key not found." }, { status: 404 });
     }
 
-    return jsonWithCors({
+    return jsonWithTrustedCors(req, {
       success: true,
       message: `API key ${id} revoked successfully.`,
     });
   } catch {
-    return jsonWithCors(
+    return jsonWithTrustedCors(
+      req,
       { success: false, error: "Could not revoke the API key. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
