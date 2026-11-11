@@ -50,12 +50,13 @@ export async function resolveMcpProject(
   orgId?: string,
   projectId?: string,
   requestId = "unknown",
+  permission: "read" | "write" = "read",
 ): Promise<McpResolvedProject> {
   if (!record.uid) {
     throw new McpError("FORBIDDEN", "This credential is not bound to a verified user.", requestId, 403);
   }
   const target = requireTarget(record, orgId, projectId, requestId);
-  const authorization = await authorizeProjectRequest(req, target.orgId, target.projectId, "read", record);
+  const authorization = await authorizeProjectRequest(req, target.orgId, target.projectId, permission, record);
   if (!authorization.authorized) {
     const code = authorization.status === 404 ? "PROJECT_NOT_FOUND" : authorization.status === 401 ? "UNAUTHORIZED" : "FORBIDDEN";
     throw new McpError(code, authorization.error, requestId, authorization.status);
