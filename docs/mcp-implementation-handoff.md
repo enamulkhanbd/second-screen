@@ -4,7 +4,7 @@
 
 **Working branch:** `docs/mcp-pure-implementation-plan`
 
-**Current head:** `cd955eb feat: add guarded MCP write primitives`
+**Current head:** pending commit for live-access verification and default-branch guard correction
 
 **Purpose:** This document is the implementation handoff for another developer or AI agent. It separates verified code from work that requires access to Supabase, staging, deployment secrets, or production operations.
 
@@ -24,11 +24,45 @@ The current state is:
 - Write revision, confirmation, idempotency, audit, and CAS database primitives: implemented in code and migration.
 - Write preview/apply service primitives: implemented but not exposed through MCP.
 - Write MCP tools: **not implemented or registered yet**.
-- Supabase migrations: **not applied or verified against a real project from this environment**.
-- Staging conformance against a deployed environment: **not run**.
+- Supabase credential and write-safety migrations: applied to the connected `tokens-platform` project `kujjcmpevldoaopoevjn`.
+- Live branch JSON shape: verified; the default branch is identified by `isDefault`, while `active_branch` may point to a working branch.
+- Vercel preview deployment: redeployed and health-checked through a protected share link.
+- Trusted origins: configured in Vercel for production and preview.
+- Staging conformance against a deployed environment: health contract verified; authenticated tool conformance remains pending a disposable MCP credential.
 - Production rollout: **not approved for enablement**.
 
 Do not enable write capabilities merely by changing an environment variable. The write tool registration and release gate are intentionally still missing.
+
+### Live environment verification
+
+The connected Supabase project is:
+
+```text
+name: tokens-platform
+ref: kujjcmpevldoaopoevjn
+region: ap-northeast-2
+```
+
+Applied migrations include:
+
+```text
+mcp_project_credentials
+mcp_write_safety
+mcp_default_branch_guard
+harden_live_is_org_member_search_path
+```
+
+The Vercel project is `second-screen` (`prj_SPbO4guhtRPjzyEdNXwpJqa6RdJ8`). Its latest verified preview health response reports:
+
+```json
+{
+  "trustedOriginsConfigured": true,
+  "sharedRateLimiterConfigured": false,
+  "writeCapabilitiesEnabled": false
+}
+```
+
+The shared limiter remains disabled because Upstash credentials have not been supplied. Do not set `MCP_REQUIRE_SHARED_LIMITER=true` until those credentials are configured.
 
 ## 2. Branch and commit history
 

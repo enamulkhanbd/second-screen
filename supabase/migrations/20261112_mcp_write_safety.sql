@@ -122,7 +122,13 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE = 'PROJECT_NOT_FOUND';
   END IF;
 
-  IF COALESCE(v_project.active_branch, 'main') = p_branch_name THEN
+  IF p_branch_name = 'main'
+     OR EXISTS (
+       SELECT 1
+       FROM jsonb_array_elements(COALESCE(v_project.branches, '[]'::jsonb)) branch
+       WHERE branch->>'name' = p_branch_name
+         AND COALESCE((branch->>'isDefault')::boolean, false)
+     ) THEN
     RAISE EXCEPTION USING MESSAGE = 'PROTECTED_BRANCH';
   END IF;
 

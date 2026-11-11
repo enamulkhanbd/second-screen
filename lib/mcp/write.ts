@@ -57,11 +57,11 @@ function assertWriteEnabled(record: ApiKeyRecord, requestId: string) {
 }
 
 function requireWriteBranch(project: Awaited<ReturnType<typeof resolveMcpProject>>, branchName: string, requestId: string) {
-  if (branchName === project.project.activeBranch) {
-    throw new McpError("FORBIDDEN", "The default branch is protected from MCP writes.", requestId, 403);
-  }
   const branch = project.project.branches.find((candidate: any) => candidate?.name === branchName);
   if (!branch) throw new McpError("PROJECT_NOT_FOUND", "Branch not found.", requestId, 404);
+  if (branch.isDefault === true || branchName === "main") {
+    throw new McpError("FORBIDDEN", "The default branch is protected from MCP writes.", requestId, 403);
+  }
   return branch;
 }
 
@@ -154,7 +154,7 @@ export async function previewTokenWrite(
       modified: diff.totalModified,
       deleted: diff.totalDeleted,
     },
-    warnings: parsed.branchName === project.project.activeBranch ? ["default_branch_protected"] : [],
+    warnings: [],
   };
 }
 
