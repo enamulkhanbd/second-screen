@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "mcp:conformance": "node scripts/mcp-conformance.mjs",
     "r2:list": "node --env-file=.env.local scripts/r2-cli.mjs list",
     "r2:presign": "node --env-file=.env.local scripts/r2-cli.mjs presign",
     "r2:upload": "node --env-file=.env.local scripts/r2-cli.mjs upload"
@@ -34,6 +35,8 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "@tokens-studio/sd-transforms": "^1.2.9",
+    "@upstash/ratelimit": "2.2.0",
+    "@upstash/redis": "1.41.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "colorjs.io": "0.5.2",
