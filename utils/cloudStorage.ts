@@ -6,7 +6,7 @@ import { ApiKeyRecord } from "./patAuth";
 const inMemoryApiKeys = new Map<string, ApiKeyRecord>();
 
 const API_KEY_COLUMNS =
-  "id,name,key_prefix,key_hash,scopes,created_at,expires_at,user_id,user_email,org_id,project_id,org_name,project_name";
+  "id,name,key_prefix,key_hash,scopes,created_at,expires_at,user_id,user_email,org_id,project_id,org_name,project_name,credential_type";
 
 function getClient() {
   return typeof window === "undefined" ? createAdminClient() : supabase;
@@ -27,6 +27,7 @@ function mapApiKeyRow(row: any): ApiKeyRecord {
     projectId: row.project_id || undefined,
     orgName: row.org_name || undefined,
     projectName: row.project_name || undefined,
+    credentialType: row.credential_type || "personal",
   };
 }
 
@@ -127,6 +128,7 @@ export async function saveApiKey(record: ApiKeyRecord): Promise<void> {
       project_id: record.projectId || null,
       org_name: record.orgName || null,
       project_name: record.projectName || null,
+      credential_type: record.credentialType || "personal",
     });
     if (error) {
       console.warn("Supabase error saving API key:", error);

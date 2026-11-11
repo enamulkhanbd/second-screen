@@ -13,7 +13,6 @@ import {
   FileCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CodeViewer } from "@/components/ui/CodeViewer";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
@@ -21,25 +20,6 @@ import { ApiKeysManager } from "@/components/ApiKeysManager";
 export const McpCliView: React.FC = () => {
   const { currentProject, currentOrg, addToast } = useTokenStore();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  // Set once a token is created here, so the snippet below can be copied ready to use.
-  const [createdToken, setCreatedToken] = useState<string | null>(null);
-
-  const mcpConfig = {
-    mcpServers: {
-      "tokens-platform": {
-        command: "npx",
-        args: [
-          "-y",
-          "@tokens-platform/mcp-server",
-          `--org=${currentOrg?.slug || "acme"}`,
-          `--project=${currentProject?.slug || "design-system"}`,
-        ],
-        env: {
-          TOKENS_PLATFORM_PAT: createdToken ?? "<YOUR_PERSONAL_ACCESS_TOKEN>",
-        },
-      },
-    },
-  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -73,10 +53,21 @@ export const McpCliView: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-6">
-        {/* 0. Token first: the snippets below use it */}
+        {/* 0. Project-bound MCP credential */}
         <Card>
           <CardContent className="pt-6">
-            <ApiKeysManager onTokenCreated={setCreatedToken} />
+            {currentOrg && currentProject ? (
+              <ApiKeysManager
+                credentialType="mcp_project"
+                orgId={currentOrg.id}
+                projectId={currentProject.id}
+                projectName={currentProject.name}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Select a workspace and project before creating a project-bound MCP credential.
+              </p>
+            )}
           </CardContent>
         </Card>
         {/* 1. MCP Server Card */}
@@ -95,34 +86,14 @@ export const McpCliView: React.FC = () => {
                 </div>
               </div>
 
-              <Badge variant="violet" className="text-[10px] font-mono">
-                MCP v1.0
-              </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Add this configuration to your Claude Desktop or Cursor MCP settings file (<code className="font-mono text-foreground">mcp_config.json</code>).
-              {createdToken
-                ? " Your new token is already filled in."
-                : " Create a token above to fill in the placeholder."}
+              The project-bound read-only credential flow is now available. The remote MCP endpoint and
+              client configuration are still being implemented and will appear here only after staging
+              protocol tests pass.
             </p>
-
-            <div className="relative rounded-xl border border-border bg-white dark:bg-[#0d0d12] overflow-hidden select-text shadow-sm">
-              <button
-                onClick={() => handleCopy(JSON.stringify(mcpConfig, null, 2), "mcp")}
-                className="absolute right-3 top-3 px-2 py-1 rounded bg-muted/60 hover:bg-muted text-foreground/80 text-[11px] flex items-center gap-1 transition-colors z-10"
-              >
-                {copiedKey === "mcp" ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedKey === "mcp" ? "Copied" : "Copy"}</span>
-              </button>
-              <div className="p-4">
-                <CodeViewer
-                  content={JSON.stringify(mcpConfig, null, 2)}
-                  language="json"
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
 
