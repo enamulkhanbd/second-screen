@@ -6,8 +6,15 @@ import { registerMcpTools } from "./tools";
 export const MCP_TOOL_NAMES = [
   "list_workspaces",
   "get_project_overview",
+  "list_token_sets",
+  "get_themes_matrix",
   "search_tokens",
   "get_token_details",
+  "validate_tokens",
+  "list_branches",
+  "inspect_figma_variables",
+  "search_project_assets",
+  "get_documentation_pages",
   "check_color_contrast",
   "export_tokens_code",
 ] as const;

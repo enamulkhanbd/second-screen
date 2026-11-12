@@ -13,6 +13,9 @@ export type McpProjectData = {
   description?: string | null;
   rawTokens: Record<string, any>;
   themeGroups: any[];
+  figmaVariables: Record<string, any>;
+  figmaMeta: Record<string, any>;
+  documentation: Record<string, any> | null;
   branches: any[];
   activeBranch?: string | null;
   updatedAt: string;
@@ -66,7 +69,7 @@ export async function resolveMcpProject(
   const [{ data: project, error: projectError }, { data: organization, error: orgError }] = await Promise.all([
     admin
       .from("projects")
-      .select("id, org_id, name, slug, description, raw_tokens, theme_groups, branches, active_branch, updated_at, is_archived")
+      .select("id, org_id, name, slug, description, raw_tokens, theme_groups, figma_variables, extra_data, documentation, branches, active_branch, updated_at, is_archived")
       .eq("id", target.projectId)
       .eq("org_id", target.orgId)
       .maybeSingle(),
@@ -103,6 +106,9 @@ export async function resolveMcpProject(
       description: project.description,
       rawTokens: project.raw_tokens || {},
       themeGroups: Array.isArray(project.theme_groups) ? project.theme_groups : [],
+      figmaVariables: project.figma_variables || {},
+      figmaMeta: project.extra_data?.figmaMeta || {},
+      documentation: project.documentation || null,
       branches,
       activeBranch,
       updatedAt: project.updated_at,

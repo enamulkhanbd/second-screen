@@ -49,13 +49,20 @@ const tools = await getJson(endpoint, {
   body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
 });
 const names = (tools.result?.tools || []).map((tool) => tool.name).sort();
-const expected = [
+  const expected = [
   "check_color_contrast",
   "export_tokens_code",
+  "get_documentation_pages",
+  "get_themes_matrix",
   "get_project_overview",
   "get_token_details",
+  "inspect_figma_variables",
+  "list_branches",
+  "list_token_sets",
   "list_workspaces",
   "search_tokens",
+  "search_project_assets",
+  "validate_tokens",
 ].sort();
 if (JSON.stringify(names) !== JSON.stringify(expected)) {
   throw new Error(`Unexpected MCP tool registry: ${names.join(", ")}`);

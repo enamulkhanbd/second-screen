@@ -1,7 +1,9 @@
 import Color from "colorjs.io";
 import { z } from "zod";
 import { countTokensInDocument, flattenAndResolveTokens, compareTokenNames } from "@/utils/transformTokens";
-import { getCategoryForType } from "@/utils/themeHelpers";
+import { getCategoryForType, getValidTokenSetNames } from "@/utils/themeHelpers";
+import { loadMetadataIndex } from "@/lib/r2";
+import type { ProjectAsset } from "@/types/tenant";
 import type { ApiKeyRecord } from "@/utils/patAuth";
 import { createMcpCursor, createRevision, parseMcpCursor } from "./cursors";
 import { McpError } from "./errors";
@@ -13,6 +15,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 const SERVER_VERSION = "0.1.0";
 const MAX_RESULT_ITEMS = 100;
 const MAX_EXPORT_ITEMS = 500;
+const MAX_PAGE_ITEMS = 100;
 
 type ToolDeps = {
   req: NextRequest;
@@ -51,6 +54,56 @@ function revisionFor(project: McpResolvedProject): string {
 function resolveTokens(project: McpResolvedProject) {
   return flattenAndResolveTokens(project.project.rawTokens, undefined, undefined, { sort: false })
     .sort((a, b) => compareTokenNames(a.id, b.id));
+}
+
+function tokenSetEntries(project: McpResolvedProject) {
+  return getValidTokenSetNames(project.project.rawTokens).map((name) => ({
+    name,
+    tokenCount: countTokensInDocument(project.project.rawTokens[name] || {}),
+  }));
+}
+
+function flattenDocument(document: Record<string, any>) {
+  return flattenAndResolveTokens(document || {}, undefined, undefined, { sort: false })
+    .sort((a, b) => compareTokenNames(a.id, b.id));
+}
+
+function validateTokenDocument(project: McpResolvedProject) {
+  const tokens = resolveTokens(project);
+  const ids = new Set(tokens.map((token) => token.id));
+  const missingTypes: string[] = [];
+  const deprecated: string[] = [];
+  const missingAliases: Array<{ id: string; target: string }> = [];
+  const graph = new Map<string, string>();
+  for (const token of tokens) {
+    if (!token.type || token.type === "other") missingTypes.push(token.id);
+    if (token.deprecated) deprecated.push(token.id);
+    if (token.isAlias && token.aliasTarget) {
+      graph.set(token.id, token.aliasTarget);
+      if (!ids.has(token.aliasTarget) && !tokens.some((candidate) => candidate.name === token.aliasTarget || candidate.id.endsWith(`.${token.aliasTarget}`))) {
+        missingAliases.push({ id: token.id, target: token.aliasTarget });
+      }
+    }
+  }
+  const cyclic: string[] = [];
+  for (const start of Array.from(graph.keys())) {
+    const seen = new Set<string>();
+    let current: string | undefined = start;
+    while (current && graph.has(current)) {
+      if (seen.has(current)) { cyclic.push(start); break; }
+      seen.add(current);
+      current = graph.get(current);
+    }
+  }
+  return {
+    valid: missingTypes.length === 0 && missingAliases.length === 0 && cyclic.length === 0,
+    tokenCount: tokens.length,
+    missingTypes: missingTypes.slice(0, MAX_RESULT_ITEMS),
+    missingAliases: missingAliases.slice(0, MAX_RESULT_ITEMS),
+    cyclicAliases: Array.from(new Set(cyclic)).slice(0, MAX_RESULT_ITEMS),
+    deprecatedTokens: deprecated.slice(0, MAX_RESULT_ITEMS),
+    truncated: missingTypes.length > MAX_RESULT_ITEMS || missingAliases.length > MAX_RESULT_ITEMS || cyclic.length > MAX_RESULT_ITEMS,
+  };
 }
 
 function parseColor(value: string, requestId: string): Color {
@@ -107,6 +160,38 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       updatedAt: project.project.updatedAt,
       archived: Boolean(project.project.isArchived),
     }, meta(deps, project, revision));
+  });
+
+  server.registerTool("list_token_sets", {
+    title: "List token sets",
+    description: "List token sets and bounded token counts for the selected project.",
+    inputSchema: projectShape,
+  }, async ({ orgId, projectId }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const items = tokenSetEntries(project);
+    return result({ items, total: items.length }, meta(deps, project, revisionFor(project)));
+  });
+
+  server.registerTool("get_themes_matrix", {
+    title: "Get themes matrix",
+    description: "Return theme groups, modes, and token-set activation state.",
+    inputSchema: projectShape,
+  }, async ({ orgId, projectId }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const groups = project.project.themeGroups.map((group: any) => ({
+      id: group.id,
+      name: group.name,
+      color: group.color || null,
+      options: (group.options || []).map((option: any) => ({
+        id: option.id,
+        name: option.name,
+        group: option.group || null,
+        selectedTokenSets: option.selectedTokenSets || {},
+        figmaCollectionId: option.figmaCollectionId || null,
+        figmaModeId: option.figmaModeId || null,
+      })),
+    }));
+    return result({ groups, tokenSets: tokenSetEntries(project) }, meta(deps, project, revisionFor(project)));
   });
 
   server.registerTool("search_tokens", {
@@ -188,6 +273,70 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
     }, meta(deps, project, revisionFor(project)));
   });
 
+  server.registerTool("validate_tokens", {
+    title: "Validate tokens",
+    description: "Check token types, aliases, cycles, and deprecated-token usage without modifying project data.",
+    inputSchema: projectShape,
+  }, async ({ orgId, projectId }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    return result(validateTokenDocument(project), meta(deps, project, revisionFor(project)));
+  });
+
+  server.registerTool("list_branches", {
+    title: "List branches",
+    description: "List native project branches, default/active status, and recent commit metadata.",
+    inputSchema: {
+      ...projectShape,
+      limit: z.number().int().min(1).max(50).optional().default(20),
+    },
+  }, async ({ orgId, projectId, limit = 20 }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const items = project.project.branches.slice(0, limit).map((branch: any) => ({
+      id: branch.id || null,
+      name: branch.name,
+      title: branch.title || branch.name,
+      isDefault: Boolean(branch.isDefault),
+      isActive: branch.name === project.project.activeBranch,
+      updatedAt: branch.updatedAt || branch.updated_at || null,
+      commits: Array.isArray(branch.commits) ? branch.commits.slice(0, 10) : [],
+    }));
+    return result({ items, hasMore: project.project.branches.length > items.length }, meta(deps, project, revisionFor(project), project.project.branches.length > items.length));
+  });
+
+  server.registerTool("inspect_figma_variables", {
+    title: "Inspect Figma variables",
+    description: "Inspect synchronized Figma variable collections, modes, values, and sync metadata.",
+    inputSchema: {
+      ...projectShape,
+      query: z.string().max(200).optional(),
+      limit: z.number().int().min(1).max(MAX_RESULT_ITEMS).optional().default(100),
+    },
+  }, async ({ orgId, projectId, query, limit = 100 }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const all = flattenDocument(project.project.figmaVariables);
+    const needle = query?.trim().toLowerCase();
+    const variables = all.filter((item) => !needle || `${item.id} ${item.name} ${item.rawValue} ${item.resolvedValue}`.toLowerCase().includes(needle))
+      .slice(0, limit)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        collection: item.setName,
+        type: item.type,
+        rawValue: item.rawValue,
+        resolvedValue: item.resolvedValue,
+        isAlias: item.isAlias,
+        aliasTarget: item.aliasTarget || null,
+        figmaVariableKey: item.figmaVariableKey || null,
+      }));
+    return result({
+      variables,
+      total: all.length,
+      metadata: project.project.figmaMeta,
+      updatedAt: project.project.figmaMeta?.figmaUpdatedAt || null,
+      truncated: variables.length < all.length,
+    }, meta(deps, project, revisionFor(project), variables.length < all.length));
+  });
+
   server.registerTool("check_color_contrast", {
     title: "Check color contrast",
     description: "Calculate WCAG contrast ratio for two CSS colors without changing project data.",
@@ -244,5 +393,75 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       truncated: tokens.length < all.length,
       snapshotRevision: revisionFor(project),
     }, meta(deps, project, revisionFor(project), tokens.length < all.length));
+  });
+
+  server.registerTool("search_project_assets", {
+    title: "Search project assets",
+    description: "Search authorized project asset metadata in R2; optionally include bounded inline SVG markup.",
+    inputSchema: {
+      ...projectShape,
+      query: z.string().max(200).optional(),
+      assetType: z.string().max(50).optional(),
+      includeSvg: z.boolean().optional().default(false),
+      limit: z.number().int().min(1).max(MAX_RESULT_ITEMS).optional().default(50),
+    },
+  }, async ({ orgId, projectId, query, assetType, includeSvg = false, limit = 50 }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    let assets: ProjectAsset[];
+    try {
+      assets = await loadMetadataIndex(project.auth.orgId, project.auth.projectId);
+    } catch {
+      throw new McpError("UPSTREAM_UNAVAILABLE", "Project asset metadata is temporarily unavailable.", deps.requestId, 503);
+    }
+    const needle = query?.trim().toLowerCase();
+    const filtered = assets.filter((asset) => {
+      const searchable = `${asset.id} ${asset.name} ${asset.title || ""} ${asset.path || ""} ${asset.description || ""} ${asset.tag || ""}`.toLowerCase();
+      return (!needle || searchable.includes(needle)) && (!assetType || asset.assetType === assetType || asset.type === assetType);
+    });
+    const items = filtered.slice(0, limit).map((asset) => ({
+      ...asset,
+      ...(includeSvg && asset.svg ? { svg: asset.svg.slice(0, 50_000), svgTruncated: asset.svg.length > 50_000 } : { svg: undefined }),
+    }));
+    return result({ items, total: filtered.length, hasMore: filtered.length > items.length }, meta(deps, project, revisionFor(project), filtered.length > items.length));
+  });
+
+  server.registerTool("get_documentation_pages", {
+    title: "Get documentation pages",
+    description: "List project documentation pages and bounded block content for the selected project.",
+    inputSchema: {
+      ...projectShape,
+      slug: z.string().max(200).optional(),
+      includeUnpublished: z.boolean().optional().default(true),
+      limit: z.number().int().min(1).max(MAX_PAGE_ITEMS).optional().default(MAX_PAGE_ITEMS),
+    },
+  }, async ({ orgId, projectId, slug, includeUnpublished = true, limit = MAX_PAGE_ITEMS }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const documentation = project.project.documentation || {};
+    const pages = Array.isArray(documentation.pages) ? documentation.pages : [];
+    const selected = pages.filter((page: any) => (!slug || page.slug === slug || page.id === slug) && (includeUnpublished || page.isPublished))
+      .slice(0, limit)
+      .map((page: any) => ({
+        id: page.id,
+        slug: page.slug,
+        title: page.title,
+        description: page.description || null,
+        folderId: page.folderId || null,
+        order: page.order,
+        layout: page.layout,
+        isPublished: Boolean(page.isPublished),
+        updatedAt: page.updatedAt || null,
+        blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 100).map((block: any) => ({
+          ...block,
+          content: typeof block.content === "string" ? block.content.slice(0, 20_000) : block.content,
+        })) : [],
+      }));
+    return result({
+      folders: Array.isArray(documentation.folders) ? documentation.folders : [],
+      pages: selected,
+      total: pages.length,
+      hasMore: pages.length > selected.length,
+      isPublishedGlobally: Boolean(documentation.isPublishedGlobally),
+      publishedUrlSlug: documentation.publishedUrlSlug || null,
+    }, meta(deps, project, revisionFor(project), pages.length > selected.length));
   });
 }
