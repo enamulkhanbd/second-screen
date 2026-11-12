@@ -91,6 +91,13 @@ export async function authorizeProjectRequest(
   }
 
   if (
+    auth.record.credentialType === "mcp_project" &&
+    (!auth.record.orgId || !auth.record.projectId)
+  ) {
+    return { authorized: false, status: 403, error: "This MCP credential has no immutable project binding." };
+  }
+
+  if (
     (auth.record.orgId && auth.record.orgId !== orgId) ||
     (auth.record.projectId && auth.record.projectId !== projectId)
   ) {

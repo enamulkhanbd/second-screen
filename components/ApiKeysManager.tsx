@@ -33,7 +33,21 @@ interface ApiKeyItem {
   expiresAt?: string;
 }
 
-export const ApiKeysManager: React.FC<{ onTokenCreated?: (token: string) => void }> = ({ onTokenCreated }) => {
+type ApiKeyManagerProps = {
+  onTokenCreated?: (token: string) => void;
+  credentialType?: "personal" | "mcp_project";
+  orgId?: string;
+  projectId?: string;
+  projectName?: string;
+};
+
+export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
+  onTokenCreated,
+  credentialType = "personal",
+  orgId,
+  projectId,
+  projectName,
+}) => {
   const dialogs = useDialogs();
   const { addToast } = useTokenStore();
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
@@ -45,7 +59,7 @@ export const ApiKeysManager: React.FC<{ onTokenCreated?: (token: string) => void
   const [newKeyName, setNewKeyName] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("90");
   const [scopeRead, setScopeRead] = useState(true);
-  const [scopeWrite, setScopeWrite] = useState(true);
+  const [scopeWrite, setScopeWrite] = useState(false);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
 
   const fetchKeys = async () => {
@@ -85,6 +99,9 @@ export const ApiKeysManager: React.FC<{ onTokenCreated?: (token: string) => void
           name: newKeyName.trim(),
           scopes,
           expiresInDays: expiresInDays === "never" ? 0 : parseInt(expiresInDays),
+          credentialType,
+          orgId,
+          projectId,
         }),
       });
 
@@ -255,7 +272,7 @@ export const ApiKeysManager: React.FC<{ onTokenCreated?: (token: string) => void
                   <SelectItem value="30">30 days</SelectItem>
                   <SelectItem value="60">60 days</SelectItem>
                   <SelectItem value="90">90 days (Recommended)</SelectItem>
-                  <SelectItem value="never">No expiration</SelectItem>
+                  {credentialType === "personal" && <SelectItem value="never">No expiration</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -274,16 +291,23 @@ export const ApiKeysManager: React.FC<{ onTokenCreated?: (token: string) => void
                 <span>read:tokens (Pull tokens & themes)</span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer text-xs">
-                <input
-                  type="checkbox"
-                  checked={scopeWrite}
-                  onChange={(e) => setScopeWrite(e.target.checked)}
-                  className="rounded text-primary focus:ring-ring"
-                />
-                <span>write:tokens (Push updates)</span>
-              </label>
+              {credentialType === "personal" && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={scopeWrite}
+                    onChange={(e) => setScopeWrite(e.target.checked)}
+                    className="rounded text-primary focus:ring-ring"
+                  />
+                  <span>write:tokens (Push updates)</span>
+                </label>
+              )}
             </div>
+            {credentialType === "mcp_project" && (
+              <p className="text-[11px] text-muted-foreground">
+                This MCP credential is read-only and bound to {projectName || "the selected project"}.
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">

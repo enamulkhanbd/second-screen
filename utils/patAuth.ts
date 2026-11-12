@@ -1,5 +1,7 @@
 import crypto from "crypto";
 
+export type ApiKeyCredentialType = "personal" | "mcp_project";
+
 export interface ApiKeyRecord {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ export interface ApiKeyRecord {
   projectId?: string;
   orgName?: string;
   projectName?: string;
+  credentialType?: ApiKeyCredentialType;
 }
 
 /**
@@ -31,6 +34,7 @@ export function generateApiKey(
     projectId?: string;
     orgName?: string;
     projectName?: string;
+    credentialType?: ApiKeyCredentialType;
   }
 ): { plaintextKey: string; record: ApiKeyRecord } {
   const randomBytes = crypto.randomBytes(24).toString("hex");
@@ -54,6 +58,7 @@ export function generateApiKey(
     createdAt: now.toISOString(),
     expiresAt,
     ...(metadata || {}),
+    credentialType: metadata?.credentialType || "personal",
   };
 
   return { plaintextKey, record };
