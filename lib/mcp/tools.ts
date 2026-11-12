@@ -3,6 +3,7 @@ import { z } from "zod";
 import { countTokensInDocument, flattenAndResolveTokens, compareTokenNames, buildTokenDependencyGraph } from "@/utils/transformTokens";
 import { getActiveThemeSets, getCategoryForType, getValidTokenSetNames } from "@/utils/themeHelpers";
 import { loadMetadataIndex } from "@/lib/r2";
+import { compileStyleDictionary } from "@/utils/releaseCompiler";
 import type { ProjectAsset } from "@/types/tenant";
 import type { ApiKeyRecord } from "@/utils/patAuth";
 import { createMcpCursor, createRevision, parseMcpCursor } from "./cursors";
@@ -16,6 +17,7 @@ const SERVER_VERSION = "0.1.0";
 const MAX_RESULT_ITEMS = 100;
 const MAX_EXPORT_ITEMS = 500;
 const MAX_PAGE_ITEMS = 100;
+const MAX_RESPONSE_BYTES = 512 * 1024;
 
 type ToolDeps = {
   req: NextRequest;
@@ -37,9 +39,17 @@ function meta(deps: ToolDeps, project?: McpResolvedProject, revision?: string, t
 }
 
 function result(data: unknown, responseMeta: McpResponseMeta) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify({ data, meta: responseMeta }) }],
-  };
+  const text = JSON.stringify({ data, meta: responseMeta });
+  const byteLength = new TextEncoder().encode(text).byteLength;
+  if (byteLength > MAX_RESPONSE_BYTES) {
+    throw new McpError(
+      "LIMIT_EXCEEDED",
+      `Response is ${byteLength} bytes; the maximum supported response is ${MAX_RESPONSE_BYTES} bytes. Narrow the query or reduce the requested limit.`,
+      responseMeta.requestId,
+      413,
+    );
+  }
+  return { content: [{ type: "text" as const, text }] };
 }
 
 function requireString(value: string | undefined, label: string, requestId: string): string {
@@ -66,6 +76,14 @@ function resolveThemeOptionIds(project: McpResolvedProject, requested: Record<st
 
 function themeSelectionKey(themeOptionIds?: Record<string, string>) {
   return JSON.stringify(Object.entries(themeOptionIds || {}).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function exportSafeTokens(tokens: any[]) {
+  const counts = new Map<string, number>();
+  tokens.forEach((token) => counts.set(token.name, (counts.get(token.name) || 0) + 1));
+  return tokens.map((token) => (counts.get(token.name) || 0) < 2
+    ? token
+    : { ...token, name: `${token.setName}.${token.name}` });
 }
 
 function resolveTokens(project: McpResolvedProject, themeOptionIds?: Record<string, string>, requestId = "unknown") {
@@ -492,22 +510,12 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
   }, async ({ orgId, projectId, themeOptionIds, format = "css", limit = MAX_EXPORT_ITEMS }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
     const all = resolveTokens(project, themeOptionIds, deps.requestId);
-    const tokens = all.slice(0, limit);
-    const entries = tokens.map((token) => [token.name.replace(/[^a-zA-Z0-9_-]+/g, "-"), token.resolvedValue] as const);
-    let code: string;
-    if (format === "json") {
-      code = JSON.stringify(Object.fromEntries(entries), null, 2);
-    } else {
-      if (format === "scss") {
-        code = entries.map(([name, value]) => `$${name}: ${value};`).join("\n");
-      } else {
-        const lines = entries.map(([name, value]) => `  --${name}: ${value};`);
-        code = `:root {\n${lines.join("\n")}\n}`;
-      }
-    }
+    const tokens = exportSafeTokens(all.slice(0, limit));
+    const compiled = compileStyleDictionary(tokens, project.project.themeGroups);
+    const code = format === "json" ? compiled.tokensJson : format === "scss" ? compiled.scss : compiled.css;
     return result({
       format,
-      language: format === "json" ? "json" : "css",
+      language: format,
       code,
       count: tokens.length,
       totalCount: all.length,
