@@ -1,7 +1,7 @@
 import Color from "colorjs.io";
 import { z } from "zod";
 import { countTokensInDocument, flattenAndResolveTokens, compareTokenNames, buildTokenDependencyGraph } from "@/utils/transformTokens";
-import { getCategoryForType, getValidTokenSetNames } from "@/utils/themeHelpers";
+import { getActiveThemeSets, getCategoryForType, getValidTokenSetNames } from "@/utils/themeHelpers";
 import { loadMetadataIndex } from "@/lib/r2";
 import type { ProjectAsset } from "@/types/tenant";
 import type { ApiKeyRecord } from "@/utils/patAuth";
@@ -51,8 +51,29 @@ function revisionFor(project: McpResolvedProject): string {
   return createRevision(`${project.project.updatedAt}:${project.auth.branchRevision}:${Object.keys(project.project.rawTokens).length}`);
 }
 
-function resolveTokens(project: McpResolvedProject) {
-  return flattenAndResolveTokens(project.project.rawTokens, undefined, undefined, { sort: false })
+function resolveThemeOptionIds(project: McpResolvedProject, requested: Record<string, string> | undefined, requestId: string) {
+  const selected: Record<string, string> = {};
+  for (const group of project.project.themeGroups) {
+    const optionId = requested?.[group.id] || group.options?.[0]?.id;
+    if (!optionId) continue;
+    if (!group.options?.some((option: any) => option.id === optionId)) {
+      throw new McpError("INVALID_ARGUMENT", `Unknown theme option '${optionId}' for group '${group.id}'.`, requestId);
+    }
+    selected[group.id] = optionId;
+  }
+  return selected;
+}
+
+function themeSelectionKey(themeOptionIds?: Record<string, string>) {
+  return JSON.stringify(Object.entries(themeOptionIds || {}).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function resolveTokens(project: McpResolvedProject, themeOptionIds?: Record<string, string>, requestId = "unknown") {
+  const selected = resolveThemeOptionIds(project, themeOptionIds, requestId);
+  const themeConfig = getActiveThemeSets(project.project.themeGroups, selected, project.project.rawTokens);
+  const tokens = flattenAndResolveTokens(project.project.rawTokens, undefined, themeConfig, { sort: false });
+  const scoped = tokens.filter((token) => !themeConfig.inactiveSets.has(token.setName));
+  return scoped
     .sort((a, b) => compareTokenNames(a.id, b.id));
 }
 
@@ -95,8 +116,8 @@ function flattenDocument(document: Record<string, any>) {
     .sort((a, b) => compareTokenNames(a.id, b.id));
 }
 
-function validateTokenDocument(project: McpResolvedProject) {
-  const tokens = resolveTokens(project);
+function validateTokenDocument(project: McpResolvedProject, themeOptionIds?: Record<string, string>, requestId = "unknown") {
+  const tokens = resolveTokens(project, themeOptionIds, requestId);
   const index = tokenIndex(tokens);
   const missingTypes: string[] = [];
   const deprecated: string[] = [];
@@ -158,8 +179,8 @@ function findTokenReference(tokens: any[], reference: string) {
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 
-function tokenUsage(project: McpResolvedProject, tokenPath: string, requestId: string) {
-  const tokens = resolveTokens(project);
+function tokenUsage(project: McpResolvedProject, tokenPath: string, requestId: string, themeOptionIds?: Record<string, string>) {
+  const tokens = resolveTokens(project, themeOptionIds, requestId);
   const token = uniqueToken(tokens, tokenPath, requestId);
 
   const dependencyItems = tokenReferences(token)
@@ -227,6 +248,7 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
   const projectShape = {
     orgId: z.string().optional().describe("Workspace ID; omitted for project-bound MCP credentials."),
     projectId: z.string().optional().describe("Project ID; omitted for project-bound MCP credentials."),
+    themeOptionIds: z.record(z.string()).optional().describe("Optional map of theme group IDs to selected option IDs; defaults to the first option in each group."),
   };
 
   server.registerTool("get_project_overview", {
@@ -292,14 +314,14 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       limit: z.number().int().min(1).max(MAX_RESULT_ITEMS).optional(),
       cursor: z.string().max(1000).optional(),
     },
-  }, async ({ orgId, projectId, query, type, limit = 25, cursor }) => {
+  }, async ({ orgId, projectId, themeOptionIds, query, type, limit = 25, cursor }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
     const revision = revisionFor(project);
-    const scope = `tokens:${project.auth.orgId}:${project.auth.projectId}:${query.toLowerCase()}:${type || ""}`;
+    const scope = `tokens:${project.auth.orgId}:${project.auth.projectId}:${query.toLowerCase()}:${type || ""}:${themeSelectionKey(themeOptionIds)}`;
     const parsedCursor = parseMcpCursor(cursor, { revision, scope }, deps.requestId);
     const needle = query.trim().toLowerCase();
     const normalizedType = type?.trim().toLowerCase();
-    const matches = resolveTokens(project).filter((token) => {
+    const matches = resolveTokens(project, themeOptionIds, deps.requestId).filter((token) => {
       const searchable = `${token.id} ${token.name} ${token.rawValue} ${token.resolvedValue} ${token.description || ""}`.toLowerCase();
       const typeMatches = !normalizedType || token.type.toLowerCase() === normalizedType || getCategoryForType(token.type) === normalizedType;
       return typeMatches && searchable.includes(needle);
@@ -335,10 +357,9 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       ...projectShape,
       tokenPath: z.string().min(1).max(500),
     },
-  }, async ({ orgId, projectId, tokenPath }) => {
+  }, async ({ orgId, projectId, themeOptionIds, tokenPath }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
-    const token = resolveTokens(project).find((candidate) => candidate.id === tokenPath || candidate.name === tokenPath || candidate.id.endsWith(`.${tokenPath}`));
-    if (!token) throw new McpError("TOKEN_NOT_FOUND", "Token not found.", deps.requestId, 404);
+    const token = uniqueToken(resolveTokens(project, themeOptionIds, deps.requestId), tokenPath, deps.requestId);
     return result({
       id: token.id,
       name: token.name,
@@ -368,18 +389,18 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       ...projectShape,
       tokenPath: z.string().min(1).max(500),
     },
-  }, async ({ orgId, projectId, tokenPath }) => {
+  }, async ({ orgId, projectId, themeOptionIds, tokenPath }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
-    return result(tokenUsage(project, tokenPath, deps.requestId), meta(deps, project, revisionFor(project)));
+    return result(tokenUsage(project, tokenPath, deps.requestId, themeOptionIds), meta(deps, project, revisionFor(project)));
   });
 
   server.registerTool("validate_tokens", {
     title: "Validate tokens",
     description: "Check token types, aliases, cycles, and deprecated-token usage without modifying project data.",
     inputSchema: projectShape,
-  }, async ({ orgId, projectId }) => {
+  }, async ({ orgId, projectId, themeOptionIds }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
-    return result(validateTokenDocument(project), meta(deps, project, revisionFor(project)));
+    return result(validateTokenDocument(project, themeOptionIds, deps.requestId), meta(deps, project, revisionFor(project)));
   });
 
   server.registerTool("list_branches", {
@@ -468,9 +489,9 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       format: z.enum(["css", "scss", "json"]).optional().default("css"),
       limit: z.number().int().min(1).max(MAX_EXPORT_ITEMS).optional(),
     },
-  }, async ({ orgId, projectId, format = "css", limit = MAX_EXPORT_ITEMS }) => {
+  }, async ({ orgId, projectId, themeOptionIds, format = "css", limit = MAX_EXPORT_ITEMS }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
-    const all = resolveTokens(project);
+    const all = resolveTokens(project, themeOptionIds, deps.requestId);
     const tokens = all.slice(0, limit);
     const entries = tokens.map((token) => [token.name.replace(/[^a-zA-Z0-9_-]+/g, "-"), token.resolvedValue] as const);
     let code: string;
