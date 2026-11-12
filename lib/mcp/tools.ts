@@ -86,6 +86,66 @@ function exportSafeTokens(tokens: any[]) {
     : { ...token, name: `${token.setName}.${token.name}` });
 }
 
+function safeCommit(commit: any) {
+  if (!commit || typeof commit !== "object") return null;
+  const sha = typeof commit.sha === "string" ? commit.sha : typeof commit.hash === "string" ? commit.hash : undefined;
+  return {
+    sha: sha ? sha.slice(0, 12) : null,
+    message: typeof commit.message === "string" ? commit.message.slice(0, 500) : null,
+    timestamp: commit.timestamp || commit.date || commit.createdAt || null,
+    authorName: typeof commit.authorName === "string" ? commit.authorName.slice(0, 120) : null,
+  };
+}
+
+function safeAsset(asset: ProjectAsset, includeSvg: boolean) {
+  return {
+    id: asset.id,
+    name: asset.name,
+    title: asset.title || null,
+    type: asset.type || null,
+    assetType: asset.assetType || null,
+    tag: asset.tag || null,
+    category: asset.category || null,
+    description: asset.description || null,
+    url: asset.url || null,
+    contentType: asset.contentType || null,
+    size: typeof asset.size === "number" ? asset.size : null,
+    dimensions: asset.dimensions || null,
+    colorSpace: asset.colorSpace || null,
+    format: asset.format || null,
+    version: asset.version || null,
+    duration: asset.duration || null,
+    createdAt: asset.createdAt || null,
+    updatedAt: asset.updatedAt || null,
+    source: asset.source,
+    ...(includeSvg && asset.svg ? { svg: asset.svg.slice(0, 50_000), svgTruncated: asset.svg.length > 50_000 } : {}),
+  };
+}
+
+function safeDocBlock(block: any) {
+  if (!block || typeof block !== "object") return null;
+  return {
+    id: typeof block.id === "string" ? block.id : null,
+    type: typeof block.type === "string" ? block.type : null,
+    content: typeof block.content === "string" ? block.content.slice(0, 20_000) : null,
+    settings: block.settings && typeof block.settings === "object" ? {
+      level: block.settings.level,
+      calloutVariant: block.settings.calloutVariant,
+      doText: typeof block.settings.doText === "string" ? block.settings.doText.slice(0, 10_000) : undefined,
+      dontText: typeof block.settings.dontText === "string" ? block.settings.dontText.slice(0, 10_000) : undefined,
+      collection: block.settings.collection,
+      selectedModes: Array.isArray(block.settings.selectedModes) ? block.settings.selectedModes.slice(0, 20) : undefined,
+      filterType: block.settings.filterType,
+      filterQuery: block.settings.filterQuery,
+      filterCondition: block.settings.filterCondition,
+      sortField: block.settings.sortField,
+      sortOrder: block.settings.sortOrder,
+      showSearchBox: block.settings.showSearchBox,
+      tokenSetName: block.settings.tokenSetName,
+    } : undefined,
+  };
+}
+
 function resolveTokens(project: McpResolvedProject, themeOptionIds?: Record<string, string>, requestId = "unknown") {
   const selected = resolveThemeOptionIds(project, themeOptionIds, requestId);
   const themeConfig = getActiveThemeSets(project.project.themeGroups, selected, project.project.rawTokens);
@@ -431,13 +491,12 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
   }, async ({ orgId, projectId, limit = 20 }) => {
     const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
     const items = project.project.branches.slice(0, limit).map((branch: any) => ({
-      id: branch.id || null,
       name: branch.name,
       title: branch.title || branch.name,
       isDefault: Boolean(branch.isDefault),
       isActive: branch.name === project.project.activeBranch,
       updatedAt: branch.updatedAt || branch.updated_at || null,
-      commits: Array.isArray(branch.commits) ? branch.commits.slice(0, 10) : [],
+      commits: Array.isArray(branch.commits) ? branch.commits.slice(0, 10).map(safeCommit).filter(Boolean) : [],
     }));
     return result({ items, hasMore: project.project.branches.length > items.length }, meta(deps, project, revisionFor(project), project.project.branches.length > items.length));
   });
@@ -547,10 +606,7 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       const searchable = `${asset.id} ${asset.name} ${asset.title || ""} ${asset.path || ""} ${asset.description || ""} ${asset.tag || ""}`.toLowerCase();
       return (!needle || searchable.includes(needle)) && (!assetType || asset.assetType === assetType || asset.type === assetType);
     });
-    const items = filtered.slice(0, limit).map((asset) => ({
-      ...asset,
-      ...(includeSvg && asset.svg ? { svg: asset.svg.slice(0, 50_000), svgTruncated: asset.svg.length > 50_000 } : { svg: undefined }),
-    }));
+    const items = filtered.slice(0, limit).map((asset) => safeAsset(asset, includeSvg));
     return result({ items, total: filtered.length, hasMore: filtered.length > items.length }, meta(deps, project, revisionFor(project), filtered.length > items.length));
   });
 
@@ -579,10 +635,7 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
         layout: page.layout,
         isPublished: Boolean(page.isPublished),
         updatedAt: page.updatedAt || null,
-        blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 100).map((block: any) => ({
-          ...block,
-          content: typeof block.content === "string" ? block.content.slice(0, 20_000) : block.content,
-        })) : [],
+        blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 100).map(safeDocBlock).filter(Boolean) : [],
       }));
     return result({
       folders: Array.isArray(documentation.folders) ? documentation.folders : [],
