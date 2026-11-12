@@ -8,7 +8,7 @@
 
 
 > **⚠️ Note:** `/api/v1/mcp`, `lib/mcp/*` এখনো নেই; `McpCliView` যে `npx -y @tokens-platform/mcp-server ...` স্নিপেট ও "MCP v1.0" ব্যাজ দেখায় তার কোনো প্যাকেজ নেই — Phase 4-এ সরানো হবে।
-> **Revision (Nov 2026):** কোডবেস যাচাই (**§২.৩ Verification Report**) অনুযায়ী প্ল্যান সংশোধিত: **read টুল আগে (Release 1), write টুল পরে (Release 2, flag-gated)**। প্রতিটি gap-এর সমাধান **Part 8**-এ। ⏳ চিহ্নিত ৬টি আইটেম কেবল ইমপ্লিমেন্টেশনে চালিয়ে যাচাই করা যাবে।
+> **Revision (Nov 2026):** কোডবেস যাচাই (**§২.৩ Verification Report**) অনুযায়ী প্ল্যান সংশোধিত: **read টুল আগে (M1→M2), write টুল পরে (M3, flag-gated)**। প্রতিটি gap-এর সমাধান **Part 8**-এ; AI-এজেন্টের জন্য **Part 9 (Task Cards)**। আগের "রানটাইমে যাচাই" ছয়টি আইটেম এখন যাচাই করা (§২.৩ গ); শুধু তিনটি আপনার লাইভ পরিবেশে (মানুষের ধাপ) বাকি।
 
 ---
 
@@ -158,20 +158,27 @@ MCP-তে যোগাযোগের জন্য দুটি প্রধা
 | বিষয় | ফল |
 | :--- | :--- |
 | MCP SDK (`@modelcontextprotocol/sdk@1.32.2`) | ✅ Node 22-এ স্ক্র্যাচ টেস্টে `WebStandardStreamableHTTPServerTransport` (Web `Request`/`Response`) stateless মোডে (`sessionIdGenerator: undefined`, `enableJsonResponse: true`) চালানো হয়েছে: `initialize` → 200 + JSON; `notifications/initialized` → **202**; `tools/list` → 200; অসমর্থিত `protocolVersion` → সার্ভারের সর্বশেষ সমর্থিত ভার্সন (`2025-11-25`) দিয়ে negotiation। **লক্ষণীয়:** stateless মোডে `GET` একটি SSE স্ট্রিম খুলে 200 দেয় — serverless-এ এটি চলবে না, তাই রুটে `GET`/`DELETE` → **405** (transport-এর আগেই)। SDK-র peer dependency `zod` (`package.json`-এ নেই → যোগ করতে হবে)। |
-| Next 14 bundling | ⏳ Phase 0 spike (১ ঘণ্টা): রুট থেকে SDK import করে `npm run build`। ব্যর্থ হলে `next.config.js`-এ `experimental.serverComponentsExternalPackages: ["@modelcontextprotocol/sdk"]`; তাতেও না হলে **fallback**: ছোট নিজস্ব JSON-RPC হ্যান্ডলার (পুরো স্পেক আচরণ ৮.২-এর টেবিল অনুযায়ী) — tool/resource কোড একই থাকে। |
+| Next 14 bundling | ✅ **যাচাই সম্পন্ন (Nov 2026):** আপনার রিপোর একটি throwaway worktree-তে `/api/v1/mcp/route.ts` (SDK `1.32.2` + `zod 4.6.7`, `McpServer` + `WebStandardStreamableHTTPServerTransport`, `runtime="nodejs"`) যোগ করে `npx tsc --noEmit` (exit 0) ও `next build` **সফল**; `next start` চালিয়ে `curl`: `initialize`→200, `notifications/initialized`→**202**, `tools/list`→200, `tools/call`→200 (`pong`), `GET`→405 (আমাদের হ্যান্ডলার), **Array (batch) বডি → SDK গ্রহণ করে উত্তর দেয় (!)** — তাই রুটকে নিজেই batch reject করতে হবে (Phase 3), অবৈধ JSON → JSON-RPC parse error। `next.config.js` পরিবর্তন লাগেনি। (স্যান্ডবক্সে Google Fonts নেই বলে শুধু ওই পরীক্ষায় `NEXT_FONT_GOOGLE_MOCKED_RESPONSES` ব্যবহার — Vercel-এ অপ্রযোজ্য।) Fallback হ্যান্ডলার এখন **অনাবশ্যক**, তবু T0.1-এ নিজের পরিবেশে একবার নিশ্চিত করুন। |
 | Tool inputSchema | ✅ SDK `$schema: "http://json-schema.org/draft-07/schema#"` বসায় — এটি JSON-Schema identifier, `AGENTS.md` Rule 1 (`registry.tokens.studio` নিষিদ্ধ) লঙ্ঘন করে না। |
 | Vitest | ✅ `vitest.config.ts`-এ `include` নেই → ডিফল্ট glob; বিদ্যমান টেস্ট `__tests__/` বা co-located। `app/api/v1/*/__tests__` ও `lib/__tests__` দুটোই চলবে। |
 | `getProject(orgId, projectId)` | ✅ একক প্রজেক্ট লোড করে (বাকি প্রজেক্ট নয়); `ensureProjectDefaultBranch(proj)` ব্রাঞ্চ-লিস্ট নিশ্চিত করে। |
 | Slug | ✅ `Organization.slug`, `Project.slug` টাইপে আছে → resolver সম্ভব; uniqueness নিশ্চিত নয় → ambiguity হ্যান্ডলিং বাধ্যতামূলক। |
 | Commit মডেল | ✅ `BranchCommit {id, sha, message, timestamp, author{uid?,name,email}, totalAdded/Modified/Deleted, changes[]}`; বিদ্যমান রুট `sha` বানায় `Math.random` দিয়ে → MCP `crypto.randomUUID()`-ভিত্তিক বানাবে। |
 
-#### গ) ইমপ্লিমেন্টেশনের সময় চালিয়ে যাচাই করার তালিকা (⏳)
-1. SDK + Next 14.2 `npm run build` (Phase 0 spike)।
-2. Figma plugin-এর পাঠানো `figmaVariables`-এর আসল আকার (collection/mode স্ট্রাকচার) — `inspect_figma_variables`-এর আউটপুট ম্যাপিং।
-3. `calculateContrastRatio` alpha চ্যানেল কীভাবে সামলায় (আগের রিভিউ: উপেক্ষা করে) — একটি টেস্ট কেস লিখে নিশ্চিত করুন; উপেক্ষা করলে আউটপুটে `alphaIgnored: true`।
-4. `getProject().updatedAt` ও DB `updated_at`-এর স্ট্রিং-সমতা (optimistic check-এর জন্য) — Phase 6 টেস্টে।
-5. Vercel প্ল্যান অনুযায়ী `maxDuration` সীমা।
-6. `CreateBranchModal`/`useTokenStore`-এর branch-তৈরির লজিকের সাথে server helper-এর সমতা।
+#### গ) আগের ⏳ ছয়টি আইটেম — এখন সব যাচাই করা (Nov 2026)
+
+| # | আইটেম | ফল |
+| :-: | :--- | :--- |
+| ১ | SDK + Next 14.2 build | ✅ ওপরে (খ) দেখুন — build ও runtime দুটোই সফল |
+| ২ | `figmaVariables`-এর আকার | ✅ এটি **সাধারণ `RawTokensDocument`** (Token Set → DTCG টোকেন)। প্লাগইন `POST /api/v1/tokens` এ `source: "figma_plugin"` সহ একই ফরম্যাটে পাঠায়, রুট `saveProjectFigmaVariables`-এ রাখে (সাথে `figmaMeta`/`figmaUpdatedAt`)। তাই `inspect_figma_variables` আলাদা parser ছাড়াই `flattenAndResolveTokens` ব্যবহার করবে। |
+| ৩ | Contrast alpha | ✅ `parseColorToRgb` alpha (`a`) পার্স করে, কিন্তু `calculateContrastRatio` কখনো `a` ব্যবহার করে না ও অপার্সযোগ্য ইনপুটে `null` দেয় → টুল: `a < 1` হলে `alphaIgnored: true` + সতর্কতা; `null` হলে `invalid_argument`। |
+| ৪ | `updated_at` সমতা | ✅ (কোড) `getProject` সরাসরি DB-র `updated_at` স্ট্রিং `updatedAt`-এ দেয় এবং `getProject`-এ **কোনো TTL ক্যাশ নেই** (শুধু in-flight dedupe) → টাটকা; সব save `updated_at: new Date().toISOString()` সেট করে। `.eq("updated_at", expected)` PostgREST-এ timestamptz হিসেবে তুলনা হয়। ⚠️ লাইভ Supabase-এ একটি integration-পরীক্ষা (T6.1 শেষে, মানুষ) বাকি; ব্যর্থ হলে বিকল্প: `version int` কলাম (migration, সিদ্ধান্ত মানুষের)। |
+| ৫ | Vercel `maxDuration` | ✅ Fluid compute ডিফল্ট; App Router-এ `export const maxDuration`; সর্বোচ্চ Hobby 300s, Pro/Enterprise 800s — রুটে `30` যথেষ্ট। Vercel-Authentication-সুরক্ষিত preview URL-এ MCP ক্লায়েন্ট ব্লক হয় (প্রোডাকশন ডোমেইন ব্যবহার করুন)। |
+| ৬ | Branch-তৈরির সমতা | ⚠️ → ✅ **অমিল পাওয়া গিয়েছিল, ডক সংশোধিত:** UI (`useTokenStore.createBranchAction`): নাম `toLowerCase().trim().replace(/[^a-z0-9_-]/g,"-")` (**`/` অনুমোদিত নয়**), ডুপ্লিকেট নাম অস্বীকার, **Git sync চালু থাকলে native branch তৈরি নিষিদ্ধ**, বেস = `basedOn || activeBranch || "main"` (branch.rawTokens → নয়তো root), `themeGroups` কপি, `structuredClone`-সমতুল্য কপি, প্রথম commit `"Branch created from <base>"` (`sha: "br-xxxxxx"`), ও UI `activeBranch` নতুনটিতে বদলায়। **MCP-তে:** `activeBranch` **কখনো বদলাবে না**। |
+
+**বর্তমান বেসলাইন (যাচাই করা):** `npx tsc --noEmit` ক্লিন; `npx vitest run` → ১৪ ফাইল, ৯৬ টেস্ট সবুজ। প্রতিটি Task Card এই বেসলাইন ভাঙা চলবে না।
+
+**যা শুধু আপনার লাইভ পরিবেশে (মানুষের ধাপ) যাচাই হবে — কোড দিয়ে নয়:** (ক) লাইভ Supabase-এ `updated_at` optimistic check (T6.1), (খ) প্রোডাকশন Vercel URL-এ বাস্তব IDE ক্লায়েন্ট কানেকশন (T5A), (গ) Vercel Authentication-সুরক্ষিত preview URL-এ MCP ক্লায়েন্ট কাজ করে না — প্রোডাকশন ডোমেইন ব্যবহার করুন।
 
 ---
 
@@ -332,7 +339,7 @@ sequenceDiagram
 | :- | :--- | :--- | :--- | :--- |
 | **10** | `upsert_tokens` | **বিদ্যমান** Token Set-এ (`$`-প্রিফিক্স সেট নয়) এক বা একাধিক টোকেন তৈরি/আপডেট করে, `computeTokensDiff` দিয়ে delta হিসাব করে কমিট হিস্ট্রিতে সেভ করে। | `setName: string`, `tokens: Array<{ path: string; value: any; type?: string; description?: string }>` (সর্বোচ্চ ১০০), `branch?: string`, `commitMessage?: string`, `expectedUpdatedAt: string`, `dryRun?`, `allowDefaultBranch?` | Added/Modified সংখ্যা, নতুন Resolved Value, Commit SHA, নতুন `updatedAt`। `dryRun`-এ কিছু সেভ হয় না, শুধু diff। |
 | **11** | `delete_tokens` | নির্দিষ্ট Token Set থেকে টোকেন ডিলিট করে। অন্য টোকেন এর ওপর নির্ভরশীল (Alias) হলে `force: true` ছাড়া **অস্বীকার** করে এবং dependents তালিকা দেয়। | `setName: string`, `tokenPaths: string[]` (সর্বোচ্চ ১০০), `branch?: string`, `force?: boolean`, `commitMessage?: string`, `expectedUpdatedAt: string`, `dryRun?`, `allowDefaultBranch?` | ডিলিট হওয়া টোকেন, বা অস্বীকারের কারণসহ dependents, নতুন `updatedAt`। |
-| **13** | `create_branch` | বিদ্যমান ব্রাঞ্চ (ডিফল্ট `main`) থেকে ফর্ক করে নতুন native ব্রাঞ্চ তৈরি করে, যাতে AI মূল ব্রাঞ্চ নষ্ট না করে নিরাপদে কাজ করতে পারে। `activeBranch` বদলায় না। | `branchName: string` (slug: `^[a-z0-9][a-z0-9/_-]{0,62}$`), `title?: string`, `basedOn?: string`, `description?: string`, `expectedUpdatedAt: string` | নতুন ব্রাঞ্চের তথ্য ও snapshot টোকেন সংখ্যা, নতুন `updatedAt`। |
+| **13** | `create_branch` | বিদ্যমান ব্রাঞ্চ (ডিফল্ট `main`) থেকে ফর্ক করে নতুন native ব্রাঞ্চ তৈরি করে, যাতে AI মূল ব্রাঞ্চ নষ্ট না করে নিরাপদে কাজ করতে পারে। `activeBranch` বদলায় না। | `branchName: string` (UI-র মতো normalize: `lower+trim+replace(/[^a-z0-9_-]/g,"-")`, ≤৬৩ অক্ষর; `/` নেই), `title?: string`, `basedOn?: string`, `description?: string`, `expectedUpdatedAt: string` | নতুন ব্রাঞ্চের তথ্য ও snapshot টোকেন সংখ্যা, নতুন `updatedAt`। |
 
 
 #### Category F: Figma Variables, R2 Assets & Living Docs (`read:tokens`) — **Release 1**
@@ -466,10 +473,91 @@ second-screen/
 
 ---
 
+### ৫.৭ যাচাই করা IDE কনফিগ ফরম্যাট (Nov 2026 — অফিসিয়াল ডক থেকে)
+
+> `${origin}` = আপনার প্রোডাকশন URL (যেমন `https://your-app.vercel.app`)। Vercel Authentication-সুরক্ষিত preview URL-এ ক্লায়েন্ট কাজ করবে না। ক্লায়েন্টের ফরম্যাট বদলাতে পারে — `McpCliView`-এ ফরম্যাট এক জায়গায় (`const IDE_CONFIGS`) রাখুন যাতে একটি ফাইলেই আপডেট হয়।
+
+| ক্লায়েন্ট | ফাইল | মূল নিয়ম |
+| :--- | :--- | :--- |
+| **Cursor** | `.cursor/mcp.json` (প্রজেক্ট) / `~/.cursor/mcp.json` (গ্লোবাল) | `mcpServers`; রিমোটে `type` লাগে না; `${env:NAME}` সমর্থিত |
+| **VS Code** | `.vscode/mcp.json` | টপ-লেভেল কী **`servers`** (`mcpServers` নয়); `"type": "http"`; সিক্রেট `inputs` + `${input:id}` দিয়ে |
+| **Antigravity** | `~/.gemini/config/mcp_config.json` (গ্লোবাল) / `<workspace>/.agents/mcp_config.json` | `mcpServers`; রিমোটে **`serverUrl`** (`url`-ও চলে); শুধু Streamable HTTP; `headers` সমর্থিত |
+| **Claude Code** | CLI বা `.mcp.json` | `"type": "http"` **বাধ্যতামূলক** (`url` থাকলে `type` না থাকলে ত্রুটি); `${VAR}` সমর্থিত |
+| **Claude Desktop** | `claude_desktop_config.json` | রিমোট HTTP + header-এর জন্য `npx mcp-remote` ব্রিজ (নিচে); Windows-এ args-এ স্পেস সমস্যা → header মান `env`-এ রাখুন |
+
+```jsonc
+// Cursor — .cursor/mcp.json
+{ "mcpServers": { "tokens-platform": {
+  "url": "${origin}/api/v1/mcp",
+  "headers": { "Authorization": "Bearer ${env:TOKENS_PLATFORM_PAT}" } } } }
+
+// VS Code — .vscode/mcp.json
+{ "inputs": [ { "type": "promptString", "id": "tokens-pat", "description": "Tokens Platform PAT", "password": true } ],
+  "servers": { "tokens-platform": {
+  "type": "http", "url": "${origin}/api/v1/mcp",
+  "headers": { "Authorization": "Bearer ${input:tokens-pat}" } } } }
+
+// Antigravity — mcp_config.json
+{ "mcpServers": { "tokens-platform": {
+  "serverUrl": "${origin}/api/v1/mcp",
+  "headers": { "Authorization": "Bearer <PAT>" } } } }
+
+// Claude Code — .mcp.json
+{ "mcpServers": { "tokens-platform": {
+  "type": "http", "url": "${origin}/api/v1/mcp",
+  "headers": { "Authorization": "Bearer ${TOKENS_PLATFORM_PAT}" } } } }
+// অথবা CLI: claude mcp add --transport http tokens-platform ${origin}/api/v1/mcp --header "Authorization: Bearer <PAT>"
+
+// Claude Desktop — claude_desktop_config.json (mcp-remote ব্রিজ)
+{ "mcpServers": { "tokens-platform": {
+  "command": "npx",
+  "args": ["mcp-remote", "${origin}/api/v1/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+  "env": { "AUTH_HEADER": "Bearer <PAT>" } } } }
+```
+
+> ⚠️ `mcp-remote` সার্ভারের সাথে আগে SSE চেষ্টা করতে পারে/GET পাঠাতে পারে; আমাদের রুট GET-এ `405` দেয় (স্পেক-সম্মত — ক্লায়েন্ট POST-তে ফিরে যায়)। T5A-তে Claude Desktop বাস্তবে পরীক্ষা করুন; না চললে এটি "ঐচ্ছিক সমর্থন" হিসেবে ডকে চিহ্নিত করুন (M1 ব্লকার নয়)। কমপক্ষে Cursor/VS Code/Antigravity/Claude Code M1-এর লক্ষ্য।
+
+### ৫.৮ Verified Reference Skeleton (`app/api/v1/mcp/route.ts` — SDK `1.32.2`, `zod 4.x`)
+
+নিচের কোড throwaway worktree-তে `next build` ও `next start`-এ চালিয়ে যাচাই করা (শুধু `ping` টুল)। T0.1/T3.1-এ এটিকে ভিত্তি ধরুন; auth, batch-reject, rate limit, resolver Phase 3 অনুযায়ী যোগ হবে।
+
+```ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { z } from "zod";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  // TODO(T3.1): body-size check -> PAT-only auth -> batch(Array) reject -> rate limit
+  const server = new McpServer({ name: "second-screen-tokens-mcp", version: "0.1.0" });
+  server.registerTool(
+    "ping",
+    { description: "ping", inputSchema: { a: z.string().optional() } },
+    async () => ({ content: [{ type: "text", text: "pong" }] })
+  );
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined, // stateless (serverless-safe)
+    enableJsonResponse: true,      // plain JSON responses, no SSE
+  });
+  await server.connect(transport);
+  return transport.handleRequest(req);
+}
+
+export async function GET() {
+  return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST, OPTIONS" } });
+}
+export const DELETE = GET;
+```
+
+**যাচাই করা আচরণ (`curl`, `next start`):** `initialize`→200; `notifications/initialized`→202; `tools/list`→200; `tools/call ping`→200; `GET`→405; Array বডি→SDK উত্তর দেয় (তাই রুটে আগেই reject); অবৈধ JSON→parse error। **টুল-ফাইল ও tests-এর পরিবর্তে রুট টেস্টে** বিদ্যমান প্যাটার্ন অনুসরণ করুন: `app/api/v1/tokens/__tests__/tokensRoute.test.ts` (`vi.mock("@/utils/auth")`, `vi.mock("@/services/organizationService")`, `NextRequest` দিয়ে কল)।
+
 ### Phase 0: Prerequisites (R1)
 
 1. **Dependencies:** `npm i @modelcontextprotocol/sdk zod colorjs.io` (পিন করা ভার্সন; `colorjs.io` এখন কেবল transitive)। `package-lock.json` কমিট।
-2. **SDK Build Spike (১ ঘণ্টা):** একটি ডামি `app/api/v1/mcp/route.ts`-এ `McpServer` + `WebStandardStreamableHTTPServerTransport` import করে `npx tsc --noEmit` ও `npm run build`। ব্যর্থ হলে `next.config.js`-এ `experimental.serverComponentsExternalPackages`; তাতেও না হলে **Fallback Plan:** নিজস্ব ন্যূনতম JSON-RPC ডিসপ্যাচার (`initialize`, `ping`, `tools/list`, `tools/call`, `resources/*`, `prompts/*`, `notifications/*` → 202; ভার্সন negotiation) — বাকি `lib/mcp/*` অপরিবর্তিত। সিদ্ধান্ত এই ডকে `✅/❌` লিখে রাখুন।
+2. **SDK Build Spike — ✅ আগেই যাচাই করা (§২.৩ খ):** `@modelcontextprotocol/sdk@1.32.2` + `zod@4.x` দিয়ে `tsc` ও `next build` সফল, `next start`-এ আচরণ ঠিক। **তবু আপনার পরিবেশে ১০ মিনিটে নিশ্চিত করুন:** §৫.৮-এর **Verified Reference Skeleton** রুটে বসিয়ে `npx tsc --noEmit` ও `npm run build`। কোনোভাবে ব্যর্থ হলে `next.config.js`-এ `experimental.serverComponentsExternalPackages: ["@modelcontextprotocol/sdk"]`; তাতেও না হলে থামুন ও রিপোর্ট করুন (নিজস্ব JSON-RPC হ্যান্ডলার এখন শুধু শেষ-ভরসা: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/*`, `prompts/*`, `notifications/*`→202, ভার্সন negotiation)।
 3. **CORS:** `utils/cors.ts`-এর `Access-Control-Allow-Headers`-এ `Accept, Mcp-Session-Id, Mcp-Protocol-Version` ও `Access-Control-Expose-Headers: Mcp-Session-Id`। (বিদ্যমান রুটগুলোর আচরণ অপরিবর্তিত — শুধু হেডার-তালিকা বাড়ে।)
 4. **Project-bound PAT (`app/api/v1/auth/pat/route.ts`):** body-তে ঐচ্ছিক `orgId`, `projectId`। দিলে → `authorizeProjectRequest(req, orgId, projectId, "read")`-এর মতো মেম্বারশিপ যাচাই (session ইউজার), তারপর `generateApiKey(..., { uid, userEmail, orgId, projectId, orgName, projectName })`। না দিলে আগের আচরণ (unbound) — কিন্তু **MCP UI সবসময় bound কী বানাবে**। `allowedScopes` অপরিবর্তিত (`manage:releases` যোগ **হবে না**)। `saveApiKey` ইতিমধ্যে `org_id/project_id` লেখে — migration নেই। **এটিই Write-Key Rule (W1)-এর ভিত্তি।**
 5. **টেস্ট:** bound কী অন্য প্রজেক্টে `403`; অন্য ইউজারের প্রজেক্টে bind করার চেষ্টা `403`; unbound কী আগের মতো কাজ করে (regression)।
@@ -507,20 +595,20 @@ second-screen/
 ```ts
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 30; // Vercel প্ল্যান-সীমা অনুযায়ী (⏳ verify)
+export const maxDuration = 30; // ✅ যাচাই: Hobby ≤300s, Pro ≤800s (Fluid compute)
 ```
 
 * **`POST`:** (১) `content-length ≤ MAX_BODY_BYTES`; (২) **PAT-only** — `Authorization: Bearer sec_pat_*` না থাকলে `401` (কুকি-সেশন গ্রহণ করে না; ব্রাউজার CSRF ঝুঁকি এড়াতে) ; (৩) `authenticateRequest(req, "read:tokens")`; (৪) rate limit; (৫) context resolve (Phase 1) — `tools/call` আর্গুমেন্ট থেকে org/project আসে বলে resolve **টুল-হ্যান্ডলারে lazy**; (৬) `buildMcpServer(ctx)` → transport `handleRequest(req)`।
 * **`GET` / `DELETE`:** transport-এর **আগেই** `405 Method Not Allowed` + `Allow: POST, OPTIONS` (SDK stateless-এ GET SSE খুলে ফেলে — যাচাই করা)।
 * **`OPTIONS`:** `handleOptionsCors()`।
-* **Batch:** সমর্থিত নয় (2025-06-18 স্পেকে বাদ)। Array বডি → `400` JSON-RPC error।
+* **Batch:** সমর্থিত নয় (2025-06-18 স্পেকে বাদ)। **SDK `1.32.2` নিজে Array বডি গ্রহণ করে উত্তর দেয় (যাচাই করা) — তাই রুট নিজে** `content-length` যাচাইয়ের পর বডি `req.clone().text()` → `JSON.parse` করে `Array.isArray` হলে `400` JSON-RPC error (`-32600`) ফেরত দেবে; তারপরই transport-এ আসল `req` পাঠাবে। অবৈধ JSON → SDK-র JSON-RPC parse error (`-32700`) যথেষ্ট।
 * **`/api/v1/mcp/health`:** `GET`, কুকি-সেশন বা PAT — `{ ok, serverVersion, release: "read"|"read-write", toolCount }` (Developers পেজের "Test Connection" এটি কল করে; কোনো টোকেন ডেটা নয়)।
 
 ### Phase 4: Developers UI আপগ্রেড (`components/McpCliView.tsx`, `ApiKeysManager.tsx`) (R1)
 
 বর্তমান অবস্থা: `McpCliView` এমন একটি `npx -y @tokens-platform/mcp-server ...` স্নিপেট ও "MCP v1.0" ব্যাজ দেখায় যার কোনো প্যাকেজ নেই — **প্রথম কাজ এটি সরানো**।
 1. **Transport:** HTTP (প্রাইমারি) — `${origin}/api/v1/mcp` + `Authorization: Bearer <PAT>`; অ্যাকাউন্টে org/project আলাদা আর্গুমেন্ট লাগে না কারণ কী bound। stdio ট্যাব কেবল Phase 9 শেষ হলে।
-2. **IDE ট্যাব:** Cursor (`mcp.json`), VS Code (`.vscode/mcp.json`), Claude Desktop (নোট: HTTP সমর্থন/ব্রিজ ভার্সন নির্ভর — ডকে ক্লায়েন্ট ভার্সন লিখুন), Antigravity — প্রতিটির **আসল কনফিগ ফরম্যাট ইমপ্লিমেন্টেশনের সময় ক্লায়েন্টের বর্তমান ডক দেখে** নিশ্চিত করুন।
+2. **IDE ট্যাব:** §৫.৭-এর **যাচাই করা কনফিগ ফরম্যাট** (Cursor, VS Code, Antigravity, Claude Code, Claude Desktop) হুবহু ব্যবহার করুন; `<PAT>` প্লেসহোল্ডার UI-তে জেনারেট করা কী দিয়ে প্রতিস্থাপিত হবে এবং কপির সময় সতর্কবার্তা: "কী শুধু একবার দেখানো হয়"।
 3. **Key তৈরি:** "Generate key for this project" — স্বয়ংক্রিয়ভাবে `orgId/projectId` bound, স্কোপ ডিফল্ট `read:tokens`; `write:tokens` টগল R2 শিপ না হওয়া পর্যন্ত লুকানো/"Coming soon"।
 4. **Test Connection:** `/api/v1/mcp/health` কল (সেশন-অথ) + (ঐচ্ছিক) নতুন তৈরি PAT দিয়ে `tools/list`।
 5. **Tools Explorer:** ১৩টি R1 টুলের তালিকা (নাম, বিবরণ, স্কোপ)।
@@ -541,11 +629,12 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 
 ### Phase 6: Write Foundation (R2)
 
-1. **Optimistic concurrency (`services/organizationService.ts`):** `saveProjectTokensAndBranches`-এর `options`-এ `expectedUpdatedAt?: string`; দিলে UPDATE-এ `.eq("updated_at", expectedUpdatedAt)`; ০ রো আপডেট হলে `ProjectConflictError` (বিদ্যমান "Project not found or not updated" থেকে আলাদা করে — আগে `getProject` দিয়ে অস্তিত্ব নিশ্চিত)। একই ফাংশন `saveProjectBranches`-এর জন্য। বিদ্যমান কলারদের আচরণ অপরিবর্তিত (option ঐচ্ছিক)।
+1. **Optimistic concurrency (`services/organizationService.ts`) — আসল signature (যাচাই করা):** `saveProjectTokensAndBranches(orgId, projectId, rawTokens | undefined, themeGroups | undefined, branches, activeBranch?, options?: { invalidateMetadata?: boolean })` এবং `saveProjectBranches(orgId, projectId, branches, activeBranch?)`। দুটিই শর্তহীন `UPDATE … WHERE id AND org_id` ও `updated_at = now` সেট করে; **`isSupabaseConfigured` মিথ্যা হলে নীরবে return করে** (MCP write তাই আগে `getProject`-এর `null` দেখে `write_unavailable` দেবে)। নতুন `options.expectedUpdatedAt?: string` — দিলে UPDATE-এ `.eq("updated_at", expectedUpdatedAt)`; ০ রো → `ProjectConflictError` (বিদ্যমান "not found or not updated"-এর আগে `getProject` দিয়ে অস্তিত্ব নিশ্চিত করে আলাদা করুন)। দুই ফাংশনেই option যোগ হবে; বিদ্যমান কলার অপরিবর্তিত।
+   * **সেভ কন্ট্রাক্ট (গুরুত্বপূর্ণ):** `rawTokens` আর্গুমেন্ট দিলে ফাংশন **root `raw_tokens` ও `theme_groups` ওভাররাইট** করে। তাই — ডিফল্ট (`main`) ব্রাঞ্চে লিখলে (অনুমতি থাকলে): `rawTokens` = নতুন ডক; **অন্য ব্রাঞ্চে লিখলে `rawTokens = undefined`** (শুধু `branches` আপডেট; root অক্ষত); `activeBranch` **সবসময় `undefined`** (UI-র সক্রিয় ব্রাঞ্চ বদলানো চলবে না)।
 2. **`lib/mcp/mutations.ts` (pure, DB-মুক্ত):**
    * `applyUpserts(doc, setName, tokens)` → `createTokenAtKeyPath`/`setTokenAtKeyPath` (ইমিউটেবল)।
    * `applyDeletes(doc, setName, paths)` → `deleteTokenAtKeyPath`।
-   * `createBranchFrom(projectBranches, {name,title,basedOn,description}, author)` → নতুন `ProjectBranch` (`structuredClone(rawTokens)`, `isDefault:false`, `commits: []`, `comments: []`)।
+   * `createBranchFrom(projectBranches, {name,title,basedOn,description}, author)` → নতুন `ProjectBranch` — **UI-র নিয়মের সাথে হুবহু সমতা (যাচাই করা, `useTokenStore.createBranchAction`):** নাম `name.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "-")` (**`/` নেই** — `feature/x` → `feature-x`), খালি/ডুপ্লিকেট নাম → `invalid_argument`; বেস = `basedOn || "main"`-এর `rawTokens` (না থাকলে root) `structuredClone`, `themeGroups` কপি, `isDefault:false`, `comments: []`, প্রথম commit `"Branch created from <base>"` (`sha: "br-" + 6 অক্ষর`, author = MCP audit author); **Git sync চালু (`project.gitConfig?.provider && owner && repo`) হলে `git_sync_active`** (UI-তেও native branch নিষিদ্ধ); `activeBranch` অপরিবর্তিত।
    * **ইনপুট যাচাই:** `setName` অবশ্যই `getValidTokenSetNames(doc)`-এ থাকবে এবং `$` দিয়ে শুরু নয় (`$themes`, `$metadata` নিরাপদ); path-সেগমেন্টে `__proto__`, `constructor`, `prototype` নিষিদ্ধ (prototype pollution); মান টাইপ/সাইজ cap; `type` অবশ্যই পরিচিত `TokenType`।
 3. **Diff ও commit:** `computeTokensDiff(before, after)`; commit: `sha = crypto.randomUUID().slice(0,7)`, `message = "[mcp] " + (commitMessage || default)`, `author = { uid, name: "<userEmail> via MCP key \"<keyName>\"", email: userEmail }`।
 4. **Default-branch নিয়ম:** লক্ষ্য ব্রাঞ্চ `isDefault` (বা `main`) হলে `allowDefaultBranch: true` ছাড়া `default_branch_protected`; লিখলে বিদ্যমান আচরণ মেনে root `raw_tokens`-ও আপডেট (`shouldUpdateRootTokens` যুক্তি)।
@@ -691,10 +780,10 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 
 #### উদাহরণ ৩: চ্যাট থেকেই নতুন ব্রাঞ্চ খুলে নতুন টোকেন যোগ করা *(Release 2)*
 > **আপনার প্রম্পট**:
-> *"আমাদের প্রজেক্টে `feature/ai-alerts` নামে একটি নতুন ব্রাঞ্চ তৈরি করো। সেখানে `semantic/dark` সেটে AI Banner-এর জন্য ৩টি নতুন কালার টোকেন (`ai.surface.bg`, `ai.surface.border`, `ai.text.accent`) যোগ করো এবং দেখো টেক্সট ও ব্যাকগ্রাউন্ডের কন্ট্রাস্ট WCAG AA পাস করে কি না।"*
+> *"আমাদের প্রজেক্টে `feature-ai-alerts` নামে একটি নতুন ব্রাঞ্চ তৈরি করো। সেখানে `semantic/dark` সেটে AI Banner-এর জন্য ৩টি নতুন কালার টোকেন (`ai.surface.bg`, `ai.surface.border`, `ai.text.accent`) যোগ করো এবং দেখো টেক্সট ও ব্যাকগ্রাউন্ডের কন্ট্রাস্ট WCAG AA পাস করে কি না।"*
 >
 > **AI যা করবে**:
-> 1. `create_branch` কল করে `feature/ai-alerts` ব্রাঞ্চ তৈরি করবে।
+> 1. `create_branch` কল করে `feature-ai-alerts` ব্রাঞ্চ তৈরি করবে।
 > 2. `check_color_contrast` দিয়ে আগে যাচাই করে নেবে যে রঙ দুটি WCAG AA স্ট্যান্ডার্ড পাস করে।
 > 3. `upsert_tokens` কল করে সরাসরি আপনার Supabase ডাটাবেসের ওই ব্রাঞ্চে টোকেন ৩টি কমিট করে দেবে! আপনি ব্রাউজারে গিয়ে সাথে সাথে সেগুলো দেখতে পাবেন।
 
@@ -795,13 +884,13 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 | Rate limit | 429 + `Retry-After` |
 | (R2) write টুল, unbound কী | `isError:true`, `code:"key_not_bound"` |
 
-**টুল ত্রুটি কোড (`isError: true` বডিতে `code`):** `project_required`, `not_found`, `ambiguous` (candidates সহ), `forbidden`, `invalid_argument`, `limit_exceeded`, `conflict` (R2), `default_branch_protected` (R2), `dependents_exist` (R2), `write_disabled` (R2), `key_not_bound` (R2, W1), `r2_unavailable`, `internal`। ত্রুটিতে স্ট্যাক ট্রেস/অভ্যন্তরীণ বার্তা কখনো নয়।
+**টুল ত্রুটি কোড (`isError: true` বডিতে `code`):** `project_required`, `not_found`, `ambiguous` (candidates সহ), `forbidden`, `invalid_argument`, `limit_exceeded`, `conflict` (R2), `default_branch_protected` (R2), `dependents_exist` (R2), `write_disabled` (R2), `key_not_bound` (R2, W1), `git_sync_active` (R2), `write_unavailable` (R2), `r2_unavailable`, `internal`। ত্রুটিতে স্ট্যাক ট্রেস/অভ্যন্তরীণ বার্তা কখনো নয়।
 
 ### ৮.৩ সিদ্ধান্ত লগ (Decisions — আর খোলা প্রশ্ন নেই)
 
 | # | সিদ্ধান্ত | কারণ |
 | :-: | :--- | :--- |
-| D1 | অফিসিয়াল SDK (Web-standard transport) ব্যবহার; Phase 0 spike ব্যর্থ হলে নিজস্ব ন্যূনতম হ্যান্ডলার | স্পেক-আচরণ বিনামূল্যে; Node-এ যাচাই করা |
+| D1 | অফিসিয়াল SDK (Web-standard transport) ব্যবহার; Phase 0 spike ব্যর্থ হলে নিজস্ব ন্যূনতম হ্যান্ডলার | স্পেক-আচরণ বিনামূল্যে; Node-এ **এবং Next 14 build/start-এ** যাচাই করা (fallback এখন শুধু শেষ-ভরসা) |
 | D2 | MCP রুট **PAT-only** (কুকি-সেশন নয়) | ব্রাউজার CSRF/DNS-rebinding ঝুঁকি এড়ানো; কনফিগ-ভিত্তিক ক্লায়েন্ট PAT-ই ব্যবহার করে |
 | D3 | `list_branches` শুধু native | বাইরের কল/ক্রেডেনশিয়াল ঝুঁকি |
 | D4 | `validate_tokens_schema` → `validate_tokens` | validator নেই; সৎ নাম |
@@ -815,6 +904,7 @@ export const maxDuration = 30; // Vercel প্ল্যান-সীমা অ�
 | D12 | MCP write শুধু project-bound PAT-এ (W1); read unbound কী-তেও চলে | লিক হওয়া কীর ক্ষতি এক প্রজেক্টে সীমিত |
 | D13 | Release 1 → দুই মাইলস্টোন: M1 = "First 6 Tools", M2 = বাকি ৭ | দ্রুত শিপ ও বাস্তব ক্লায়েন্ট ফিডব্যাক |
 | D14 | ইমপ্লিমেন্টেশন AI-এজেন্টে (Antigravity ইত্যাদি) — Part 9 Task Cards, ১ Card = ১ PR | ছোট, যাচাইযোগ্য ধাপ |
+| D15 | M3-এ Git sync চালু প্রজেক্টে MCP write নিষিদ্ধ (`git_sync_active`) | UI-ও এই অবস্থায় native branch নিষিদ্ধ করে; টোকেনের উৎস Git হলে native write অমিল সৃষ্টি করে — পরে নীতি শিথিল করা যাবে |
 
 ### ৮.৪ Definition of Done
 
@@ -935,7 +1025,7 @@ Rules:
 **T3.1 — HTTP রুট** (ref Phase 3, §৮.২)
 * **Files:** `app/api/v1/mcp/route.ts` (T0.1-এর ডামি প্রতিস্থাপন), `lib/mcp/rateLimit.ts`, `lib/__tests__/mcp/route.test.ts`
 * **Steps:** `runtime="nodejs"`, `maxDuration`; POST: body-সাইজ → PAT-only (`Bearer sec_pat_`) → `authenticateRequest(req,"read:tokens")` → rate limit → transport; GET/DELETE → 405; OPTIONS; Array বডি → 400।
-* **Done-when:** §৮.২ টেবিলের প্রতিটি সারির জন্য টেস্ট (initialize, 202, 405, malformed, batch, 401, 403, 413, 429)।
+* **Done-when:** §৮.২ টেবিলের প্রতিটি সারির জন্য টেস্ট (initialize, 202, 405, malformed, batch (**রুটে নিজে reject — SDK গ্রহণ করে**), 401, 403, 413, 429)।
 * **Don't:** কুকি-সেশন গ্রহণ নয়।
 
 **T3.2 — Health রুট** — **Files:** `app/api/v1/mcp/health/route.ts`, test। **Steps:** সেশন বা PAT; `{ok, serverVersion, release, toolCount}`; কোনো টোকেন ডেটা নয়।
@@ -955,7 +1045,7 @@ Rules:
 **T2B.1 — `list_token_sets` (#৫), `get_themes_matrix` (#৬)** — Files: `tools/tokens.ts`, `tools/themes.ts`, tests।
 **T2B.2 — `validate_tokens` (#৯)** — Files: `lib/mcp/validate.ts`, `tools/compile.ts`, tests; চেক কোড: `broken_alias`, `circular_alias`, `missing_type`, `invalid_type`, `deprecated_in_use`, `theme_missing_set`, `empty_set`; প্রতিটির জন্য ফেইলিং ফিক্সচার।
 **T2B.3 — `list_branches` (#১২)** — Files: `tools/branches.ts`; শুধু native; **বাইরের Git কল নয়**; আউটপুটে `updatedAt`।
-**T2B.4 — `inspect_figma_variables` (#১৪)** — Files: `tools/figma.ts`; ⏳ আসল ডেটার আকার আগে একটি স্যাম্পল দেখে নিশ্চিত করুন (§২.৩ গ #২); না মিললে থামুন।
+**T2B.4 — `inspect_figma_variables` (#১৪)** — Files: `tools/figma.ts`; ✅ আকার যাচাই করা: সাধারণ `RawTokensDocument` (§২.৩) — `countTokensInDocument` ও ১৩k-টোকেন ব্যাচিং প্রযোজ্য; না মিললে থামুন।
 **T2B.5 — `search_project_assets` (#১৫)** — Files: `tools/assets.ts`; authorize → metadata → server-side key; `/api/assets/content` কল নয়; `isR2Configured=false` → খালি + warning।
 **T2B.6 — `get_documentation_pages` (#১৬)** — Files: `lib/mcp/docsToText.ts`, `tools/docs.ts`; ডিফল্ট শুধু published; `MAX_DOC_CHARS`।
 **T2B.7 — ৫ রিসোর্স + ২ প্রম্পট** — Files: `lib/mcp/resources.ts`, `prompts.ts`; `tokens/{branch}` শুধু সারসংক্ষেপ।
@@ -966,20 +1056,21 @@ Rules:
 
 **T6.1 — Optimistic concurrency** (ref Phase 6.১)
 * **Files:** `services/organizationService.ts`, `lib/__tests__/mcp/concurrency.test.ts`
-* **Steps:** `saveProjectTokensAndBranches`/`saveProjectBranches`-এ ঐচ্ছিক `expectedUpdatedAt` (UPDATE-এ `.eq("updated_at", …)`); ০ রো → `ProjectConflictError`।
+* **Steps:** ৫.১ Phase 6 ধাপ ১-এর **আসল signature ও সেভ কন্ট্রাক্ট** হুবহু অনুসরণ করুন: দুই ফাংশনেই `options.expectedUpdatedAt`; UPDATE-এ `.eq("updated_at", …)`; ০ রো → `ProjectConflictError`; Supabase অকনফিগার্ড → `write_unavailable`। টেস্টে Supabase mock (বিদ্যমান টেস্টের মতো)।
+* **মানুষের ধাপ (লাইভ DB):** স্টেজিং প্রজেক্টে দুটি সমান্তরাল save — একটি `conflict` পায়; ব্যর্থ হলে `version int` কলাম (migration) সিদ্ধান্ত মানুষের।
 * **Don't:** বিদ্যমান কলারদের আচরণ বদলানো নয় (option ঐচ্ছিক)।
 
-**T6.2 — `mutations.ts`** (ref Phase 6.২–৪) — Files: `lib/mcp/mutations.ts`, tests; pure ফাংশন; যাচাই: `setName` ∈ `getValidTokenSetNames` ও `$`-প্রিফিক্স নয়, path-এ `__proto__/constructor/prototype` নিষিদ্ধ, ≤১০০ আইটেম, মান ≤১০KB; diff `computeTokensDiff`; commit `[mcp]` + `crypto.randomUUID()`; default-branch গার্ড।
-**T6.3 — Branch helper** — `createBranchFrom` (+`MAX_BRANCHES`); ⏳ UI-র branch-তৈরি লজিকের সাথে মিলিয়ে নিন (`CreateBranchModal`/`useTokenStore`)।
+**T6.2 — `mutations.ts`** (ref Phase 6.২–৪) — Files: `lib/mcp/mutations.ts`, tests; pure ফাংশন; যাচাই: `setName` ∈ `getValidTokenSetNames` ও `$`-প্রিফিক্স নয়, path-এ `__proto__/constructor/prototype` নিষিদ্ধ, ≤১০০ আইটেম, মান ≤১০KB; diff `computeTokensDiff`; commit `[mcp]` + `crypto.randomUUID()`; default-branch গার্ড। **সেভ কন্ট্রাক্ট:** non-default ব্রাঞ্চে `rawTokens=undefined`; `activeBranch=undefined`।
+**T6.3 — Branch helper** — Files: `lib/mcp/mutations.ts`, tests। Phase 6 ধাপ ২-এর `createBranchFrom` UI-সমতা নিয়ম হুবহু (যাচাই করা): normalize regex (`/` নেই), ডুপ্লিকেট অস্বীকার, `MAX_BRANCHES`, প্রথম commit, `themeGroups` কপি, **Git sync চালু হলে `git_sync_active`**, `activeBranch` অপরিবর্তিত (`saveProjectBranches(..., activeBranch=undefined, {expectedUpdatedAt})`)।
 **T7.1 — ৩ write টুল + flag + Write-Key Rule** (ref Phase 7, §৫.১ক W1)
 * **Files:** `lib/mcp/tools/write.ts`, `lib/mcp/server.ts`, `app/api/v1/mcp/route.ts`, tests
-* **Steps:** `MCP_WRITE_ENABLED==="true"` হলেই রেজিস্টার; write-গার্ড ক্রম: `write:tokens` স্কোপ → **কী bound (নয়তো `key_not_bound`)** → bound প্রজেক্টের সাথে আর্গুমেন্ট মিল → `authorizeProjectRequest(...,"write")` → write rate limit → `expectedUpdatedAt` → default-branch গার্ড।
+* **Steps:** `MCP_WRITE_ENABLED==="true"` হলেই রেজিস্টার; write-গার্ড ক্রম: `write:tokens` স্কোপ → **কী bound (নয়তো `key_not_bound`)** → bound প্রজেক্টের সাথে আর্গুমেন্ট মিল → `authorizeProjectRequest(...,"write")` → write rate limit → `expectedUpdatedAt` → default-branch গার্ড → **Git sync চালু হলে `git_sync_active`** (টোকেনের উৎস Git, native write ছড়িয়ে যাবে)।
 * **Done-when:** unbound write-কী → `key_not_bound`; viewer → `403`; stale → `conflict`; `dryRun` কিছু সেভ করে না; `main` → `default_branch_protected`; flag বন্ধ → `tools/list`-এ নেই।
 **T7.2 — UI write টগল + `generate-color-scale`** — write টগল শুধু bound কী-তে; সতর্কবার্তা; প্রম্পট ফিচার-ব্রাঞ্চ ফ্লো।
 **T8 — M3 Verification** — §৫.৬ চেকলিস্ট; প্রথমে নিজের প্রজেক্টে ফ্ল্যাগ।
 
 ### ৯.৫ কখন থামবেন ও মানুষকে জিজ্ঞেস করবেন (Stop Conditions)
-* SDK build ব্যর্থ (T0.1) — fallback সিদ্ধান্ত মানুষের।
+* SDK build ব্যর্থ (T0.1) — (যাচাই করা রেফারেন্স স্কেলিটন ব্যর্থ হলেই; §৫.৮) fallback সিদ্ধান্ত মানুষের।
 * কোনো helper-এর আসল signature ডকের বর্ণনার সাথে মেলে না।
 * একই টেস্ট দুবার ব্যর্থ।
 * Card-এর "Files"-এর বাইরের ফাইল বদলানো দরকার মনে হলে।
