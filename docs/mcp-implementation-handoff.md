@@ -4,7 +4,7 @@
 
 **Working branch:** `docs/mcp-pure-implementation-plan`
 
-**Current head:** pending commit for live-access verification and default-branch guard correction
+**Current head:** `b8af007 feat: add Release 1 read-only MCP tools`
 
 **Purpose:** This document is the implementation handoff for another developer or AI agent. It separates verified code from work that requires access to Supabase, staging, deployment secrets, or production operations.
 
@@ -15,7 +15,7 @@ The read-only MCP implementation is present and locally validated. The first wri
 The current state is:
 
 - Read-only Streamable HTTP MCP route: implemented.
-- Six read-only tools: implemented and registered.
+- Thirteen Release 1 read-only tools: implemented and registered.
 - Project-bound credential flow: implemented in the application code and migration.
 - Security boundary and trusted-origin CORS: implemented.
 - Shared Upstash rate-limit integration: implemented, but not connected to real production credentials in this environment.
@@ -26,10 +26,10 @@ The current state is:
 - Write MCP tools: **not implemented or registered yet**.
 - Supabase credential and write-safety migrations: applied to the connected `tokens-platform` project `kujjcmpevldoaopoevjn`.
 - Live branch JSON shape: verified; the default branch is identified by `isDefault`, while `active_branch` may point to a working branch.
-- Vercel preview deployment: redeployed and health-checked through a protected share link.
+- Vercel production deployment: deployed and health-checked at `https://tokensplatform.enamulkhan.com`.
 - Trusted origins: configured in Vercel for production and preview.
 - Staging conformance against a deployed environment: health contract verified; authenticated tool conformance remains pending a disposable MCP credential.
-- Production rollout: **not approved for enablement**.
+- Production rollout: **complete for the read-only Release 1 surface**; write capabilities remain disabled.
 
 Do not enable write capabilities merely by changing an environment variable. The write tool registration and release gate are intentionally still missing.
 
@@ -52,7 +52,7 @@ mcp_default_branch_guard
 harden_live_is_org_member_search_path
 ```
 
-The Vercel project is `second-screen` (`prj_SPbO4guhtRPjzyEdNXwpJqa6RdJ8`). Its latest verified preview health response reports:
+The Vercel project is `second-screen` (`prj_SPbO4guhtRPjzyEdNXwpJqa6RdJ8`). Its latest verified production health response reports:
 
 ```json
 {
@@ -75,6 +75,7 @@ docs/mcp-pure-implementation-plan
 Relevant commits, newest first:
 
 ```text
+b8af007 feat: add Release 1 read-only MCP tools
 cd955eb feat: add guarded MCP write primitives
 ea58837 docs: define MCP write safety design
 640cc54 feat: harden MCP for controlled release
@@ -102,13 +103,20 @@ It uses stateless JSON Streamable HTTP with JSON responses. The route includes a
 
 ### Registered tools
 
-Only these six tools are advertised:
+The following thirteen read-only tools are advertised:
 
 ```text
 list_workspaces
 get_project_overview
+list_token_sets
+get_themes_matrix
 search_tokens
 get_token_details
+validate_tokens
+list_branches
+inspect_figma_variables
+search_project_assets
+get_documentation_pages
 check_color_contrast
 export_tokens_code
 ```
