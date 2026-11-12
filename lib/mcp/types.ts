@@ -44,6 +44,7 @@ export type McpDomainErrorCode =
   | "FORBIDDEN"
   | "PROJECT_NOT_FOUND"
   | "TOKEN_NOT_FOUND"
+  | "AMBIGUOUS_TOKEN"
   | "INVALID_ARGUMENT"
   | "CURSOR_INVALID"
   | "LIMIT_EXCEEDED"

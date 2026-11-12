@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Mcp-Protocol-Version, Last-Event-ID",
 };
 
 function configuredTrustedOrigins(req: NextRequest): string[] {
@@ -21,7 +21,7 @@ export function getTrustedCorsHeaders(req: NextRequest): Record<string, string> 
 
   return {
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Mcp-Protocol-Version, Last-Event-ID",
     ...(allowed ? { "Access-Control-Allow-Origin": allowed, Vary: "Origin" } : {}),
   };
 }

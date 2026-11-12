@@ -14,6 +14,8 @@ describe("trusted CORS", () => {
     });
 
     expect(getTrustedCorsHeaders(req)["Access-Control-Allow-Origin"]).toBe("https://app.example.com");
+    expect(getTrustedCorsHeaders(req)["Access-Control-Allow-Headers"]).toContain("Mcp-Protocol-Version");
+    expect(getTrustedCorsHeaders(req)["Access-Control-Allow-Headers"]).toContain("Last-Event-ID");
   });
 
   it("does not return wildcard or credential access for an unknown origin", () => {

@@ -56,6 +56,33 @@ function resolveTokens(project: McpResolvedProject) {
     .sort((a, b) => compareTokenNames(a.id, b.id));
 }
 
+function tokenIndex(tokens: any[]) {
+  const index = new Map<string, any[]>();
+  const add = (key: string, token: any) => {
+    const normalized = key.toLowerCase();
+    const items = index.get(normalized) || [];
+    if (!items.some((item) => item.id === token.id)) items.push(token);
+    index.set(normalized, items);
+  };
+  for (const token of tokens) {
+    add(token.id, token);
+    add(token.name, token);
+    add(`${token.setName}.${token.name}`, token);
+  }
+  return index;
+}
+
+function uniqueToken(tokens: any[], tokenPath: string, requestId: string) {
+  const needle = tokenPath.trim().toLowerCase();
+  const index = tokenIndex(tokens);
+  const candidates = index.get(needle) || tokens.filter((token) => token.id.toLowerCase().endsWith(`.${needle}`));
+  if (candidates.length === 0) throw new McpError("TOKEN_NOT_FOUND", "Token not found.", requestId, 404);
+  if (candidates.length > 1) {
+    throw new McpError("AMBIGUOUS_TOKEN", `Token reference is ambiguous: ${candidates.map((candidate) => candidate.id).join(", ")}.`, requestId);
+  }
+  return candidates[0];
+}
+
 function tokenSetEntries(project: McpResolvedProject) {
   return getValidTokenSetNames(project.project.rawTokens).map((name) => ({
     name,
@@ -70,7 +97,7 @@ function flattenDocument(document: Record<string, any>) {
 
 function validateTokenDocument(project: McpResolvedProject) {
   const tokens = resolveTokens(project);
-  const ids = new Set(tokens.map((token) => token.id));
+  const index = tokenIndex(tokens);
   const missingTypes: string[] = [];
   const deprecated: string[] = [];
   const missingAliases: Array<{ id: string; target: string }> = [];
@@ -79,8 +106,11 @@ function validateTokenDocument(project: McpResolvedProject) {
     if (!token.type || token.type === "other") missingTypes.push(token.id);
     if (token.deprecated) deprecated.push(token.id);
     if (token.isAlias && token.aliasTarget) {
-      graph.set(token.id, token.aliasTarget);
-      if (!ids.has(token.aliasTarget) && !tokens.some((candidate) => candidate.name === token.aliasTarget || candidate.id.endsWith(`.${token.aliasTarget}`))) {
+      const aliasTarget = token.aliasTarget;
+      const candidates = index.get(aliasTarget.toLowerCase()) || tokens.filter((candidate) => candidate.id.toLowerCase().endsWith(`.${aliasTarget.toLowerCase()}`));
+      if (candidates.length === 1) {
+        graph.set(token.id, candidates[0].id);
+      } else {
         missingAliases.push({ id: token.id, target: token.aliasTarget });
       }
     }
@@ -124,14 +154,13 @@ function tokenReferences(token: any): string[] {
 
 function findTokenReference(tokens: any[], reference: string) {
   const needle = reference.toLowerCase().replace(/^\{?|\}?$/g, "");
-  return tokens.find((candidate) => [candidate.id, candidate.name, `${candidate.setName}.${candidate.name}`]
-    .some((key) => key.toLowerCase() === needle || key.toLowerCase().endsWith(`.${needle}`)));
+  const candidates = tokenIndex(tokens).get(needle) || tokens.filter((candidate) => candidate.id.toLowerCase().endsWith(`.${needle}`));
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 function tokenUsage(project: McpResolvedProject, tokenPath: string, requestId: string) {
   const tokens = resolveTokens(project);
-  const token = tokens.find((candidate) => candidate.id === tokenPath || candidate.name === tokenPath || candidate.id.endsWith(`.${tokenPath}`));
-  if (!token) throw new McpError("TOKEN_NOT_FOUND", "Token not found.", requestId, 404);
+  const token = uniqueToken(tokens, tokenPath, requestId);
 
   const dependencyItems = tokenReferences(token)
     .map((reference) => ({ reference, token: findTokenReference(tokens, reference) }))

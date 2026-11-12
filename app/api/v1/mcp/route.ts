@@ -9,6 +9,7 @@ import { toSafeMcpError } from "@/lib/mcp/errors";
 import { recordMcpMetric } from "@/lib/mcp/observability";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const MAX_REQUEST_BYTES = 128 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
@@ -19,11 +20,20 @@ function requestId(req: NextRequest) {
   return req.headers.get("x-request-id")?.slice(0, 100) || `mcp_${crypto.randomUUID()}`;
 }
 
-function errorResponse(req: NextRequest, id: string | number | null, status: number, message: string, code = -32000) {
+function errorResponse(
+  req: NextRequest,
+  id: string | number | null,
+  status: number,
+  message: string,
+  code = -32000,
+  requestIdValue?: string,
+  authenticate = false,
+) {
   const headers = new Headers(getTrustedCorsHeaders(req));
   headers.set("Content-Type", "application/json");
   headers.set("Cache-Control", "no-store");
-  headers.set("X-Request-Id", requestId(req));
+  headers.set("X-Request-Id", requestIdValue || requestId(req));
+  if (authenticate) headers.set("WWW-Authenticate", "Bearer");
   return NextResponse.json({ jsonrpc: "2.0", error: { code, message }, id }, { status, headers });
 }
 
@@ -53,11 +63,11 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  return errorResponse(req, null, 405, "MCP uses POST for stateless JSON requests.", -32000);
+  return errorResponse(req, null, 405, "MCP uses POST for stateless JSON requests.", -32000, requestId(req));
 }
 
 export async function DELETE(req: NextRequest) {
-  return errorResponse(req, null, 405, "Stateless MCP sessions cannot be deleted.", -32000);
+  return errorResponse(req, null, 405, "Stateless MCP sessions cannot be deleted.", -32000, requestId(req));
 }
 
 export async function POST(req: NextRequest) {
@@ -65,23 +75,26 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   const declaredLength = Number(req.headers.get("content-length") || 0);
   if (declaredLength > MAX_REQUEST_BYTES) {
-    return errorResponse(req, null, 413, "MCP request body exceeds the maximum size.", -32600);
+    return errorResponse(req, null, 413, "MCP request body exceeds the maximum size.", -32600, id);
   }
 
   const auth = await authenticateRequest(req, "read:tokens");
   if (!auth.isValid || !auth.record) {
-    return errorResponse(req, null, 401, "Unauthorized.", -32001);
+    return errorResponse(req, null, 401, "Unauthorized.", -32001, id, true);
+  }
+  if (auth.record.credentialType !== "mcp_project") {
+    return errorResponse(req, null, 403, "MCP requires a project-bound read-only credential.", -32003, id);
   }
 
   const rateLimit = await consumeMcpRateLimitAsync(
-    `${auth.record.keyHash || auth.record.uid}:${req.headers.get("x-forwarded-for") || "direct"}`,
+    `credential:${auth.record.keyHash || auth.record.uid}`,
     { limit: Number(process.env.MCP_RATE_LIMIT_PER_MINUTE || DEFAULT_RATE_LIMIT), windowMs: 60_000 },
   );
   if (rateLimit.unavailable) {
-    return errorResponse(req, null, 503, "MCP rate limiting is temporarily unavailable.", -32030);
+    return errorResponse(req, null, 503, "MCP rate limiting is temporarily unavailable.", -32030, id);
   }
   if (!rateLimit.allowed) {
-    const response = errorResponse(req, null, 429, "MCP rate limit exceeded.", -32029);
+    const response = errorResponse(req, null, 429, "MCP rate limit exceeded.", -32029, id);
     response.headers.set("Retry-After", String(rateLimit.retryAfterSeconds));
     response.headers.set("X-RateLimit-Remaining", "0");
     recordMcpMetric({ requestId: id, status: 429, durationMs: Date.now() - startedAt, rateLimitConfigured: rateLimit.configured });
@@ -90,9 +103,16 @@ export async function POST(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
+    const rawBody = await req.text();
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
+      return errorResponse(req, null, 413, "MCP request body exceeds the maximum size.", -32600, id);
+    }
+    body = JSON.parse(rawBody);
   } catch {
-    return errorResponse(req, null, 400, "MCP request body must be valid JSON.", -32600);
+    return errorResponse(req, null, 400, "MCP request body must be valid JSON.", -32600, id);
+  }
+  if (Array.isArray(body)) {
+    return errorResponse(req, null, 400, "JSON-RPC batch requests are not supported.", -32600, id);
   }
 
   try {
@@ -113,7 +133,7 @@ export async function POST(req: NextRequest) {
     const responseBody = await response.arrayBuffer();
     await server.close();
     if (responseBody.byteLength > MAX_RESPONSE_BYTES) {
-      return errorResponse(req, null, 413, "MCP response exceeds the maximum size.", -32000);
+      return errorResponse(req, null, 413, "MCP response exceeds the maximum size.", -32000, id);
     }
     const decorated = withRequestHeaders(new Response(responseBody, {
       status: response.status,
@@ -126,6 +146,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const safe = toSafeMcpError(error, id);
     recordMcpMetric({ requestId: id, status: safe.status, durationMs: Date.now() - startedAt, rateLimitConfigured: rateLimit.configured, errorClass: safe.code });
-    return errorResponse(req, null, safe.status, safe.message, -32000);
+    return errorResponse(req, null, safe.status, safe.message, -32000, id);
   }
 }
