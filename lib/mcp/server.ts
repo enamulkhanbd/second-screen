@@ -10,6 +10,7 @@ export const MCP_TOOL_NAMES = [
   "get_themes_matrix",
   "search_tokens",
   "get_token_details",
+  "get_token_usage",
   "validate_tokens",
   "list_branches",
   "inspect_figma_variables",

@@ -1,6 +1,6 @@
 import Color from "colorjs.io";
 import { z } from "zod";
-import { countTokensInDocument, flattenAndResolveTokens, compareTokenNames } from "@/utils/transformTokens";
+import { countTokensInDocument, flattenAndResolveTokens, compareTokenNames, buildTokenDependencyGraph } from "@/utils/transformTokens";
 import { getCategoryForType, getValidTokenSetNames } from "@/utils/themeHelpers";
 import { loadMetadataIndex } from "@/lib/r2";
 import type { ProjectAsset } from "@/types/tenant";
@@ -103,6 +103,65 @@ function validateTokenDocument(project: McpResolvedProject) {
     cyclicAliases: Array.from(new Set(cyclic)).slice(0, MAX_RESULT_ITEMS),
     deprecatedTokens: deprecated.slice(0, MAX_RESULT_ITEMS),
     truncated: missingTypes.length > MAX_RESULT_ITEMS || missingAliases.length > MAX_RESULT_ITEMS || cyclic.length > MAX_RESULT_ITEMS,
+  };
+}
+
+function tokenReferences(token: any): string[] {
+  const values = [token.rawValue, token.modify?.color, token.modify?.value]
+    .filter((value): value is string => typeof value === "string");
+  const references = new Set<string>();
+  for (const value of values) {
+    const aliases = /\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = aliases.exec(value)) !== null) references.add(match[1].trim());
+    const paths = /[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+/g;
+    while ((match = paths.exec(value)) !== null) {
+      if (!match[0].startsWith("Math.") && match[0] !== "roundTo") references.add(match[0]);
+    }
+  }
+  return Array.from(references);
+}
+
+function findTokenReference(tokens: any[], reference: string) {
+  const needle = reference.toLowerCase().replace(/^\{?|\}?$/g, "");
+  return tokens.find((candidate) => [candidate.id, candidate.name, `${candidate.setName}.${candidate.name}`]
+    .some((key) => key.toLowerCase() === needle || key.toLowerCase().endsWith(`.${needle}`)));
+}
+
+function tokenUsage(project: McpResolvedProject, tokenPath: string, requestId: string) {
+  const tokens = resolveTokens(project);
+  const token = tokens.find((candidate) => candidate.id === tokenPath || candidate.name === tokenPath || candidate.id.endsWith(`.${tokenPath}`));
+  if (!token) throw new McpError("TOKEN_NOT_FOUND", "Token not found.", requestId, 404);
+
+  const dependencyItems = tokenReferences(token)
+    .map((reference) => ({ reference, token: findTokenReference(tokens, reference) }))
+    .filter((item) => item.token)
+    .map((item) => ({
+      id: item.token.id,
+      name: item.token.name,
+      setName: item.token.setName,
+      type: item.token.type,
+      resolvedValue: item.token.resolvedValue,
+    }));
+
+  const dependencyGraph = buildTokenDependencyGraph(tokens);
+  const keys = [token.id, token.name, `${token.setName}.${token.name}`].map((key) => key.toLowerCase());
+  const dependentIds = new Set<string>();
+  for (const key of keys) for (const id of Array.from(dependencyGraph.get(key) || [])) dependentIds.add(id);
+  const dependentItems = Array.from(dependentIds).map((id) => tokens.find((candidate) => candidate.id === id)).filter(Boolean).map((dependent: any) => ({
+    id: dependent.id,
+    name: dependent.name,
+    setName: dependent.setName,
+    type: dependent.type,
+    resolvedValue: dependent.resolvedValue,
+  }));
+
+  return {
+    token: { id: token.id, name: token.name, setName: token.setName, type: token.type, resolvedValue: token.resolvedValue },
+    dependencies: dependencyItems,
+    dependents: dependentItems,
+    dependencyCount: dependencyItems.length,
+    dependentCount: dependentItems.length,
   };
 }
 
@@ -271,6 +330,18 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
         removeAfter: token.deprecatedRemoveAfter || null,
       } : null,
     }, meta(deps, project, revisionFor(project)));
+  });
+
+  server.registerTool("get_token_usage", {
+    title: "Get token usage",
+    description: "Show a token's direct dependencies and reverse dependents across the selected project.",
+    inputSchema: {
+      ...projectShape,
+      tokenPath: z.string().min(1).max(500),
+    },
+  }, async ({ orgId, projectId, tokenPath }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    return result(tokenUsage(project, tokenPath, deps.requestId), meta(deps, project, revisionFor(project)));
   });
 
   server.registerTool("validate_tokens", {

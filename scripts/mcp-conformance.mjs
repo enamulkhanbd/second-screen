@@ -56,6 +56,7 @@ const names = (tools.result?.tools || []).map((tool) => tool.name).sort();
   "get_themes_matrix",
   "get_project_overview",
   "get_token_details",
+  "get_token_usage",
   "inspect_figma_variables",
   "list_branches",
   "list_token_sets",

@@ -15,7 +15,7 @@ The read-only MCP implementation is present and locally validated. The first wri
 The current state is:
 
 - Read-only Streamable HTTP MCP route: implemented.
-- Thirteen Release 1 read-only tools: implemented and registered.
+- Fourteen Release 1 read-only tools: implemented and registered.
 - Project-bound credential flow: implemented in the application code and migration.
 - Security boundary and trusted-origin CORS: implemented.
 - Shared Upstash rate-limit integration: implemented, but not connected to real production credentials in this environment.
@@ -103,7 +103,7 @@ It uses stateless JSON Streamable HTTP with JSON responses. The route includes a
 
 ### Registered tools
 
-The following thirteen read-only tools are advertised:
+The following fourteen read-only tools are advertised:
 
 ```text
 list_workspaces
@@ -112,6 +112,7 @@ list_token_sets
 get_themes_matrix
 search_tokens
 get_token_details
+get_token_usage
 validate_tokens
 list_branches
 inspect_figma_variables
