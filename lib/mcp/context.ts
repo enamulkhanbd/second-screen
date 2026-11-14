@@ -69,7 +69,7 @@ export async function resolveMcpProject(
   const [{ data: project, error: projectError }, { data: organization, error: orgError }] = await Promise.all([
     admin
       .from("projects")
-      .select("id, org_id, name, slug, description, raw_tokens, theme_groups, figma_variables, extra_data, documentation, branches, active_branch, updated_at, is_archived")
+      .select("id, org_id, name, slug, description, raw_tokens, theme_groups, figma_variables, extra_data, documentation, branches, active_branch, updated_at")
       .eq("id", target.projectId)
       .eq("org_id", target.orgId)
       .maybeSingle(),
@@ -112,7 +112,7 @@ export async function resolveMcpProject(
       branches,
       activeBranch,
       updatedAt: project.updated_at,
-      isArchived: project.is_archived,
+      isArchived: Boolean(project.extra_data?.isArchived),
     },
     organization,
   };
@@ -136,7 +136,7 @@ export async function listMcpWorkspaces(record: ApiKeyRecord, requestId = "unkno
   if (organizations.error) throw new McpError("UPSTREAM_UNAVAILABLE", "Workspace data is temporarily unavailable.", requestId, 503);
 
   const projects = ids.length > 0
-    ? await admin.from("projects").select("id, org_id, name, slug, updated_at, is_archived").in("org_id", ids)
+    ? await admin.from("projects").select("id, org_id, name, slug, updated_at").in("org_id", ids)
     : { data: [], error: null };
   if (projects.error) throw new McpError("UPSTREAM_UNAVAILABLE", "Workspace data is temporarily unavailable.", requestId, 503);
 
@@ -148,7 +148,7 @@ export async function listMcpWorkspaces(record: ApiKeyRecord, requestId = "unkno
       name: project.name,
       slug: project.slug,
       updatedAt: project.updated_at,
-      isArchived: project.is_archived,
+      isArchived: false,
     });
     projectsByOrg.set(project.org_id, list);
   }
