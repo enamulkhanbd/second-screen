@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Key,
   Plus,
@@ -9,6 +9,7 @@ import {
   Check,
   ShieldCheck,
   Terminal,
+  X,
 } from "lucide-react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,11 @@ interface ApiKeyItem {
   scopes: string[];
   createdAt: string;
   expiresAt?: string;
+  credentialType?: "personal" | "mcp_project";
+  orgId?: string;
+  projectId?: string;
+  orgName?: string;
+  projectName?: string;
 }
 
 type ApiKeyManagerProps = {
@@ -39,6 +45,7 @@ type ApiKeyManagerProps = {
   orgId?: string;
   projectId?: string;
   projectName?: string;
+  showQuickstart?: boolean;
 };
 
 export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
@@ -47,12 +54,14 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
   orgId,
   projectId,
   projectName,
+  showQuickstart = true,
 }) => {
   const dialogs = useDialogs();
   const { addToast } = useTokenStore();
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [origin, setOrigin] = useState("");
 
   // Create Key Modal state
   const [isCreating, setIsCreating] = useState(false);
@@ -61,6 +70,19 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
   const [scopeRead, setScopeRead] = useState(true);
   const [scopeWrite, setScopeWrite] = useState(false);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const orderedKeys = useMemo(() => {
+    if (credentialType !== "mcp_project" || !projectId) return keys;
+    return [...keys].sort((a, b) => {
+      const aMatch = a.credentialType === "mcp_project" && a.projectId === projectId ? 1 : 0;
+      const bMatch = b.credentialType === "mcp_project" && b.projectId === projectId ? 1 : 0;
+      return bMatch - aMatch;
+    });
+  }, [keys, credentialType, projectId]);
 
   const fetchKeys = async () => {
     setIsLoading(true);
@@ -108,6 +130,8 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
       const data = await res.json();
       if (data.success && data.token) {
         setCreatedSecret(data.token);
+        setIsCreating(false);
+        setNewKeyName("");
         onTokenCreated?.(data.token);
         fetchKeys();
         addToast({
@@ -166,14 +190,20 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
   return (
     <div className="space-y-6 font-sans text-xs text-foreground">
       {/* Header Info */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <Key className="w-4 h-4 text-primary" />
-            <span>Personal Access Tokens (PATs)</span>
+            <span>
+              {credentialType === "mcp_project"
+                ? `MCP Access Tokens${projectName ? ` · ${projectName}` : ""}`
+                : "Personal Access Tokens (PATs)"}
+            </span>
           </h3>
           <p className="text-muted-foreground mt-0.5 text-[11px]">
-            Use PATs to authenticate the Tokens Platform private Figma plugin, CLI scripts, and CI/CD pipelines.
+            {credentialType === "mcp_project"
+              ? `Read-only tokens scoped strictly to ${projectName || "this project"} for MCP clients.`
+              : "Use PATs to authenticate the Tokens Platform private Figma plugin, REST API scripts, and CI/CD pipelines."}
           </p>
         </div>
 
@@ -186,19 +216,34 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
           className="gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Generate New Key</span>
+          <span>{credentialType === "mcp_project" ? "Generate MCP Token" : "Generate New Key"}</span>
         </Button>
       </div>
 
       {/* Secret Reveal Modal / Card */}
       {createdSecret && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 animate-in fade-in duration-200">
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Personal Access Token Created!</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+              <ShieldCheck className="w-4 h-4" />
+              <span>
+                {credentialType === "mcp_project"
+                  ? "MCP Token Created — Ready to Connect"
+                  : "Personal Access Token Created!"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreatedSecret(null)}
+              className="text-emerald-600/70 hover:text-emerald-600 dark:text-emerald-400/70 dark:hover:text-emerald-400 p-1 rounded"
+              title="Dismiss token banner"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
           <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/90">
-            Please copy this key now. For your security, you will not be able to see it again.
+            Copy this key now—it will not be shown again.
+            {credentialType === "mcp_project" && " The client snippets below have been pre-filled with this token."}
           </p>
 
           <div className="flex items-center gap-2">
@@ -255,7 +300,11 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="e.g. My Figma Plugin Key"
+                placeholder={
+                  credentialType === "mcp_project"
+                    ? `e.g. Antigravity / Cursor (${projectName || "project"})`
+                    : "e.g. My Figma Plugin Key"
+                }
                 className="text-xs"
                 required
                 autoFocus
@@ -284,7 +333,8 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
               <label className="flex items-center gap-2 cursor-pointer text-xs">
                 <input
                   type="checkbox"
-                  checked={scopeRead}
+                  checked={credentialType === "mcp_project" ? true : scopeRead}
+                  disabled={credentialType === "mcp_project"}
                   onChange={(e) => setScopeRead(e.target.checked)}
                   className="rounded text-primary focus:ring-ring"
                 />
@@ -320,12 +370,16 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
 
       {/* Keys Table */}
       <div className="border border-border rounded-xl overflow-x-auto bg-card">
-        {keys.length === 0 ? (
+        {isLoading && keys.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground text-xs">Loading tokens...</div>
+        ) : orderedKeys.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">
             <Key className="w-6 h-6 mx-auto mb-2 opacity-40" />
             <p className="font-semibold text-xs text-foreground">No API Keys Generated</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Create your first Personal Access Token to connect external tools.
+              {credentialType === "mcp_project"
+                ? "Generate a project-bound MCP token to connect Cursor, Antigravity, or Claude."
+                : "Create your first Personal Access Token to connect external tools."}
             </p>
           </div>
         ) : (
@@ -334,30 +388,45 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
               <thead className="bg-muted/60 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
                 <tr>
                   <th className="py-2.5 px-4">Name & Key Prefix</th>
-                  <th className="py-2.5 px-4">Scopes</th>
+                  <th className="py-2.5 px-4">Binding & Scopes</th>
                   <th className="py-2.5 px-4">Created</th>
                   <th className="py-2.5 px-4">Expires</th>
                   <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-mono text-[11px]">
-                {keys.map((k) => (
-                  <tr key={k.id} className="hover:bg-muted/40 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-sans font-bold text-xs text-foreground">
-                        {k.name}
-                      </div>
-                      <div className="text-muted-foreground text-[10px] mt-0.5 font-mono">{k.keyPrefix}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1 font-sans">
-                        {k.scopes.map((s) => (
-                          <Badge key={s} variant="violet" className="text-[10px] py-0 px-1.5 font-sans">
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
-                    </td>
+                {orderedKeys.map((k) => {
+                  const isMcpKey = k.credentialType === "mcp_project";
+                  const matchesCurrentProject = isMcpKey && projectId && k.projectId === projectId;
+                  return (
+                    <tr key={k.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-sans font-bold text-xs text-foreground flex items-center gap-2">
+                          <span>{k.name}</span>
+                        </div>
+                        <div className="text-muted-foreground text-[10px] mt-0.5 font-mono">{k.keyPrefix}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap items-center gap-1.5 font-sans">
+                          {isMcpKey ? (
+                            <Badge
+                              variant={matchesCurrentProject ? "success" : "secondary"}
+                              className="text-[10px] py-0 px-1.5 font-sans"
+                            >
+                              MCP · {k.projectName || "Project"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-sans">
+                              Personal
+                            </Badge>
+                          )}
+                          {k.scopes.map((s) => (
+                            <Badge key={s} variant="violet" className="text-[10px] py-0 px-1.5 font-sans">
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
+                      </td>
                     <td className="py-3 px-4 text-muted-foreground font-sans">
                       {new Date(k.createdAt).toLocaleDateString()}
                     </td>
@@ -375,8 +444,9 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </td>
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -384,20 +454,22 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
       </div>
 
       {/* Quickstart API Documentation Snippet */}
-      <div className="p-4 rounded-xl bg-card border border-border space-y-2">
-        <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <Terminal className="w-3.5 h-3.5 text-primary" />
-          <span>Figma Plugin & CLI Quickstart</span>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          Authenticate HTTP requests with your PAT using the Bearer token authorization header:
-        </p>
+      {showQuickstart && (
+        <div className="p-4 rounded-xl bg-card border border-border space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <Terminal className="w-3.5 h-3.5 text-primary" />
+            <span>Figma Plugin & REST API Quickstart</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Authenticate HTTP requests with your PAT using the Bearer token authorization header:
+          </p>
 
-        <div className="bg-muted p-3 rounded-lg border border-border font-mono text-[11px] text-foreground overflow-x-auto select-all">
-          curl -X GET &quot;http://localhost:3000/api/v1/tokens&quot; \<br />
-          &nbsp;&nbsp;-H &quot;Authorization: Bearer sec_pat_live_...&quot;
+          <div className="bg-muted p-3 rounded-lg border border-border font-mono text-[11px] text-foreground overflow-x-auto select-all">
+            curl -X GET &quot;{origin || "https://your-domain.com"}/api/v1/tokens&quot; \<br />
+            &nbsp;&nbsp;-H &quot;Authorization: Bearer sec_pat_live_...&quot;
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
