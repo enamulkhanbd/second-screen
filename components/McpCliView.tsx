@@ -50,6 +50,9 @@ const MCP_TOOL_GROUPS = [
       { name: "list_token_sets", desc: "Token sets and per-set counts" },
       { name: "get_themes_matrix", desc: "Theme groups, modes, and set activation" },
       { name: "list_branches", desc: "Native branches and recent commit metadata" },
+      { name: "compare_branches", desc: "Diff added, removed, and modified tokens between branches" },
+      { name: "get_project_schemas", desc: "Enabled DTCG schemas and self-hosted schema URLs" },
+      { name: "compare_token_themes", desc: "Compare resolved token values across theme/mode selections" },
     ],
   },
   {
@@ -59,7 +62,7 @@ const MCP_TOOL_GROUPS = [
       { name: "get_token_details", desc: "Raw, resolved, alias target, and deprecation info" },
       { name: "get_token_usage", desc: "Direct dependencies and reverse dependents" },
       { name: "validate_tokens", desc: "Check missing types, broken/cyclic aliases, deprecations" },
-      { name: "export_tokens_code", desc: "Bounded CSS, SCSS, or JSON token snapshot" },
+      { name: "export_tokens_code", desc: "Bounded CSS, SCSS, JSON, TypeScript, Tailwind, or Flutter export" },
     ],
   },
   {
@@ -77,17 +80,17 @@ const STARTER_PROMPTS = [
   {
     title: "Project Smoke Test",
     prompt:
-      "Check my connected Second Screen workspace and give me an overview of the project (name, active branch, theme groups, and total token count).",
+      "Check my connected Tokens Platform workspace and give me an overview of the project (name, active branch, theme groups, and total token count).",
   },
   {
     title: "Token Search & Usage",
     prompt:
-      "Search my Second Screen tokens for primary (limit 10), then inspect the first color token's full details and reverse dependents.",
+      "Search my Tokens Platform tokens for primary (limit 10), then inspect the first color token's full details and reverse dependents.",
   },
   {
     title: "Read-Only Token Audit",
     prompt:
-      "Run a read-only design-token audit using Second Screen MCP: inspect the theme matrix, validate tokens for broken or cyclic aliases, and check WCAG AA contrast for our main text and surface colors.",
+      "Run a read-only design-token audit using Tokens Platform MCP: inspect the theme matrix, validate tokens for broken or cyclic aliases, and check WCAG AA contrast for our main text and surface colors.",
   },
 ];
 
@@ -141,7 +144,7 @@ export const McpCliView: React.FC = () => {
       setHealth({
         status: "ok",
         serverVersion: body.serverVersion || "0.1.0",
-        toolCount: Array.isArray(body.capabilities?.tools) ? body.capabilities.tools.length : 14,
+        toolCount: Array.isArray(body.capabilities?.tools) ? body.capabilities.tools.length : 17,
         sharedRateLimiterConfigured: Boolean(body.productionReadiness?.sharedRateLimiterConfigured),
         trustedOriginsConfigured: Boolean(body.productionReadiness?.trustedOriginsConfigured),
       });
@@ -163,7 +166,7 @@ export const McpCliView: React.FC = () => {
   const baseUrl = origin || "https://your-domain.com";
   const mcpEndpoint = `${baseUrl}/api/v1/mcp`;
   const tokenPlaceholder = sessionToken || "sec_pat_live_YOUR_TOKEN";
-  const serverKey = currentProject?.slug ? `second-screen-${currentProject.slug}` : "second-screen";
+  const serverKey = currentProject?.slug ? `tokens-platform-${currentProject.slug}` : "tokens-platform";
 
   const snippets = useMemo(() => {
     const antigravity = JSON.stringify(
@@ -530,7 +533,7 @@ export const McpCliView: React.FC = () => {
               >
                 <span className="flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                  <span>14 Available Tools & Starter Prompts</span>
+                  <span>{health.status === "ok" ? health.toolCount : 17} Available Tools & Starter Prompts</span>
                 </span>
                 {showToolsAndPrompts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
