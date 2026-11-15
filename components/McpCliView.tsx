@@ -11,7 +11,6 @@ import {
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
   Play,
   ChevronDown,
   ChevronUp,
@@ -23,17 +22,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { CodeViewer } from "@/components/ui/CodeViewer";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
-
-type HealthState =
-  | { status: "loading" }
-  | {
-      status: "ok";
-      serverVersion: string;
-      toolCount: number;
-      sharedRateLimiterConfigured: boolean;
-      trustedOriginsConfigured: boolean;
-    }
-  | { status: "error"; message: string };
 
 type LiveTestState =
   | { status: "idle" }
@@ -131,31 +119,11 @@ export const McpCliView: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [health, setHealth] = useState<HealthState>({ status: "loading" });
   const [liveTest, setLiveTest] = useState<LiveTestState>({ status: "idle" });
   const [showToolsAndPrompts, setShowToolsAndPrompts] = useState(false);
 
-  const checkHealth = async () => {
-    setHealth({ status: "loading" });
-    try {
-      const res = await fetch("/api/v1/mcp/health", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = await res.json();
-      setHealth({
-        status: "ok",
-        serverVersion: body.serverVersion || "0.1.0",
-        toolCount: Array.isArray(body.capabilities?.tools) ? body.capabilities.tools.length : 17,
-        sharedRateLimiterConfigured: Boolean(body.productionReadiness?.sharedRateLimiterConfigured),
-        trustedOriginsConfigured: Boolean(body.productionReadiness?.trustedOriginsConfigured),
-      });
-    } catch (err: any) {
-      setHealth({ status: "error", message: err?.message || "Health check failed" });
-    }
-  };
-
   useEffect(() => {
     setOrigin(window.location.origin);
-    checkHealth();
   }, []);
 
   useEffect(() => {
@@ -299,36 +267,6 @@ export const McpCliView: React.FC = () => {
               Connect AI coding agents and scripts to {currentProject?.name || "your project"}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {health.status === "loading" && (
-            <Badge variant="secondary" className="gap-1.5 text-[11px]">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              <span>Checking MCP...</span>
-            </Badge>
-          )}
-          {health.status === "ok" && (
-            <Badge variant="success" className="gap-1.5 text-[11px]">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>MCP Online · {health.toolCount} Tools</span>
-            </Badge>
-          )}
-          {health.status === "error" && (
-            <Badge variant="destructive" className="gap-1.5 text-[11px]">
-              <AlertCircle className="w-3 h-3" />
-              <span>MCP Unavailable</span>
-            </Badge>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={checkHealth}
-            className="h-7 px-2 text-[11px] text-muted-foreground"
-            title="Refresh MCP server health"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </Button>
         </div>
       </header>
 
@@ -533,7 +471,7 @@ export const McpCliView: React.FC = () => {
               >
                 <span className="flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                  <span>{health.status === "ok" ? health.toolCount : 17} Available Tools & Starter Prompts</span>
+                  <span>{MCP_TOOL_GROUPS.reduce((sum, group) => sum + group.tools.length, 0)} Available Tools & Starter Prompts</span>
                 </span>
                 {showToolsAndPrompts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
