@@ -13,6 +13,8 @@ export type McpProjectData = {
   description?: string | null;
   rawTokens: Record<string, any>;
   themeGroups: any[];
+  enabledSchemas: string[];
+  compilerConfig: Record<string, any>;
   figmaVariables: Record<string, any>;
   figmaMeta: Record<string, any>;
   documentation: Record<string, any> | null;
@@ -54,6 +56,7 @@ export async function resolveMcpProject(
   projectId?: string,
   requestId = "unknown",
   permission: "read" | "write" = "read",
+  branchName?: string,
 ): Promise<McpResolvedProject> {
   if (!record.uid) {
     throw new McpError("FORBIDDEN", "This credential is not bound to a verified user.", requestId, 403);
@@ -69,7 +72,7 @@ export async function resolveMcpProject(
   const [{ data: project, error: projectError }, { data: organization, error: orgError }] = await Promise.all([
     admin
       .from("projects")
-      .select("id, org_id, name, slug, description, raw_tokens, theme_groups, figma_variables, extra_data, documentation, branches, active_branch, updated_at, is_archived")
+      .select("id, org_id, name, slug, description, raw_tokens, theme_groups, enabled_schemas, compiler_config, figma_variables, extra_data, documentation, branches, active_branch, updated_at, is_archived")
       .eq("id", target.projectId)
       .eq("org_id", target.orgId)
       .maybeSingle(),
@@ -84,9 +87,27 @@ export async function resolveMcpProject(
   }
 
   const branches = Array.isArray(project.branches) ? project.branches : [];
-  const activeBranch = project.active_branch || branches.find((branch: any) => branch?.isDefault)?.name || "main";
-  const branch = branches.find((candidate: any) => candidate?.name === activeBranch);
+  const requestedBranch = branchName?.trim();
+  const targetBranchName = requestedBranch || project.active_branch || branches.find((branch: any) => branch?.isDefault)?.name || "main";
+  const branch = branches.find((candidate: any) => candidate?.name === targetBranchName);
+  if (requestedBranch && !branch && targetBranchName !== (project.active_branch || "main")) {
+    throw new McpError("PROJECT_NOT_FOUND", "Branch not found.", requestId, 404);
+  }
   const branchRevision = String(branch?.updatedAt || branch?.updated_at || project.updated_at || "unknown");
+
+  const resolvedRawTokens =
+    branch?.rawTokens && typeof branch.rawTokens === "object" && Object.keys(branch.rawTokens).length > 0
+      ? branch.rawTokens
+      : requestedBranch && branch && branch.rawTokens && typeof branch.rawTokens === "object"
+        ? branch.rawTokens
+        : project.raw_tokens || {};
+
+  const resolvedThemeGroups =
+    Array.isArray(branch?.themeGroups) && branch.themeGroups.length > 0
+      ? branch.themeGroups
+      : Array.isArray(project.theme_groups)
+        ? project.theme_groups
+        : [];
 
   return {
     auth: {
@@ -95,7 +116,7 @@ export async function resolveMcpProject(
       orgId: target.orgId,
       projectId: target.projectId,
       role: authorization.role,
-      branchId: branch?.id,
+      branchId: branch?.id || targetBranchName,
       branchRevision,
     },
     project: {
@@ -104,17 +125,57 @@ export async function resolveMcpProject(
       name: project.name,
       slug: project.slug,
       description: project.description,
-      rawTokens: project.raw_tokens || {},
-      themeGroups: Array.isArray(project.theme_groups) ? project.theme_groups : [],
+      rawTokens: resolvedRawTokens,
+      themeGroups: resolvedThemeGroups,
+      enabledSchemas: Array.isArray(project.enabled_schemas) ? project.enabled_schemas : [],
+      compilerConfig: project.compiler_config && typeof project.compiler_config === "object" ? project.compiler_config : {},
       figmaVariables: project.figma_variables || {},
       figmaMeta: project.extra_data?.figmaMeta || {},
       documentation: project.documentation || null,
       branches,
-      activeBranch,
+      activeBranch: targetBranchName,
       updatedAt: project.updated_at,
       isArchived: project.is_archived,
     },
     organization,
+  };
+}
+
+export function getBranchTokensAndThemes(
+  project: McpResolvedProject,
+  branchName: string | undefined,
+  requestId = "unknown",
+) {
+  const requested = branchName?.trim();
+  const branches = project.project.branches;
+  const resolvedName =
+    requested ||
+    project.project.activeBranch ||
+    branches.find((candidate: any) => candidate?.isDefault)?.name ||
+    "main";
+  const branch = branches.find((candidate: any) => candidate?.name === resolvedName);
+
+  if (!branch && !(branches.length === 0 && resolvedName === (project.project.activeBranch || "main"))) {
+    throw new McpError("PROJECT_NOT_FOUND", "Branch not found.", requestId, 404);
+  }
+
+  const rawTokens =
+    branch?.rawTokens && typeof branch.rawTokens === "object" && Object.keys(branch.rawTokens).length > 0
+      ? branch.rawTokens
+      : requested && branch && branch.rawTokens && typeof branch.rawTokens === "object"
+        ? branch.rawTokens
+        : project.project.rawTokens;
+
+  const themeGroups =
+    Array.isArray(branch?.themeGroups) && branch.themeGroups.length > 0
+      ? branch.themeGroups
+      : project.project.themeGroups;
+
+  return {
+    branchName: resolvedName,
+    rawTokens,
+    themeGroups,
+    branch,
   };
 }
 

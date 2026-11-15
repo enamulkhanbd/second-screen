@@ -39,7 +39,7 @@ const initialize = await getJson(endpoint, {
     },
   }),
 });
-if (initialize.result?.serverInfo?.name !== "second-screen-mcp") {
+if (initialize.result?.serverInfo?.name !== "Tokens Platform") {
   throw new Error("MCP initialize response is invalid.");
 }
 
@@ -49,20 +49,23 @@ const tools = await getJson(endpoint, {
   body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
 });
 const names = (tools.result?.tools || []).map((tool) => tool.name).sort();
-  const expected = [
+const expected = [
   "check_color_contrast",
+  "compare_branches",
+  "compare_token_themes",
   "export_tokens_code",
   "get_documentation_pages",
-  "get_themes_matrix",
   "get_project_overview",
+  "get_project_schemas",
+  "get_themes_matrix",
   "get_token_details",
   "get_token_usage",
   "inspect_figma_variables",
   "list_branches",
   "list_token_sets",
   "list_workspaces",
-  "search_tokens",
   "search_project_assets",
+  "search_tokens",
   "validate_tokens",
 ].sort();
 if (JSON.stringify(names) !== JSON.stringify(expected)) {

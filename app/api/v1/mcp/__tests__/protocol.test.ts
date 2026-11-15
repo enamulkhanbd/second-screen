@@ -47,7 +47,7 @@ describe("MCP protocol", () => {
     expect(response.status).toBe(200);
     expect(body.jsonrpc).toBe("2.0");
     expect(body.id).toBe(1);
-    expect(body.result.serverInfo.name).toBe("second-screen-mcp");
+    expect(body.result.serverInfo.name).toBe("Tokens Platform");
     expect(body.result.capabilities.tools).toBeDefined();
   });
 });

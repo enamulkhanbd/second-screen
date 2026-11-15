@@ -3,12 +3,25 @@ import { z } from "zod";
 import { countTokensInDocument, flattenAndResolveTokens, compareTokenNames, buildTokenDependencyGraph } from "@/utils/transformTokens";
 import { getActiveThemeSets, getCategoryForType, getValidTokenSetNames } from "@/utils/themeHelpers";
 import { loadMetadataIndex } from "@/lib/r2";
-import { compileStyleDictionary } from "@/utils/releaseCompiler";
+import {
+  compileStyleDictionary,
+  compileReactTs,
+  compileTailwindConfig,
+  compileFlutterDart,
+} from "@/utils/releaseCompiler";
+import { computeTokensDiff } from "@/utils/tokenDiff";
+import { SCHEMA_CATALOG } from "@/data/schemaCatalog";
+import type { CompilerConfig } from "@/types/tokens";
 import type { ProjectAsset } from "@/types/tenant";
 import type { ApiKeyRecord } from "@/utils/patAuth";
 import { createMcpCursor, createRevision, parseMcpCursor } from "./cursors";
 import { McpError } from "./errors";
-import { listMcpWorkspaces, resolveMcpProject, type McpResolvedProject } from "./context";
+import {
+  listMcpWorkspaces,
+  resolveMcpProject,
+  getBranchTokensAndThemes,
+  type McpResolvedProject,
+} from "./context";
 import type { McpResponseMeta } from "./types";
 import type { NextRequest } from "next/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -313,6 +326,72 @@ function contrastRatio(foreground: Color, background: Color): number {
   return (light + 0.05) / (dark + 0.05);
 }
 
+type TokenFilterOptions = {
+  query?: string;
+  type?: string;
+  setName?: string;
+  pathPrefix?: string;
+  deprecatedOnly?: boolean;
+};
+
+function filterTokens(tokens: any[], options: TokenFilterOptions) {
+  const needle = options.query?.trim().toLowerCase() || "";
+  const normalizedType = options.type?.trim().toLowerCase() || "";
+  const normalizedSet = options.setName?.trim().toLowerCase() || "";
+  const normalizedPrefix = options.pathPrefix?.trim().toLowerCase() || "";
+  return tokens.filter((token) => {
+    const searchable = `${token.id} ${token.name} ${token.rawValue} ${token.resolvedValue} ${token.description || ""}`.toLowerCase();
+    const queryMatches = !needle || searchable.includes(needle);
+    const typeMatches = !normalizedType || token.type.toLowerCase() === normalizedType || getCategoryForType(token.type) === normalizedType;
+    const setMatches = !normalizedSet || token.setName.toLowerCase() === normalizedSet;
+    const prefixMatches = !normalizedPrefix || token.name.toLowerCase().startsWith(normalizedPrefix) || token.id.toLowerCase().startsWith(normalizedPrefix);
+    const deprecatedMatches = !options.deprecatedOnly || Boolean(token.deprecated);
+    return queryMatches && typeMatches && setMatches && prefixMatches && deprecatedMatches;
+  });
+}
+
+type ThemeModeMap = {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  byId: Map<string, any>;
+  byName: Map<string, any>;
+};
+
+function collectThemeModeMaps(
+  project: McpResolvedProject,
+  requestId: string,
+  baseThemeOptionIds?: Record<string, string>,
+): ThemeModeMap[] {
+  const maps: ThemeModeMap[] = [];
+  for (const group of project.project.themeGroups) {
+    for (const option of group.options || []) {
+      const resolved = resolveTokens(project, { ...(baseThemeOptionIds || {}), [group.id]: option.id }, requestId);
+      const byId = new Map<string, any>();
+      const byName = new Map<string, any>();
+      for (const token of resolved) {
+        byId.set(token.id, token);
+        const key = token.name.toLowerCase();
+        if (!byName.has(key)) byName.set(key, token);
+      }
+      maps.push({
+        groupId: group.id,
+        groupName: group.name,
+        optionId: option.id,
+        optionName: option.name,
+        byId,
+        byName,
+      });
+    }
+  }
+  return maps;
+}
+
+function findModeTokenMatch(mode: ThemeModeMap, token: any) {
+  return mode.byId.get(token.id) || mode.byName.get(token.name.toLowerCase());
+}
+
 export function registerMcpTools(server: McpServer, deps: ToolDeps) {
   server.registerTool("list_workspaces", {
     title: "List workspaces",
@@ -326,6 +405,7 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
   const projectShape = {
     orgId: z.string().optional().describe("Workspace ID; omitted for project-bound MCP credentials."),
     projectId: z.string().optional().describe("Project ID; omitted for project-bound MCP credentials."),
+    branchName: z.string().min(1).max(120).optional().describe("Optional branch name to inspect; defaults to the project's active branch."),
     themeOptionIds: z.record(z.string()).optional().describe("Optional map of theme group IDs to selected option IDs; defaults to the first option in each group."),
   };
 
@@ -333,8 +413,8 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
     title: "Get project overview",
     description: "Return bounded project metadata, active branch, themes, and token counts.",
     inputSchema: projectShape,
-  }, async ({ orgId, projectId }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     const revision = revisionFor(project);
     return result({
       id: project.project.id,
@@ -354,8 +434,8 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
     title: "List token sets",
     description: "List token sets and bounded token counts for the selected project.",
     inputSchema: projectShape,
-  }, async ({ orgId, projectId }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     const items = tokenSetEntries(project);
     return result({ items, total: items.length }, meta(deps, project, revisionFor(project)));
   });
@@ -364,8 +444,8 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
     title: "Get themes matrix",
     description: "Return theme groups, modes, and token-set activation state.",
     inputSchema: projectShape,
-  }, async ({ orgId, projectId }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     const groups = project.project.themeGroups.map((group: any) => ({
       id: group.id,
       name: group.name,
@@ -384,25 +464,32 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
 
   server.registerTool("search_tokens", {
     title: "Search tokens",
-    description: "Search project design tokens by path, value, description, or type.",
+    description: "Search or browse project design tokens by path, value, description, token set, path prefix, deprecation, or type.",
     inputSchema: {
       ...projectShape,
-      query: z.string().min(1).max(200),
+      query: z.string().max(200).optional(),
       type: z.string().max(50).optional(),
+      setName: z.string().max(120).optional(),
+      pathPrefix: z.string().max(200).optional(),
+      deprecatedOnly: z.boolean().optional(),
       limit: z.number().int().min(1).max(MAX_RESULT_ITEMS).optional(),
       cursor: z.string().max(1000).optional(),
     },
-  }, async ({ orgId, projectId, themeOptionIds, query, type, limit = 25, cursor }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName, themeOptionIds, query, type, setName, pathPrefix, deprecatedOnly, limit = 25, cursor }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     const revision = revisionFor(project);
-    const scope = `tokens:${project.auth.orgId}:${project.auth.projectId}:${query.toLowerCase()}:${type || ""}:${themeSelectionKey(themeOptionIds)}`;
+    const normalizedQuery = query?.trim().toLowerCase() || "";
+    const normalizedType = type?.trim().toLowerCase() || "";
+    const normalizedSet = setName?.trim().toLowerCase() || "";
+    const normalizedPrefix = pathPrefix?.trim().toLowerCase() || "";
+    const scope = `tokens:${project.auth.orgId}:${project.auth.projectId}:${branchName?.trim() || ""}:${normalizedQuery}:${normalizedType}:${normalizedSet}:${normalizedPrefix}:${Boolean(deprecatedOnly)}:${themeSelectionKey(themeOptionIds)}`;
     const parsedCursor = parseMcpCursor(cursor, { revision, scope }, deps.requestId);
-    const needle = query.trim().toLowerCase();
-    const normalizedType = type?.trim().toLowerCase();
-    const matches = resolveTokens(project, themeOptionIds, deps.requestId).filter((token) => {
-      const searchable = `${token.id} ${token.name} ${token.rawValue} ${token.resolvedValue} ${token.description || ""}`.toLowerCase();
-      const typeMatches = !normalizedType || token.type.toLowerCase() === normalizedType || getCategoryForType(token.type) === normalizedType;
-      return typeMatches && searchable.includes(needle);
+    const matches = filterTokens(resolveTokens(project, themeOptionIds, deps.requestId), {
+      query,
+      type,
+      setName,
+      pathPrefix,
+      deprecatedOnly,
     });
     const after = parsedCursor?.sortKey;
     const start = after ? Math.max(0, matches.findIndex((item) => item.id === after) + 1) : 0;
@@ -430,14 +517,30 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
 
   server.registerTool("get_token_details", {
     title: "Get token details",
-    description: "Return one token's raw and resolved values, alias metadata, and description.",
+    description: "Return one token's raw and resolved values across themes, alias metadata, and description.",
     inputSchema: {
       ...projectShape,
       tokenPath: z.string().min(1).max(500),
     },
-  }, async ({ orgId, projectId, themeOptionIds, tokenPath }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName, themeOptionIds, tokenPath }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     const token = uniqueToken(resolveTokens(project, themeOptionIds, deps.requestId), tokenPath, deps.requestId);
+    const valuesByThemeOption = collectThemeModeMaps(project, deps.requestId, themeOptionIds)
+      .map((mode) => {
+        const match = findModeTokenMatch(mode, token);
+        if (!match) return null;
+        return {
+          groupId: mode.groupId,
+          groupName: mode.groupName,
+          optionId: mode.optionId,
+          optionName: mode.optionName,
+          setName: match.setName,
+          rawValue: match.rawValue,
+          resolvedValue: match.resolvedValue,
+          resolvedHex: match.resolvedHex || null,
+        };
+      })
+      .filter(Boolean);
     return result({
       id: token.id,
       name: token.name,
@@ -451,6 +554,7 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       description: token.description || null,
       isAlias: token.isAlias,
       aliasTarget: token.aliasTarget || null,
+      valuesByThemeOption,
       deprecation: token.deprecated ? {
         message: token.deprecatedMessage || null,
         replacement: token.deprecatedReplacement || null,
@@ -467,8 +571,8 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       ...projectShape,
       tokenPath: z.string().min(1).max(500),
     },
-  }, async ({ orgId, projectId, themeOptionIds, tokenPath }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName, themeOptionIds, tokenPath }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     return result(tokenUsage(project, tokenPath, deps.requestId, themeOptionIds), meta(deps, project, revisionFor(project)));
   });
 
@@ -476,8 +580,8 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
     title: "Validate tokens",
     description: "Check token types, aliases, cycles, and deprecated-token usage without modifying project data.",
     inputSchema: projectShape,
-  }, async ({ orgId, projectId, themeOptionIds }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName, themeOptionIds }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     return result(validateTokenDocument(project, themeOptionIds, deps.requestId), meta(deps, project, revisionFor(project)));
   });
 
@@ -499,6 +603,169 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
       commits: Array.isArray(branch.commits) ? branch.commits.slice(0, 10).map(safeCommit).filter(Boolean) : [],
     }));
     return result({ items, hasMore: project.project.branches.length > items.length }, meta(deps, project, revisionFor(project), project.project.branches.length > items.length));
+  });
+
+  server.registerTool("compare_branches", {
+    title: "Compare branches",
+    description: "Compare token differences between a base branch and a head branch without modifying project data.",
+    inputSchema: {
+      orgId: projectShape.orgId,
+      projectId: projectShape.projectId,
+      baseBranch: z.string().min(1).max(120).optional().describe("Base branch name; defaults to the project's active or default branch."),
+      headBranch: z.string().min(1).max(120).describe("Target branch name to compare against baseBranch."),
+      setName: z.string().max(120).optional(),
+      changeType: z.enum(["added", "modified", "deleted"]).optional(),
+      limit: z.number().int().min(1).max(MAX_RESULT_ITEMS).optional().default(50),
+    },
+  }, async ({ orgId, projectId, baseBranch, headBranch, setName, changeType, limit = 50 }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const base = getBranchTokensAndThemes(project, baseBranch, deps.requestId);
+    const head = getBranchTokensAndThemes(project, headBranch, deps.requestId);
+    const diff = computeTokensDiff(base.rawTokens, head.rawTokens);
+    const normalizedSet = setName?.trim().toLowerCase();
+    const filteredFiles = diff.files.filter((file) => !normalizedSet || file.setName.toLowerCase() === normalizedSet);
+    const allItems = filteredFiles
+      .flatMap((file) => file.tokens)
+      .filter((token) => !changeType || token.changeType === changeType);
+    const items = allItems.slice(0, limit).map((token) => ({
+      key: token.key,
+      name: token.name,
+      setName: token.setName,
+      type: token.type,
+      changeType: token.changeType,
+      oldValue: token.oldValue ?? null,
+      newValue: token.newValue ?? null,
+      oldDescription: token.oldDescription || null,
+      newDescription: token.newDescription || null,
+    }));
+    const sets = filteredFiles.map((file) => ({
+      setName: file.setName,
+      fileName: file.fileName,
+      changeType: file.changeType,
+      addedCount: file.addedCount,
+      modifiedCount: file.modifiedCount,
+      deletedCount: file.deletedCount,
+    }));
+    const truncated = items.length < allItems.length;
+    return result({
+      baseBranch: base.branchName,
+      headBranch: head.branchName,
+      hasChanges: diff.hasChanges,
+      totalAdded: diff.totalAdded,
+      totalModified: diff.totalModified,
+      totalDeleted: diff.totalDeleted,
+      sets,
+      items,
+      totalMatchedItems: allItems.length,
+      truncated,
+    }, meta(deps, project, revisionFor(project), truncated));
+  });
+
+  server.registerTool("get_project_schemas", {
+    title: "Get project schemas",
+    description: "List DTCG token type, color space, and function schemas enabled for the selected project.",
+    inputSchema: {
+      orgId: projectShape.orgId,
+      projectId: projectShape.projectId,
+      category: z.enum(["core", "color-spaces", "functions"]).optional(),
+      enabledOnly: z.boolean().optional().default(true),
+      query: z.string().max(100).optional(),
+    },
+  }, async ({ orgId, projectId, category, enabledOnly = true, query }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+    const enabledSet = project.project.enabledSchemas.length > 0
+      ? new Set(project.project.enabledSchemas)
+      : new Set(SCHEMA_CATALOG.filter((item) => item.isCoreDefault).map((item) => item.id));
+    const needle = query?.trim().toLowerCase() || "";
+    const origin = deps.req.nextUrl.origin;
+    const items = SCHEMA_CATALOG
+      .filter((item) => {
+        if (enabledOnly && !enabledSet.has(item.id)) return false;
+        if (category && item.category !== category) return false;
+        if (needle) {
+          const searchable = `${item.id} ${item.name} ${item.description}`.toLowerCase();
+          if (!searchable.includes(needle)) return false;
+        }
+        return true;
+      })
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        typeTag: item.typeTag,
+        description: item.description,
+        schemaUrl: `${origin}${item.schemaUrl}`,
+        enabled: enabledSet.has(item.id),
+        isCoreDefault: Boolean(item.isCoreDefault),
+        version: item.version || null,
+        dtcgCompliant: Boolean(item.dtcgCompliant),
+      }));
+    return result({
+      items,
+      total: items.length,
+      enabledCount: enabledSet.size,
+    }, meta(deps, project, revisionFor(project)));
+  });
+
+  server.registerTool("compare_token_themes", {
+    title: "Compare token themes",
+    description: "Compare resolved token values side-by-side across all configured theme groups and modes.",
+    inputSchema: {
+      orgId: projectShape.orgId,
+      projectId: projectShape.projectId,
+      branchName: projectShape.branchName,
+      query: z.string().max(200).optional(),
+      setName: z.string().max(120).optional(),
+      type: z.string().max(50).optional(),
+      limit: z.number().int().min(1).max(50).optional().default(25),
+    },
+  }, async ({ orgId, projectId, branchName, query, setName, type, limit = 25 }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
+    const revision = revisionFor(project);
+    const matches = filterTokens(resolveTokens(project, undefined, deps.requestId), {
+      query,
+      setName,
+      type,
+    });
+    const modeMaps = collectThemeModeMaps(project, deps.requestId);
+    const page = matches.slice(0, limit);
+    const items = page.map((token) => {
+      const modes: Record<string, {
+        groupName: string;
+        optionName: string;
+        setName: string;
+        rawValue: string;
+        resolvedValue: string;
+        resolvedHex: string | null;
+      }> = {};
+      for (const mode of modeMaps) {
+        const match = findModeTokenMatch(mode, token);
+        if (match) {
+          modes[`${mode.groupId}:${mode.optionId}`] = {
+            groupName: mode.groupName,
+            optionName: mode.optionName,
+            setName: match.setName,
+            rawValue: match.rawValue,
+            resolvedValue: match.resolvedValue,
+            resolvedHex: match.resolvedHex || null,
+          };
+        }
+      }
+      return {
+        id: token.id,
+        name: token.name,
+        setName: token.setName,
+        type: token.type,
+        category: getCategoryForType(token.type),
+        modes,
+      };
+    });
+    const truncated = items.length < matches.length;
+    return result({
+      items,
+      total: matches.length,
+      truncated,
+    }, meta(deps, project, revision, truncated));
   });
 
   server.registerTool("inspect_figma_variables", {
@@ -560,21 +827,36 @@ export function registerMcpTools(server: McpServer, deps: ToolDeps) {
 
   server.registerTool("export_tokens_code", {
     title: "Export token code",
-    description: "Export a bounded read-only token snapshot as CSS, SCSS, or JSON.",
+    description: "Export a bounded read-only token snapshot as CSS, SCSS, JSON, TypeScript, Tailwind, or Flutter.",
     inputSchema: {
       ...projectShape,
-      format: z.enum(["css", "scss", "json"]).optional().default("css"),
+      format: z.enum(["css", "scss", "json", "typescript", "tailwind", "flutter"]).optional().default("css"),
       limit: z.number().int().min(1).max(MAX_EXPORT_ITEMS).optional(),
     },
-  }, async ({ orgId, projectId, themeOptionIds, format = "css", limit = MAX_EXPORT_ITEMS }) => {
-    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId);
+  }, async ({ orgId, projectId, branchName, themeOptionIds, format = "css", limit = MAX_EXPORT_ITEMS }) => {
+    const project = await resolveMcpProject(deps.req, deps.record, orgId, projectId, deps.requestId, "read", branchName);
     const all = resolveTokens(project, themeOptionIds, deps.requestId);
     const tokens = exportSafeTokens(all.slice(0, limit));
-    const compiled = compileStyleDictionary(tokens, project.project.themeGroups);
-    const code = format === "json" ? compiled.tokensJson : format === "scss" ? compiled.scss : compiled.css;
+    const compilerConfig = project.project.compilerConfig as Partial<CompilerConfig>;
+    let code: string;
+    let language: string;
+    if (format === "typescript") {
+      code = compileReactTs(tokens, compilerConfig);
+      language = "typescript";
+    } else if (format === "tailwind") {
+      code = compileTailwindConfig(tokens, compilerConfig);
+      language = "javascript";
+    } else if (format === "flutter") {
+      code = compileFlutterDart(tokens, compilerConfig);
+      language = "dart";
+    } else {
+      const compiled = compileStyleDictionary(tokens, project.project.themeGroups, compilerConfig);
+      code = format === "json" ? compiled.tokensJson : format === "scss" ? compiled.scss : compiled.css;
+      language = format;
+    }
     return result({
       format,
-      language: format,
+      language,
       code,
       count: tokens.length,
       totalCount: all.length,

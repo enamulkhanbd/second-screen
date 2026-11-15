@@ -13,6 +13,9 @@ export const MCP_TOOL_NAMES = [
   "get_token_usage",
   "validate_tokens",
   "list_branches",
+  "compare_branches",
+  "get_project_schemas",
+  "compare_token_themes",
   "inspect_figma_variables",
   "search_project_assets",
   "get_documentation_pages",
@@ -20,11 +23,12 @@ export const MCP_TOOL_NAMES = [
   "export_tokens_code",
 ] as const;
 
+export const MCP_SERVER_NAME = "Tokens Platform";
 export const MCP_SERVER_VERSION = "0.1.0";
 
 export function createMcpServer(req: NextRequest, record: ApiKeyRecord, requestId: string) {
   const server = new McpServer({
-    name: "second-screen-mcp",
+    name: MCP_SERVER_NAME,
     version: MCP_SERVER_VERSION,
   });
 
