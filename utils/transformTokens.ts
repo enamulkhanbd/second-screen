@@ -633,7 +633,7 @@ export function resolveTokenAlias(
   }
 
   // Match {path.to.token}
-  const aliasRegex = /\{([^}]+)\}/g;
+  const aliasRegex = /\{([^{}":,]+)\}/g;
 
   const replaced = aliasString.replace(aliasRegex, (match, pathString) => {
     const cleanPath = pathString.trim().replace(/^[./\s]+|[./\s]+$/g, "");
@@ -1111,8 +1111,8 @@ export function flattenAndResolveTokens(
         const subgroup = currentPath.length > 2 ? String(currentPath[1]) : undefined;
         const id = `${setName}.${currentPath.join(".")}`;
         const name = currentPath.join(".");
-        const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
-        const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
+        const isAlias = typeof rawValue === "string" && /\{([^{}":,]+)\}/.test(rawValue);
+        const aliasMatch = isAlias ? rawValue.match(/\{([^{}":,]+)\}/) : null;
         let resolvedValue = resolveTokenAlias(rawValue, rawDoc, setName, visited, lookupIndex, 0, resolutionMemo, negativeCache);
 
         const modifier = extractColorModifier(node);
@@ -1443,7 +1443,7 @@ export function buildTokenDependencyGraph(tokens: FlattenedToken[]): Map<string,
   for (const token of tokens) {
     if (token.rawValue && typeof token.rawValue === "string") {
       if (token.rawValue.includes("{")) {
-        const aliasRegex = /\{([^}]+)\}/g;
+        const aliasRegex = /\{([^{}":,]+)\}/g;
         let match: RegExpExecArray | null;
         while ((match = aliasRegex.exec(token.rawValue)) !== null) {
           addEdge(match[1], token.id);
@@ -1460,14 +1460,14 @@ export function buildTokenDependencyGraph(tokens: FlattenedToken[]): Map<string,
       }
     }
     if (token.modify?.color && typeof token.modify.color === "string" && token.modify.color.includes("{")) {
-      const aliasRegex = /\{([^}]+)\}/g;
+      const aliasRegex = /\{([^{}":,]+)\}/g;
       let match: RegExpExecArray | null;
       while ((match = aliasRegex.exec(token.modify.color)) !== null) {
         addEdge(match[1], token.id);
       }
     }
     if (token.modify?.value && typeof token.modify.value === "string" && token.modify.value.includes("{")) {
-      const aliasRegex = /\{([^}]+)\}/g;
+      const aliasRegex = /\{([^{}":,]+)\}/g;
       let match: RegExpExecArray | null;
       while ((match = aliasRegex.exec(token.modify.value)) !== null) {
         addEdge(match[1], token.id);
@@ -1593,8 +1593,8 @@ export function patchResolvedTokensIncremental(
     }
 
     const rawValue = getLeafValue(node);
-    const isAlias = typeof rawValue === "string" && /\{[^}]+\}/.test(rawValue);
-    const aliasMatch = isAlias ? rawValue.match(/\{([^}]+)\}/) : null;
+    const isAlias = typeof rawValue === "string" && /\{([^{}":,]+)\}/.test(rawValue);
+    const aliasMatch = isAlias ? rawValue.match(/\{([^{}":,]+)\}/) : null;
     let resolvedValue = resolveTokenAlias(rawValue, rawDoc, token.setName, new Set<string>(), lookupIndex, 0, resolutionMemo, negativeCache);
 
     const modifier = extractColorModifier(node);

@@ -33,6 +33,20 @@ const mockProject = {
       spacing: {
         md: { $type: "dimension", $value: "16px", $description: "Base spacing" },
       },
+      shadow: {
+        bottom: {
+          lg: {
+            $type: "boxShadow",
+            $value: { x: "0", y: "10", blur: "10", type: "dropShadow", color: "{color.brand.500}" },
+          },
+        },
+      },
+      focusRing: {
+        border: {
+          $type: "border",
+          $value: { color: "{color.brand.500}", width: "2px", style: "solid" },
+        },
+      },
     },
     "semantic/light": {
       bg: {
@@ -161,6 +175,20 @@ const mockProject = {
           },
           spacing: {
             md: { $type: "dimension", $value: "16px", $description: "Base spacing" },
+          },
+          shadow: {
+            bottom: {
+              lg: {
+                $type: "boxShadow",
+                $value: { x: "0", y: "10", blur: "10", type: "dropShadow", color: "{color.brand.500}" },
+              },
+            },
+          },
+          focusRing: {
+            border: {
+              $type: "border",
+              $value: { color: "{color.brand.500}", width: "2px", style: "solid" },
+            },
           },
         },
         "semantic/light": {
@@ -381,10 +409,17 @@ describe("MCP end-to-end mock project integration", () => {
     expect(usage.isError).toBe(false);
     expect(usage.parsed.data.dependents.length).toBeGreaterThanOrEqual(1);
 
-    // 8. validate_tokens
+    // 8. validate_tokens (including composite boxShadow/border alias references)
     const validation = await callTool("validate_tokens");
     expect(validation.isError).toBe(false);
     expect(validation.parsed.data.valid).toBe(true);
+    expect(validation.parsed.data.missingAliases).toEqual([]);
+
+    const shadowDetails = await callTool("get_token_details", { tokenPath: "shadow.bottom.lg" });
+    expect(shadowDetails.isError).toBe(false);
+    expect(shadowDetails.parsed.data.isAlias).toBe(true);
+    expect(shadowDetails.parsed.data.aliasTarget).toBe("color.brand.500");
+    expect(shadowDetails.parsed.data.resolvedValue).toContain("#3b82f6");
 
     // 9. list_branches
     const branches = await callTool("list_branches");

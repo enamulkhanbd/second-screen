@@ -218,9 +218,9 @@ function validateTokenDocument(project: McpResolvedProject, themeOptionIds?: Rec
     if (!token.type || token.type === "other") missingTypes.push(token.id);
     if (token.deprecated) deprecated.push(token.id);
     if (token.isAlias && token.aliasTarget) {
-      const aliasTarget = token.aliasTarget;
+      const aliasTarget = token.aliasTarget.trim();
       const candidates = index.get(aliasTarget.toLowerCase()) || tokens.filter((candidate) => candidate.id.toLowerCase().endsWith(`.${aliasTarget.toLowerCase()}`));
-      if (candidates.length === 1) {
+      if (candidates.length >= 1) {
         graph.set(token.id, candidates[0].id);
       } else {
         missingAliases.push({ id: token.id, target: token.aliasTarget });
@@ -253,7 +253,7 @@ function tokenReferences(token: any): string[] {
     .filter((value): value is string => typeof value === "string");
   const references = new Set<string>();
   for (const value of values) {
-    const aliases = /\{([^}]+)\}/g;
+    const aliases = /\{([^{}":,]+)\}/g;
     let match: RegExpExecArray | null;
     while ((match = aliases.exec(value)) !== null) references.add(match[1].trim());
     const paths = /[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+/g;
