@@ -25,12 +25,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { formatRelativeTime } from "@/components/mcp/formatters";
+
 interface ApiKeyItem {
   id: string;
   name: string;
   keyPrefix: string;
   scopes: string[];
   createdAt: string;
+  lastUsedAt?: string;
   expiresAt?: string;
   credentialType?: "personal" | "mcp_project";
   orgId?: string;
@@ -390,6 +393,7 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
                   <th className="py-2.5 px-4">Name & Key Prefix</th>
                   <th className="py-2.5 px-4">Binding & Scopes</th>
                   <th className="py-2.5 px-4">Created</th>
+                  <th className="py-2.5 px-4">Last Used</th>
                   <th className="py-2.5 px-4">Expires</th>
                   <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
@@ -429,6 +433,12 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
                       </td>
                     <td className="py-3 px-4 text-muted-foreground font-sans">
                       {new Date(k.createdAt).toLocaleDateString()}
+                    </td>
+                    <td
+                      className="py-3 px-4 text-muted-foreground font-sans"
+                      title={k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : "Never used"}
+                    >
+                      {formatRelativeTime(k.lastUsedAt)}
                     </td>
                     <td className="py-3 px-4 text-muted-foreground font-sans">
                       {k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : "Never"}

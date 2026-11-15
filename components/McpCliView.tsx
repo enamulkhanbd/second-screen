@@ -15,6 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
+  BarChart3,
+  Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +24,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { CodeViewer } from "@/components/ui/CodeViewer";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
+import { McpAnalyticsDashboard } from "@/components/mcp/McpAnalyticsDashboard";
 
 type LiveTestState =
   | { status: "idle" }
@@ -121,6 +124,8 @@ export const McpCliView: React.FC = () => {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [liveTest, setLiveTest] = useState<LiveTestState>({ status: "idle" });
   const [showToolsAndPrompts, setShowToolsAndPrompts] = useState(false);
+  const [activeTab, setActiveTab] = useState<"setup" | "analytics">("setup");
+  const [analyticsRefreshNonce, setAnalyticsRefreshNonce] = useState(0);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -242,17 +247,39 @@ export const McpCliView: React.FC = () => {
       }
       const parsed = JSON.parse(text);
       const data = parsed.data || {};
+      const summary = `Connected to "${data.name || currentProject?.name}" (${data.tokenCount ?? 0} tokens, branch ${data.activeBranch || "main"})`;
       setLiveTest({
         status: "ok",
-        summary: `Connected to "${data.name || currentProject?.name}" (${data.tokenCount ?? 0} tokens, branch ${data.activeBranch || "main"})`,
+        summary,
       });
+      if (activeTab === "analytics") {
+        addToast({
+          type: "success",
+          title: "MCP Smoke Test Passed",
+          message: summary,
+        });
+      }
     } catch (err: any) {
-      setLiveTest({ status: "error", message: err?.message || "MCP call failed" });
+      const message = err?.message || "MCP call failed";
+      setLiveTest({ status: "error", message });
+      if (activeTab === "analytics") {
+        addToast({
+          type: "error",
+          title: "MCP Smoke Test Failed",
+          message,
+        });
+      }
+    } finally {
+      setAnalyticsRefreshNonce((prev) => prev + 1);
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value === "analytics" ? "analytics" : "setup")}
+      className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none"
+    >
       {/* Header */}
       <header className="h-14 border-b border-border px-6 flex items-center justify-between bg-card flex-shrink-0 z-10 gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -264,14 +291,26 @@ export const McpCliView: React.FC = () => {
               Developers & MCP
             </h1>
             <p className="text-[11px] text-muted-foreground truncate">
-              Connect AI coding agents and scripts to {currentProject?.name || "your project"}
+              Connect AI coding agents and monitor MCP usage for {currentProject?.name || "your project"}
             </p>
           </div>
         </div>
+
+        <TabsList className="flex-shrink-0">
+          <TabsTrigger value="setup" className="gap-1.5">
+            <Key className="w-3.5 h-3.5" />
+            <span>Setup & Keys</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Analytics & Usage</span>
+          </TabsTrigger>
+        </TabsList>
       </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full space-y-6">
+      {/* Setup & Keys Tab */}
+      <TabsContent value="setup" className="flex-1 overflow-y-auto mt-0">
+        <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
         {/* Step 1: Project-bound MCP credential */}
         <Card>
           <CardContent className="pt-6">
@@ -549,7 +588,24 @@ export const McpCliView: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </div>
+        </div>
+      </TabsContent>
+
+      {/* Analytics & Usage Tab */}
+      <TabsContent value="analytics" className="flex-1 overflow-y-auto mt-0">
+        <div className="p-6 max-w-5xl mx-auto w-full">
+          <McpAnalyticsDashboard
+            orgId={currentOrg?.id}
+            projectId={currentProject?.id}
+            projectName={currentProject?.name}
+            hasSessionToken={Boolean(sessionToken)}
+            smokeTestRunning={liveTest.status === "running"}
+            onRunSmokeTest={handleRunLiveTest}
+            onSwitchToSetup={() => setActiveTab("setup")}
+            refreshNonce={analyticsRefreshNonce}
+          />
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 };

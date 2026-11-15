@@ -1,5 +1,25 @@
 export const MCP_SURFACE_VERSION = "1.0" as const;
 
+export const MCP_KNOWN_TOOL_NAMES = [
+  "list_workspaces",
+  "get_project_overview",
+  "list_token_sets",
+  "get_themes_matrix",
+  "search_tokens",
+  "get_token_details",
+  "get_token_usage",
+  "validate_tokens",
+  "list_branches",
+  "compare_branches",
+  "get_project_schemas",
+  "compare_token_themes",
+  "inspect_figma_variables",
+  "search_project_assets",
+  "get_documentation_pages",
+  "check_color_contrast",
+  "export_tokens_code",
+] as const;
+
 export type McpCredentialType = "personal" | "mcp_project";
 
 export type McpTokenValue =

@@ -6,7 +6,14 @@ import { getTrustedCorsHeaders, handleTrustedOptionsCors } from "@/utils/cors";
 import { consumeMcpRateLimitAsync } from "@/lib/mcp/limits";
 import { createMcpServer } from "@/lib/mcp/server";
 import { toSafeMcpError } from "@/lib/mcp/errors";
-import { recordMcpMetric } from "@/lib/mcp/observability";
+import {
+  classifyMcpOutcome,
+  extractMcpRequestInfo,
+  recordMcpMetric,
+  recordMcpUsageEvent,
+  type McpOutcome,
+} from "@/lib/mcp/observability";
+import type { ApiKeyRecord } from "@/utils/patAuth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -58,6 +65,48 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   });
 }
 
+async function emitTelemetry(params: {
+  requestId: string;
+  startedAt: number;
+  record: ApiKeyRecord;
+  status: number;
+  outcome: McpOutcome;
+  rpcMethod: string;
+  toolName?: string;
+  clientName?: string;
+  errorClass?: string;
+  responseBytes?: number;
+  rateLimitConfigured?: boolean;
+}) {
+  const durationMs = Date.now() - params.startedAt;
+  recordMcpMetric({
+    requestId: params.requestId,
+    status: params.status,
+    durationMs,
+    rateLimitConfigured: params.rateLimitConfigured,
+    errorClass: params.errorClass,
+  });
+
+  if (!params.record.orgId || !params.record.projectId) return;
+
+  await recordMcpUsageEvent({
+    id: params.requestId,
+    orgId: params.record.orgId,
+    projectId: params.record.projectId,
+    credentialId: params.record.id,
+    keyPrefix: params.record.keyPrefix,
+    keyName: params.record.name,
+    rpcMethod: params.rpcMethod,
+    toolName: params.toolName,
+    clientName: params.clientName,
+    statusCode: params.status,
+    outcome: params.outcome,
+    errorClass: params.errorClass,
+    durationMs,
+    responseBytes: params.responseBytes ?? 0,
+  });
+}
+
 export async function OPTIONS(req: NextRequest) {
   return handleTrustedOptionsCors(req);
 }
@@ -91,13 +140,32 @@ export async function POST(req: NextRequest) {
     { limit: Number(process.env.MCP_RATE_LIMIT_PER_MINUTE || DEFAULT_RATE_LIMIT), windowMs: 60_000 },
   );
   if (rateLimit.unavailable) {
+    await emitTelemetry({
+      requestId: id,
+      startedAt,
+      record: auth.record,
+      status: 503,
+      outcome: "server_error",
+      rpcMethod: "rate_limit_unavailable",
+      errorClass: "RATE_LIMIT_UNAVAILABLE",
+      rateLimitConfigured: rateLimit.configured,
+    });
     return errorResponse(req, null, 503, "MCP rate limiting is temporarily unavailable.", -32030, id);
   }
   if (!rateLimit.allowed) {
     const response = errorResponse(req, null, 429, "MCP rate limit exceeded.", -32029, id);
     response.headers.set("Retry-After", String(rateLimit.retryAfterSeconds));
     response.headers.set("X-RateLimit-Remaining", "0");
-    recordMcpMetric({ requestId: id, status: 429, durationMs: Date.now() - startedAt, rateLimitConfigured: rateLimit.configured });
+    await emitTelemetry({
+      requestId: id,
+      startedAt,
+      record: auth.record,
+      status: 429,
+      outcome: "rate_limited",
+      rpcMethod: "rate_limited",
+      errorClass: "RATE_LIMITED",
+      rateLimitConfigured: rateLimit.configured,
+    });
     return response;
   }
 
@@ -105,15 +173,47 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
+      await emitTelemetry({
+        requestId: id,
+        startedAt,
+        record: auth.record,
+        status: 413,
+        outcome: "client_error",
+        rpcMethod: "payload_too_large",
+        errorClass: "PAYLOAD_TOO_LARGE",
+        rateLimitConfigured: rateLimit.configured,
+      });
       return errorResponse(req, null, 413, "MCP request body exceeds the maximum size.", -32600, id);
     }
     body = JSON.parse(rawBody);
   } catch {
+    await emitTelemetry({
+      requestId: id,
+      startedAt,
+      record: auth.record,
+      status: 400,
+      outcome: "client_error",
+      rpcMethod: "invalid_json",
+      errorClass: "INVALID_JSON",
+      rateLimitConfigured: rateLimit.configured,
+    });
     return errorResponse(req, null, 400, "MCP request body must be valid JSON.", -32600, id);
   }
   if (Array.isArray(body)) {
+    await emitTelemetry({
+      requestId: id,
+      startedAt,
+      record: auth.record,
+      status: 400,
+      outcome: "client_error",
+      rpcMethod: "batch_rejected",
+      errorClass: "BATCH_NOT_SUPPORTED",
+      rateLimitConfigured: rateLimit.configured,
+    });
     return errorResponse(req, null, 400, "JSON-RPC batch requests are not supported.", -32600, id);
   }
+
+  const requestInfo = extractMcpRequestInfo(body);
 
   try {
     const server = createMcpServer(req, auth.record, id);
@@ -133,6 +233,19 @@ export async function POST(req: NextRequest) {
     const responseBody = await response.arrayBuffer();
     await server.close();
     if (responseBody.byteLength > MAX_RESPONSE_BYTES) {
+      await emitTelemetry({
+        requestId: id,
+        startedAt,
+        record: auth.record,
+        status: 413,
+        outcome: "client_error",
+        rpcMethod: requestInfo.rpcMethod,
+        toolName: requestInfo.toolName,
+        clientName: requestInfo.clientName,
+        errorClass: "RESPONSE_TOO_LARGE",
+        responseBytes: responseBody.byteLength,
+        rateLimitConfigured: rateLimit.configured,
+      });
       return errorResponse(req, null, 413, "MCP response exceeds the maximum size.", -32000, id);
     }
     const decorated = withRequestHeaders(new Response(responseBody, {
@@ -141,11 +254,39 @@ export async function POST(req: NextRequest) {
       headers: response.headers,
     }), req, id);
     decorated.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
-    recordMcpMetric({ requestId: id, status: decorated.status, durationMs: Date.now() - startedAt, rateLimitConfigured: rateLimit.configured });
+    const classified = classifyMcpOutcome(
+      decorated.status,
+      response.headers.get("content-type"),
+      responseBody,
+    );
+    await emitTelemetry({
+      requestId: id,
+      startedAt,
+      record: auth.record,
+      status: decorated.status,
+      outcome: classified.outcome,
+      rpcMethod: requestInfo.rpcMethod,
+      toolName: requestInfo.toolName,
+      clientName: requestInfo.clientName,
+      errorClass: classified.errorClass,
+      responseBytes: responseBody.byteLength,
+      rateLimitConfigured: rateLimit.configured,
+    });
     return decorated;
   } catch (error) {
     const safe = toSafeMcpError(error, id);
-    recordMcpMetric({ requestId: id, status: safe.status, durationMs: Date.now() - startedAt, rateLimitConfigured: rateLimit.configured, errorClass: safe.code });
+    await emitTelemetry({
+      requestId: id,
+      startedAt,
+      record: auth.record,
+      status: safe.status,
+      outcome: safe.status >= 500 ? "server_error" : "client_error",
+      rpcMethod: requestInfo.rpcMethod,
+      toolName: requestInfo.toolName,
+      clientName: requestInfo.clientName,
+      errorClass: safe.code,
+      rateLimitConfigured: rateLimit.configured,
+    });
     return errorResponse(req, null, safe.status, safe.message, -32000, id);
   }
 }

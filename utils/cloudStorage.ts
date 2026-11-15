@@ -6,7 +6,7 @@ import { ApiKeyRecord } from "./patAuth";
 const inMemoryApiKeys = new Map<string, ApiKeyRecord>();
 
 const API_KEY_COLUMNS =
-  "id,name,key_prefix,key_hash,scopes,created_at,expires_at,user_id,user_email,org_id,project_id,org_name,project_name,credential_type";
+  "id,name,key_prefix,key_hash,scopes,created_at,last_used_at,expires_at,user_id,user_email,org_id,project_id,org_name,project_name,credential_type";
 
 function getClient() {
   return typeof window === "undefined" ? createAdminClient() : supabase;
@@ -20,6 +20,7 @@ function mapApiKeyRow(row: any): ApiKeyRecord {
     keyHash: row.key_hash,
     scopes: row.scopes || [],
     createdAt: row.created_at,
+    lastUsedAt: row.last_used_at || undefined,
     expiresAt: row.expires_at || undefined,
     uid: row.user_id || undefined,
     userEmail: row.user_email || undefined,
