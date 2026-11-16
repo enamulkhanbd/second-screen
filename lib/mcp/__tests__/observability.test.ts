@@ -3,9 +3,11 @@ import {
   __resetMcpObservabilityForTests,
   aggregateMcpUsageEvents,
   classifyMcpOutcome,
+  extractMcpErrorMessage,
   extractMcpRequestInfo,
   getMcpProjectAnalytics,
   recordMcpUsageEvent,
+  sanitizeMcpErrorMessage,
   type McpUsageEventRecord,
 } from "../observability";
 
@@ -88,6 +90,42 @@ describe("MCP observability", () => {
     expect(classifyMcpOutcome(200, "application/json", okBuf)).toEqual({
       outcome: "success",
     });
+
+    const notAcceptableBuf = encoder.encode(JSON.stringify({
+      jsonrpc: "2.0",
+      error: {
+        code: -32000,
+        message: "Not Acceptable: Client must accept both application/json and text/event-stream",
+      },
+      id: null,
+    })).buffer;
+    expect(classifyMcpOutcome(406, "application/json", notAcceptableBuf)).toEqual({
+      outcome: "client_error",
+      errorClass: "NOT_ACCEPTABLE",
+    });
+    expect(extractMcpErrorMessage("application/json", notAcceptableBuf)).toBe(
+      "Not Acceptable: Client must accept both application/json and text/event-stream",
+    );
+
+    const unsupportedProtoBuf = encoder.encode(JSON.stringify({
+      jsonrpc: "2.0",
+      error: {
+        code: -32000,
+        message: "Bad Request: Unsupported protocol version: 2026-01-01",
+      },
+      id: null,
+    })).buffer;
+    expect(classifyMcpOutcome(400, "application/json", unsupportedProtoBuf)).toEqual({
+      outcome: "client_error",
+      errorClass: "UNSUPPORTED_PROTOCOL_VERSION",
+    });
+
+    expect(extractMcpErrorMessage("application/json", toolErrBuf)).toBe(
+      "MCP error -32603: Token not found for path 'missing'",
+    );
+    expect(sanitizeMcpErrorMessage("Failed with Bearer secret123 and sec_pat_live_abcdef\n\tline2")).toBe(
+      "Failed with Bearer *** and sec_pat_*** line2",
+    );
   });
 
   it("aggregates summary KPIs, P95 latency, timeline buckets, and per-tool/key metrics", () => {
@@ -199,10 +237,12 @@ describe("MCP observability", () => {
         keyName: "A",
         rpcMethod: "tools/call",
         toolName: "get_project_overview",
-        statusCode: 200,
-        outcome: "success",
+        statusCode: 400,
+        outcome: "client_error",
+        errorClass: "UNSUPPORTED_PROTOCOL_VERSION",
+        errorMessage: "Bad Request: Unsupported protocol version: 2026-01-01",
         durationMs: 32,
-        responseBytes: 512,
+        responseBytes: 198,
       });
 
       await recordMcpUsageEvent({
@@ -223,6 +263,9 @@ describe("MCP observability", () => {
       expect(analyticsA.source).toBe("memory");
       expect(analyticsA.summary.totalRequests).toBe(1);
       expect(analyticsA.byTool.map((t) => t.toolName)).toEqual(["get_project_overview"]);
+      expect(analyticsA.recentEvents[0].errorMessage).toBe(
+        "Bad Request: Unsupported protocol version: 2026-01-01",
+      );
     } finally {
       if (prevUrl !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
       if (prevRole !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = prevRole;

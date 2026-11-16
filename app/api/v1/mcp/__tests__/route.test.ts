@@ -8,10 +8,12 @@ vi.mock("@/utils/auth", () => ({
 
 import { DELETE, GET, POST } from "../route";
 import { authenticateRequest } from "@/utils/auth";
+import { __resetMcpObservabilityForTests, getMcpProjectAnalytics } from "@/lib/mcp/observability";
 
 const mockedAuthenticateRequest = vi.mocked(authenticateRequest);
 
 afterEach(() => {
+  __resetMcpObservabilityForTests();
   mockedAuthenticateRequest.mockReset();
   mockedAuthenticateRequest.mockResolvedValue({ isValid: false, error: "Unauthorized" });
 });
@@ -83,5 +85,61 @@ describe("MCP HTTP route", () => {
 
     expect(getResponse.status).toBe(405);
     expect(deleteResponse.status).toBe(405);
+  });
+
+  it("captures specific errorClass, errorMessage, and responseBytes on 400 and 406 rejections", async () => {
+    const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const prevRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    try {
+      mockedAuthenticateRequest.mockResolvedValue({
+        isValid: true,
+        record: {
+          id: "key-telemetry-1",
+          uid: "user-1",
+          name: "Test Token",
+          keyPrefix: "sec_pat_test",
+          keyHash: "hash-telemetry",
+          credentialType: "mcp_project",
+          orgId: "org-telemetry",
+          projectId: "proj-telemetry",
+        } as any,
+      });
+
+      const invalidJsonRes = await POST(new NextRequest("https://app.example.com/api/v1/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{not-json",
+      }));
+      expect(invalidJsonRes.status).toBe(400);
+
+      const missingAcceptRes = await POST(new NextRequest("https://app.example.com/api/v1/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } },
+        }),
+      }));
+      expect(missingAcceptRes.status).toBe(406);
+
+      const analytics = await getMcpProjectAnalytics("org-telemetry", "proj-telemetry", "24h");
+      expect(analytics.recentEvents).toHaveLength(2);
+      const byMethod = Object.fromEntries(analytics.recentEvents.map((e) => [e.rpcMethod, e]));
+      expect(byMethod.invalid_json.errorClass).toBe("INVALID_JSON");
+      expect(byMethod.invalid_json.errorMessage).toContain("valid JSON");
+      expect(byMethod.invalid_json.responseBytes).toBeGreaterThan(0);
+
+      expect(byMethod.initialize.errorClass).toBe("NOT_ACCEPTABLE");
+      expect(byMethod.initialize.errorMessage).toContain("application/json and text/event-stream");
+      expect(byMethod.initialize.responseBytes).toBe(142);
+    } finally {
+      if (prevUrl !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
+      if (prevRole !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = prevRole;
+    }
   });
 });

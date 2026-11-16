@@ -31,6 +31,7 @@ export type McpUsageEventRecord = {
   statusCode: number;
   outcome: McpOutcome;
   errorClass?: string;
+  errorMessage?: string;
   durationMs: number;
   responseBytes: number;
   createdAt: string;
@@ -97,6 +98,7 @@ export type McpRecentEvent = {
   outcome: McpOutcome;
   statusCode: number;
   errorClass?: string | null;
+  errorMessage?: string | null;
   durationMs: number;
   responseBytes: number;
 };
@@ -193,6 +195,86 @@ function classifyToolErrorText(text: string): string {
   return "TOOL_ERROR";
 }
 
+type ParsedJsonRpcBody = {
+  error?: { code?: number; message?: unknown; data?: unknown };
+  result?: { isError?: boolean; content?: Array<{ text?: unknown }> };
+};
+
+export function sanitizeMcpErrorMessage(value: unknown, maxLen = 240): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const redacted = value
+    .replace(/\s+/g, " ")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer ***")
+    .replace(/sec_pat_[A-Za-z0-9_]+/g, "sec_pat_***")
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "***")
+    .trim();
+  if (!redacted) return undefined;
+  if (redacted.length <= maxLen) return redacted;
+  return `${redacted.slice(0, maxLen - 3)}...`;
+}
+
+function tryParseJsonRpcBody(
+  contentType: string | null,
+  responseBuffer?: ArrayBuffer | null,
+): ParsedJsonRpcBody | null {
+  if (!responseBuffer || !contentType?.toLowerCase().includes("application/json")) {
+    return null;
+  }
+  try {
+    const text = new TextDecoder().decode(responseBuffer);
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? (parsed as ParsedJsonRpcBody) : null;
+  } catch {
+    return null;
+  }
+}
+
+function classifyHttpErrorClass(statusCode: number, message?: string, rpcCode?: number): string {
+  const lower = (message || "").toLowerCase();
+  if (statusCode === 429) return "RATE_LIMITED";
+  if (statusCode === 413) return "PAYLOAD_TOO_LARGE";
+  if (statusCode === 401) return "UNAUTHORIZED";
+  if (statusCode === 406 || lower.includes("not acceptable")) return "NOT_ACCEPTABLE";
+  if (statusCode === 415 || lower.includes("unsupported media type")) return "UNSUPPORTED_MEDIA_TYPE";
+  if (lower.includes("unsupported protocol version")) return "UNSUPPORTED_PROTOCOL_VERSION";
+  if (lower.includes("invalid origin")) return "INVALID_ORIGIN";
+  if (lower.includes("invalid host")) return "INVALID_HOST";
+  if (lower.includes("mcp-session-id")) return "MISSING_SESSION_ID";
+  if (lower.includes("already initialized") || lower.includes("not initialized")) return "INVALID_SESSION_STATE";
+  if (statusCode === 403) return "FORBIDDEN";
+  if (lower.includes("invalid json-rpc") || rpcCode === -32700) return "INVALID_JSONRPC";
+  if (rpcCode === -32601 || lower.includes("method not found")) return "METHOD_NOT_FOUND";
+  if (rpcCode === -32602 || lower.includes("invalid params")) return "INVALID_PARAMS";
+  if (rpcCode === -32600) return "INVALID_REQUEST";
+  if (statusCode >= 500) return "SERVER_ERROR";
+  return "CLIENT_ERROR";
+}
+
+/**
+ * Extracts a sanitized, secret-free error message from an MCP JSON HTTP or JSON-RPC response body.
+ */
+export function extractMcpErrorMessage(
+  contentType: string | null,
+  responseBuffer?: ArrayBuffer | null,
+): string | undefined {
+  const parsed = tryParseJsonRpcBody(contentType, responseBuffer);
+  if (!parsed) return undefined;
+
+  if (parsed.error) {
+    const baseMsg = sanitizeMcpErrorMessage(parsed.error.message);
+    if (baseMsg === "Parse error" && typeof parsed.error.data === "string") {
+      return sanitizeMcpErrorMessage(`${baseMsg}: ${parsed.error.data}`);
+    }
+    return baseMsg;
+  }
+
+  if (parsed.result?.isError) {
+    return sanitizeMcpErrorMessage(parsed.result.content?.[0]?.text);
+  }
+
+  return undefined;
+}
+
 /**
  * Classifies an MCP HTTP/JSON-RPC response into an outcome bucket, catching
  * SDK-wrapped tool errors (`result.isError: true`) that still return HTTP 200.
@@ -202,49 +284,38 @@ export function classifyMcpOutcome(
   contentType: string | null,
   responseBuffer?: ArrayBuffer | null,
 ): { outcome: McpOutcome; errorClass?: string } {
+  const parsed = tryParseJsonRpcBody(contentType, responseBuffer);
+  const rpcErrorMessage = typeof parsed?.error?.message === "string" ? parsed.error.message : undefined;
+  const rpcErrorCode = parsed?.error?.code;
+
   if (statusCode === 429) {
     return { outcome: "rate_limited", errorClass: "RATE_LIMITED" };
   }
   if (statusCode >= 500) {
-    return { outcome: "server_error", errorClass: "SERVER_ERROR" };
-  }
-  if (statusCode === 413) {
-    return { outcome: "client_error", errorClass: "PAYLOAD_TOO_LARGE" };
-  }
-  if (statusCode === 401) {
-    return { outcome: "client_error", errorClass: "UNAUTHORIZED" };
-  }
-  if (statusCode === 403) {
-    return { outcome: "client_error", errorClass: "FORBIDDEN" };
+    return {
+      outcome: "server_error",
+      errorClass: classifyHttpErrorClass(statusCode, rpcErrorMessage, rpcErrorCode),
+    };
   }
   if (statusCode >= 400) {
-    return { outcome: "client_error", errorClass: "CLIENT_ERROR" };
+    return {
+      outcome: "client_error",
+      errorClass: classifyHttpErrorClass(statusCode, rpcErrorMessage, rpcErrorCode),
+    };
   }
 
-  if (responseBuffer && contentType?.toLowerCase().includes("application/json")) {
-    try {
-      const text = new TextDecoder().decode(responseBuffer);
-      const parsed = JSON.parse(text) as {
-        error?: { code?: number };
-        result?: { isError?: boolean; content?: Array<{ text?: string }> };
-      };
-      if (parsed?.error) {
-        const code = parsed.error.code;
-        return {
-          outcome: code === -32603 || code === -32000 ? "server_error" : "client_error",
-          errorClass: code !== undefined ? `JSONRPC_${code}` : "JSONRPC_ERROR",
-        };
-      }
-      if (parsed?.result?.isError) {
-        const firstText = parsed.result.content?.[0]?.text || "";
-        return {
-          outcome: "tool_error",
-          errorClass: classifyToolErrorText(firstText),
-        };
-      }
-    } catch {
-      // Non-JSON or malformed payload already served; treat as status-based success.
-    }
+  if (parsed?.error) {
+    return {
+      outcome: rpcErrorCode === -32603 || rpcErrorCode === -32000 ? "server_error" : "client_error",
+      errorClass: rpcErrorCode !== undefined ? `JSONRPC_${rpcErrorCode}` : "JSONRPC_ERROR",
+    };
+  }
+  if (parsed?.result?.isError) {
+    const firstText = typeof parsed.result.content?.[0]?.text === "string" ? parsed.result.content[0].text : "";
+    return {
+      outcome: "tool_error",
+      errorClass: classifyToolErrorText(firstText),
+    };
   }
 
   return { outcome: "success" };
@@ -289,24 +360,41 @@ async function persistUsageToSupabase(
     const tasks: Array<PromiseLike<unknown>> = [];
 
     if (eventsQuery && typeof (eventsQuery as { insert?: unknown }).insert === "function") {
+      const baseRow = {
+        id: event.id,
+        org_id: event.orgId,
+        project_id: event.projectId,
+        credential_id: event.credentialId || null,
+        key_prefix: event.keyPrefix || null,
+        key_name: event.keyName || null,
+        rpc_method: event.rpcMethod,
+        tool_name: event.toolName || null,
+        client_name: event.clientName || null,
+        status_code: event.statusCode,
+        outcome: event.outcome,
+        error_class: event.errorClass || null,
+        duration_ms: Math.max(0, Math.round(event.durationMs)),
+        response_bytes: Math.max(0, Math.round(event.responseBytes)),
+        created_at: event.createdAt,
+      };
+      const sanitizedErrorMessage = sanitizeMcpErrorMessage(event.errorMessage) || null;
       tasks.push(
-        eventsQuery.insert({
-          id: event.id,
-          org_id: event.orgId,
-          project_id: event.projectId,
-          credential_id: event.credentialId || null,
-          key_prefix: event.keyPrefix || null,
-          key_name: event.keyName || null,
-          rpc_method: event.rpcMethod,
-          tool_name: event.toolName || null,
-          client_name: event.clientName || null,
-          status_code: event.statusCode,
-          outcome: event.outcome,
-          error_class: event.errorClass || null,
-          duration_ms: Math.max(0, Math.round(event.durationMs)),
-          response_bytes: Math.max(0, Math.round(event.responseBytes)),
-          created_at: event.createdAt,
-        }),
+        (async () => {
+          const res = (await eventsQuery.insert({
+            ...baseRow,
+            error_message: sanitizedErrorMessage,
+          })) as { error?: { code?: string; message?: string } | null } | undefined;
+          const err = res?.error;
+          if (
+            err &&
+            (err.code === "42703" ||
+              err.code === "PGRST204" ||
+              (err.message || "").includes("error_message"))
+          ) {
+            // Fall back cleanly if the database has not applied the error_message column migration yet.
+            await eventsQuery.insert(baseRow);
+          }
+        })(),
       );
     }
 
@@ -565,6 +653,7 @@ export function aggregateMcpUsageEvents(
     outcome: evt.outcome,
     statusCode: evt.statusCode,
     errorClass: evt.errorClass || null,
+    errorMessage: evt.errorMessage || null,
     durationMs: evt.durationMs,
     responseBytes: evt.responseBytes,
   }));
