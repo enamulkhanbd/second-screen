@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { authenticateRequest } from "@/utils/auth";
+import { authenticateRequest, resolveTrustedRequestOrigins } from "@/utils/auth";
 import { getTrustedCorsHeaders, handleTrustedOptionsCors } from "@/utils/cors";
 import { consumeMcpRateLimitAsync } from "@/lib/mcp/limits";
 import { createMcpServer } from "@/lib/mcp/server";
@@ -217,10 +217,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const server = createMcpServer(req, auth.record, id);
-    const allowedOrigins = process.env.SECOND_SCREEN_TRUSTED_ORIGINS
-      ?.split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean) || [req.nextUrl.origin];
+    const allowedOrigins = resolveTrustedRequestOrigins(req);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

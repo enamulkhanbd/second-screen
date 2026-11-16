@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/utils/auth", () => ({
+  resolveTrustedRequestOrigins: vi.fn((req: NextRequest) => [req.nextUrl.origin]),
   authenticateRequest: vi.fn(async () => ({ isValid: false, error: "Unauthorized" })),
 }));
 

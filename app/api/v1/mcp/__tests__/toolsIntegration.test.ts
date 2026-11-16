@@ -237,6 +237,7 @@ function createQueryChain(table: string) {
 }
 
 vi.mock("@/utils/auth", () => ({
+  resolveTrustedRequestOrigins: vi.fn((req: NextRequest) => [req.nextUrl.origin]),
   authenticateRequest: vi.fn(async () => ({
     isValid: true,
     record: {
@@ -295,6 +296,7 @@ vi.mock("@/lib/r2", () => ({
 }));
 
 import { POST } from "../route";
+import { authorizeProjectRequest } from "@/utils/auth";
 
 async function rpc(method: string, params: Record<string, unknown> = {}, id = 1) {
   const response = await POST(
@@ -547,5 +549,28 @@ describe("MCP end-to-end mock project integration", () => {
     });
     expect(missingBranch.isError).toBe(true);
     expect(missingBranch.rawText).toContain("Branch not found");
+  });
+
+  it("allows viewer role to connect, list tools, and execute read-only MCP tools", async () => {
+    const mockedAuthorize = vi.mocked(authorizeProjectRequest);
+    mockedAuthorize.mockResolvedValue({
+      authorized: true,
+      role: "viewer",
+      record: { uid: "user-viewer-1" } as any,
+    });
+
+    const listRes = await rpc("tools/list");
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.result?.tools?.length).toBe(17);
+
+    const overview = await callTool("get_project_overview");
+    expect(overview.status).toBe(200);
+    expect(overview.isError).toBe(false);
+    expect(overview.parsed.data.name).toBe("Mock Design System");
+
+    const search = await callTool("search_tokens", { query: "brand", limit: 5 });
+    expect(search.status).toBe(200);
+    expect(search.isError).toBe(false);
+    expect(search.parsed.data.items.length).toBeGreaterThan(0);
   });
 });

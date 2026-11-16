@@ -4,7 +4,7 @@ import { listApiKeysForUser, saveApiKey, deleteApiKey } from "@/utils/cloudStora
 import { jsonWithTrustedCors, handleTrustedOptionsCors } from "@/utils/cors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hasTrustedMutationOrigin } from "@/utils/auth";
+import { canRoleWrite, hasTrustedMutationOrigin, resolveOrganizationRole } from "@/utils/auth";
 import type { ApiKeyCredentialType } from "@/utils/patAuth";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,11 @@ async function getAuthenticatedUser(req: NextRequest) {
   return error ? null : user;
 }
 
-async function verifyProjectBinding(userId: string, orgId: string, projectId: string) {
+async function verifyProjectBinding(
+  user: { id: string; email?: string | null; email_confirmed_at?: string | null },
+  orgId: string,
+  projectId: string
+) {
   const admin = createAdminClient();
   const [{ data: project, error: projectError }, { data: organization, error: orgError }] = await Promise.all([
     admin.from("projects").select("id, org_id, name").eq("id", projectId).eq("org_id", orgId).maybeSingle(),
@@ -31,20 +35,22 @@ async function verifyProjectBinding(userId: string, orgId: string, projectId: st
     return { ok: false as const, status: 404, error: "Workspace or project not found." };
   }
 
-  if (organization.owner_uid !== userId) {
-    const { data: membership, error: membershipError } = await admin
-      .from("organization_members")
-      .select("role")
-      .eq("org_id", orgId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (membershipError || !membership) {
-      return { ok: false as const, status: 403, error: "You are not a member of this workspace." };
+  const role = await resolveOrganizationRole(
+    admin,
+    orgId,
+    organization.owner_uid,
+    user.id,
+    {
+      userEmail: user.email || undefined,
+      emailVerified: user.email_confirmed_at !== null,
     }
+  );
+
+  if (!role) {
+    return { ok: false as const, status: 403, error: "You are not a member of this workspace." };
   }
 
-  return { ok: true as const, orgName: organization.name, projectName: project.name };
+  return { ok: true as const, orgName: organization.name, projectName: project.name, role };
 }
 
 /**
@@ -81,7 +87,7 @@ export async function POST(req: NextRequest) {
       return jsonWithTrustedCors(req, { success: false, error: "Unsupported credential type." }, { status: 400 });
     }
     const safeCredentialType: ApiKeyCredentialType = credentialType;
-    let binding: { orgName: string; projectName: string } | undefined;
+    let binding: { orgName: string; projectName: string; role: string } | undefined;
 
     if (safeCredentialType === "mcp_project") {
       if (typeof orgId !== "string" || typeof projectId !== "string" || !orgId || !projectId) {
@@ -91,11 +97,11 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      const verified = await verifyProjectBinding(user.id, orgId, projectId);
+      const verified = await verifyProjectBinding(user, orgId, projectId);
       if (!verified.ok) {
         return jsonWithTrustedCors(req, { success: false, error: verified.error }, { status: verified.status });
       }
-      binding = { orgName: verified.orgName, projectName: verified.projectName };
+      binding = { orgName: verified.orgName, projectName: verified.projectName, role: verified.role };
     }
 
     const allowedScopes = ["read:tokens", "write:tokens"] as const;
@@ -106,11 +112,20 @@ export async function POST(req: NextRequest) {
       return jsonWithTrustedCors(req, { success: false, error: "At least one valid permission scope is required." }, { status: 400 });
     }
 
-    const normalizedScopes = safeCredentialType === "mcp_project"
-      ? safeScopes.filter((scope) => scope === "read:tokens")
-      : safeScopes;
-    if (normalizedScopes.length === 0) {
-      return jsonWithTrustedCors(req, { success: false, error: "MCP credentials are read-only until the write release is enabled." }, { status: 400 });
+    const mcpWriteEnabled = process.env.MCP_WRITE_ENABLED === "true";
+    let normalizedScopes = safeScopes;
+    if (safeCredentialType === "mcp_project") {
+      if (!mcpWriteEnabled) {
+        normalizedScopes = safeScopes.filter((scope) => scope === "read:tokens");
+        if (normalizedScopes.length === 0) {
+          return jsonWithTrustedCors(req, { success: false, error: "MCP credentials are read-only until the write release is enabled." }, { status: 400 });
+        }
+      } else if (!canRoleWrite(binding?.role || "")) {
+        if (safeScopes.includes("write:tokens")) {
+          return jsonWithTrustedCors(req, { success: false, error: "Viewer role cannot create write-scoped MCP credentials." }, { status: 403 });
+        }
+        normalizedScopes = safeScopes.filter((scope) => scope === "read:tokens");
+      }
     }
 
     const { plaintextKey, record } = generateApiKey(
@@ -121,7 +136,9 @@ export async function POST(req: NextRequest) {
         uid: user.id,
         userEmail: user.email || undefined,
         credentialType: safeCredentialType,
-        ...(safeCredentialType === "mcp_project" ? { orgId, projectId, ...binding } : {}),
+        ...(safeCredentialType === "mcp_project" && binding
+          ? { orgId, projectId, orgName: binding.orgName, projectName: binding.projectName }
+          : {}),
       },
     );
 

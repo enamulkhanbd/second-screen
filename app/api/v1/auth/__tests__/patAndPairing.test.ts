@@ -31,7 +31,7 @@ import {
   __clearInMemoryApiKeysForTests,
 } from "@/utils/cloudStorage";
 import { authenticateRequest } from "@/utils/auth";
-import { DELETE as deletePatRoute } from "../pat/route";
+import { DELETE as deletePatRoute, POST as postPatRoute } from "../pat/route";
 import { POST as pairPostRoute, GET as pairGetRoute } from "../pair/route";
 import {
   MAX_PAIRING_MAP_SIZE,
@@ -306,6 +306,219 @@ describe("P3 / A6 — Pairing session origin, map pruning, rate limiting, and PA
     expect(body1.pat).toBe("sec_pat_live_secret123");
     expect(map.get("ABCD-2345")?.pat).toBeUndefined();
     expect(updateCalls).toEqual([{ pat: null }]);
+  });
+});
+
+describe("MCP credential creation across roles (including viewer)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __clearInMemoryApiKeysForTests();
+    delete process.env.MCP_WRITE_ENABLED;
+  });
+
+  function mockMembershipDb(options: {
+    ownerUid?: string;
+    memberByUserId?: Array<{ role: string }>;
+    memberByEmail?: Array<{ role: string; user_id: string }>;
+    onBackfill?: (payload: any) => void;
+    onKeyUpsert?: (payload: any) => void;
+  }) {
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "projects") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: { id: "proj_1", org_id: "org_1", name: "Design System" },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "organizations") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: { id: "org_1", name: "Acme", owner_uid: options.ownerUid || "owner_1" },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "organization_members") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                limit: async () => ({
+                  data: options.memberByUserId ?? [],
+                  error: null,
+                }),
+              }),
+              ilike: () => ({
+                limit: async () => ({
+                  data: options.memberByEmail ?? [],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+          update: (payload: any) => {
+            options.onBackfill?.(payload);
+            return {
+              eq: () => ({
+                ilike: async () => ({ error: null }),
+              }),
+            };
+          },
+        };
+      }
+      if (table === "api_keys") {
+        return {
+          upsert: async (payload: any) => {
+            options.onKeyUpsert?.(payload);
+            return { error: null };
+          },
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+  }
+
+  it("allows viewer role to create a project-bound MCP token", async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "viewer_1",
+          email: "viewer@example.com",
+          email_confirmed_at: "2026-11-01T00:00:00.000Z",
+        },
+      },
+      error: null,
+    });
+    const upserted: any[] = [];
+    mockMembershipDb({
+      memberByUserId: [{ role: "viewer" }],
+      onKeyUpsert: (payload) => upserted.push(payload),
+    });
+
+    const req = new NextRequest("https://app.example.com/api/v1/auth/pat", {
+      method: "POST",
+      headers: {
+        origin: "https://app.example.com",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Viewer Cursor Key",
+        scopes: ["read:tokens"],
+        expiresInDays: 90,
+        credentialType: "mcp_project",
+        orgId: "org_1",
+        projectId: "proj_1",
+      }),
+    });
+
+    const res = await postPatRoute(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.token).toMatch(/^sec_pat_live_/);
+    expect(body.record.credentialType).toBe("mcp_project");
+    expect(body.record.scopes).toEqual(["read:tokens"]);
+    expect(upserted).toHaveLength(1);
+    expect(upserted[0].user_id).toBe("viewer_1");
+  });
+
+  it("resolves viewer membership by verified email and backfills stale user_id", async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "viewer_new_uid",
+          email: "viewer@example.com",
+          email_confirmed_at: "2026-11-01T00:00:00.000Z",
+        },
+      },
+      error: null,
+    });
+    const backfills: any[] = [];
+    mockMembershipDb({
+      memberByUserId: [],
+      memberByEmail: [{ role: "viewer", user_id: "pending_or_old_uid" }],
+      onBackfill: (payload) => backfills.push(payload),
+    });
+
+    const req = new NextRequest("http://app.example.com/api/v1/auth/pat", {
+      method: "POST",
+      headers: {
+        origin: "https://app.example.com",
+        "x-forwarded-proto": "https",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Viewer Email Matched Key",
+        scopes: ["read:tokens"],
+        credentialType: "mcp_project",
+        orgId: "org_1",
+        projectId: "proj_1",
+      }),
+    });
+
+    const res = await postPatRoute(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(backfills).toEqual([{ user_id: "viewer_new_uid" }]);
+  });
+
+  it("forbids viewer from minting write:tokens on mcp_project when MCP writes are open, while allowing editor", async () => {
+    process.env.MCP_WRITE_ENABLED = "true";
+
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "viewer_1", email: "viewer@example.com" } },
+      error: null,
+    });
+    mockMembershipDb({ memberByUserId: [{ role: "viewer" }] });
+
+    const viewerWriteRes = await postPatRoute(new NextRequest("https://app.example.com/api/v1/auth/pat", {
+      method: "POST",
+      headers: { origin: "https://app.example.com", "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Viewer Write Attempt",
+        scopes: ["read:tokens", "write:tokens"],
+        credentialType: "mcp_project",
+        orgId: "org_1",
+        projectId: "proj_1",
+      }),
+    }));
+    expect(viewerWriteRes.status).toBe(403);
+
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "editor_1", email: "editor@example.com" } },
+      error: null,
+    });
+    mockMembershipDb({ memberByUserId: [{ role: "editor" }] });
+
+    const editorWriteRes = await postPatRoute(new NextRequest("https://app.example.com/api/v1/auth/pat", {
+      method: "POST",
+      headers: { origin: "https://app.example.com", "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Editor Write Key",
+        scopes: ["read:tokens", "write:tokens"],
+        credentialType: "mcp_project",
+        orgId: "org_1",
+        projectId: "proj_1",
+      }),
+    }));
+    const editorBody = await editorWriteRes.json();
+    expect(editorWriteRes.status).toBe(200);
+    expect(editorBody.record.scopes).toEqual(["read:tokens", "write:tokens"]);
   });
 });
 

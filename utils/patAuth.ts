@@ -13,6 +13,7 @@ export interface ApiKeyRecord {
   expiresAt?: string; // ISO string or null for never
   uid?: string;
   userEmail?: string;
+  emailVerified?: boolean;
   orgId?: string;
   projectId?: string;
   orgName?: string;

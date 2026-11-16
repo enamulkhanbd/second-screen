@@ -105,8 +105,10 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
   };
 
   useEffect(() => {
+    setCreatedSecret(null);
+    setIsCreating(false);
     fetchKeys();
-  }, []);
+  }, [orgId, projectId]);
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,14 +169,16 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
 
     try {
       const res = await fetch(`/api/v1/auth/pat?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchKeys();
-        addToast({
-          type: "info",
-          title: "API Key Revoked",
-          message: `Key "${name}" has been permanently revoked.`,
-        });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || "Could not revoke the API key.");
       }
+      fetchKeys();
+      addToast({
+        type: "info",
+        title: "API Key Revoked",
+        message: `Key "${name}" has been permanently revoked.`,
+      });
     } catch (err: any) {
       addToast({
         type: "error",
@@ -284,7 +288,9 @@ export const ApiKeysManager: React.FC<ApiKeyManagerProps> = ({
           className="p-4 rounded-xl bg-muted/40 border border-border space-y-4 animate-in fade-in duration-150"
         >
           <div className="flex items-center justify-between border-b border-border pb-2">
-            <span className="font-bold text-foreground">New Personal Access Token</span>
+            <span className="font-bold text-foreground">
+              {credentialType === "mcp_project" ? "New Project MCP Token" : "New Personal Access Token"}
+            </span>
             <Button
               type="button"
               variant="ghost"

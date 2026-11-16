@@ -25,6 +25,7 @@ import { CodeViewer } from "@/components/ui/CodeViewer";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ApiKeysManager } from "@/components/ApiKeysManager";
 import { McpAnalyticsDashboard } from "@/components/mcp/McpAnalyticsDashboard";
+import { canViewMcpAnalytics } from "@/lib/mcp/permissions";
 
 type LiveTestState =
   | { status: "idle" }
@@ -118,7 +119,7 @@ function CopyButton({
 }
 
 export const McpCliView: React.FC = () => {
-  const { currentProject, currentOrg, addToast } = useTokenStore();
+  const { currentProject, currentOrg, currentUser, getCurrentUserRole, addToast } = useTokenStore();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -126,6 +127,9 @@ export const McpCliView: React.FC = () => {
   const [showToolsAndPrompts, setShowToolsAndPrompts] = useState(false);
   const [activeTab, setActiveTab] = useState<"setup" | "analytics">("setup");
   const [analyticsRefreshNonce, setAnalyticsRefreshNonce] = useState(0);
+
+  const userRole = getCurrentUserRole();
+  const isOwner = canViewMcpAnalytics({ currentOrg, currentUser, userRole });
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -135,6 +139,12 @@ export const McpCliView: React.FC = () => {
     setSessionToken(null);
     setLiveTest({ status: "idle" });
   }, [currentProject?.id]);
+
+  useEffect(() => {
+    if (!isOwner && activeTab !== "setup") {
+      setActiveTab("setup");
+    }
+  }, [isOwner, activeTab]);
 
   const baseUrl = origin || "https://your-domain.com";
   const mcpEndpoint = `${baseUrl}/api/v1/mcp`;
@@ -197,10 +207,9 @@ export const McpCliView: React.FC = () => {
     ].join("\n");
 
     const restCurl = [
-      `curl -X GET "${baseUrl}/api/v1/tokens${
-        currentOrg?.id && currentProject?.id
-          ? `?orgId=${currentOrg.id}&projectId=${currentProject.id}`
-          : ""
+      `curl -X GET "${baseUrl}/api/v1/tokens${currentOrg?.id && currentProject?.id
+        ? `?orgId=${currentOrg.id}&projectId=${currentProject.id}`
+        : ""
       }" \\`,
       `  -H "Authorization: Bearer sec_pat_live_YOUR_PERSONAL_PAT"`,
     ].join("\n");
@@ -276,8 +285,8 @@ export const McpCliView: React.FC = () => {
 
   return (
     <Tabs
-      value={activeTab}
-      onValueChange={(value) => setActiveTab(value === "analytics" ? "analytics" : "setup")}
+      value={isOwner ? activeTab : "setup"}
+      onValueChange={(value) => setActiveTab(isOwner && value === "analytics" ? "analytics" : "setup")}
       className="flex-1 flex flex-col h-full bg-background font-sans overflow-hidden select-none"
     >
       {/* Header */}
@@ -291,321 +300,327 @@ export const McpCliView: React.FC = () => {
               Developers & MCP
             </h1>
             <p className="text-[11px] text-muted-foreground truncate">
-              Connect AI coding agents and monitor MCP usage for {currentProject?.name || "your project"}
+              {isOwner
+                ? `Connect AI coding agents and monitor MCP usage for ${currentProject?.name || "your project"}`
+                : `Connect AI coding agents via MCP for ${currentProject?.name || "your project"}`}
             </p>
           </div>
         </div>
 
-        <TabsList className="flex-shrink-0">
-          <TabsTrigger value="setup" className="gap-1.5">
-            <Key className="w-3.5 h-3.5" />
-            <span>Setup & Keys</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-1.5">
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Analytics & Usage</span>
-          </TabsTrigger>
-        </TabsList>
+        {isOwner && (
+          <TabsList className="flex-shrink-0">
+            <TabsTrigger value="setup" className="gap-1.5">
+              <Key className="w-3.5 h-3.5" />
+              <span>Setup & Keys</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5">
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Analytics & Usage</span>
+            </TabsTrigger>
+          </TabsList>
+        )}
       </header>
 
       {/* Setup & Keys Tab */}
       <TabsContent value="setup" className="flex-1 overflow-y-auto mt-0">
         <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
-        {/* Step 1: Project-bound MCP credential */}
-        <Card>
-          <CardContent className="pt-6">
-            {currentOrg && currentProject ? (
-              <ApiKeysManager
-                credentialType="mcp_project"
-                orgId={currentOrg.id}
-                projectId={currentProject.id}
-                projectName={currentProject.name}
-                showQuickstart={false}
-                onTokenCreated={(token) => {
-                  setSessionToken(token);
-                  setLiveTest({ status: "idle" });
-                }}
-              />
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Select a workspace and project before creating a project-bound MCP credential.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          {/* Step 1: Project-bound MCP credential */}
+          <Card>
+            <CardContent className="pt-6">
+              {currentOrg && currentProject ? (
+                <ApiKeysManager
+                  credentialType="mcp_project"
+                  orgId={currentOrg.id}
+                  projectId={currentProject.id}
+                  projectName={currentProject.name}
+                  showQuickstart={false}
+                  onTokenCreated={(token) => {
+                    setSessionToken(token);
+                    setLiveTest({ status: "idle" });
+                  }}
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Select a workspace and project before creating a project-bound MCP credential.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Step 2: Connect Your AI Client */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4" />
+          {/* Step 2: Connect Your AI Client */}
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <span>Connect AI Coding Agents (MCP)</span>
+                      <Badge variant="violet" className="text-[10px] py-0 px-1.5">
+                        Read-Only · Streamable HTTP
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-0.5">
+                      Paste the client config below into Antigravity, Cursor, Claude, or VS Code using your project MCP token.
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <span>Connect AI Coding Agents (MCP)</span>
-                    <Badge variant="violet" className="text-[10px] py-0 px-1.5">
-                      Read-Only · Streamable HTTP
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    Paste the client config below into Antigravity, Cursor, Claude, or VS Code using your project MCP token.
-                  </CardDescription>
+
+                {sessionToken && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRunLiveTest}
+                      disabled={liveTest.status === "running"}
+                      className="h-7 text-[11px] gap-1.5"
+                    >
+                      <Play className="w-3 h-3" />
+                      <span>{liveTest.status === "running" ? "Testing..." : "Test Live Call"}</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setSessionToken(null);
+                        setLiveTest({ status: "idle" });
+                      }}
+                      className="h-7 text-[11px] text-muted-foreground"
+                    >
+                      Clear token
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* Endpoint Bar */}
+              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex-shrink-0">
+                    Endpoint
+                  </span>
+                  <code className="text-xs font-mono text-foreground truncate select-all">
+                    {mcpEndpoint}
+                  </code>
                 </div>
+                <CopyButton
+                  value={mcpEndpoint}
+                  copied={copiedKey === "mcp-endpoint"}
+                  onCopy={() => handleCopy(mcpEndpoint, "mcp-endpoint")}
+                  label="Copy URL"
+                />
               </div>
 
               {sessionToken && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleRunLiveTest}
-                    disabled={liveTest.status === "running"}
-                    className="h-7 text-[11px] gap-1.5"
-                  >
-                    <Play className="w-3 h-3" />
-                    <span>{liveTest.status === "running" ? "Testing..." : "Test Live Call"}</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setSessionToken(null);
-                      setLiveTest({ status: "idle" });
-                    }}
-                    className="h-7 text-[11px] text-muted-foreground"
-                  >
-                    Clear token
-                  </Button>
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                  <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>
+                    Snippets below are pre-filled with your newly generated token for{" "}
+                    <strong>{currentProject?.name || "this project"}</strong>.
+                  </span>
                 </div>
               )}
-            </div>
-          </CardHeader>
 
-          <CardContent className="space-y-4">
-            {/* Endpoint Bar */}
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex-shrink-0">
-                  Endpoint
-                </span>
-                <code className="text-xs font-mono text-foreground truncate select-all">
-                  {mcpEndpoint}
-                </code>
-              </div>
-              <CopyButton
-                value={mcpEndpoint}
-                copied={copiedKey === "mcp-endpoint"}
-                onCopy={() => handleCopy(mcpEndpoint, "mcp-endpoint")}
-                label="Copy URL"
-              />
-            </div>
-
-            {sessionToken && (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
-                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>
-                  Snippets below are pre-filled with your newly generated token for{" "}
-                  <strong>{currentProject?.name || "this project"}</strong>.
-                </span>
-              </div>
-            )}
-
-            {liveTest.status === "ok" && (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>{liveTest.summary}</span>
-              </div>
-            )}
-
-            {liveTest.status === "error" && (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 flex items-center gap-2 text-[11px] text-destructive">
-                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>Live MCP test failed: {liveTest.message}</span>
-              </div>
-            )}
-
-            {/* Client Config Tabs */}
-            <Tabs defaultValue="antigravity" className="w-full">
-              <TabsList className="w-full justify-start overflow-x-auto">
-                <TabsTrigger value="antigravity">Antigravity</TabsTrigger>
-                <TabsTrigger value="cursor">Cursor / Claude</TabsTrigger>
-                <TabsTrigger value="vscode">VS Code</TabsTrigger>
-                <TabsTrigger value="curl">cURL</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="antigravity" className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
-                    Add to <code className="font-mono text-foreground">mcp_config.json</code> (uses{" "}
-                    <code className="font-mono text-foreground">serverUrl</code>)
-                  </span>
-                  <CopyButton
-                    value={snippets.antigravity}
-                    copied={copiedKey === "cfg-antigravity"}
-                    onCopy={() => handleCopy(snippets.antigravity, "cfg-antigravity")}
-                  />
+              {liveTest.status === "ok" && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{liveTest.summary}</span>
                 </div>
-                <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
-                  <CodeViewer content={snippets.antigravity} language="json" className="bg-transparent dark:bg-transparent" />
-                </div>
-              </TabsContent>
+              )}
 
-              <TabsContent value="cursor" className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
-                    Add to <code className="font-mono text-foreground">.cursor/mcp.json</code> or Claude Desktop config
-                  </span>
-                  <CopyButton
-                    value={snippets.cursor}
-                    copied={copiedKey === "cfg-cursor"}
-                    onCopy={() => handleCopy(snippets.cursor, "cfg-cursor")}
-                  />
+              {liveTest.status === "error" && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 flex items-center gap-2 text-[11px] text-destructive">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Live MCP test failed: {liveTest.message}</span>
                 </div>
-                <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
-                  <CodeViewer content={snippets.cursor} language="json" className="bg-transparent dark:bg-transparent" />
-                </div>
-              </TabsContent>
+              )}
 
-              <TabsContent value="vscode" className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
-                    Add to <code className="font-mono text-foreground">.vscode/mcp.json</code>
-                  </span>
-                  <CopyButton
-                    value={snippets.vscode}
-                    copied={copiedKey === "cfg-vscode"}
-                    onCopy={() => handleCopy(snippets.vscode, "cfg-vscode")}
-                  />
-                </div>
-                <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
-                  <CodeViewer content={snippets.vscode} language="json" className="bg-transparent dark:bg-transparent" />
-                </div>
-              </TabsContent>
+              {/* Client Config Tabs */}
+              <Tabs defaultValue="antigravity" className="w-full">
+                <TabsList className="w-full justify-start overflow-x-auto">
+                  <TabsTrigger value="antigravity">Antigravity</TabsTrigger>
+                  <TabsTrigger value="cursor">Cursor / Claude</TabsTrigger>
+                  <TabsTrigger value="vscode">VS Code</TabsTrigger>
+                  <TabsTrigger value="curl">cURL</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="curl" className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
-                    Verify <code className="font-mono text-foreground">get_project_overview</code> directly from your terminal
-                  </span>
-                  <CopyButton
-                    value={snippets.curl}
-                    copied={copiedKey === "cfg-curl"}
-                    onCopy={() => handleCopy(snippets.curl, "cfg-curl")}
-                  />
-                </div>
-                <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
-                  <CodeViewer content={snippets.curl} language="bash" className="bg-transparent dark:bg-transparent" />
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {/* Collapsible Tools & Starter Prompts */}
-            <div className="pt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setShowToolsAndPrompts((prev) => !prev)}
-                className="w-full flex items-center justify-between text-xs font-semibold text-foreground hover:text-primary transition-colors py-1"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                  <span>{MCP_TOOL_GROUPS.reduce((sum, group) => sum + group.tools.length, 0)} Available Tools & Starter Prompts</span>
-                </span>
-                {showToolsAndPrompts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-
-              {showToolsAndPrompts && (
-                <div className="mt-3 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {MCP_TOOL_GROUPS.map((group) => (
-                      <div key={group.group} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                        <div className="text-[11px] font-bold text-foreground">{group.group}</div>
-                        <ul className="space-y-1.5">
-                          {group.tools.map((tool) => (
-                            <li key={tool.name} className="text-[11px]">
-                              <code className="font-mono text-primary font-semibold">{tool.name}</code>
-                              <div className="text-muted-foreground text-[10px] leading-snug">{tool.desc}</div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                <TabsContent value="antigravity" className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      Add to <code className="font-mono text-foreground">mcp_config.json</code> (uses{" "}
+                      <code className="font-mono text-foreground">serverUrl</code>)
+                    </span>
+                    <CopyButton
+                      value={snippets.antigravity}
+                      copied={copiedKey === "cfg-antigravity"}
+                      onCopy={() => handleCopy(snippets.antigravity, "cfg-antigravity")}
+                    />
                   </div>
+                  <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
+                    <CodeViewer content={snippets.antigravity} language="json" className="bg-transparent dark:bg-transparent" />
+                  </div>
+                </TabsContent>
 
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-bold text-foreground">Starter Prompts</div>
-                    <div className="grid grid-cols-1 gap-2">
-                      {STARTER_PROMPTS.map((item) => (
-                        <div
-                          key={item.title}
-                          className="rounded-lg border border-border bg-card p-3 flex items-start justify-between gap-3"
-                        >
-                          <div className="space-y-0.5 min-w-0">
-                            <div className="text-[11px] font-semibold text-foreground">{item.title}</div>
-                            <p className="text-[11px] text-muted-foreground select-text">{item.prompt}</p>
-                          </div>
-                          <CopyButton
-                            value={item.prompt}
-                            copied={copiedKey === `prompt-${item.title}`}
-                            onCopy={() => handleCopy(item.prompt, `prompt-${item.title}`)}
-                          />
+                <TabsContent value="cursor" className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      Add to <code className="font-mono text-foreground">.cursor/mcp.json</code> or Claude Desktop config
+                    </span>
+                    <CopyButton
+                      value={snippets.cursor}
+                      copied={copiedKey === "cfg-cursor"}
+                      onCopy={() => handleCopy(snippets.cursor, "cfg-cursor")}
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
+                    <CodeViewer content={snippets.cursor} language="json" className="bg-transparent dark:bg-transparent" />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="vscode" className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      Add to <code className="font-mono text-foreground">.vscode/mcp.json</code>
+                    </span>
+                    <CopyButton
+                      value={snippets.vscode}
+                      copied={copiedKey === "cfg-vscode"}
+                      onCopy={() => handleCopy(snippets.vscode, "cfg-vscode")}
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
+                    <CodeViewer content={snippets.vscode} language="json" className="bg-transparent dark:bg-transparent" />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="curl" className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      Verify <code className="font-mono text-foreground">get_project_overview</code> directly from your terminal
+                    </span>
+                    <CopyButton
+                      value={snippets.curl}
+                      copied={copiedKey === "cfg-curl"}
+                      onCopy={() => handleCopy(snippets.curl, "cfg-curl")}
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
+                    <CodeViewer content={snippets.curl} language="bash" className="bg-transparent dark:bg-transparent" />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Collapsible Tools & Starter Prompts */}
+              <div className="pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowToolsAndPrompts((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-semibold text-foreground hover:text-primary transition-colors py-1"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                    <span>{MCP_TOOL_GROUPS.reduce((sum, group) => sum + group.tools.length, 0)} Available Tools & Starter Prompts</span>
+                  </span>
+                  {showToolsAndPrompts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showToolsAndPrompts && (
+                  <div className="mt-3 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {MCP_TOOL_GROUPS.map((group) => (
+                        <div key={group.group} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                          <div className="text-[11px] font-bold text-foreground">{group.group}</div>
+                          <ul className="space-y-1.5">
+                            {group.tools.map((tool) => (
+                              <li key={tool.name} className="text-[11px]">
+                                <code className="font-mono text-primary font-semibold">{tool.name}</code>
+                                <div className="text-muted-foreground text-[10px] leading-snug">{tool.desc}</div>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       ))}
                     </div>
+
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-bold text-foreground">Starter Prompts</div>
+                      <div className="grid grid-cols-1 gap-2">
+                        {STARTER_PROMPTS.map((item) => (
+                          <div
+                            key={item.title}
+                            className="rounded-lg border border-border bg-card p-3 flex items-start justify-between gap-3"
+                          >
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="text-[11px] font-semibold text-foreground">{item.title}</div>
+                              <p className="text-[11px] text-muted-foreground select-text">{item.prompt}</p>
+                            </div>
+                            <CopyButton
+                              value={item.prompt}
+                              copied={copiedKey === `prompt-${item.title}`}
+                              onCopy={() => handleCopy(item.prompt, `prompt-${item.title}`)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Step 3: REST API Quickstart */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                    <Terminal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-bold">REST API Quickstart</CardTitle>
+                    <CardDescription className="text-xs">
+                      Pull resolved tokens in CI/CD scripts using a Personal Access Token (Account Credentials).
+                    </CardDescription>
                   </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Step 3: REST API Quickstart */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                  <Terminal className="w-4 h-4" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-bold">REST API Quickstart</CardTitle>
-                  <CardDescription className="text-xs">
-                    Pull resolved tokens in CI/CD scripts using a Personal Access Token (Account Credentials).
-                  </CardDescription>
-                </div>
+                <CopyButton
+                  value={snippets.restCurl}
+                  copied={copiedKey === "rest-curl"}
+                  onCopy={() => handleCopy(snippets.restCurl, "rest-curl")}
+                />
               </div>
-              <CopyButton
-                value={snippets.restCurl}
-                copied={copiedKey === "rest-curl"}
-                onCopy={() => handleCopy(snippets.restCurl, "rest-curl")}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
-              <CodeViewer content={snippets.restCurl} language="bash" className="bg-transparent dark:bg-transparent" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border border-border bg-white dark:bg-[#0d0d12] p-3 select-text overflow-x-auto">
+                <CodeViewer content={snippets.restCurl} language="bash" className="bg-transparent dark:bg-transparent" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </TabsContent>
 
-      {/* Analytics & Usage Tab */}
-      <TabsContent value="analytics" className="flex-1 overflow-y-auto mt-0">
-        <div className="p-6 max-w-5xl mx-auto w-full">
-          <McpAnalyticsDashboard
-            orgId={currentOrg?.id}
-            projectId={currentProject?.id}
-            projectName={currentProject?.name}
-            hasSessionToken={Boolean(sessionToken)}
-            smokeTestRunning={liveTest.status === "running"}
-            onRunSmokeTest={handleRunLiveTest}
-            onSwitchToSetup={() => setActiveTab("setup")}
-            refreshNonce={analyticsRefreshNonce}
-          />
-        </div>
-      </TabsContent>
+      {/* Analytics & Usage Tab (Owners Only) */}
+      {isOwner && (
+        <TabsContent value="analytics" className="flex-1 overflow-y-auto mt-0">
+          <div className="p-6 max-w-5xl mx-auto w-full">
+            <McpAnalyticsDashboard
+              orgId={currentOrg?.id}
+              projectId={currentProject?.id}
+              projectName={currentProject?.name}
+              hasSessionToken={Boolean(sessionToken)}
+              smokeTestRunning={liveTest.status === "running"}
+              onRunSmokeTest={handleRunLiveTest}
+              onSwitchToSetup={() => setActiveTab("setup")}
+              refreshNonce={analyticsRefreshNonce}
+            />
+          </div>
+        </TabsContent>
+      )}
     </Tabs>
   );
 };

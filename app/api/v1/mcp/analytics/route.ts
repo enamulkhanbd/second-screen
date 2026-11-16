@@ -33,6 +33,20 @@ export async function GET(req: NextRequest) {
       { status: access.status, headers: { "Cache-Control": "no-store" } },
     );
   }
+  if (access.record.credentialType === "mcp_project") {
+    return jsonWithTrustedCors(
+      req,
+      { error: "MCP project credentials cannot access workspace analytics." },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (access.role !== "owner") {
+    return jsonWithTrustedCors(
+      req,
+      { error: "Only workspace owners can view MCP analytics." },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   const range = parseAnalyticsRange(req.nextUrl.searchParams.get("range"));
 

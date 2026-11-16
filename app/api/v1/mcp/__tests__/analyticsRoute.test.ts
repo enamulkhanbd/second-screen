@@ -89,10 +89,49 @@ describe("MCP analytics route", () => {
     expect(mockedGetAnalytics).not.toHaveBeenCalled();
   });
 
-  it("returns project-scoped analytics with no-store caching for authorized members", async () => {
+  it("denies non-owner roles (viewer, editor, admin) from reading analytics", async () => {
+    for (const role of ["viewer", "editor", "admin"] as const) {
+      mockedGetAnalytics.mockClear();
+      mockedAuthorize.mockResolvedValueOnce({
+        authorized: true,
+        role,
+        record: { uid: "user-1" } as any,
+      });
+
+      const res = await GET(
+        new NextRequest("https://app.example.com/api/v1/mcp/analytics?orgId=org-1&projectId=proj-1"),
+      );
+      const body = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      expect(body.error).toContain("owner");
+      expect(mockedGetAnalytics).not.toHaveBeenCalled();
+    }
+  });
+
+  it("denies project-bound MCP bearer credentials even for owners", async () => {
+    mockedGetAnalytics.mockClear();
+    mockedAuthorize.mockResolvedValueOnce({
+      authorized: true,
+      role: "owner",
+      record: { uid: "user-1", credentialType: "mcp_project" } as any,
+    });
+
+    const res = await GET(
+      new NextRequest("https://app.example.com/api/v1/mcp/analytics?orgId=org-1&projectId=proj-1"),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(body.error).toContain("MCP project credentials");
+    expect(mockedGetAnalytics).not.toHaveBeenCalled();
+  });
+
+  it("returns project-scoped analytics with no-store caching for workspace owners", async () => {
     mockedAuthorize.mockResolvedValue({
       authorized: true,
-      role: "viewer",
+      role: "owner",
       record: { uid: "user-1" } as any,
     });
 

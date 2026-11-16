@@ -5,9 +5,80 @@ import { findApiKeyByHash, getStoredApiKeysLegacy } from "@/utils/cloudStorage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export function canRoleWrite(role: string): boolean {
+  return role === "owner" || role === "admin" || role === "editor";
+}
+
+export function resolveTrustedRequestOrigins(req: NextRequest): string[] {
+  const origins = new Set<string>([req.nextUrl.origin]);
+  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if ((forwardedProto === "http" || forwardedProto === "https") && req.nextUrl.host) {
+    origins.add(`${forwardedProto}://${req.nextUrl.host}`);
+  }
+  const configured = (process.env.SECOND_SCREEN_TRUSTED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  for (const origin of configured) {
+    origins.add(origin);
+  }
+  return Array.from(origins);
+}
+
 export function hasTrustedMutationOrigin(req: NextRequest): boolean {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return true;
-  return req.headers.get("origin") === req.nextUrl.origin;
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  return resolveTrustedRequestOrigins(req).includes(origin);
+}
+
+export async function resolveOrganizationRole(
+  admin: ReturnType<typeof createAdminClient>,
+  orgId: string,
+  ownerUid: string,
+  userId: string,
+  options?: { userEmail?: string; emailVerified?: boolean }
+): Promise<string> {
+  if (ownerUid === userId) return "owner";
+
+  const { data: userRows, error: userErr } = await admin
+    .from("organization_members")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .limit(1);
+
+  if (!userErr && Array.isArray(userRows) && userRows[0]?.role) {
+    return userRows[0].role;
+  }
+
+  const normalizedEmail = options?.userEmail?.trim().toLowerCase();
+  if (normalizedEmail && options?.emailVerified !== false) {
+    const { data: emailRows, error: emailErr } = await admin
+      .from("organization_members")
+      .select("role, user_id")
+      .eq("org_id", orgId)
+      .ilike("email", normalizedEmail)
+      .limit(1);
+
+    const matched = !emailErr && Array.isArray(emailRows) ? emailRows[0] : null;
+    if (matched?.role) {
+      if (matched.user_id !== userId) {
+        try {
+          await admin
+            .from("organization_members")
+            .update({ user_id: userId })
+            .eq("org_id", orgId)
+            .ilike("email", normalizedEmail);
+        } catch {
+          // Best-effort backfill; unique constraints or partial mocks must not fail authorization.
+        }
+      }
+      return matched.role;
+    }
+  }
+
+  return "";
 }
 
 /**
@@ -56,6 +127,7 @@ export async function authenticateRequest(
         scopes: ["read:tokens", "write:tokens", "manage:releases"],
         uid: user.id,
         userEmail: user.email,
+        emailVerified: user.email_confirmed_at !== null,
         createdAt: new Date().toISOString(),
       };
       return {
@@ -119,21 +191,21 @@ export async function authorizeProjectRequest(
       return { authorized: false, status: 404, error: "Project not found." };
     }
 
-    let role = organization.owner_uid === auth.record.uid ? "owner" : "";
-    if (!role) {
-      const { data: membership } = await admin
-        .from("organization_members")
-        .select("role")
-        .eq("org_id", orgId)
-        .eq("user_id", auth.record.uid)
-        .maybeSingle();
-      role = membership?.role || "";
-    }
+    const role = await resolveOrganizationRole(
+      admin,
+      orgId,
+      organization.owner_uid,
+      auth.record.uid,
+      {
+        userEmail: auth.record.userEmail,
+        emailVerified: auth.record.emailVerified ?? true,
+      }
+    );
 
     if (!role) {
       return { authorized: false, status: 403, error: "You are not a member of this organization." };
     }
-    if (permission === "write" && !["owner", "admin", "editor"].includes(role)) {
+    if (permission === "write" && !canRoleWrite(role)) {
       return { authorized: false, status: 403, error: "Your organization role cannot modify this project." };
     }
 

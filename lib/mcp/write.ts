@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import type { NextRequest } from "next/server";
 import type { ApiKeyRecord } from "@/utils/patAuth";
+import { canRoleWrite } from "@/utils/auth";
 import type { RawTokensDocument } from "@/types/tokens";
 import { extractThemeGroups } from "@/utils/themeHelpers";
 import { computeTokensDiff } from "@/utils/tokenDiff";
@@ -46,6 +47,12 @@ function tokenDigest(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function assertWriteRole(role: string, requestId: string) {
+  if (!canRoleWrite(role)) {
+    throw new McpError("FORBIDDEN", "Viewer role cannot modify project tokens.", requestId, 403);
+  }
+}
+
 function assertWriteEnabled(record: ApiKeyRecord, requestId: string) {
   if (!record.uid) {
     throw new McpError("FORBIDDEN", "This credential is not bound to a verified user.", requestId, 403);
@@ -69,6 +76,7 @@ function parseRpcError(message: string, requestId: string): never {
   const map: Record<string, { code: any; status: number; message: string }> = {
     PROJECT_NOT_FOUND: { code: "PROJECT_NOT_FOUND", status: 404, message: "Project not found." },
     BRANCH_NOT_FOUND: { code: "PROJECT_NOT_FOUND", status: 404, message: "Branch not found." },
+    FORBIDDEN_ROLE: { code: "FORBIDDEN", status: 403, message: "Your organization role cannot modify this project." },
     PROTECTED_BRANCH: { code: "FORBIDDEN", status: 403, message: "The default branch is protected from MCP writes." },
     STALE_REVISION: { code: "CONFLICT", status: 409, message: "The branch changed after preview; create a new preview." },
     INVALID_CONFIRMATION: { code: "CONFIRMATION_INVALID", status: 403, message: "The confirmation is invalid, expired, or already used." },
@@ -87,6 +95,7 @@ export async function previewTokenWrite(
   assertWriteEnabled(record, requestId);
   const parsed = TokenWritePreviewInput.parse(input);
   const project = await resolveMcpProject(req, record, parsed.orgId, parsed.projectId, requestId, "write");
+  assertWriteRole(project.auth.role, requestId);
   const branch = requireWriteBranch(project, parsed.branchName, requestId);
   const currentTokens = (branch.rawTokens || {}) as RawTokensDocument;
   const proposedTokens = parsed.proposedTokens as RawTokensDocument;
@@ -167,6 +176,7 @@ export async function applyTokenWrite(
   assertWriteEnabled(record, requestId);
   const parsed = TokenWriteApplyInput.parse(input);
   const project = await resolveMcpProject(req, record, parsed.orgId, parsed.projectId, requestId, "write");
+  assertWriteRole(project.auth.role, requestId);
   requireWriteBranch(project, parsed.branchName, requestId);
   const proposedTokens = parsed.proposedTokens as RawTokensDocument;
   if (Buffer.byteLength(stableJson(proposedTokens), "utf8") > MAX_PATCH_BYTES) {

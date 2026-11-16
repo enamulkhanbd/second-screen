@@ -187,9 +187,22 @@ export async function listMcpWorkspaces(record: ApiKeyRecord, requestId = "unkno
   const memberRows = await admin.from("organization_members").select("org_id").eq("user_id", record.uid);
   if (memberRows.error) throw new McpError("UPSTREAM_UNAVAILABLE", "Workspace data is temporarily unavailable.", requestId, 503);
 
+  let emailMemberOrgIds: string[] = [];
+  const normalizedEmail = record.userEmail?.trim().toLowerCase();
+  if (normalizedEmail && record.emailVerified !== false) {
+    const emailQuery = admin.from("organization_members").select("org_id");
+    if (typeof (emailQuery as any).ilike === "function") {
+      const emailRows = await (emailQuery as any).ilike("email", normalizedEmail);
+      if (!emailRows.error && Array.isArray(emailRows.data)) {
+        emailMemberOrgIds = emailRows.data.map((row: any) => row.org_id).filter(Boolean);
+      }
+    }
+  }
+
   const ids = Array.from(new Set([
     ...(owned.data || []).map((org: any) => org.id),
     ...(memberRows.data || []).map((row: any) => row.org_id),
+    ...emailMemberOrgIds,
   ]));
   const organizations = ids.length > 0
     ? await admin.from("organizations").select("id, name, slug, owner_uid, updated_at").in("id", ids)
