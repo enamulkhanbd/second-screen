@@ -1140,10 +1140,24 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                   background-color: hsl(var(--primary)) !important;
                   opacity: 1 !important;
                 }
+                .ts-sticky-cell {
+                  background-color: hsl(var(--background));
+                }
+                tr.group:hover .ts-sticky-cell {
+                  background-image: linear-gradient(hsl(var(--muted) / 0.2), hsl(var(--muted) / 0.2));
+                }
+                .ts-sticky-cell-selected {
+                  background-image: linear-gradient(hsl(var(--primary) / 0.05), hsl(var(--primary) / 0.05));
+                }
+                tr.group:hover .ts-sticky-cell-selected {
+                  background-image:
+                    linear-gradient(hsl(var(--muted) / 0.2), hsl(var(--muted) / 0.2)),
+                    linear-gradient(hsl(var(--primary) / 0.05), hsl(var(--primary) / 0.05));
+                }
               `}</style>
               <table
                 ref={tableRef}
-                className="w-full table-fixed text-left border-collapse text-xs select-none"
+                className="w-full table-fixed text-left border-separate border-spacing-0 text-xs select-none"
                 style={{
                   minWidth: "100%",
                   ["--col-width-name" as any]: `${colWidths.name}px`,
@@ -1155,7 +1169,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "40px" }} />
+                  <col style={{ width: "40px", minWidth: "40px", maxWidth: "40px" }} />
                   <col data-col="name" style={{ width: `${colWidths.name}px` }} />
                   <col data-col="type" style={{ width: `${colWidths.type}px` }} />
                   <col data-col="value" style={{ width: `${colWidths.value}px` }} />
@@ -1164,10 +1178,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                   <col data-col="set" style={{ width: `${colWidths.set}px` }} />
                   <col style={{ width: "40px", minWidth: "40px", maxWidth: "40px" }} />
                 </colgroup>
-                <thead className="bg-background border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
+                <thead className="bg-background text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none sticky top-0 z-20">
                   <tr>
                     {/* Selection Checkbox */}
-                    <th className="w-10 px-3 py-2.5 text-center border-r border-border/30 bg-background">
+                    <th className="w-10 min-w-[40px] max-w-[40px] px-3 py-2.5 text-center border-b border-b-border border-r border-r-border/30 bg-background align-middle">
                       <input
                         type="checkbox"
                         checked={allSelected}
@@ -1181,14 +1195,14 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="name"
                       style={{ width: `${colWidths.name}px` }}
-                      className="sticky left-10 z-30 relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="relative px-4 py-2.5 text-left border-b border-b-border border-r border-r-border/30 group bg-background"
                     >
                       <div
                         onClick={() => handleSortToggle("name")}
                         className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors truncate min-w-0 select-none group/btn"
                         title={`Sort by Name (${sortField === "name" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
                       >
-                        <span className={cn("transition-colors", sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                        <span className={cn("transition-colors truncate", sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground")}>
                           NAME
                         </span>
                         {sortField === "name" ? (
@@ -1205,7 +1219,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                       <div
                         data-resizer="name"
                         onMouseDown={(e) => startResizing("name", e)}
-                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/resizer hover:bg-primary/15 transition-colors"
                         title="Drag to resize NAME column"
                       >
                         <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
@@ -1216,13 +1230,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="type"
                       style={{ width: `${colWidths.type}px` }}
-                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="relative px-4 py-2.5 text-left border-b border-b-border border-r border-r-border/30 group bg-background"
                     >
-                      <span className="truncate">TYPE</span>
+                      <span className="truncate block">TYPE</span>
                       <div
                         data-resizer="type"
                         onMouseDown={(e) => startResizing("type", e)}
-                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/resizer hover:bg-primary/15 transition-colors"
                         title="Drag to resize TYPE column"
                       >
                         <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
@@ -1233,13 +1247,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="value"
                       style={{ width: `${colWidths.value}px` }}
-                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="relative px-4 py-2.5 text-left border-b border-b-border border-r border-r-border/30 group bg-background"
                     >
-                      <span className="truncate">VALUE</span>
+                      <span className="truncate block">VALUE</span>
                       <div
                         data-resizer="value"
                         onMouseDown={(e) => startResizing("value", e)}
-                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/resizer hover:bg-primary/15 transition-colors"
                         title="Drag to resize VALUE column"
                       >
                         <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
@@ -1250,7 +1264,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="resolved"
                       style={{ width: `${colWidths.resolved}px` }}
-                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="relative px-4 py-2.5 text-left border-b border-b-border border-r border-r-border/30 group bg-background"
                     >
                       <div
                         onClick={() => handleSortToggle("resolved")}
@@ -1273,7 +1287,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                       <div
                         data-resizer="resolved"
                         onMouseDown={(e) => startResizing("resolved", e)}
-                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/resizer hover:bg-primary/15 transition-colors"
                         title="Drag to resize RESOLVED column"
                       >
                         <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
@@ -1284,13 +1298,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="description"
                       style={{ width: `${colWidths.description}px` }}
-                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="relative px-4 py-2.5 text-left border-b border-b-border border-r border-r-border/30 group bg-background"
                     >
-                      <span className="truncate">DESCRIPTION</span>
+                      <span className="truncate block">DESCRIPTION</span>
                       <div
                         data-resizer="description"
                         onMouseDown={(e) => startResizing("description", e)}
-                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/resizer hover:bg-primary/15 transition-colors"
                         title="Drag to resize DESCRIPTION column"
                       >
                         <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
@@ -1301,13 +1315,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     <th
                       data-col="set"
                       style={{ width: `${colWidths.set}px` }}
-                      className="relative px-4 py-2.5 text-left border-r border-border/30 group bg-background overflow-hidden"
+                      className="relative px-4 py-2.5 text-left border-b border-b-border group bg-background"
                     >
-                      <span className="truncate">SET</span>
+                      <span className="truncate block">SET</span>
                       <div
                         data-resizer="set"
                         onMouseDown={(e) => startResizing("set", e)}
-                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-20 select-none flex items-center justify-center group/resizer hover:bg-primary/20 transition-colors"
+                        className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/resizer hover:bg-primary/15 transition-colors"
                         title="Drag to resize SET column"
                       >
                         <div className="w-[2px] h-full bg-transparent group-hover/resizer:bg-primary/60 transition-colors" />
@@ -1315,10 +1329,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                     </th>
 
                     {/* Row actions - Sticky Right Edge */}
-                    <th className="sticky right-0 top-0 z-30 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center bg-background border-l border-border/30 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]"></th>
+                    <th className="sticky right-0 top-0 z-30 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center bg-background border-b border-b-border border-l border-l-border/30 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]"></th>
                   </tr>
                 </thead>
-              <tbody className="divide-y divide-border/30 font-mono text-xs">
+              <tbody className="font-mono text-xs">
                 {groupDepth !== 1
                   ? visibleGroupTree.map((node) => (
                       <WorkspaceGroupNode
@@ -1358,8 +1372,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
                 {/* Progressive Infinite Scroll Sentinel / Load More Row */}
                 {visibleCount < totalCount && (
-                  <tr className="border-t border-border/40 bg-muted/10">
-                    <td colSpan={8} className="py-4 px-4 text-center">
+                  <tr className="bg-muted/10">
+                    <td colSpan={8} className="py-4 px-4 text-center border-b border-border/30">
                       <div className="flex items-center justify-center gap-2.5 text-xs text-muted-foreground font-mono">
                         <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         <span>
@@ -1661,14 +1675,14 @@ const TokenTableRow = React.memo(function TokenTableRow({
       return (
         <div
           onClick={() => handleCopy(token.resolvedValue, "Color")}
-          className="flex items-center gap-2 cursor-pointer group/swatch"
+          className="flex items-center gap-2 cursor-pointer group/swatch min-w-0"
           title={`Click to copy: ${token.resolvedValue}`}
         >
           <div
             className="w-4 h-4 rounded-full border border-black/15 shadow-2xs shrink-0"
             style={{ backgroundColor: swatchColor }}
           />
-          <span className="text-foreground group-hover/swatch:text-primary transition-colors">
+          <span className="text-foreground group-hover/swatch:text-primary transition-colors truncate min-w-0">
             {swatchColor}
           </span>
         </div>
@@ -1676,7 +1690,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
     }
 
     return (
-      <span className="text-foreground truncate">
+      <span className="text-foreground truncate block">
         {typeof token.resolvedValue === "object"
           ? JSON.stringify(token.resolvedValue)
           : String(token.resolvedValue || "")}
@@ -1688,12 +1702,12 @@ const TokenTableRow = React.memo(function TokenTableRow({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <tr
-          className={`border-b border-border/30 hover:bg-muted/20 transition-colors group cursor-default ${
+          className={`hover:bg-muted/20 group cursor-default ${
             isSelected ? "bg-primary/5" : ""
           }`}
         >
       {/* 1. Selection Checkbox */}
-      <td className="w-10 px-3 py-2.5 text-center border-r border-border/30 align-middle">
+      <td className="w-10 min-w-[40px] max-w-[40px] px-3 py-2.5 text-center border-b border-b-border/30 border-r border-r-border/30 align-middle">
         <input
           type="checkbox"
           checked={isSelected}
@@ -1703,11 +1717,8 @@ const TokenTableRow = React.memo(function TokenTableRow({
       </td>
 
       {/* 2. NAME */}
-      <td className={cn(
-        "sticky left-10 z-10 relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden",
-        isSelected ? "bg-muted group-hover:bg-muted" : "bg-background group-hover:bg-muted/20"
-      )}>
-        <div className="flex items-center gap-1.5 min-w-0">
+      <td className="relative px-4 py-2.5 text-left border-b border-b-border/30 border-r border-r-border/30 font-mono text-xs align-middle">
+        <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
           <span
             onClick={() => onEdit(token)}
             className="font-medium text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
@@ -1733,7 +1744,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
           <div
             data-resizer="name"
             onMouseDown={(e) => startResizing("name", e)}
-            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/cell-resizer"
             title="Drag to resize NAME column"
           >
             <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
@@ -1742,13 +1753,13 @@ const TokenTableRow = React.memo(function TokenTableRow({
       </td>
 
       {/* 3. TYPE */}
-      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle overflow-hidden">
+      <td className="relative px-4 py-2.5 text-left border-b border-border/30 border-r border-border/30 font-sans text-xs text-muted-foreground lowercase align-middle">
         <span className="truncate block">{token.type}</span>
         {startResizing && (
           <div
             data-resizer="type"
             onMouseDown={(e) => startResizing("type", e)}
-            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/cell-resizer"
             title="Drag to resize TYPE column"
           >
             <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
@@ -1757,7 +1768,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
       </td>
 
       {/* 4. VALUE */}
-      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden">
+      <td className="relative px-4 py-2.5 text-left border-b border-border/30 border-r border-border/30 font-mono text-xs align-middle">
         <div className="truncate min-w-0 pr-1">
           {renderValueCell()}
         </div>
@@ -1765,7 +1776,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
           <div
             data-resizer="value"
             onMouseDown={(e) => startResizing("value", e)}
-            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/cell-resizer"
             title="Drag to resize VALUE column"
           >
             <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
@@ -1774,7 +1785,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
       </td>
 
       {/* 5. RESOLVED */}
-      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs align-middle overflow-hidden">
+      <td className="relative px-4 py-2.5 text-left border-b border-border/30 border-r border-border/30 font-mono text-xs align-middle">
         <div className="truncate min-w-0 pr-1">
           {renderResolvedCell()}
         </div>
@@ -1782,7 +1793,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
           <div
             data-resizer="resolved"
             onMouseDown={(e) => startResizing("resolved", e)}
-            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/cell-resizer"
             title="Drag to resize RESOLVED column"
           >
             <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
@@ -1791,17 +1802,17 @@ const TokenTableRow = React.memo(function TokenTableRow({
       </td>
 
       {/* 6. DESCRIPTION */}
-      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-sans text-xs text-muted-foreground truncate align-middle overflow-hidden">
+      <td className="relative px-4 py-2.5 text-left border-b border-border/30 border-r border-border/30 font-sans text-xs text-muted-foreground align-middle">
         {token.description ? (
           <span title={String(token.description)} className="truncate block">{String(token.description)}</span>
         ) : (
-          <span className="opacity-40">—</span>
+          <span className="opacity-40 block truncate">—</span>
         )}
         {startResizing && (
           <div
             data-resizer="description"
             onMouseDown={(e) => startResizing("description", e)}
-            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/cell-resizer"
             title="Drag to resize DESCRIPTION column"
           >
             <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
@@ -1810,13 +1821,13 @@ const TokenTableRow = React.memo(function TokenTableRow({
       </td>
 
       {/* 7. SET */}
-      <td className="relative px-4 py-2.5 text-left border-r border-border/30 font-mono text-xs text-muted-foreground truncate align-middle overflow-hidden">
+      <td className="relative px-4 py-2.5 text-left border-b border-border/30 font-mono text-xs text-muted-foreground align-middle">
         <span className="truncate block">{token.setName}</span>
         {startResizing && (
           <div
             data-resizer="set"
             onMouseDown={(e) => startResizing("set", e)}
-            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-10 select-none flex items-center justify-center group/cell-resizer hover:bg-primary/20 transition-colors"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-[5] select-none flex items-center justify-center group/cell-resizer"
             title="Drag to resize SET column"
           >
             <div className="w-[2px] h-full bg-transparent group-hover/cell-resizer:bg-primary/60 transition-colors" />
@@ -1826,11 +1837,10 @@ const TokenTableRow = React.memo(function TokenTableRow({
 
       {/* 8. ACTIONS ⋮ - Sticky Right Edge */}
       <td
-        className={`sticky right-0 z-10 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center align-middle border-l border-border/30 transition-colors ${
-          isSelected
-            ? "bg-muted/90 group-hover:bg-muted"
-            : "bg-background group-hover:bg-muted/30"
-        } shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]`}
+        className={cn(
+          "sticky right-0 z-10 w-10 min-w-[40px] max-w-[40px] px-2 py-2.5 text-center align-middle border-b border-b-border/30 border-l border-l-border/30 ts-sticky-cell shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.3)]",
+          isSelected && "ts-sticky-cell-selected"
+        )}
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -2048,9 +2058,9 @@ const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
     <React.Fragment>
       <tr
         onClick={() => onToggleGroup(node.id)}
-        className="bg-muted/20 hover:bg-muted/40 border-b border-border/40 transition-colors cursor-pointer select-none"
+        className="bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer select-none"
       >
-        <td colSpan={8} className="py-2 px-4 align-middle">
+        <td colSpan={8} className="py-2 px-4 align-middle border-b border-border/40">
           <div
             className="flex items-center justify-between min-w-0 w-full"
             style={{ paddingLeft: `${Math.max(8, (node.level - 1) * 16 + 8)}px` }}
