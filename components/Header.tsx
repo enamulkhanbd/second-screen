@@ -746,6 +746,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenNavigation
                       <BreadcrumbLink asChild>
                         <Link
                           href={item.href}
+                          prefetch={false}
                           onClick={(event) => {
                             if (
                               event.button === 0 &&

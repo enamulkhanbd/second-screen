@@ -483,6 +483,7 @@ function resolveTokensWithActiveThemes(
 
 // Client-side in-memory SWR cache for project assets & configuration (0ms reloads)
 const projectAssetsCache = new Map<string, ProjectAsset[]>();
+const assetListEtagCache = new Map<string, string>();
 const projectConfigCache = new Map<string, any>();
 
 // Dedupes concurrent loadTenantData invocations for the same user (e.g. Supabase's
@@ -750,10 +751,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   ): Promise<ProjectAsset[]> => {
     const cacheKey = `${orgId}::${projectId}`;
     try {
+      const knownEtag = projectAssetsCache.has(cacheKey) ? assetListEtagCache.get(cacheKey) : undefined;
       let res = await fetch(
         `/api/assets/list?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`,
-        { method: "GET" }
+        {
+          method: "GET",
+          ...(knownEtag ? { headers: { "If-None-Match": knownEtag } } : {}),
+        }
       );
+      if (res.status === 304 && projectAssetsCache.has(cacheKey)) {
+        set({ r2StorageError: null });
+        return projectAssetsCache.get(cacheKey)!;
+      }
       if (!res.ok && res.status !== 404) {
         res = await fetch("/api/assets/list", {
           method: "POST",
@@ -763,6 +772,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       if (res.ok) {
+        const responseEtag = res.headers.get("etag");
+        if (responseEtag) {
+          assetListEtagCache.set(cacheKey, responseEtag);
+        }
         const data = await res.json();
         if (data.success && Array.isArray(data.assets)) {
           set({ r2StorageError: null });
@@ -1943,19 +1956,49 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ isLoadingTenant: true, isLoadingProjects: true });
     }
 
-    // 2. Fetch fresh tenant data in parallel/background
+    // 2. Fetch fresh tenant data (preferring single same-origin /api/bootstrap to avoid CORS preflights)
     try {
       const savedOrgId = typeof window !== "undefined" ? localStorage.getItem("ts_active_org_id") : null;
-      // Concurrently query organizations and projects for active org ID
-      const orgsPromise = getUserOrganizations(uid, email);
-      const earlyProjectsPromise = savedOrgId ? getOrgProjectSummaries(savedOrgId) : null;
+      let orgs: Organization[] = [];
+      let bootstrappedProjects: Project[] | null = null;
+      let bootstrappedOrgId: string | null = null;
 
-      const [orgsResult, earlyProjectsResult] = await Promise.allSettled([
-        orgsPromise,
-        earlyProjectsPromise || Promise.resolve([]),
-      ]);
+      if (typeof window !== "undefined") {
+        try {
+          const qs = new URLSearchParams();
+          if (routeContext.orgSlug) qs.set("orgSlug", routeContext.orgSlug);
+          if (savedOrgId) qs.set("orgId", savedOrgId);
+          const bootRes = await fetch(`/api/bootstrap?${qs.toString()}`, { method: "GET" });
+          if (bootRes.ok) {
+            const bootData = await bootRes.json();
+            if (bootData?.success && Array.isArray(bootData.orgs)) {
+              orgs = bootData.orgs;
+              bootstrappedOrgId = bootData.activeOrgId || null;
+              bootstrappedProjects = Array.isArray(bootData.projects) ? bootData.projects : [];
+            }
+          }
+        } catch {
+          // Fallback cleanly to direct Supabase helpers below.
+        }
+      }
 
-      const orgs = orgsResult.status === "fulfilled" ? orgsResult.value : [];
+      let earlyProjectsValue: Project[] = [];
+      if (orgs.length === 0 && bootstrappedProjects === null) {
+        // Concurrently query organizations and projects for active org ID
+        const orgsPromise = getUserOrganizations(uid, email);
+        const earlyProjectsPromise = savedOrgId ? getOrgProjectSummaries(savedOrgId) : null;
+
+        const [orgsResult, earlyProjectsResult] = await Promise.allSettled([
+          orgsPromise,
+          earlyProjectsPromise || Promise.resolve([]),
+        ]);
+
+        orgs = orgsResult.status === "fulfilled" ? orgsResult.value : [];
+        if (earlyProjectsResult.status === "fulfilled" && Array.isArray(earlyProjectsResult.value)) {
+          earlyProjectsValue = earlyProjectsResult.value;
+        }
+      }
+
       if (typeof window !== "undefined" && orgs.length > 0) {
         try {
           localStorage.setItem("ts_cached_user_orgs", JSON.stringify(orgs));
@@ -1990,15 +2033,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ currentOrg: activeOrg });
 
       if (activeOrg) {
-        // Use early parallel result if activeOrg matches savedOrgId, otherwise fetch for activeOrg
+        // Use bootstrap or early parallel result if activeOrg matches, otherwise fetch for activeOrg
         let projects: Project[] = [];
-        if (
-          savedOrgId === activeOrg.id &&
-          earlyProjectsResult.status === "fulfilled" &&
-          Array.isArray(earlyProjectsResult.value) &&
-          earlyProjectsResult.value.length > 0
-        ) {
-          projects = earlyProjectsResult.value;
+        if (bootstrappedProjects !== null && bootstrappedOrgId === activeOrg.id) {
+          projects = bootstrappedProjects;
+        } else if (savedOrgId === activeOrg.id && earlyProjectsValue.length > 0) {
+          projects = earlyProjectsValue;
         } else {
           projects = await getOrgProjectSummaries(activeOrg.id);
         }

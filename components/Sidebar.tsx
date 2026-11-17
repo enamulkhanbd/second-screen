@@ -109,6 +109,7 @@ function SidebarNavItem({
   const link = (
     <Link
       href={href}
+      prefetch={false}
       aria-label={collapsed ? label : undefined}
       title={collapsed ? undefined : label}
       onClick={(event) => {
