@@ -374,7 +374,16 @@ interface TokenStoreState {
   // Actions
   initializeFromStorage: () => Promise<void> | void;
   fetchLiveTokens: (customCreds?: GitCredentials, options?: { force?: boolean }) => Promise<boolean>;
-  setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta, options?: { persist?: boolean }) => void;
+  setRawTokens: (
+    doc: RawTokensDocument,
+    meta?: SyncMeta,
+    options?: {
+      persist?: boolean;
+      preCanonicalDoc?: RawTokensDocument;
+      preThemeGroups?: ThemeGroup[];
+      preResolvedTokens?: FlattenedToken[];
+    }
+  ) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
   updateSingleToken: (path: string[], newValue: any) => void;
@@ -506,16 +515,24 @@ function clearStoredInviteToken(): void {
 function cacheHydratedProject(project: Project): void {
   if (typeof window === "undefined") return;
 
-  try {
-    const cacheKey = `ts_cached_org_projects_${project.orgId}`;
-    const cached = localStorage.getItem(cacheKey);
-    const parsed = cached ? JSON.parse(cached) : [];
-    const existingProjects = Array.isArray(parsed)
-      ? parsed.filter((item: Project) => item.id !== project.id)
-      : [];
-    safeSetCachedProjects(project.orgId, [...existingProjects, project]);
-  } catch {
-    safeSetCachedProjects(project.orgId, [project]);
+  const persistCache = () => {
+    try {
+      const cacheKey = `ts_cached_org_projects_${project.orgId}`;
+      const cached = localStorage.getItem(cacheKey);
+      const parsed = cached ? JSON.parse(cached) : [];
+      const existingProjects = Array.isArray(parsed)
+        ? parsed.filter((item: Project) => item.id !== project.id)
+        : [];
+      safeSetCachedProjects(project.orgId, [...existingProjects, project]);
+    } catch {
+      safeSetCachedProjects(project.orgId, [project]);
+    }
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(persistCache, { timeout: 1000 });
+  } else {
+    setTimeout(persistCache, 50);
   }
 }
 
@@ -4412,7 +4429,42 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           localStorage.setItem("ts_active_branch", targetBranch);
         } catch {}
       }
-      get().setRawTokens(data.tokens, data.syncMeta);
+      const incomingTokens = data.tokens || {};
+      const shouldOffloadGitResolve =
+        typeof window !== "undefined" &&
+        typeof Worker !== "undefined" &&
+        countTokensInDocument(incomingTokens) > 300;
+
+      if (shouldOffloadGitResolve) {
+        const canonical = canonicalizeTokenDocument(incomingTokens);
+        const currentRaw = get().rawTokens;
+        if (
+          currentRaw &&
+          Object.keys(currentRaw).length === Object.keys(canonical).length &&
+          get().resolvedTokens.length > 0 &&
+          JSON.stringify(currentRaw) === JSON.stringify(canonical)
+        ) {
+          set({ syncMeta: data.syncMeta || null });
+          lastLiveFetch = { key: fetchKey, at: Date.now() };
+          return true;
+        }
+
+        const groups = extractThemeGroups(canonical);
+        const updatedOptionIds = buildDefaultActiveOptionIds(groups, get().activeThemeOptionIds);
+        const themeConfig = getActiveThemeSets(groups, updatedOptionIds, canonical);
+        const resolveEpoch = ++tokenResolutionEpoch;
+        const resolved = await resolveTokensAsync(canonical, get().activeSet || "ALL", themeConfig);
+        if (resolveEpoch !== tokenResolutionEpoch || !isScopeActive(scopeOrgId, scopeProjectId)) {
+          return false;
+        }
+        get().setRawTokens(canonical, data.syncMeta, {
+          preCanonicalDoc: canonical,
+          preThemeGroups: groups,
+          preResolvedTokens: resolved,
+        });
+      } else {
+        get().setRawTokens(incomingTokens, data.syncMeta);
+      }
       lastLiveFetch = { key: fetchKey, at: Date.now() };
       return true;
     } catch (err: any) {
@@ -4677,10 +4729,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   setRawTokens: (doc, meta, options) => {
     tokenResolutionEpoch++;
     const { activeSet, activeThemeGroupId } = get();
-    const canonical = canonicalizeTokenDocument(doc);
-    const groups = extractThemeGroups(canonical);
+    const canonical = options?.preCanonicalDoc || canonicalizeTokenDocument(doc);
+    const groups = options?.preThemeGroups || extractThemeGroups(canonical);
     const updatedOptionIds = buildDefaultActiveOptionIds(groups, get().activeThemeOptionIds);
-    const resolved = resolveTokensWithActiveThemes(canonical, activeSet, groups, updatedOptionIds);
+    const resolved =
+      options?.preResolvedTokens || resolveTokensWithActiveThemes(canonical, activeSet, groups, updatedOptionIds);
     const savedGroupId = typeof window !== "undefined" ? localStorage.getItem("ts_active_group_id") : null;
     const defaultGroup =
       groups.find((g) => g && g.id === activeThemeGroupId) ||

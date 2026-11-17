@@ -97,7 +97,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [isAddSetOpen, setIsAddSetOpen] = useState(false);
   const [addSetInitialName, setAddSetInitialName] = useState("");
-  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
+  const [folderOpenOverrides, setFolderOpenOverrides] = useState<Record<string, boolean>>({});
   const [searchFilter, setSearchFilter] = useState("");
   const deferredSearchFilter = useDeferredValue(searchFilter);
 
@@ -189,10 +189,57 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     return buildSetFolderTree(allSetNames);
   }, [allSetNames]);
 
+  // Precompute bottom-up folder token counts in O(nodes) instead of repeating recursion per render
+  const folderCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    const visit = (node: SetTreeNode): number => {
+      if (!node.isFolder) {
+        return setCounts[node.fullPath] || 0;
+      }
+      const total = (node.children || []).reduce((sum, child) => sum + visit(child), 0);
+      map[node.id] = total;
+      return total;
+    };
+    setTree.forEach(visit);
+    return map;
+  }, [setTree, setCounts]);
+
+  // Keep folders containing the active set expanded when large trees default collapsed
+  const activeAncestorFolderIds = useMemo(() => {
+    const ancestors = new Set<string>();
+    if (!activeSet || activeSet === "ALL") return ancestors;
+    const findPath = (nodes: SetTreeNode[]): boolean => {
+      for (const n of nodes) {
+        if (!n.isFolder) {
+          if (n.fullPath === activeSet) return true;
+        } else if (n.children && findPath(n.children)) {
+          ancestors.add(n.id);
+          return true;
+        }
+      }
+      return false;
+    };
+    findPath(setTree);
+    return ancestors;
+  }, [setTree, activeSet]);
+
+  const isFolderCollapsed = (folderId: string, normalizedFilter: string): boolean => {
+    if (folderOpenOverrides[folderId] !== undefined) {
+      return !folderOpenOverrides[folderId];
+    }
+    if (normalizedFilter) return false;
+    if (allSetNames.length > 25) {
+      return !activeAncestorFolderIds.has(folderId);
+    }
+    return false;
+  };
+
   const toggleFolder = (folderId: string) => {
-    setCollapsedFolders((prev) => ({
+    const normalizedFilter = deferredSearchFilter.trim().toLowerCase();
+    const currentlyCollapsed = isFolderCollapsed(folderId, normalizedFilter);
+    setFolderOpenOverrides((prev) => ({
       ...prev,
-      [folderId]: !prev[folderId],
+      [folderId]: currentlyCollapsed,
     }));
   };
 
@@ -268,8 +315,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const renderTreeNode = (node: SetTreeNode, depth: number = 0) => {
     const normalizedFilter = deferredSearchFilter.trim().toLowerCase();
     if (node.isFolder) {
-      const isCollapsed = Boolean(collapsedFolders[node.id]);
-      const folderCount = getFolderTotalCount(node);
+      const isCollapsed = isFolderCollapsed(node.id, normalizedFilter);
+      const folderCount = folderCounts[node.id] ?? getFolderTotalCount(node);
 
       if (normalizedFilter) {
         const matchesName = node.name.toLowerCase().includes(normalizedFilter);

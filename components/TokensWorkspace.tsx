@@ -864,7 +864,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
         </div>
 
         {/* Right Toolbar: Edit N | Themes Button | Search | Filter | Export | New Token */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar">
           {/* Multi-Select Button [ Edit N ] */}
           {selectedTokenIds.size > 0 && (
             <button
@@ -1043,12 +1043,13 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
 
           {/* Expand / Collapse All Controls */}
           {groupDepth !== 1 && (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <Button
                 variant="ghost"
                 size="icon-sm"
                 onClick={expandAllGroups}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                aria-label="Expand all groups"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
                 title="Expand All Groups"
               >
                 <ChevronsUpDown className="w-3.5 h-3.5" />
@@ -1057,7 +1058,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 variant="ghost"
                 size="icon-sm"
                 onClick={collapseAllGroups}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                aria-label="Collapse all groups"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
                 title="Collapse All Groups"
               >
                 <ChevronsDownUp className="w-3.5 h-3.5" />
@@ -1066,10 +1068,12 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
           )}
 
           {/* View Switcher: Preview vs JSON Code */}
-          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px]">
+          <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/60 text-[11px] shrink-0">
             <button
+              type="button"
               onClick={() => setTokensViewMode("preview")}
-              className={`p-1.5 rounded-md               transition cursor-pointer ${
+              aria-label="Preview tokens table view"
+              className={`min-w-[28px] min-h-[28px] p-1.5 rounded-md flex items-center justify-center transition cursor-pointer ${
                 tokensViewMode === "preview"
                   ? "bg-background text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -1079,8 +1083,10 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
               <AlignLeft className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={() => setTokensViewMode("json")}
-              className={`p-1.5 rounded-md               transition cursor-pointer ${
+              aria-label="JSON code editor view"
+              className={`min-w-[28px] min-h-[28px] p-1.5 rounded-md flex items-center justify-center transition cursor-pointer ${
                 tokensViewMode === "json"
                   ? "bg-background text-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -1954,7 +1960,7 @@ const TokenTableRow = React.memo(function TokenTableRow({
             const rect = e.currentTarget.getBoundingClientRect();
             onOpenMenu(token, rect.right, rect.bottom + 4);
           }}
-          className="h-6 w-6 text-muted-foreground hover:text-foreground p-0 mx-auto"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground p-0 mx-auto"
           aria-label={`Actions for token ${token.name}`}
           title="More actions"
         >
