@@ -187,6 +187,10 @@ export interface Project {
   documentation?: import("./documentation").ProjectDocumentation | null;
   branches?: ProjectBranch[];
   activeBranch?: string;
+  storageMode?: "inline" | "r2";
+  snapshotR2Key?: string;
+  snapshotHash?: string;
+  snapshotBytes?: number;
   enabledSchemas?: string[];
   isArchived?: boolean;
   createdAt: string;

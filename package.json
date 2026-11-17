@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:plugin": "vite build --config plugin/vite.config.ts",
+    "build:wasm": "wasm-pack build crates/token-engine --target web --out-dir ../../public/wasm",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",

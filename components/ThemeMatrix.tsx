@@ -4,10 +4,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import {
-  buildThemeMatrix,
   MatrixRowData,
   MatrixCellData,
 } from "@/utils/themeHelpers";
+import { buildThemeMatrixAsync } from "@/lib/compute/tokenEngine";
 import { formatTypographySummary, toHexFast } from "@/utils/transformTokens";
 import { ThemeOptionSheet } from "@/components/ThemeOptionSheet";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
@@ -213,9 +213,24 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
   const currentActiveOptionId =
     (activeGroup && activeThemeOptionIds[activeGroup.id]) || activeThemeOptionId;
 
-  const matrixRows = useMemo(() => {
-    if (!activeGroup) return [];
-    return buildThemeMatrix(rawTokens, activeGroup, activeThemeOptionIds, themeGroups);
+  const [matrixRows, setMatrixRows] = useState<MatrixRowData[]>([]);
+
+  useEffect(() => {
+    if (!activeGroup) {
+      setMatrixRows([]);
+      return;
+    }
+    let cancelled = false;
+    buildThemeMatrixAsync(rawTokens, activeGroup, activeThemeOptionIds, themeGroups)
+      .then((rows) => {
+        if (!cancelled) setMatrixRows(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setMatrixRows([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [rawTokens, activeGroup, activeThemeOptionIds, themeGroups]);
 
   useEffect(() => {

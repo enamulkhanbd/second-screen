@@ -2857,11 +2857,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (!currentOrg || !currentProject) return;
     set({ isLoadingAssets: true, r2StorageError: null });
     try {
-      const loaded = await loadAssetsFromStorage(currentOrg.id, currentProject.id);
+      const [loaded, config] = await Promise.all([
+        loadAssetsFromStorage(currentOrg.id, currentProject.id),
+        loadAssetConfigFromStorage(currentOrg.id, currentProject.id),
+      ]);
       if (isScopeActive(currentOrg.id, currentProject.id)) {
         set({ assets: loaded });
       }
-      const config = await loadAssetConfigFromStorage(currentOrg.id, currentProject.id);
       if (config && isScopeActive(currentOrg.id, currentProject.id)) {
         if (config.assetGitConfig !== undefined) set({ assetGitConfig: config.assetGitConfig });
         if (config.assetFigmaConfig !== undefined) set({ assetFigmaConfig: config.assetFigmaConfig });

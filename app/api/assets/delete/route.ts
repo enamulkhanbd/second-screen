@@ -8,6 +8,7 @@ import {
   extensionFromContentType,
 } from "@/lib/r2";
 import { authorizeProjectRequest } from "@/utils/auth";
+import { cacheDel } from "@/lib/cache/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     const deleteSet = new Set(assetIds);
     const updatedMetadata = currentMetadata.filter((a) => !deleteSet.has(a.id));
     await uploadMetadataIndex(orgId, projectId, updatedMetadata);
+    await cacheDel(`assets:etag:${orgId}:${projectId}`);
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,9 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
+import { cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
 
 // Ignored files during folder auto-discovery
 const IGNORED_JSON_FILES = new Set([
@@ -265,22 +267,34 @@ const gitTokenCache = new Map<string, CachedTokensResult>();
 const MAX_CACHE_ENTRIES = 200;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-function setCachedTokens(key: string, value: Omit<CachedTokensResult, "cachedAt">) {
+function redisTokenCacheKey(key: string): string {
+  const hash = crypto.createHash("sha256").update(key).digest("hex");
+  return `git:tokens:${hash}`;
+}
+
+async function setCachedTokens(key: string, value: Omit<CachedTokensResult, "cachedAt">) {
   if (gitTokenCache.size >= MAX_CACHE_ENTRIES) {
     const oldestKey = gitTokenCache.keys().next().value;
     if (oldestKey) gitTokenCache.delete(oldestKey);
   }
-  gitTokenCache.set(key, { ...value, cachedAt: Date.now() });
+  const entry = { ...value, cachedAt: Date.now() };
+  gitTokenCache.set(key, entry);
+  await cacheSetJson(redisTokenCacheKey(key), value, 1800);
 }
 
-function getCachedTokens(key: string): CachedTokensResult | null {
+async function getCachedTokens(key: string): Promise<CachedTokensResult | null> {
   const item = gitTokenCache.get(key);
-  if (!item) return null;
-  if (Date.now() - item.cachedAt > CACHE_TTL_MS) {
+  if (item) {
+    if (Date.now() - item.cachedAt <= CACHE_TTL_MS) {
+      return item;
+    }
     gitTokenCache.delete(key);
-    return null;
   }
-  return item;
+  const remote = await cacheGetJson<Omit<CachedTokensResult, "cachedAt">>(redisTokenCacheKey(key));
+  if (!remote) return null;
+  const hydrated: CachedTokensResult = { ...remote, cachedAt: Date.now() };
+  gitTokenCache.set(key, hydrated);
+  return hydrated;
 }
 
 export async function POST(req: NextRequest) {
@@ -441,7 +455,7 @@ export async function POST(req: NextRequest) {
       const cacheKey = `github:${owner.toLowerCase()}:${repo.toLowerCase()}:${branch.toLowerCase()}:${cleanPath.toLowerCase()}:${treeSha}`;
 
       if (treeSha) {
-        const cached = getCachedTokens(cacheKey);
+        const cached = await getCachedTokens(cacheKey);
         if (cached) {
           return NextResponse.json({
             tokens: cached.tokens,
@@ -583,7 +597,7 @@ export async function POST(req: NextRequest) {
       };
 
       if (treeSha) {
-        setCachedTokens(cacheKey, responsePayload);
+        await setCachedTokens(cacheKey, responsePayload);
       }
 
       return NextResponse.json(responsePayload);
@@ -696,7 +710,7 @@ export async function POST(req: NextRequest) {
         : "";
 
       if (azCacheKey) {
-        const cached = getCachedTokens(azCacheKey);
+        const cached = await getCachedTokens(azCacheKey);
         if (cached) {
           return NextResponse.json({
             tokens: cached.tokens,
@@ -766,7 +780,7 @@ export async function POST(req: NextRequest) {
       };
 
       if (azCacheKey) {
-        setCachedTokens(azCacheKey, responsePayload);
+        await setCachedTokens(azCacheKey, responsePayload);
       }
 
       return NextResponse.json(responsePayload);

@@ -4,6 +4,7 @@ import { authorizeProjectRequest } from "@/utils/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { McpError } from "./errors";
 import type { McpProjectContext } from "./types";
+import { loadProjectSnapshot } from "@/lib/r2Snapshots";
 
 export type McpProjectData = {
   id: string;
@@ -84,6 +85,20 @@ export async function resolveMcpProject(
   }
   if (!project || !organization) {
     throw new McpError("PROJECT_NOT_FOUND", "Project not found.", requestId, 404);
+  }
+
+  const r2Meta = project.extra_data?.r2Snapshot;
+  if (r2Meta?.storageMode === "r2" && r2Meta?.key) {
+    try {
+      const snapshot = await loadProjectSnapshot(r2Meta.key);
+      if (snapshot.rawTokens) project.raw_tokens = snapshot.rawTokens;
+      if (Array.isArray(snapshot.themeGroups)) project.theme_groups = snapshot.themeGroups;
+      if (Array.isArray(snapshot.branches) && snapshot.branches.length > 0) {
+        project.branches = snapshot.branches;
+      }
+    } catch {
+      throw new McpError("UPSTREAM_UNAVAILABLE", "Project snapshot is temporarily unavailable.", requestId, 503);
+    }
   }
 
   const branches = Array.isArray(project.branches) ? project.branches : [];

@@ -1,7 +1,27 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
+import { cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
+
+const GIT_SHA_CACHE_TTL_SECONDS = 45;
+
+function buildGitShaCacheKey(
+  provider: string,
+  owner: string,
+  project: string | undefined,
+  repo: string,
+  branch: string,
+  targetPath: string,
+  pat: string
+): string {
+  const digest = crypto
+    .createHash("sha256")
+    .update(`${provider}:${owner}:${project || ""}:${repo}:${branch}:${targetPath}:${pat}`)
+    .digest("hex");
+  return `git:sha:${digest}`;
+}
 
 export async function POST(req: NextRequest) {
   const auth = await authenticateRequest(req, "read:tokens");
@@ -20,6 +40,19 @@ export async function POST(req: NextRequest) {
         { error: "Missing required fields: provider, owner, repo, branch, and PAT are mandatory." },
         { status: 400 }
       );
+    }
+
+    const shaCacheKey = buildGitShaCacheKey(provider, owner, project, repo, branch, targetPath, pat);
+    const cachedSha = await cacheGetJson<{ latestSha: string; commitMessage: string }>(shaCacheKey);
+    if (cachedSha?.latestSha) {
+      return NextResponse.json({
+        success: true,
+        branch,
+        path: targetPath || null,
+        latestSha: cachedSha.latestSha,
+        commitMessage: cachedSha.commitMessage,
+        cached: true,
+      });
     }
 
     let latestSha = "";
@@ -219,6 +252,10 @@ export async function POST(req: NextRequest) {
       }
     } else {
       return NextResponse.json({ error: `Unsupported provider '${provider}'.` }, { status: 400 });
+    }
+
+    if (latestSha) {
+      await cacheSetJson(shaCacheKey, { latestSha, commitMessage }, GIT_SHA_CACHE_TTL_SECONDS);
     }
 
     return NextResponse.json({

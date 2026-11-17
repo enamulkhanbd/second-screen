@@ -61,6 +61,12 @@ function mapDbOrgToOrganization(row: any, membersRows: any[] = []): Organization
 
 function mapDbProjectToProject(row: any, integration?: any): Project {
   const extra = row.extra_data || {};
+  const r2Meta = extra.r2Snapshot || {};
+  const snapshotR2Key = row.snapshot_r2_key || r2Meta.key || undefined;
+  const storageMode =
+    row.storage_mode === "r2" || r2Meta.storageMode === "r2"
+      ? "r2"
+      : "inline";
   return {
     id: row.id,
     orgId: row.org_id,
@@ -71,6 +77,10 @@ function mapDbProjectToProject(row: any, integration?: any): Project {
     color: row.color || "#171717",
     logoUrl: row.logo_url || "",
     activeBranch: row.active_branch || "main",
+    storageMode,
+    snapshotR2Key,
+    snapshotHash: row.snapshot_hash || r2Meta.hash || undefined,
+    snapshotBytes: row.snapshot_bytes || r2Meta.bytes || undefined,
     branches: row.branches || [],
     rawTokens: row.raw_tokens || {},
     themeGroups: row.theme_groups || [],
@@ -865,7 +875,33 @@ export async function getProject(orgId: string, projectId: string): Promise<Proj
         .select("git_config, asset_git_config, asset_figma_config")
         .eq("project_id", projectId)
         .maybeSingle();
-      return mapDbProjectToProject(data, integration || undefined);
+      const mapped = mapDbProjectToProject(data, integration || undefined);
+      if (
+        typeof window !== "undefined" &&
+        mapped.storageMode === "r2" &&
+        mapped.snapshotR2Key
+      ) {
+        try {
+          const snapRes = await fetch(
+            `/api/projects/snapshot?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`,
+            { method: "GET" }
+          );
+          if (snapRes.ok) {
+            const snapData = await snapRes.json();
+            if (snapData.success) {
+              mapped.rawTokens = snapData.rawTokens || mapped.rawTokens || {};
+              mapped.themeGroups = snapData.themeGroups || mapped.themeGroups || [];
+              mapped.branches =
+                Array.isArray(snapData.branches) && snapData.branches.length > 0
+                  ? snapData.branches
+                  : mapped.branches || [];
+            }
+          }
+        } catch {
+          // Non-fatal fallback: caller still receives metadata/inline fields if snapshot endpoint fails.
+        }
+      }
+      return mapped;
     } catch (e) {
       console.warn("Supabase error fetching single project:", e);
       throw e;
@@ -1451,6 +1487,45 @@ export async function saveProjectTokensAndBranches(
   if (options?.invalidateMetadata) {
     invalidateMetadataCache();
   }
+
+  // Browser path: offload >= 100 KB token/branch payloads to Cloudflare R2 via /api/projects/snapshot
+  if (typeof window !== "undefined") {
+    try {
+      const approxLen = JSON.stringify({
+        rawTokens: rawTokens ?? {},
+        branches,
+        themeGroups: themeGroups ?? [],
+      }).length;
+      if (approxLen >= 100 * 1024) {
+        const res = await fetch("/api/projects/snapshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orgId,
+            projectId,
+            rawTokens,
+            themeGroups,
+            branches,
+            activeBranch,
+          }),
+        });
+        if (res.ok) {
+          return;
+        }
+        // If R2 is not configured (503) or endpoint unavailable, fall through to direct Supabase inline write.
+        if (res.status !== 503 && res.status !== 404) {
+          const errPayload = await res.json().catch(() => ({}));
+          throw new Error(errPayload.error || `Snapshot save failed (${res.status})`);
+        }
+      }
+    } catch (snapErr: any) {
+      if (snapErr?.message && snapErr.message.includes("Snapshot save failed")) {
+        throw snapErr;
+      }
+      // Network/fallback safety: proceed to inline Supabase write below.
+    }
+  }
+
   const client = getClient();
   const updates: Record<string, any> = {
     branches,

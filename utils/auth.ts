@@ -4,6 +4,7 @@ import { ApiKeyRecord, validateApiKey } from "@/utils/patAuth";
 import { findApiKeyByHash, getStoredApiKeysLegacy } from "@/utils/cloudStorage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
 
 export function canRoleWrite(role: string): boolean {
   return role === "owner" || role === "admin" || role === "editor";
@@ -181,6 +182,15 @@ export async function authorizeProjectRequest(
   }
 
   try {
+    const roleCacheKey = `auth:proj_role:${orgId}:${projectId}:${auth.record.uid}`;
+    const cachedAuthz = await cacheGetJson<{ role: string }>(roleCacheKey);
+    if (cachedAuthz && cachedAuthz.role) {
+      if (permission === "write" && !canRoleWrite(cachedAuthz.role)) {
+        return { authorized: false, status: 403, error: "Your organization role cannot modify this project." };
+      }
+      return { authorized: true, record: auth.record, role: cachedAuthz.role };
+    }
+
     const admin = createAdminClient();
     const [{ data: project }, { data: organization }] = await Promise.all([
       admin.from("projects").select("id").eq("id", projectId).eq("org_id", orgId).maybeSingle(),
@@ -205,6 +215,7 @@ export async function authorizeProjectRequest(
     if (!role) {
       return { authorized: false, status: 403, error: "You are not a member of this organization." };
     }
+    await cacheSetJson(roleCacheKey, { role }, 60);
     if (permission === "write" && !canRoleWrite(role)) {
       return { authorized: false, status: 403, error: "Your organization role cannot modify this project." };
     }

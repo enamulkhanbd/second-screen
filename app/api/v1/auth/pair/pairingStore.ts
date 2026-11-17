@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
+import { Ratelimit } from "@upstash/ratelimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { getRedisClient } from "@/lib/cache/redis";
 
 export interface PairingSession {
   code: string;
@@ -99,6 +101,66 @@ export function checkPairingRateLimit(
   }
 
   return { allowed: true };
+}
+
+let sharedPairingMinuteLimiter: Ratelimit | null | undefined;
+let sharedPairingHourLimiter: Ratelimit | null | undefined;
+
+function getSharedPairingLimiters(): { minute: Ratelimit; hour: Ratelimit } | null {
+  const redis = getRedisClient();
+  if (!redis) return null;
+  if (!sharedPairingMinuteLimiter) {
+    sharedPairingMinuteLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(PAIRING_RATE_LIMIT_PER_MIN, "1 m"),
+      prefix: "ss:v1:pair:min",
+      analytics: false,
+    });
+  }
+  if (!sharedPairingHourLimiter) {
+    sharedPairingHourLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(PAIRING_RATE_LIMIT_PER_HOUR, "1 h"),
+      prefix: "ss:v1:pair:hr",
+      analytics: false,
+    });
+  }
+  return { minute: sharedPairingMinuteLimiter, hour: sharedPairingHourLimiter };
+}
+
+export async function checkPairingRateLimitAsync(
+  ip: string,
+  now: number = Date.now()
+): Promise<{ allowed: true } | { allowed: false; retryAfterSeconds: number }> {
+  if (process.env.PAIRING_RATE_LIMIT === "off") {
+    return { allowed: true };
+  }
+  const limiters = getSharedPairingLimiters();
+  if (!limiters) {
+    return checkPairingRateLimit(ip, now);
+  }
+  try {
+    const key = ip || "local";
+    const [minRes, hourRes] = await Promise.all([
+      limiters.minute.limit(key),
+      limiters.hour.limit(key),
+    ]);
+    if (!minRes.success) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(1, Math.ceil((minRes.reset - Date.now()) / 1000)),
+      };
+    }
+    if (!hourRes.success) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(1, Math.ceil((hourRes.reset - Date.now()) / 1000)),
+      };
+    }
+    return { allowed: true };
+  } catch {
+    return checkPairingRateLimit(ip, now);
+  }
 }
 
 /**
