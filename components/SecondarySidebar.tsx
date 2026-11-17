@@ -170,6 +170,15 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     name: "",
   });
 
+  const [treeMenuState, setTreeMenuState] = useState<{
+    kind: "folder" | "set";
+    id: string;
+    name: string;
+    childCount?: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
   // Extract all valid set names based on $metadata.json, $themes.json, or valid token sets
   const allSetNames = useMemo(() => {
     return getValidTokenSetNames(rawTokens);
@@ -272,142 +281,84 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
 
       return (
         <div key={node.id} className="space-y-0.5">
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <div
-                onClick={() => toggleFolder(node.id)}
-                className="group flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted/70 text-foreground cursor-pointer font-medium text-xs transition-colors select-none"
-                style={{ paddingLeft: `${Math.max(depth * 12 + 6, 6)}px` }}
+          <div
+            onClick={() => toggleFolder(node.id)}
+            onContextMenu={(e) => {
+              if (!isEditable) return;
+              e.preventDefault();
+              setTreeMenuState({
+                kind: "folder",
+                id: node.id,
+                name: node.name,
+                childCount: node.children?.length || 0,
+                x: e.clientX,
+                y: e.clientY,
+              });
+            }}
+            className="group flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted/70 text-foreground cursor-pointer font-medium text-xs transition-colors select-none"
+            style={{ paddingLeft: `${Math.max(depth * 12 + 6, 6)}px` }}
+          >
+            <div className="flex items-center gap-1.5 truncate min-w-0 pr-1">
+              <button
+                type="button"
+                aria-label={isCollapsed ? `Expand folder ${node.name}` : `Collapse folder ${node.name}`}
+                aria-expanded={!isCollapsed}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFolder(node.id);
+                }}
+                className="p-0.5 text-muted-foreground group-hover:text-foreground"
               >
-                <div className="flex items-center gap-1.5 truncate min-w-0 pr-1">
+                {isCollapsed ? (
+                  <ChevronRight className="size-3" />
+                ) : (
+                  <ChevronDown className="size-3" />
+                )}
+              </button>
+
+              {isCollapsed ? (
+                <Folder className="size-3.5 text-muted-foreground flex-shrink-0" />
+              ) : (
+                <FolderOpen className="size-3.5 text-muted-foreground flex-shrink-0" />
+              )}
+
+              <span className="truncate text-xs font-medium text-foreground">
+                {node.name}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {folderCount}
+              </span>
+
+              {/* Folder Actions Menu */}
+              {isEditable && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
                   <button
                     type="button"
+                    aria-label={`Actions for folder ${node.name}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleFolder(node.id);
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTreeMenuState({
+                        kind: "folder",
+                        id: node.id,
+                        name: node.name,
+                        childCount: node.children?.length || 0,
+                        x: rect.right,
+                        y: rect.bottom + 4,
+                      });
                     }}
-                    className="p-0.5 text-muted-foreground group-hover:text-foreground"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    title="Folder actions"
                   >
-                    {isCollapsed ? (
-                      <ChevronRight className="size-3" />
-                    ) : (
-                      <ChevronDown className="size-3" />
-                    )}
+                    <MoreVertical className="size-3" />
                   </button>
-
-                  {isCollapsed ? (
-                    <Folder className="size-3.5 text-muted-foreground flex-shrink-0" />
-                  ) : (
-                    <FolderOpen className="size-3.5 text-muted-foreground flex-shrink-0" />
-                  )}
-
-                  <span className="truncate text-xs font-medium text-foreground">
-                    {node.name}
-                  </span>
                 </div>
-
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className="text-[11px] font-mono text-muted-foreground">
-                    {folderCount}
-                  </span>
-
-                  {/* Folder Actions Menu */}
-                  {isEditable && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                            title="Folder actions"
-                          >
-                            <MoreVertical className="size-3" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44 text-xs font-sans">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAddSetInitialName(`${node.id}/`);
-                              setIsAddSetOpen(true);
-                            }}
-                            className="gap-2 text-xs cursor-pointer"
-                          >
-                            <FolderPlus className="size-3.5 text-primary" />
-                            <span>Add Set in Folder</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenRename("folder", node.id, node.name);
-                            }}
-                            className="gap-2 text-xs cursor-pointer"
-                          >
-                            <Edit2 className="size-3.5" />
-                            <span>Rename Folder</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenDelete(
-                                "folder",
-                                node.id,
-                                node.name,
-                                undefined,
-                                node.children?.length || 0
-                              );
-                            }}
-                            className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                          >
-                            <Trash2 className="size-3.5" />
-                            <span>Delete Folder</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </ContextMenuTrigger>
-            {isEditable && (
-              <ContextMenuContent className="w-44 text-xs font-sans">
-                <ContextMenuItem
-                  onClick={() => {
-                    setAddSetInitialName(`${node.id}/`);
-                    setIsAddSetOpen(true);
-                  }}
-                  className="gap-2 text-xs cursor-pointer"
-                >
-                  <FolderPlus className="size-3.5 text-primary" />
-                  <span>Add Set in Folder</span>
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => handleOpenRename("folder", node.id, node.name)}
-                  className="gap-2 text-xs cursor-pointer"
-                >
-                  <Edit2 className="size-3.5" />
-                  <span>Rename Folder</span>
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  onClick={() =>
-                    handleOpenDelete(
-                      "folder",
-                      node.id,
-                      node.name,
-                      undefined,
-                      node.children?.length || 0
-                    )
-                  }
-                  className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                >
-                  <Trash2 className="size-3.5" />
-                  <span>Delete Folder</span>
-                </ContextMenuItem>
-              </ContextMenuContent>
-            )}
-          </ContextMenu>
+              )}
+            </div>
+          </div>
 
           {!isCollapsed && node.children && (
             <div className="space-y-0.5">
@@ -428,105 +379,79 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
     const themeDots = setThemeMap[node.fullPath] || [];
 
     return (
-      <ContextMenu key={node.id}>
-        <ContextMenuTrigger asChild>
-          <div
-            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md             text-xs transition cursor-pointer ${
-              isSelected
-                ? "bg-muted text-foreground font-semibold shadow-2xs"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
-            }`}
-            style={{ paddingLeft: `${Math.max(depth * 12 + 20, 20)}px` }}
-            onClick={() => {
-              setActiveSet(node.fullPath);
-              onItemSelected?.();
-            }}
-          >
-            <div className="flex items-center gap-2 truncate min-w-0 pr-1">
-              <span className="truncate">{node.name}</span>
+      <div
+        key={node.id}
+        onContextMenu={(e) => {
+          if (!isEditable) return;
+          e.preventDefault();
+          setTreeMenuState({
+            kind: "set",
+            id: node.fullPath,
+            name: node.name,
+            x: e.clientX,
+            y: e.clientY,
+          });
+        }}
+        className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition cursor-pointer ${
+          isSelected
+            ? "bg-muted text-foreground font-semibold shadow-2xs"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
+        }`}
+        style={{ paddingLeft: `${Math.max(depth * 12 + 20, 20)}px` }}
+        onClick={() => {
+          setActiveSet(node.fullPath);
+          onItemSelected?.();
+        }}
+      >
+        <div className="flex items-center gap-2 truncate min-w-0 pr-1">
+          <span className="truncate">{node.name}</span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Theme participation indicator dots */}
+          {themeDots.length > 0 && (
+            <div className="flex items-center -space-x-1" title="Assigned to active themes">
+              {themeDots.slice(0, 4).map((col, idx) => (
+                <span
+                  key={idx}
+                  className="size-2 rounded-full border border-background"
+                  style={{ backgroundColor: col }}
+                />
+              ))}
             </div>
+          )}
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Theme participation indicator dots */}
-              {themeDots.length > 0 && (
-                <div className="flex items-center -space-x-1" title="Assigned to active themes">
-                  {themeDots.slice(0, 4).map((col, idx) => (
-                    <span
-                      key={idx}
-                      className="size-2 rounded-full border border-background"
-                      style={{ backgroundColor: col }}
-                    />
-                  ))}
-                </div>
-              )}
+          {/* Set token count */}
+          <span className="text-[11px] font-mono text-muted-foreground min-w-[14px] text-right">
+            {tokenCount}
+          </span>
 
-              {/* Set token count */}
-              <span className="text-[11px] font-mono text-muted-foreground min-w-[14px] text-right">
-                {tokenCount}
-              </span>
-
-              {/* Set Actions Menu */}
-              {isEditable && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                        title="Set actions"
-                      >
-                        <MoreVertical className="size-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40 text-xs font-sans">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenRename("set", node.fullPath, node.name);
-                        }}
-                        className="gap-2 text-xs cursor-pointer"
-                      >
-                        <Edit2 className="size-3.5" />
-                        <span>Rename Set</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDelete("set", node.fullPath, node.name);
-                        }}
-                        className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-                      >
-                        <Trash2 className="size-3.5" />
-                        <span>Delete Set</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
+          {/* Set Actions Menu */}
+          {isEditable && (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                aria-label={`Actions for set ${node.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setTreeMenuState({
+                    kind: "set",
+                    id: node.fullPath,
+                    name: node.name,
+                    x: rect.right,
+                    y: rect.bottom + 4,
+                  });
+                }}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                title="Set actions"
+              >
+                <MoreVertical className="size-3" />
+              </button>
             </div>
-          </div>
-        </ContextMenuTrigger>
-        {isEditable && (
-          <ContextMenuContent className="w-40 text-xs font-sans">
-            <ContextMenuItem
-              onClick={() => handleOpenRename("set", node.fullPath, node.name)}
-              className="gap-2 text-xs cursor-pointer"
-            >
-              <Edit2 className="size-3.5" />
-              <span>Rename Set</span>
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              onClick={() => handleOpenDelete("set", node.fullPath, node.name)}
-              className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
-            >
-              <Trash2 className="size-3.5" />
-              <span>Delete Set</span>
-            </ContextMenuItem>
-          </ContextMenuContent>
-        )}
-      </ContextMenu>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -546,6 +471,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
             </span>
             <div className="flex items-center gap-1">
               <button
+                type="button"
+                aria-label="Token set settings"
                 onClick={() =>
                   addToast({
                     type: "info",
@@ -560,6 +487,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
               </button>
               {isEditable && (
                 <button
+                  type="button"
+                  aria-label="Add token set"
                   onClick={() => {
                     setAddSetInitialName("");
                     setIsAddSetOpen(true);
@@ -580,11 +509,14 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
               <Input
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
+                aria-label="Filter token sets"
                 placeholder="Filter token sets..."
                 className="h-7 text-xs pl-7 pr-6 bg-background/60"
               />
               {searchFilter && (
                 <button
+                  type="button"
+                  aria-label="Clear token set filter"
                   onClick={() => setSearchFilter("")}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
@@ -646,6 +578,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
             {isEditable && (
               <button
                 type="button"
+                aria-label="Add theme option"
                 onClick={() => setAddModalGroupId(activeThemeGroupId || themeGroups[0]?.id || null)}
                 className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                 title="Add Theme Option"
@@ -706,6 +639,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                             <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 type="button"
+                                aria-label={`Add theme option to ${grp.name}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setAddModalGroupId(grp.id);
@@ -720,6 +654,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
+                                    aria-label={`Actions for theme group ${grp.name}`}
                                     className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                                     title="Group options"
                                   >
@@ -804,6 +739,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
                                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                           <button
                                             type="button"
+                                            aria-label={`Actions for theme option ${opt.name}`}
                                             className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                                             title="Option actions"
                                           >
@@ -999,6 +935,74 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
             </DialogContent>
           </Dialog>
         </>
+      )}
+
+      {treeMenuState && (
+        <DropdownMenu
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setTreeMenuState(null);
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <span
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                left: treeMenuState.x,
+                top: treeMenuState.y,
+                width: 1,
+                height: 1,
+                pointerEvents: "none",
+              }}
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44 text-xs font-sans">
+            {treeMenuState.kind === "folder" && (
+              <DropdownMenuItem
+                onClick={() => {
+                  const target = treeMenuState;
+                  setTreeMenuState(null);
+                  setAddSetInitialName(`${target.id}/`);
+                  setIsAddSetOpen(true);
+                }}
+                className="gap-2 text-xs cursor-pointer"
+              >
+                <FolderPlus className="size-3.5 text-primary" />
+                <span>Add Set in Folder</span>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => {
+                const target = treeMenuState;
+                setTreeMenuState(null);
+                handleOpenRename(target.kind, target.id, target.name);
+              }}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Edit2 className="size-3.5" />
+              <span>{treeMenuState.kind === "folder" ? "Rename Folder" : "Rename Set"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                const target = treeMenuState;
+                setTreeMenuState(null);
+                handleOpenDelete(
+                  target.kind,
+                  target.id,
+                  target.name,
+                  undefined,
+                  target.kind === "folder" ? target.childCount : undefined
+                );
+              }}
+              className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+              <span>{treeMenuState.kind === "folder" ? "Delete Folder" : "Delete Set"}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </aside>
   );

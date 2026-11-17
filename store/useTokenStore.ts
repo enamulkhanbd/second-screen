@@ -42,6 +42,7 @@ import {
   compileStyleDictionary,
 } from "@/utils/releaseCompiler";
 import { extractThemeGroups, canonicalizeTokenDocument, getActiveThemeSets } from "@/utils/themeHelpers";
+import { resolveTokensAsync } from "@/lib/compute/tokenEngine";
 import { computeTokensDiff, DocumentDiffSummary } from "@/utils/tokenDiff";
 import {
   Organization,
@@ -491,6 +492,7 @@ const projectConfigCache = new Map<string, any>();
 // so the "restore active project from localStorage" step can't run twice and
 // clobber a project the user has since opened.
 let tenantDataLoadState: { uid: string; promise: Promise<void> } | null = null;
+let tokenResolutionEpoch = 0;
 
 const INVITE_TOKEN_STORAGE_KEY = "ts_pending_invite_token";
 
@@ -1663,14 +1665,81 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // Hydrate Tokens & Themes
       if (initialTokens && Object.keys(initialTokens).length > 0) {
-        get().setRawTokens(initialTokens, undefined, { persist: false });
-        set({
-          themeGroups: initialThemes,
-          activeThemeGroupId: activeThemeGroup?.id || "",
-          activeThemeOptionId,
-          activeThemeOptionIds,
-          isDirty: false,
-        });
+        const canOffloadResolve =
+          typeof window !== "undefined" &&
+          typeof Worker !== "undefined" &&
+          countTokensInDocument(initialTokens) > 300;
+
+        if (canOffloadResolve) {
+          const canonical = canonicalizeTokenDocument(initialTokens);
+          const groups = initialThemes.length > 0 ? initialThemes : extractThemeGroups(canonical);
+          const updatedOptionIds = buildDefaultActiveOptionIds(groups, activeThemeOptionIds);
+          const defaultGroup =
+            groups.find((g) => g && g.id === (activeThemeGroup?.id || "")) ||
+            (savedThemeGroupId ? groups.find((g) => g && g.id === savedThemeGroupId) : null) ||
+            groups.find((g) => g && typeof g.name === "string" && g.name.toLowerCase() === "theme") ||
+            groups[0];
+          const activeSetToResolve = get().activeSet || "ALL";
+          const themeConfig = getActiveThemeSets(groups, updatedOptionIds, canonical);
+          const resolveEpoch = ++tokenResolutionEpoch;
+          const activeSwitchVersion = switchVersion;
+
+          set({
+            rawTokens: canonical,
+            originalTokens: canonical,
+            resolvedTokens: [],
+            themeGroups: groups,
+            activeThemeGroupId: defaultGroup?.id || "",
+            activeThemeOptionId: defaultGroup
+              ? updatedOptionIds[defaultGroup.id] || defaultGroup.options[0]?.id || ""
+              : "",
+            activeThemeOptionIds: updatedOptionIds,
+            syncMeta: null,
+            isDirty: false,
+            isLoadingProjectData: true,
+            syncError: null,
+          });
+
+          void resolveTokensAsync(canonical, activeSetToResolve, themeConfig)
+            .then((resolved) => {
+              if (
+                resolveEpoch !== tokenResolutionEpoch ||
+                activeSwitchVersion !== scopeSwitchVersion ||
+                get().currentProject?.id !== proj.id
+              ) {
+                return;
+              }
+              set({
+                resolvedTokens: resolved,
+                isLoadingProjectData: false,
+                syncError: null,
+              });
+            })
+            .catch(() => {
+              if (
+                resolveEpoch !== tokenResolutionEpoch ||
+                activeSwitchVersion !== scopeSwitchVersion ||
+                get().currentProject?.id !== proj.id
+              ) {
+                return;
+              }
+              const fallback = resolveTokensWithActiveThemes(canonical, activeSetToResolve, groups, updatedOptionIds);
+              set({
+                resolvedTokens: fallback,
+                isLoadingProjectData: false,
+                syncError: null,
+              });
+            });
+        } else {
+          get().setRawTokens(initialTokens, undefined, { persist: false });
+          set({
+            themeGroups: initialThemes,
+            activeThemeGroupId: activeThemeGroup?.id || "",
+            activeThemeOptionId,
+            activeThemeOptionIds,
+            isDirty: false,
+          });
+        }
       } else {
         set({
           rawTokens: {},
@@ -1775,8 +1844,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         proj.documentation || createEmptyDocumentation();
 
       const rawFigmaVars = proj.figmaVariables || null;
+      const shouldOffloadFigmaVars =
+        Boolean(rawFigmaVars && Object.keys(rawFigmaVars).length > 0) &&
+        typeof window !== "undefined" &&
+        typeof Worker !== "undefined" &&
+        countTokensInDocument(rawFigmaVars!) > 300;
       const resolvedFigmaVars =
-        rawFigmaVars && Object.keys(rawFigmaVars).length > 0
+        rawFigmaVars && Object.keys(rawFigmaVars).length > 0 && !shouldOffloadFigmaVars
           ? flattenAndResolveTokens(rawFigmaVars, "ALL")
           : [];
 
@@ -1801,6 +1875,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isSyncingFigmaAssets: false,
         isLoadingAssets: cachedAssets.length === 0,
       });
+
+      if (shouldOffloadFigmaVars && rawFigmaVars) {
+        void resolveTokensAsync(rawFigmaVars, "ALL")
+          .then((vars) => {
+            if (isScopeActive(proj.orgId, proj.id)) {
+              set({ figmaResolvedVariables: vars });
+            }
+          })
+          .catch(() => {});
+      }
 
       if (!isProjectSettings && !options?.skipHydration) {
         // Hydrate assets on-demand only if currently on the assets tab (AssetsWorkspace already hydrates on mount)
@@ -4591,6 +4675,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setRawTokens: (doc, meta, options) => {
+    tokenResolutionEpoch++;
     const { activeSet, activeThemeGroupId } = get();
     const canonical = canonicalizeTokenDocument(doc);
     const groups = extractThemeGroups(canonical);

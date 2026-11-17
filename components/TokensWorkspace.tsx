@@ -56,17 +56,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { buildTokenGroupTree, TokenGroupNode, getActiveThemeSets } from "@/utils/themeHelpers";
 import { naturalCompareTokenKeys, compareTokens, sortFlattenedTokens } from "@/utils/transformTokens";
 import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
@@ -159,7 +150,16 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
   const [isAddSetOpen, setIsAddSetOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [rowMenuState, setRowMenuState] = useState<{
+    token: FlattenedToken;
+    x: number;
+    y: number;
+  } | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  const handleOpenRowMenu = useCallback((token: FlattenedToken, x: number, y: number) => {
+    setRowMenuState({ token, x, y });
+  }, []);
 
   // Column resizing state with persistent storage
   const [colWidths, setColWidths] = useState({
@@ -910,6 +910,8 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                 className="pl-8 pr-7 h-8 text-xs font-mono w-48 lg:w-56"
               />
               <button
+                type="button"
+                aria-label="Clear search"
                 onClick={() => {
                   setSearchQuery("");
                   setIsSearchOpen(false);
@@ -1186,6 +1188,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         type="checkbox"
                         checked={allSelected}
                         onChange={toggleSelectAll}
+                        aria-label="Select all tokens"
                         className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
                         title="Select all"
                       />
@@ -1344,9 +1347,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         selectedTokenIds={selectedTokenIds}
                         onToggleSelect={handleToggleSelect}
                         onEdit={handleEditToken}
-                        onUpdate={updateSingleToken}
-                        onDuplicate={handleDuplicateToken}
-                        onDelete={handleDeleteToken}
+                        onOpenMenu={handleOpenRowMenu}
                         startResizing={startResizing}
                         isEditable={isEditable}
                         onCopy={handleCopy}
@@ -1360,9 +1361,7 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
                         isSelected={selectedTokenIds.has(token.id)}
                         onToggleSelect={handleToggleSelect}
                         onEdit={handleEditToken}
-                        onUpdate={updateSingleToken}
-                        onDuplicate={handleDuplicateToken}
-                        onDelete={handleDeleteToken}
+                        onOpenMenu={handleOpenRowMenu}
                         startResizing={startResizing}
                         isEditable={isEditable}
                         onCopy={handleCopy}
@@ -1538,6 +1537,112 @@ export const TokensWorkspace: React.FC<TokensWorkspaceProps> = ({
         onFindReplace={handleBulkFindReplace}
         onMoveTo={handleBulkMoveTo}
       />
+      {/* Shared Row Context & Actions Menu (single lazy instance for all rows) */}
+      {rowMenuState && (
+        <DropdownMenu
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setRowMenuState(null);
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <span
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                left: rowMenuState.x,
+                top: rowMenuState.y,
+                width: 1,
+                height: 1,
+                pointerEvents: "none",
+              }}
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {isEditable && (
+              <>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const target = rowMenuState.token;
+                    setRowMenuState(null);
+                    handleEditToken(target);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Edit token</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const target = rowMenuState.token;
+                    setRowMenuState(null);
+                    const newName = await dialogs.prompt({
+                      title: "Duplicate token",
+                      label: "Name for the copy",
+                      defaultValue: `${target.name}-copy`,
+                      confirmLabel: "Duplicate",
+                    });
+                    if (newName) {
+                      handleDuplicateToken(target, newName);
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
+                  <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Duplicate token</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem
+              onClick={() => {
+                const target = rowMenuState.token;
+                setRowMenuState(null);
+                handleCopy(`var(--${target.name.replace(/\./g, "-")})`, "CSS Variable");
+              }}
+              className="cursor-pointer"
+            >
+              <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <span>Copy CSS Var</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                const target = rowMenuState.token;
+                setRowMenuState(null);
+                handleCopy(target.name, "Token Name");
+              }}
+              className="cursor-pointer"
+            >
+              <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <span>Copy token name</span>
+            </DropdownMenuItem>
+            {isEditable && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const target = rowMenuState.token;
+                    setRowMenuState(null);
+                    const confirmed = await dialogs.confirm({
+                      title: `Delete "${target.name}"?`,
+                      description: `This removes the token from the set "${target.setName}".`,
+                      confirmLabel: "Delete token",
+                      destructive: true,
+                    });
+                    if (confirmed) {
+                      handleDeleteToken(target);
+                    }
+                  }}
+                  className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
+                  <span>Delete token</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 };
@@ -1552,9 +1657,7 @@ interface TokenTableRowProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onEdit: (token: FlattenedToken) => void;
-  onUpdate: (path: string[], newValue: any) => void;
-  onDuplicate: (token: FlattenedToken, newName: string) => void;
-  onDelete: (token: FlattenedToken) => void;
+  onOpenMenu: (token: FlattenedToken, x: number, y: number) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
   isEditable?: boolean;
   onCopy?: (text: string, label: string) => void;
@@ -1566,14 +1669,11 @@ const TokenTableRow = React.memo(function TokenTableRow({
   isSelected,
   onToggleSelect,
   onEdit,
-  onDuplicate,
-  onDelete,
+  onOpenMenu,
   startResizing,
-  isEditable = true,
   onCopy,
   latestVersion,
 }: TokenTableRowProps) {
-  const dialogs = useDialogs();
   const handleCopy = (text: string, label: string) => {
     if (onCopy) {
       onCopy(text, label);
@@ -1699,19 +1799,22 @@ const TokenTableRow = React.memo(function TokenTableRow({
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <tr
-          className={`hover:bg-muted/20 group cursor-default ${
-            isSelected ? "bg-primary/5" : ""
-          }`}
-        >
+    <tr
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpenMenu(token, e.clientX, e.clientY);
+      }}
+      className={`hover:bg-muted/20 group cursor-default ${
+        isSelected ? "bg-primary/5" : ""
+      }`}
+    >
       {/* 1. Selection Checkbox */}
       <td className="w-10 min-w-[40px] max-w-[40px] px-3 py-2.5 text-center border-b border-b-border/30 border-r border-r-border/30 align-middle">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => onToggleSelect(token.id)}
+          aria-label={`Select token ${token.name}`}
           className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer accent-primary"
         />
       </td>
@@ -1842,150 +1945,23 @@ const TokenTableRow = React.memo(function TokenTableRow({
           isSelected && "ts-sticky-cell-selected"
         )}
       >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground p-0 mx-auto"
-              title="More actions"
-            >
-              <MoreVertical className="w-3.5 h-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            {isEditable && (
-              <>
-                <DropdownMenuItem onClick={() => onEdit(token)} className="cursor-pointer">
-                  <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Edit token</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const newName = await dialogs.prompt({
-                      title: "Duplicate token",
-                      label: "Name for the copy",
-                      defaultValue: `${token.name}-copy`,
-                      confirmLabel: "Duplicate",
-                    });
-                    if (newName) {
-                      onDuplicate(token, newName);
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Duplicate token</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem
-              onClick={() => handleCopy(`var(--${token.name.replace(/\./g, "-")})`, "CSS Variable")}
-              className="cursor-pointer"
-            >
-              <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-              <span>Copy CSS Var</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => handleCopy(token.name, "Token Name")}
-              className="cursor-pointer"
-            >
-              <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-              <span>Copy token name</span>
-            </DropdownMenuItem>
-            {isEditable && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const confirmed = await dialogs.confirm({
-                      title: `Delete "${token.name}"?`,
-                      description: `This removes the token from the set "${token.setName}".`,
-                      confirmLabel: "Delete token",
-                      destructive: true,
-                    });
-                    if (confirmed) {
-                      onDelete(token);
-                    }
-                  }}
-                  className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
-                  <span>Delete token</span>
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            onOpenMenu(token, rect.right, rect.bottom + 4);
+          }}
+          className="h-6 w-6 text-muted-foreground hover:text-foreground p-0 mx-auto"
+          aria-label={`Actions for token ${token.name}`}
+          title="More actions"
+        >
+          <MoreVertical className="w-3.5 h-3.5" />
+        </Button>
       </td>
     </tr>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
-        {isEditable && (
-          <>
-            <ContextMenuItem onClick={() => onEdit(token)} className="cursor-pointer">
-              <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-              <span>Edit token</span>
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={async () => {
-                const newName = await dialogs.prompt({
-                  title: "Duplicate token",
-                  label: "Name for the copy",
-                  defaultValue: `${token.name}-copy`,
-                  confirmLabel: "Duplicate",
-                });
-                if (newName) {
-                  onDuplicate(token, newName);
-                }
-              }}
-              className="cursor-pointer"
-            >
-              <CopyPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-              <span>Duplicate token</span>
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-          </>
-        )}
-        <ContextMenuItem
-          onClick={() => handleCopy(`var(--${token.name.replace(/\./g, "-")})`, "CSS Variable")}
-          className="cursor-pointer"
-        >
-          <Code2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-          <span>Copy CSS Var</span>
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => handleCopy(token.name, "Token Name")}
-          className="cursor-pointer"
-        >
-          <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-          <span>Copy token name</span>
-        </ContextMenuItem>
-        {isEditable && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              onClick={async () => {
-                const confirmed = await dialogs.confirm({
-                  title: `Delete "${token.name}"?`,
-                  description: `This removes the token from the set "${token.setName}".`,
-                  confirmLabel: "Delete token",
-                  destructive: true,
-                });
-                if (confirmed) {
-                  onDelete(token);
-                }
-              }}
-              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-3.5 w-3.5 text-destructive" />
-              <span>Delete token</span>
-            </ContextMenuItem>
-          </>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
   );
 });
 
@@ -1993,8 +1969,6 @@ TokenTableRow.displayName = "TokenTableRow";
 
 // -------------------------------------------------------------
 // WORKSPACE GROUP NODE COMPONENT (For nested groupings)
-TokenTableRow.displayName = "TokenTableRow";
-
 // -------------------------------------------------------------
 interface WorkspaceGroupNodeProps {
   node: TokenGroupNode<FlattenedToken>;
@@ -2004,9 +1978,7 @@ interface WorkspaceGroupNodeProps {
   selectedTokenIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onEdit: (token: FlattenedToken) => void;
-  onUpdate: (path: string[], newValue: any) => void;
-  onDuplicate: (token: FlattenedToken, newName: string) => void;
-  onDelete: (token: FlattenedToken) => void;
+  onOpenMenu: (token: FlattenedToken, x: number, y: number) => void;
   startResizing?: (colKey: "name" | "type" | "value" | "resolved" | "description" | "set", e: React.MouseEvent) => void;
   isEditable?: boolean;
   onCopy?: (text: string, label: string) => void;
@@ -2021,9 +1993,7 @@ const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
   selectedTokenIds,
   onToggleSelect,
   onEdit,
-  onUpdate,
-  onDuplicate,
-  onDelete,
+  onOpenMenu,
   startResizing,
   isEditable = true,
   onCopy,
@@ -2039,9 +2009,7 @@ const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
             isSelected={selectedTokenIds.has(token.id)}
             onToggleSelect={onToggleSelect}
             onEdit={onEdit}
-            onUpdate={onUpdate}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
+            onOpenMenu={onOpenMenu}
             startResizing={startResizing}
             isEditable={isEditable}
             onCopy={onCopy}
@@ -2097,9 +2065,7 @@ const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
               selectedTokenIds={selectedTokenIds}
               onToggleSelect={onToggleSelect}
               onEdit={onEdit}
-              onUpdate={onUpdate}
-              onDuplicate={onDuplicate}
-              onDelete={onDelete}
+              onOpenMenu={onOpenMenu}
               startResizing={startResizing}
               isEditable={isEditable}
               onCopy={onCopy}
@@ -2113,9 +2079,7 @@ const WorkspaceGroupNode = React.memo(function WorkspaceGroupNode({
               isSelected={selectedTokenIds.has(token.id)}
               onToggleSelect={onToggleSelect}
               onEdit={onEdit}
-              onUpdate={onUpdate}
-              onDuplicate={onDuplicate}
-              onDelete={onDelete}
+              onOpenMenu={onOpenMenu}
               startResizing={startResizing}
               isEditable={isEditable}
               onCopy={onCopy}

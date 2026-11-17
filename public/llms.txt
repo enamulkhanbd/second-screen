@@ -1,0 +1,11 @@
+# Second Screen
+
+Design tokens, themes, digital assets, documentation, and schema registry platform built around DTCG 2025.10 standards.
+
+## Endpoints & Docs
+
+- [Documentation](/docs): Public design system documentation and token guidelines.
+- [JSON Schema Registry](/api/v1/schemas): Self-hosted Draft 2020-12 DTCG token, color space, and function schemas.
+- [Tokens API](/api/v1/tokens): Programmatic token reading and theme resolution endpoint.
+- [Releases API](/api/v1/releases): Release packages and distribution outputs.
+- [MCP Server](/api/v1/mcp): Model Context Protocol HTTP transport for authenticated design system inspection.
