@@ -45,3 +45,7 @@ video/
 .agents/skills/
 skills-lock.json
 
+# Rust target build cache (public/wasm is tracked for Vercel deployment)
+crates/**/target/
+
+

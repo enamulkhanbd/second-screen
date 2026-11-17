@@ -805,14 +805,9 @@ export function generateFigmaVariablesExportFiles(
 // ============================================================================
 
 export async function downloadExportZip(files: GeneratedExportFile[], zipFilename: string): Promise<void> {
-  const JSZip = (await import("jszip")).default;
-  const zip = new JSZip();
-
-  files.forEach((f) => {
-    zip.file(f.path, f.content);
-  });
-
-  const blob = await zip.generateAsync({ type: "blob" });
+  const { buildZipAsync } = await import("@/lib/compute/tokenEngine");
+  const bytes = await buildZipAsync(files.map((f) => ({ path: f.path, content: f.content })));
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/zip" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

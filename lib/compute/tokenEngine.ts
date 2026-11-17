@@ -1,5 +1,6 @@
 import { flattenAndResolveTokens } from "@/utils/transformTokens";
 import { buildThemeMatrix, type MatrixRowData } from "@/utils/themeHelpers";
+import { computeTokensDiff, type DocumentDiffSummary } from "@/utils/tokenDiff";
 import type {
   FlattenedToken,
   RawTokensDocument,
@@ -9,6 +10,7 @@ import type {
 import type {
   TokenWorkerRequest,
   TokenWorkerResponse,
+  ZipWorkerFile,
 } from "@/workers/tokenCompute.worker";
 
 let workerInstance: Worker | null = null;
@@ -122,6 +124,52 @@ export async function buildThemeMatrixAsync(
     }
   }
   return buildThemeMatrix(rawDoc, group, activeThemeOptionIds, allThemeGroups);
+}
+
+/**
+ * Computes semantic token and file line diffs asynchronously via Rust-WASM / Worker when available.
+ */
+export async function computeTokensDiffAsync(
+  originalDoc: RawTokensDocument,
+  updatedDoc: RawTokensDocument,
+  syncMetaFiles?: Record<string, string>
+): Promise<DocumentDiffSummary> {
+  const workerPromise = runInWorker<DocumentDiffSummary>({
+    type: "computeTokensDiff",
+    payload: { originalDoc, updatedDoc, syncMetaFiles },
+  });
+  if (workerPromise) {
+    try {
+      return await workerPromise;
+    } catch {
+      // Fallback to synchronous TS diff if worker fails
+    }
+  }
+  return computeTokensDiff(originalDoc, updatedDoc, syncMetaFiles);
+}
+
+/**
+ * Builds a standard PKZIP archive off the main thread via Rust-WASM when available,
+ * falling back to JSZip in non-worker environments.
+ */
+export async function buildZipAsync(files: ZipWorkerFile[]): Promise<Uint8Array> {
+  const workerPromise = runInWorker<Uint8Array>({
+    type: "buildZip",
+    payload: { files },
+  });
+  if (workerPromise) {
+    try {
+      return await workerPromise;
+    } catch {
+      // Fallback to JSZip below
+    }
+  }
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  for (const f of files || []) {
+    zip.file(f.path, f.content);
+  }
+  return zip.generateAsync({ type: "uint8array" });
 }
 
 export function disposeTokenComputeWorker(): void {
