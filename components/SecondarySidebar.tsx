@@ -55,9 +55,14 @@ import { cn } from "@/lib/utils";
 interface SecondarySidebarProps {
   className?: string;
   onItemSelected?: () => void;
+  activeTab?: string;
 }
 
-export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, onItemSelected }) => {
+export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({
+  className,
+  onItemSelected,
+  activeTab,
+}) => {
   const {
     sidebarTab,
     rawTokens,
@@ -101,14 +106,39 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
   const [searchFilter, setSearchFilter] = useState("");
   const deferredSearchFilter = useDeferredValue(searchFilter);
 
-  // Token counts by set name
+  // Token counts by set name (falls back to rawTokens leaf counts while Worker resolution is in flight
+  // so folder/set badges render with their final numbers on frame 1 without layout shift)
   const setCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    resolvedTokens.forEach((t) => {
-      counts[t.setName] = (counts[t.setName] || 0) + 1;
-    });
+    if (resolvedTokens.length > 0) {
+      resolvedTokens.forEach((t) => {
+        counts[t.setName] = (counts[t.setName] || 0) + 1;
+      });
+      return counts;
+    }
+    if (rawTokens && typeof rawTokens === "object") {
+      const countLeaves = (node: unknown): number => {
+        if (!node || typeof node !== "object" || Array.isArray(node)) return 0;
+        if ("value" in node || "$value" in node) return 1;
+        let sum = 0;
+        for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+          if (!k.startsWith("$")) sum += countLeaves(v);
+        }
+        return sum;
+      };
+      for (const [setName, setTreeObj] of Object.entries(rawTokens)) {
+        if (!setName.startsWith("$")) {
+          counts[setName] = countLeaves(setTreeObj);
+        }
+      }
+    }
     return counts;
-  }, [resolvedTokens]);
+  }, [resolvedTokens, rawTokens]);
+
+  const totalTokenCount = useMemo(() => {
+    if (resolvedTokens.length > 0) return resolvedTokens.length;
+    return Object.values(setCounts).reduce((sum, c) => sum + c, 0);
+  }, [resolvedTokens.length, setCounts]);
 
   // Theme indicator dot colors for sets based on active theme options
   const setThemeMap = useMemo(() => {
@@ -375,35 +405,37 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
             </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-[11px] font-mono text-muted-foreground">
+              <span className="text-[11px] font-mono tabular-nums text-muted-foreground min-w-[2.25rem] text-right">
                 {folderCount}
               </span>
 
-              {/* Folder Actions Menu */}
-              {isEditable && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    aria-label={`Actions for folder ${node.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setTreeMenuState({
-                        kind: "folder",
-                        id: node.id,
-                        name: node.name,
-                        childCount: node.children?.length || 0,
-                        x: rect.right,
-                        y: rect.bottom + 4,
-                      });
-                    }}
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                    title="Folder actions"
-                  >
-                    <MoreVertical className="size-3" />
-                  </button>
-                </div>
-              )}
+              {/* Folder Actions Menu (fixed 20px slot prevents CLS when edit permissions hydrate) */}
+              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                {isEditable && (
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      aria-label={`Actions for folder ${node.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTreeMenuState({
+                          kind: "folder",
+                          id: node.id,
+                          name: node.name,
+                          childCount: node.children?.length || 0,
+                          x: rect.right,
+                          y: rect.bottom + 4,
+                        });
+                      }}
+                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                      title="Folder actions"
+                    >
+                      <MoreVertical className="size-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -469,47 +501,51 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
           )}
 
           {/* Set token count */}
-          <span className="text-[11px] font-mono text-muted-foreground min-w-[14px] text-right">
+          <span className="text-[11px] font-mono tabular-nums text-muted-foreground min-w-[2.25rem] text-right">
             {tokenCount}
           </span>
 
-          {/* Set Actions Menu */}
-          {isEditable && (
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                type="button"
-                aria-label={`Actions for set ${node.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setTreeMenuState({
-                    kind: "set",
-                    id: node.fullPath,
-                    name: node.name,
-                    x: rect.right,
-                    y: rect.bottom + 4,
-                  });
-                }}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                title="Set actions"
-              >
-                <MoreVertical className="size-3" />
-              </button>
-            </div>
-          )}
+          {/* Set Actions Menu (fixed 20px slot prevents CLS when edit permissions hydrate) */}
+          <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+            {isEditable && (
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  aria-label={`Actions for set ${node.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTreeMenuState({
+                      kind: "set",
+                      id: node.fullPath,
+                      name: node.name,
+                      x: rect.right,
+                      y: rect.bottom + 4,
+                    });
+                  }}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                  title="Set actions"
+                >
+                  <MoreVertical className="size-3" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  if (sidebarTab !== "tokens" && sidebarTab !== "themes") {
+  const currentTab = activeTab || sidebarTab;
+
+  if (currentTab !== "tokens" && currentTab !== "themes") {
     return null;
   }
 
   return (
     <aside className={cn("w-60 flex-shrink-0 border-r border-border bg-sidebar/50 dark:bg-[#0c0c10] flex flex-col h-full select-none text-xs font-sans", className)}>
       {/* ================= TOKENS SECONDARY SIDEBAR ================= */}
-      {sidebarTab === "tokens" && (
+      {currentTab === "tokens" && (
         <>
           {/* Header */}
           <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
@@ -588,8 +624,8 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
               }`}
             >
               <span className="truncate">All tokens</span>
-              <span className="text-[11px] font-mono text-muted-foreground font-semibold">
-                {resolvedTokens.length}
+              <span className="text-[11px] font-mono tabular-nums text-muted-foreground font-semibold min-w-[2.25rem] text-right">
+                {totalTokenCount}
               </span>
             </div>
 
@@ -615,7 +651,7 @@ export const SecondarySidebar: React.FC<SecondarySidebarProps> = ({ className, o
       )}
 
       {/* ================= THEMES SECONDARY SIDEBAR ================= */}
-      {sidebarTab === "themes" && (
+      {currentTab === "themes" && (
         <>
           {/* Header */}
           <div className="h-10 px-3 border-b border-border flex items-center justify-between">

@@ -574,11 +574,12 @@ function cacheProjectList(orgId: string, projects: Project[]): void {
 function getInitialRouteContext(): {
   orgSlug: string | null;
   projectSlug: string | null;
+  routeTab: string | null;
   isProjectRoute: boolean;
   isWorkspaceOnlyRoute: boolean;
 } {
   if (typeof window === "undefined") {
-    return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+    return { orgSlug: null, projectSlug: null, routeTab: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
   }
   try {
     const segments = window.location.pathname
@@ -592,26 +593,50 @@ function getInitialRouteContext(): {
         }
       });
     if (segments.length === 0) {
-      return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+      return { orgSlug: null, projectSlug: null, routeTab: "workspaces", isProjectRoute: false, isWorkspaceOnlyRoute: false };
     }
     const first = segments[0];
     const systemRoutes = ["auth", "connect", "invite", "docs", "api"];
     if (systemRoutes.includes(first)) {
-      return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+      return { orgSlug: null, projectSlug: null, routeTab: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
     }
 
     const orgSlug = first;
     const workspaceTabs = ["overview", "projects", "members", "settings", "dashboard"];
     if (segments.length === 1 || (segments.length === 2 && workspaceTabs.includes(segments[1]))) {
-      return { orgSlug, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: true };
+      const seg = segments[1] || "overview";
+      const mappedTab =
+        seg === "overview" || seg === "dashboard"
+          ? "dashboard"
+          : seg === "settings"
+          ? "org-settings"
+          : seg;
+      return { orgSlug, projectSlug: null, routeTab: mappedTab, isProjectRoute: false, isWorkspaceOnlyRoute: true };
     }
 
     if (segments.length >= 2) {
       const projectSlug = segments[1];
-      return { orgSlug, projectSlug, isProjectRoute: true, isWorkspaceOnlyRoute: false };
+      const projectRouteTabs = [
+        "variables",
+        "tokens",
+        "themes",
+        "branches",
+        "documentation",
+        "assets",
+        "exports",
+        "releases",
+        "mcp",
+        "project-settings",
+        "changelog",
+        "extensions",
+        "system-docs",
+      ];
+      const candidateTab = segments[2];
+      const routeTab = candidateTab && projectRouteTabs.includes(candidateTab) ? candidateTab : "tokens";
+      return { orgSlug, projectSlug, routeTab, isProjectRoute: true, isWorkspaceOnlyRoute: false };
     }
   } catch {}
-  return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+  return { orgSlug: null, projectSlug: null, routeTab: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
 }
 
 export const useTokenStore = create<TokenStoreState>((set, get) => {
@@ -4008,7 +4033,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  sidebarTab: "dashboard",
+  sidebarTab: (getInitialRouteContext().routeTab as any) || "dashboard",
   projectSettingsTab: "details",
   setSidebarTab: (tab) => {
     const currentProj = get().currentProject;
@@ -4547,8 +4572,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const isLegacySyncTab = ["integrations", "sync", "project-sync"].includes(savedTab || "");
       const currentTab = get().sidebarTab;
+      const routeTab = getInitialRouteContext().routeTab;
       const initialTab: any =
-        isLegacySyncTab
+        routeTab && validTabs.includes(routeTab)
+          ? routeTab
+          : isLegacySyncTab
           ? "project-settings"
           : currentTab && validTabs.includes(currentTab)
           ? currentTab

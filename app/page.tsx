@@ -593,6 +593,10 @@ export default function Home() {
     routeTargetTab &&
     (sidebarTab !== routeTargetTab || (projectSlug !== null && currentProject?.slug !== projectSlug))
   );
+  const effectiveSidebarTab =
+    isResolvingRoute && routeTargetTab
+      ? (routeTargetTab as typeof sidebarTab)
+      : sidebarTab;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -646,10 +650,10 @@ export default function Home() {
         <main id="main-content" tabIndex={-1} className="flex-1 flex overflow-hidden focus:outline-none">
 
           {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
-          {(sidebarTab === "tokens" || sidebarTab === "themes") && (
+          {(effectiveSidebarTab === "tokens" || effectiveSidebarTab === "themes") && (
             <>
               <div className="hidden xl:flex h-full">
-                <SecondarySidebar />
+                <SecondarySidebar activeTab={effectiveSidebarTab} />
               </div>
               <Sheet open={isContextNavOpen} onOpenChange={setIsContextNavOpen}>
                 <SheetContent
@@ -658,9 +662,10 @@ export default function Home() {
                   style={{ width: "min(20rem, calc(100vw - 2rem))" }}
                 >
                   <SheetTitle className="sr-only">
-                    {sidebarTab === "tokens" ? "Token sets" : "Theme groups"}
+                    {effectiveSidebarTab === "tokens" ? "Token sets" : "Theme groups"}
                   </SheetTitle>
                   <SecondarySidebar
+                    activeTab={effectiveSidebarTab}
                     className="w-full border-r-0 pt-10"
                     onItemSelected={() => setIsContextNavOpen(false)}
                   />
