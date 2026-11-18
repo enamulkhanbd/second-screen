@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { ReleasePackage } from "@/types/tokens";
 import {
@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { computeTokensDiff } from "@/utils/tokenDiff";
+import type { DocumentDiffSummary } from "@/utils/tokenDiff";
+import { computeTokensDiffAsync } from "@/lib/compute/tokenEngine";
 import { computeThemeChanges, formatByteSize } from "@/utils/releaseNotesGenerator";
 import { compileCssVariables, compileStyleDictionary } from "@/utils/releaseCompiler";
 import { isDeprecationOverdue } from "@/utils/tokenDeprecation";
@@ -81,11 +82,26 @@ export const NewReleaseView: React.FC<NewReleaseViewProps> = ({
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [collapsedSets, setCollapsedSets] = useState<Record<string, boolean>>({});
+  const [diffSummary, setDiffSummary] = useState<DocumentDiffSummary>({
+    files: [],
+    totalAdded: 0,
+    totalModified: 0,
+    totalDeleted: 0,
+    hasChanges: false,
+  });
 
-  // Compute live diff between current project tokens and previous release
-  const diffSummary = useMemo(() => {
+  // Compute live diff between current project tokens and previous release off the main thread (WASM / Worker)
+  useEffect(() => {
+    let cancelled = false;
     const oldDoc = previousRelease?.rawTokensSnapshot || {};
-    return computeTokensDiff(oldDoc, rawTokens);
+    void computeTokensDiffAsync(oldDoc, rawTokens).then((summary) => {
+      if (!cancelled) {
+        setDiffSummary(summary);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [previousRelease, rawTokens]);
 
   // Compute theme changes

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials, RawTokensDocument, SyncMeta } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
+import { cacheDel } from "@/lib/cache/redis";
+import { buildGitShaCacheKey } from "@/lib/cache/gitCache";
 
 interface PushRequestBody {
   credentials: GitCredentials;
@@ -50,6 +52,14 @@ export async function POST(req: NextRequest) {
 
     // Path traversal defense
     const cleanPath = path.replace(/\.\./g, "").replace(/^\/+|\/+$/g, "");
+    const rawFilePath = (credentials.filePath || "").trim().replace(/^\/+/, "");
+    const shaKeysToInvalidate = Array.from(
+      new Set([
+        buildGitShaCacheKey(provider, owner, project, repo, branch, cleanPath, pat),
+        buildGitShaCacheKey(provider, owner, project, repo, branch, rawFilePath, pat),
+        buildGitShaCacheKey(provider, owner, project, repo, branch, "", pat),
+      ])
+    );
     const finalCommitMessage =
       commitMessage ||
       `chore(tokens): update design tokens via Tokens Platform [${new Date().toISOString()}]`;
@@ -137,6 +147,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      await cacheDel(...shaKeysToInvalidate);
       return NextResponse.json({
         success: true,
         provider: "github",
@@ -267,6 +278,7 @@ export async function POST(req: NextRequest) {
       }
 
       const pushResult = await pushRes.json();
+      await cacheDel(...shaKeysToInvalidate);
       return NextResponse.json({
         success: true,
         provider: "azure",

@@ -1,27 +1,11 @@
-import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/utils/auth";
 import { GitCredentials } from "@/types/tokens";
 import { sanitizeGitCredentials } from "@/utils/gitHelpers";
 import { cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
+import { buildGitShaCacheKey } from "@/lib/cache/gitCache";
 
 const GIT_SHA_CACHE_TTL_SECONDS = 45;
-
-function buildGitShaCacheKey(
-  provider: string,
-  owner: string,
-  project: string | undefined,
-  repo: string,
-  branch: string,
-  targetPath: string,
-  pat: string
-): string {
-  const digest = crypto
-    .createHash("sha256")
-    .update(`${provider}:${owner}:${project || ""}:${repo}:${branch}:${targetPath}:${pat}`)
-    .digest("hex");
-  return `git:sha:${digest}`;
-}
 
 export async function POST(req: NextRequest) {
   const auth = await authenticateRequest(req, "read:tokens");

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasTrustedMutationOrigin } from "@/utils/auth";
+import { cacheDel } from "@/lib/cache/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,16 @@ export async function DELETE(
 
     if (deleteError) throw deleteError;
     if (!deleted?.length) return NextResponse.json({ error: "Member was not removed." }, { status: 409 });
+
+    const { data: orgProjects } = await admin
+      .from("projects")
+      .select("id")
+      .eq("org_id", params.orgId);
+    if (Array.isArray(orgProjects) && orgProjects.length > 0) {
+      await cacheDel(
+        ...orgProjects.map((p: { id: string }) => `auth:proj_role:${params.orgId}:${p.id}:${params.userId}`)
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
