@@ -99,58 +99,51 @@ function ListSkeleton() {
   );
 }
 
-function TokenTableSkeleton() {
-  // Chrome above the rows: ~57px toolbar + ~37px thead. Each row is ~37px tall.
-  const rowCount = useViewportSkeletonRows(16, 37, 57 + 37);
+export function StudioTableBodySkeleton({ rows = 12 }: { rows?: number }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-hidden motion-safe:animate-pulse">
+      <div className="flex h-9 items-center gap-4 border-b border-border bg-muted/20 px-4">
+        <div className="h-3 w-3.5 rounded-xs bg-muted shrink-0" />
+        <div className="h-2.5 w-28 rounded-sm bg-muted" />
+        <div className="h-2.5 w-14 rounded-sm bg-muted" />
+        <div className="h-2.5 w-24 rounded-sm bg-muted" />
+        <div className="h-2.5 w-28 rounded-sm bg-muted" />
+        <div className="h-2.5 w-32 rounded-sm bg-muted hidden md:block" />
+      </div>
+      <div className="divide-y divide-border/40">
+        {Array.from({ length: rows }, (_, rowIndex) => (
+          <div key={rowIndex} className="flex h-10 items-center gap-4 px-4">
+            <div className="h-3.5 w-3.5 rounded-xs bg-muted/70 shrink-0" />
+            <div className={`h-3 rounded-sm bg-muted/80 ${widths[rowIndex % widths.length]}`} />
+            <div className="h-4 w-14 rounded-md bg-muted/60 shrink-0" />
+            <div className="flex items-center gap-2 w-40 shrink-0">
+              <div className="h-3.5 w-3.5 rounded-full bg-muted/80 shrink-0" />
+              <div className="h-3 w-24 rounded-sm bg-muted/70" />
+            </div>
+            <div className="h-3 w-28 rounded-sm bg-muted/60 shrink-0" />
+            <div className="h-3 flex-1 max-w-[220px] rounded-sm bg-muted/50 hidden md:block" />
+            <div className="ml-auto h-4 w-4 rounded-sm bg-muted/60 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function TokenTableSkeleton() {
   return (
     <div className="flex h-full w-full min-h-0 flex-1 flex-col bg-background">
-      <div className="flex min-h-[57px] items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Skeleton className="h-7 w-7 shrink-0" />
-          <Skeleton className="h-7 w-48 max-w-[40vw]" />
+      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4 motion-safe:animate-pulse">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="h-5 w-36 rounded-md bg-muted" />
+          <div className="h-4 w-14 rounded-full bg-muted/70" />
         </div>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-24" />
+          <div className="h-7 w-24 rounded-md bg-muted/70" />
+          <div className="h-7 w-20 rounded-md bg-muted" />
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <table className="w-full table-fixed border-collapse text-left">
-          <colgroup>
-            <col className="w-10" />
-            <col className="w-[26%]" />
-            <col className="w-[10%]" />
-            <col className="w-[20%]" />
-            <col className="w-[16%]" />
-            <col className="w-[18%]" />
-            <col className="w-10" />
-          </colgroup>
-          <thead className="border-b border-border bg-background">
-            <tr>
-              {Array.from({ length: 7 }, (_, index) => (
-                <th key={index} className="border-r border-border/30 px-4 py-3 last:border-r-0">
-                  <Skeleton className="h-3 w-12" />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: rowCount }, (_, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-border/30">
-                <td className="border-r border-border/30 px-3 py-3"><Skeleton className="mx-auto h-3.5 w-3.5" /></td>
-                <td className="border-r border-border/30 px-4 py-3"><Skeleton className={`h-3 ${widths[rowIndex % widths.length]}`} /></td>
-                <td className="border-r border-border/30 px-4 py-3"><Skeleton className="h-3 w-12" /></td>
-                <td className="border-r border-border/30 px-4 py-3"><Skeleton className="h-3 w-4/5" /></td>
-                <td className="border-r border-border/30 px-4 py-3"><Skeleton className="h-3 w-3/5" /></td>
-                <td className="border-r border-border/30 px-4 py-3"><Skeleton className="h-3 w-4/5" /></td>
-                <td className="px-3 py-3"><Skeleton className="mx-auto h-5 w-5" /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <StudioTableBodySkeleton rows={12} />
     </div>
   );
 }
