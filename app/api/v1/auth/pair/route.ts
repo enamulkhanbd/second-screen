@@ -13,7 +13,7 @@ import {
   getDbClient,
   getRequestOrigin,
   getClientIp,
-  checkPairingRateLimit,
+  checkPairingRateLimitAsync,
   prunePairingSessions,
 } from "./pairingStore";
 
@@ -29,7 +29,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   const now = Date.now();
   const ip = getClientIp(req);
-  const rateCheck = checkPairingRateLimit(ip, now);
+  const rateCheck = await checkPairingRateLimitAsync(ip, now);
   if (!rateCheck.allowed) {
     const res = jsonWithCors(
       {

@@ -11,6 +11,7 @@ import {
 } from "@/lib/r2";
 import { ProjectAsset } from "@/types/tenant";
 import { authorizeProjectRequest } from "@/utils/auth";
+import { cacheDel, cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +26,13 @@ function normalizeFolderIds(assets: ProjectAsset[]): ProjectAsset[] {
   }));
 }
 
-async function fetchAssetMetadata(orgId: string, projectId: string): Promise<ProjectAsset[]> {
+async function fetchAssetMetadata(
+  orgId: string,
+  projectId: string
+): Promise<{ assets: ProjectAsset[]; etag?: string }> {
   const { items, etag } = await loadMetadataIndexWithEtag(orgId, projectId);
   let metadata = items;
+  let resolvedEtag = etag;
 
   // Auto-recovery: Only when the metadata index object does not exist yet (!etag)
   // and objects exist in R2, reconstruct it and write conditionally with If-None-Match: "*"
@@ -69,6 +74,7 @@ async function fetchAssetMetadata(orgId: string, projectId: string): Promise<Pro
         if (status === 412 || status === 409 || err?.name === "PreconditionFailed") {
           const reloaded = await loadMetadataIndexWithEtag(orgId, projectId);
           metadata = reloaded.items;
+          resolvedEtag = reloaded.etag;
         } else {
           throw err;
         }
@@ -76,12 +82,13 @@ async function fetchAssetMetadata(orgId: string, projectId: string): Promise<Pro
     }
   }
 
-  return normalizeFolderIds(metadata);
+  return { assets: normalizeFolderIds(metadata), etag: resolvedEtag };
 }
 
 /**
  * GET /api/assets/list?orgId={orgId}&projectId={projectId}
- * Returns the asset metadata index for a project from Cloudflare R2.
+ * Supports optional filtering (q, folderId, assetType), pagination (limit, offset),
+ * and HTTP ETag / 304 conditional responses backed by R2 + Redis.
  */
 export async function GET(req: NextRequest) {
   if (!isR2Configured) {
@@ -108,18 +115,94 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
 
-    const metadata = await fetchAssetMetadata(orgId, projectId);
+    const limitParam = searchParams.get("limit");
+    const offsetParam = searchParams.get("offset");
+    const q = (searchParams.get("q") || "").trim().toLowerCase();
+    const folderId = searchParams.get("folderId");
+    const assetType = searchParams.get("assetType");
+    const isUnfiltered = !limitParam && !offsetParam && !q && !folderId && !assetType;
+
+    const etagCacheKey = `assets:etag:${orgId}:${projectId}`;
+    const ifNoneMatch = req.headers.get("if-none-match");
+    if (isUnfiltered && ifNoneMatch) {
+      const cached = await cacheGetJson<{ etag: string }>(etagCacheKey);
+      if (cached?.etag && cached.etag === ifNoneMatch) {
+        return new NextResponse(null, {
+          status: 304,
+          headers: {
+            ETag: cached.etag,
+            "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+          },
+        });
+      }
+    }
+
+    const { assets: metadata, etag } = await fetchAssetMetadata(orgId, projectId);
+    const httpEtag = etag ? (etag.startsWith('"') || etag.startsWith("W/") ? etag : `"${etag}"`) : undefined;
+    if (httpEtag) {
+      await cacheSetJson(etagCacheKey, { etag: httpEtag }, 60);
+      if (isUnfiltered && ifNoneMatch && ifNoneMatch === httpEtag) {
+        return new NextResponse(null, {
+          status: 304,
+          headers: {
+            ETag: httpEtag,
+            "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+          },
+        });
+      }
+    }
+
+    let filtered = metadata;
+    if (folderId) {
+      filtered = filtered.filter((a) => (a.folderId || "") === folderId);
+    }
+    if (assetType && assetType !== "all") {
+      filtered = filtered.filter((a) => a.assetType === assetType);
+    }
+    if (q) {
+      filtered = filtered.filter((a) =>
+        (a.title || a.name || "").toLowerCase().includes(q) ||
+        (a.category || "").toLowerCase().includes(q) ||
+        (a.type || "").toLowerCase().includes(q)
+      );
+    }
+
+    const hasPagination = limitParam !== null || offsetParam !== null;
+    const parsedLimit = limitParam !== null
+      ? Math.min(500, Math.max(1, Number.parseInt(limitParam, 10) || 60))
+      : filtered.length;
+    const parsedOffset = offsetParam !== null
+      ? Math.max(0, Number.parseInt(offsetParam, 10) || 0)
+      : 0;
+    const pageItems = hasPagination
+      ? filtered.slice(parsedOffset, parsedOffset + parsedLimit)
+      : filtered;
 
     return NextResponse.json(
       {
         success: true,
         action: "list",
         totalAssets: metadata.length,
-        assets: withoutInlineSvg(metadata),
+        ...(hasPagination
+          ? {
+              pagination: {
+                limit: parsedLimit,
+                offset: parsedOffset,
+                totalFiltered: filtered.length,
+                hasMore: parsedOffset + pageItems.length < filtered.length,
+                nextOffset:
+                  parsedOffset + pageItems.length < filtered.length
+                    ? parsedOffset + pageItems.length
+                    : null,
+              },
+            }
+          : {}),
+        assets: withoutInlineSvg(pageItems),
       },
       {
         headers: {
           "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+          ...(httpEtag ? { ETag: httpEtag } : {}),
         },
       }
     );
@@ -187,6 +270,8 @@ export async function POST(req: NextRequest) {
         )
       );
 
+      await cacheDel(`assets:etag:${orgId}:${projectId}`);
+
       return NextResponse.json({
         success: true,
         action: "move-folder",
@@ -231,6 +316,8 @@ export async function POST(req: NextRequest) {
         )
       );
 
+      await cacheDel(`assets:etag:${orgId}:${projectId}`);
+
       return NextResponse.json({
         success: true,
         action: "update-metadata",
@@ -241,7 +328,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Default: list all assets
-    const metadata = await fetchAssetMetadata(orgId, projectId);
+    const { assets: metadata } = await fetchAssetMetadata(orgId, projectId);
     return NextResponse.json(
       {
         success: true,

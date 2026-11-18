@@ -1,0 +1,16 @@
+{
+  "name": "token-engine",
+  "type": "module",
+  "description": "WebAssembly compute engine for 13,000+ DTCG design token flattening, alias resolution, diffing, and exports.",
+  "version": "0.1.0",
+  "files": [
+    "token_engine_bg.wasm",
+    "token_engine.js",
+    "token_engine.d.ts"
+  ],
+  "main": "token_engine.js",
+  "types": "token_engine.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

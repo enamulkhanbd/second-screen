@@ -101,6 +101,9 @@ export function getLeafType(leaf: RawTokenLeaf, parentGroupOrPath?: string | str
   return "other";
 }
 
+const NATURAL_SEGMENT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const DEFAULT_UNIT_COLLATOR = new Intl.Collator(undefined);
+
 /**
  * Helper to compare path segments prioritizing alphabetical letters (A-Z) before digits (0-9).
  * Within the same character class, applies natural numeric collation.
@@ -120,7 +123,7 @@ function compareSegmentAZ09(aSeg: string, bSeg: string): number {
     if (isDigitA && isLetterB) return 1;
   }
 
-  return aSeg.localeCompare(bSeg, undefined, { numeric: true, sensitivity: "base" });
+  return NATURAL_SEGMENT_COLLATOR.compare(aSeg, bSeg);
 }
 
 /**
@@ -266,7 +269,7 @@ export function compareResolvedValues(valA: any, valB: any, dir: "asc" | "desc" 
     if (pA.num !== pB.num) {
       return dir === "desc" ? pB.num - pA.num : pA.num - pB.num;
     }
-    const unitCmp = (pA.unit || "").localeCompare(pB.unit || "");
+    const unitCmp = DEFAULT_UNIT_COLLATOR.compare(pA.unit || "", pB.unit || "");
     if (unitCmp !== 0) return dir === "desc" ? -unitCmp : unitCmp;
   } else if (pA.isNumeric && !pB.isNumeric) {
     // Numbers sort after textual/color values in A-Z, 0-9 collation
@@ -361,7 +364,7 @@ export function sortFlattenedTokens<T extends { name: string; resolvedValue?: an
         if (pA.num !== pB.num) {
           return dir === "desc" ? pB.num - pA.num : pA.num - pB.num;
         }
-        const unitCmp = (pA.unit || "").localeCompare(pB.unit || "");
+        const unitCmp = DEFAULT_UNIT_COLLATOR.compare(pA.unit || "", pB.unit || "");
         if (unitCmp !== 0) return dir === "desc" ? -unitCmp : unitCmp;
       } else if (pA.isNumeric && !pB.isNumeric) {
         return dir === "desc" ? -1 : 1;

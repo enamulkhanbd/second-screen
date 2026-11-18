@@ -109,6 +109,7 @@ function SidebarNavItem({
   const link = (
     <Link
       href={href}
+      prefetch={false}
       aria-label={collapsed ? label : undefined}
       title={collapsed ? undefined : label}
       onClick={(event) => {
@@ -704,7 +705,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
         {isWorkspaceNavigation && (
           <div className="space-y-0.5">
             {!isCollapsed && (
-              <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground/80">
+              <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
                 Workspace
               </div>
             )}
@@ -761,7 +762,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                   setSidebarTab(tab);
                 });
               };
-              const groupTitle = "px-2.5 py-1 text-[11px] font-medium text-muted-foreground/80";
+              const groupTitle = "px-2.5 py-1 text-[11px] font-medium text-muted-foreground";
               return (
                 <>
                   <section className="space-y-0.5" aria-label="Design">
@@ -840,7 +841,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
                     aria-label={isCollapsed ? "Account menu" : undefined}
                     className={`w-full flex items-center ${isCollapsed ? "justify-center p-1" : "gap-2.5 p-2"} rounded-lg hover:bg-sidebar-accent transition-colors text-left group cursor-pointer`}
                   >
-                <div className="size-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                <div className="size-7 rounded-full bg-muted text-foreground font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {currentUser.displayName
                     ? currentUser.displayName
                       .split(" ")
@@ -886,7 +887,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onNavigateWork
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2.5 px-2 py-1.5 text-left text-xs">
-                  <div className="size-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  <div className="size-7 rounded-full bg-muted text-foreground font-bold text-xs flex items-center justify-center flex-shrink-0">
                     {currentUser.displayName
                       ? currentUser.displayName
                         .split(" ")

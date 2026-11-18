@@ -4,15 +4,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTokenStore } from "@/store/useTokenStore";
 import { useShallow } from "zustand/react/shallow";
 import {
-  buildThemeMatrix,
   MatrixRowData,
   MatrixCellData,
 } from "@/utils/themeHelpers";
+import { buildThemeMatrixAsync } from "@/lib/compute/tokenEngine";
 import { formatTypographySummary, toHexFast } from "@/utils/transformTokens";
 import { ThemeOptionSheet } from "@/components/ThemeOptionSheet";
 import { EditThemeGroupModal } from "@/components/EditThemeGroupModal";
 import { EditTokenDrawer } from "@/components/EditTokenDrawer";
 import { ThemeSwitcherDropdown } from "@/components/ThemeSwitcherDropdown";
+import { StudioTableBodySkeleton } from "@/components/WorkspaceSkeleton";
 import { FlattenedToken, ThemeOption } from "@/types/tokens";
 import {
   AlertTriangle,
@@ -148,14 +149,14 @@ const MatrixTokenRow = React.memo(function MatrixTokenRow({
   onOpenCell: (token: FlattenedToken) => void;
 }) {
   return (
-    <tr className="group border-b border-border/40 hover:bg-muted/20">
-      <td className="sticky left-0 z-[5] bg-background group-hover:bg-muted py-2 px-4 font-mono text-xs text-foreground whitespace-nowrap border-r border-border/30">
+    <tr className="group h-10 border-b border-border/40 hover:bg-muted/25">
+      <td className="sticky left-0 z-[5] bg-background group-hover:bg-muted/40 py-2 px-4 font-mono text-xs text-foreground whitespace-nowrap border-r border-border/40">
         {row.tokenKey}
       </td>
       {options.map((option) => (
         <td
           key={option.id}
-          className="py-2 px-4 border-r border-border/30 min-w-[180px]"
+          className="py-2 px-4 min-w-[180px]"
         >
           <MatrixValueCell
             row={row}
@@ -213,9 +214,33 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
   const currentActiveOptionId =
     (activeGroup && activeThemeOptionIds[activeGroup.id]) || activeThemeOptionId;
 
-  const matrixRows = useMemo(() => {
-    if (!activeGroup) return [];
-    return buildThemeMatrix(rawTokens, activeGroup, activeThemeOptionIds, themeGroups);
+  const [matrixRows, setMatrixRows] = useState<MatrixRowData[]>([]);
+  const [isMatrixLoading, setIsMatrixLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (!activeGroup) {
+      setMatrixRows([]);
+      setIsMatrixLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setIsMatrixLoading(true);
+    buildThemeMatrixAsync(rawTokens, activeGroup, activeThemeOptionIds, themeGroups)
+      .then((rows) => {
+        if (!cancelled) {
+          setMatrixRows(rows);
+          setIsMatrixLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMatrixRows([]);
+          setIsMatrixLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [rawTokens, activeGroup, activeThemeOptionIds, themeGroups]);
 
   useEffect(() => {
@@ -229,6 +254,15 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
 
   const hasMore = visibleCount < matrixRows.length;
   const hasTokens = Object.keys(rawTokens).some((k) => !k.startsWith("$"));
+
+  const handleMatrixScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 500) {
+      setVisibleCount((prev) =>
+        prev < matrixRows.length ? Math.min(prev + BATCH_INCREMENT, matrixRows.length) : prev
+      );
+    }
+  };
 
   const handleDuplicateOption = (option: ThemeOption) => {
     if (!activeGroup) return;
@@ -363,22 +397,24 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto">
-        {matrixRows.length === 0 ? (
+      <div className="flex-1 min-h-0 overflow-auto" onScroll={handleMatrixScroll}>
+        {isMatrixLoading ? (
+          <StudioTableBodySkeleton rows={12} />
+        ) : matrixRows.length === 0 ? (
           <div className="py-24 text-center text-xs text-muted-foreground">
             No tokens are enabled for this theme group. Configure an option to include token sets.
           </div>
         ) : (
           <table className="w-full min-w-max text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-background border-b border-border">
-              <tr>
-                <th className="sticky left-0 z-20 bg-background py-2.5 px-4 text-xs font-semibold text-muted-foreground border-r border-border/30 min-w-[220px]">
+            <thead className="sticky top-0 z-10 bg-background border-b border-border text-[11px] font-medium text-muted-foreground">
+              <tr className="h-9 bg-muted/20">
+                <th className="sticky left-0 z-20 bg-background py-2 px-4 text-left border-r border-border/40 min-w-[220px]">
                   Token
                 </th>
                 {activeGroup.options.map((option) => (
                   <th
                     key={option.id}
-                    className="py-2 px-3 border-r border-border/30 min-w-[200px]"
+                    className="py-2 px-4 min-w-[200px]"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <button
@@ -386,7 +422,10 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                         className="flex items-center gap-1.5 min-w-0 cursor-pointer"
                         onClick={() => setActiveThemeOption(option.id)}
                       >
-                        <GripVertical className="size-3.5 text-muted-foreground/70 shrink-0" />
+                        <span
+                          className="size-2 rounded-full border border-border shrink-0"
+                          style={{ backgroundColor: option.color || activeGroup.color || "hsl(var(--primary))" }}
+                        />
                         <span className="text-xs font-semibold text-foreground truncate">
                           {option.name}
                         </span>
@@ -396,7 +435,7 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
                           <button
                             type="button"
                             aria-label={`${option.name} options`}
-                            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                           >
                             <MoreHorizontal className="size-3.5" />
                           </button>
@@ -451,17 +490,11 @@ export const ThemeMatrix: React.FC<ThemeMatrixProps> = ({
           </table>
         )}
         {hasMore && (
-          <div className="py-4 flex justify-center border-t border-border">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() =>
-                setVisibleCount((prev) => Math.min(prev + BATCH_INCREMENT, matrixRows.length))
-              }
-            >
-              Load {Math.min(BATCH_INCREMENT, matrixRows.length - visibleCount)} more
-            </Button>
+          <div className="py-3 px-4 flex items-center justify-center gap-2.5 border-t border-border/40 bg-muted/10 text-xs font-mono text-muted-foreground">
+            <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span>
+              Loaded {Math.min(visibleCount, matrixRows.length).toLocaleString()} of {matrixRows.length.toLocaleString()} tokens (scroll down to auto-load)
+            </span>
           </div>
         )}
       </div>

@@ -165,6 +165,33 @@ const PROJECT_ROUTE_TABS = new Set([
 
 const ONBOARDING_DISMISSED_KEY = "ts_onboarding_dismissed";
 
+// Intent-based view prefetching: warm a heavy view bundle only when the user points at or
+// focuses its navigation link, instead of evaluating every bundle during initial load.
+const VIEW_PREFETCHERS: Record<string, () => Promise<unknown>> = {
+  tokens: () => import("@/components/TokensWorkspace"),
+  themes: () => import("@/components/ThemeMatrix"),
+  variables: () => import("@/components/VariablesView"),
+  exports: () => import("@/components/ExportsView"),
+  projects: () => import("@/components/WorkspacesProjectsView"),
+};
+const prefetchedViews = new Set<string>();
+
+function prefetchViewForLink(target: EventTarget | null) {
+  if (!(target instanceof Element)) return;
+  const href = target.closest("a[href]")?.getAttribute("href");
+  if (!href) return;
+  const tab = href.split("/").filter(Boolean).pop();
+  if (!tab || prefetchedViews.has(tab)) return;
+  const load = VIEW_PREFETCHERS[tab];
+  if (!load) return;
+  prefetchedViews.add(tab);
+  load().catch(() => prefetchedViews.delete(tab));
+}
+
+function handleNavPrefetchIntent(event: React.SyntheticEvent) {
+  prefetchViewForLink(event.target);
+}
+
 export default function Home() {
   const pathname = usePathname();
   const router = useRouter();
@@ -518,24 +545,6 @@ export default function Home() {
   }, [initializeFromStorage]);
 
   useEffect(() => {
-    // Pre-warm primary studio workspace bundles during browser idle time so tab switching is instant
-    if (!currentUser || isLoadingTenant || typeof window === "undefined") return;
-    const warmChunks = () => {
-      void import("@/components/TokensWorkspace");
-      void import("@/components/ThemeMatrix");
-      void import("@/components/VariablesView");
-      void import("@/components/ExportsView");
-      void import("@/components/WorkspacesProjectsView");
-    };
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(warmChunks, { timeout: 2000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const timer = setTimeout(warmChunks, 600);
-    return () => clearTimeout(timer);
-  }, [currentUser, isLoadingTenant]);
-
-  useEffect(() => {
     setIsPrimaryNavOpen(false);
     setIsContextNavOpen(false);
   }, [sidebarTab]);
@@ -575,12 +584,30 @@ export default function Home() {
 
   const isWorkspacesView = sidebarTab === "workspaces" || pathname === "/";
 
+  // While a deep link (e.g. /org/project/tokens) is still being resolved into store state,
+  // show the target view's skeleton instead of flashing the default dashboard view.
+  const routeTargetTab =
+    workspaceRouteTab ?? (routeTab && PROJECT_ROUTE_TABS.has(routeTab) ? routeTab : null);
+  const isResolvingRoute = Boolean(
+    pendingRoutePath.current === pathname &&
+    routeTargetTab &&
+    (sidebarTab !== routeTargetTab || (projectSlug !== null && currentProject?.slug !== projectSlug))
+  );
+  const effectiveSidebarTab =
+    isResolvingRoute && routeTargetTab
+      ? (routeTargetTab as typeof sidebarTab)
+      : sidebarTab;
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* 1. Primary Navigation Sidebar - Full height to top */}
       {!isWorkspacesView && (
         <>
-          <div className="hidden lg:flex h-full flex-shrink-0">
+          <div
+            className="hidden lg:flex h-full flex-shrink-0"
+            onPointerOver={handleNavPrefetchIntent}
+            onFocus={handleNavPrefetchIntent}
+          >
             <Sidebar
               onOpenSettings={() => setIsSettingsOpen(true)}
               onNavigateWorkspaceTab={navigateToWorkspaceTab}
@@ -593,6 +620,8 @@ export default function Home() {
               side="left"
               className="p-0 lg:hidden"
               style={{ width: "min(20rem, calc(100vw - 2rem))" }}
+              onPointerOver={handleNavPrefetchIntent}
+              onFocus={handleNavPrefetchIntent}
             >
               <SheetTitle className="sr-only">Primary navigation</SheetTitle>
               <Sidebar
@@ -621,10 +650,10 @@ export default function Home() {
         <main id="main-content" tabIndex={-1} className="flex-1 flex overflow-hidden focus:outline-none">
 
           {/* 2. Secondary Contextual Sidebar (for Tokens Sets Tree & Themes Mode Groups when in studio) */}
-          {(sidebarTab === "tokens" || sidebarTab === "themes") && (
+          {(effectiveSidebarTab === "tokens" || effectiveSidebarTab === "themes") && (
             <>
               <div className="hidden xl:flex h-full">
-                <SecondarySidebar />
+                <SecondarySidebar activeTab={effectiveSidebarTab} />
               </div>
               <Sheet open={isContextNavOpen} onOpenChange={setIsContextNavOpen}>
                 <SheetContent
@@ -633,9 +662,10 @@ export default function Home() {
                   style={{ width: "min(20rem, calc(100vw - 2rem))" }}
                 >
                   <SheetTitle className="sr-only">
-                    {sidebarTab === "tokens" ? "Token sets" : "Theme groups"}
+                    {effectiveSidebarTab === "tokens" ? "Token sets" : "Theme groups"}
                   </SheetTitle>
                   <SecondarySidebar
+                    activeTab={effectiveSidebarTab}
                     className="w-full border-r-0 pt-10"
                     onItemSelected={() => setIsContextNavOpen(false)}
                   />
@@ -647,6 +677,8 @@ export default function Home() {
           {/* 3. Main Workspace Page Views */}
           {isWorkspacesView ? (
             <WorkspacesListView />
+          ) : isResolvingRoute && routeTargetTab ? (
+            <WorkspaceLoading variant={getProjectLoadingVariant(routeTargetTab)} />
           ) : isLoadingProjectData && sidebarTab !== "project-settings" ? (
             <WorkspaceLoading variant={getProjectLoadingVariant(sidebarTab)} />
           ) : sidebarTab === "dashboard" ? (

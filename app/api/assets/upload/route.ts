@@ -11,6 +11,7 @@ import {
 import { ProjectAsset } from "@/types/tenant";
 import { authorizeProjectRequest } from "@/utils/auth";
 import { mapLimit } from "@/utils/pool";
+import { cacheDel } from "@/lib/cache/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -199,6 +200,7 @@ export async function POST(req: NextRequest) {
       const filtered = currentMetadata.filter((a) => !newIds.has(a.id));
       return [...uploadedAssets, ...filtered];
     });
+    await cacheDel(`assets:etag:${orgId}:${projectId}`);
 
     return NextResponse.json({
       success: true,

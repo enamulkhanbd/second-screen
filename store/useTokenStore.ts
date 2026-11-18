@@ -42,6 +42,7 @@ import {
   compileStyleDictionary,
 } from "@/utils/releaseCompiler";
 import { extractThemeGroups, canonicalizeTokenDocument, getActiveThemeSets } from "@/utils/themeHelpers";
+import { resolveTokensAsync } from "@/lib/compute/tokenEngine";
 import { computeTokensDiff, DocumentDiffSummary } from "@/utils/tokenDiff";
 import {
   Organization,
@@ -373,7 +374,16 @@ interface TokenStoreState {
   // Actions
   initializeFromStorage: () => Promise<void> | void;
   fetchLiveTokens: (customCreds?: GitCredentials, options?: { force?: boolean }) => Promise<boolean>;
-  setRawTokens: (doc: RawTokensDocument, meta?: SyncMeta, options?: { persist?: boolean }) => void;
+  setRawTokens: (
+    doc: RawTokensDocument,
+    meta?: SyncMeta,
+    options?: {
+      persist?: boolean;
+      preCanonicalDoc?: RawTokensDocument;
+      preThemeGroups?: ThemeGroup[];
+      preResolvedTokens?: FlattenedToken[];
+    }
+  ) => void;
   setSyncMeta: (meta: SyncMeta | null) => void;
   setResolvedTokens: (tokens: FlattenedToken[]) => void;
   updateSingleToken: (path: string[], newValue: any) => void;
@@ -483,6 +493,7 @@ function resolveTokensWithActiveThemes(
 
 // Client-side in-memory SWR cache for project assets & configuration (0ms reloads)
 const projectAssetsCache = new Map<string, ProjectAsset[]>();
+const assetListEtagCache = new Map<string, string>();
 const projectConfigCache = new Map<string, any>();
 
 // Dedupes concurrent loadTenantData invocations for the same user (e.g. Supabase's
@@ -490,6 +501,7 @@ const projectConfigCache = new Map<string, any>();
 // so the "restore active project from localStorage" step can't run twice and
 // clobber a project the user has since opened.
 let tenantDataLoadState: { uid: string; promise: Promise<void> } | null = null;
+let tokenResolutionEpoch = 0;
 
 const INVITE_TOKEN_STORAGE_KEY = "ts_pending_invite_token";
 
@@ -503,16 +515,24 @@ function clearStoredInviteToken(): void {
 function cacheHydratedProject(project: Project): void {
   if (typeof window === "undefined") return;
 
-  try {
-    const cacheKey = `ts_cached_org_projects_${project.orgId}`;
-    const cached = localStorage.getItem(cacheKey);
-    const parsed = cached ? JSON.parse(cached) : [];
-    const existingProjects = Array.isArray(parsed)
-      ? parsed.filter((item: Project) => item.id !== project.id)
-      : [];
-    safeSetCachedProjects(project.orgId, [...existingProjects, project]);
-  } catch {
-    safeSetCachedProjects(project.orgId, [project]);
+  const persistCache = () => {
+    try {
+      const cacheKey = `ts_cached_org_projects_${project.orgId}`;
+      const cached = localStorage.getItem(cacheKey);
+      const parsed = cached ? JSON.parse(cached) : [];
+      const existingProjects = Array.isArray(parsed)
+        ? parsed.filter((item: Project) => item.id !== project.id)
+        : [];
+      safeSetCachedProjects(project.orgId, [...existingProjects, project]);
+    } catch {
+      safeSetCachedProjects(project.orgId, [project]);
+    }
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(persistCache, { timeout: 1000 });
+  } else {
+    setTimeout(persistCache, 50);
   }
 }
 
@@ -554,11 +574,12 @@ function cacheProjectList(orgId: string, projects: Project[]): void {
 function getInitialRouteContext(): {
   orgSlug: string | null;
   projectSlug: string | null;
+  routeTab: string | null;
   isProjectRoute: boolean;
   isWorkspaceOnlyRoute: boolean;
 } {
   if (typeof window === "undefined") {
-    return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+    return { orgSlug: null, projectSlug: null, routeTab: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
   }
   try {
     const segments = window.location.pathname
@@ -572,26 +593,50 @@ function getInitialRouteContext(): {
         }
       });
     if (segments.length === 0) {
-      return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+      return { orgSlug: null, projectSlug: null, routeTab: "workspaces", isProjectRoute: false, isWorkspaceOnlyRoute: false };
     }
     const first = segments[0];
     const systemRoutes = ["auth", "connect", "invite", "docs", "api"];
     if (systemRoutes.includes(first)) {
-      return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+      return { orgSlug: null, projectSlug: null, routeTab: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
     }
 
     const orgSlug = first;
     const workspaceTabs = ["overview", "projects", "members", "settings", "dashboard"];
     if (segments.length === 1 || (segments.length === 2 && workspaceTabs.includes(segments[1]))) {
-      return { orgSlug, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: true };
+      const seg = segments[1] || "overview";
+      const mappedTab =
+        seg === "overview" || seg === "dashboard"
+          ? "dashboard"
+          : seg === "settings"
+          ? "org-settings"
+          : seg;
+      return { orgSlug, projectSlug: null, routeTab: mappedTab, isProjectRoute: false, isWorkspaceOnlyRoute: true };
     }
 
     if (segments.length >= 2) {
       const projectSlug = segments[1];
-      return { orgSlug, projectSlug, isProjectRoute: true, isWorkspaceOnlyRoute: false };
+      const projectRouteTabs = [
+        "variables",
+        "tokens",
+        "themes",
+        "branches",
+        "documentation",
+        "assets",
+        "exports",
+        "releases",
+        "mcp",
+        "project-settings",
+        "changelog",
+        "extensions",
+        "system-docs",
+      ];
+      const candidateTab = segments[2];
+      const routeTab = candidateTab && projectRouteTabs.includes(candidateTab) ? candidateTab : "tokens";
+      return { orgSlug, projectSlug, routeTab, isProjectRoute: true, isWorkspaceOnlyRoute: false };
     }
   } catch {}
-  return { orgSlug: null, projectSlug: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
+  return { orgSlug: null, projectSlug: null, routeTab: null, isProjectRoute: false, isWorkspaceOnlyRoute: false };
 }
 
 export const useTokenStore = create<TokenStoreState>((set, get) => {
@@ -750,10 +795,18 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   ): Promise<ProjectAsset[]> => {
     const cacheKey = `${orgId}::${projectId}`;
     try {
+      const knownEtag = projectAssetsCache.has(cacheKey) ? assetListEtagCache.get(cacheKey) : undefined;
       let res = await fetch(
         `/api/assets/list?orgId=${encodeURIComponent(orgId)}&projectId=${encodeURIComponent(projectId)}`,
-        { method: "GET" }
+        {
+          method: "GET",
+          ...(knownEtag ? { headers: { "If-None-Match": knownEtag } } : {}),
+        }
       );
+      if (res.status === 304 && projectAssetsCache.has(cacheKey)) {
+        set({ r2StorageError: null });
+        return projectAssetsCache.get(cacheKey)!;
+      }
       if (!res.ok && res.status !== 404) {
         res = await fetch("/api/assets/list", {
           method: "POST",
@@ -763,6 +816,10 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       }
 
       if (res.ok) {
+        const responseEtag = res.headers.get("etag");
+        if (responseEtag) {
+          assetListEtagCache.set(cacheKey, responseEtag);
+        }
         const data = await res.json();
         if (data.success && Array.isArray(data.assets)) {
           set({ r2StorageError: null });
@@ -1650,14 +1707,81 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
 
       // Hydrate Tokens & Themes
       if (initialTokens && Object.keys(initialTokens).length > 0) {
-        get().setRawTokens(initialTokens, undefined, { persist: false });
-        set({
-          themeGroups: initialThemes,
-          activeThemeGroupId: activeThemeGroup?.id || "",
-          activeThemeOptionId,
-          activeThemeOptionIds,
-          isDirty: false,
-        });
+        const canOffloadResolve =
+          typeof window !== "undefined" &&
+          typeof Worker !== "undefined" &&
+          countTokensInDocument(initialTokens) > 300;
+
+        if (canOffloadResolve) {
+          const canonical = canonicalizeTokenDocument(initialTokens);
+          const groups = initialThemes.length > 0 ? initialThemes : extractThemeGroups(canonical);
+          const updatedOptionIds = buildDefaultActiveOptionIds(groups, activeThemeOptionIds);
+          const defaultGroup =
+            groups.find((g) => g && g.id === (activeThemeGroup?.id || "")) ||
+            (savedThemeGroupId ? groups.find((g) => g && g.id === savedThemeGroupId) : null) ||
+            groups.find((g) => g && typeof g.name === "string" && g.name.toLowerCase() === "theme") ||
+            groups[0];
+          const activeSetToResolve = get().activeSet || "ALL";
+          const themeConfig = getActiveThemeSets(groups, updatedOptionIds, canonical);
+          const resolveEpoch = ++tokenResolutionEpoch;
+          const activeSwitchVersion = switchVersion;
+
+          set({
+            rawTokens: canonical,
+            originalTokens: canonical,
+            resolvedTokens: [],
+            themeGroups: groups,
+            activeThemeGroupId: defaultGroup?.id || "",
+            activeThemeOptionId: defaultGroup
+              ? updatedOptionIds[defaultGroup.id] || defaultGroup.options[0]?.id || ""
+              : "",
+            activeThemeOptionIds: updatedOptionIds,
+            syncMeta: null,
+            isDirty: false,
+            isLoadingProjectData: true,
+            syncError: null,
+          });
+
+          void resolveTokensAsync(canonical, activeSetToResolve, themeConfig)
+            .then((resolved) => {
+              if (
+                resolveEpoch !== tokenResolutionEpoch ||
+                activeSwitchVersion !== scopeSwitchVersion ||
+                get().currentProject?.id !== proj.id
+              ) {
+                return;
+              }
+              set({
+                resolvedTokens: resolved,
+                isLoadingProjectData: false,
+                syncError: null,
+              });
+            })
+            .catch(() => {
+              if (
+                resolveEpoch !== tokenResolutionEpoch ||
+                activeSwitchVersion !== scopeSwitchVersion ||
+                get().currentProject?.id !== proj.id
+              ) {
+                return;
+              }
+              const fallback = resolveTokensWithActiveThemes(canonical, activeSetToResolve, groups, updatedOptionIds);
+              set({
+                resolvedTokens: fallback,
+                isLoadingProjectData: false,
+                syncError: null,
+              });
+            });
+        } else {
+          get().setRawTokens(initialTokens, undefined, { persist: false });
+          set({
+            themeGroups: initialThemes,
+            activeThemeGroupId: activeThemeGroup?.id || "",
+            activeThemeOptionId,
+            activeThemeOptionIds,
+            isDirty: false,
+          });
+        }
       } else {
         set({
           rawTokens: {},
@@ -1762,8 +1886,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         proj.documentation || createEmptyDocumentation();
 
       const rawFigmaVars = proj.figmaVariables || null;
+      const shouldOffloadFigmaVars =
+        Boolean(rawFigmaVars && Object.keys(rawFigmaVars).length > 0) &&
+        typeof window !== "undefined" &&
+        typeof Worker !== "undefined" &&
+        countTokensInDocument(rawFigmaVars!) > 300;
       const resolvedFigmaVars =
-        rawFigmaVars && Object.keys(rawFigmaVars).length > 0
+        rawFigmaVars && Object.keys(rawFigmaVars).length > 0 && !shouldOffloadFigmaVars
           ? flattenAndResolveTokens(rawFigmaVars, "ALL")
           : [];
 
@@ -1788,6 +1917,16 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
         isSyncingFigmaAssets: false,
         isLoadingAssets: cachedAssets.length === 0,
       });
+
+      if (shouldOffloadFigmaVars && rawFigmaVars) {
+        void resolveTokensAsync(rawFigmaVars, "ALL")
+          .then((vars) => {
+            if (isScopeActive(proj.orgId, proj.id)) {
+              set({ figmaResolvedVariables: vars });
+            }
+          })
+          .catch(() => {});
+      }
 
       if (!isProjectSettings && !options?.skipHydration) {
         // Hydrate assets on-demand only if currently on the assets tab (AssetsWorkspace already hydrates on mount)
@@ -1943,19 +2082,49 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ isLoadingTenant: true, isLoadingProjects: true });
     }
 
-    // 2. Fetch fresh tenant data in parallel/background
+    // 2. Fetch fresh tenant data (preferring single same-origin /api/bootstrap to avoid CORS preflights)
     try {
       const savedOrgId = typeof window !== "undefined" ? localStorage.getItem("ts_active_org_id") : null;
-      // Concurrently query organizations and projects for active org ID
-      const orgsPromise = getUserOrganizations(uid, email);
-      const earlyProjectsPromise = savedOrgId ? getOrgProjectSummaries(savedOrgId) : null;
+      let orgs: Organization[] = [];
+      let bootstrappedProjects: Project[] | null = null;
+      let bootstrappedOrgId: string | null = null;
 
-      const [orgsResult, earlyProjectsResult] = await Promise.allSettled([
-        orgsPromise,
-        earlyProjectsPromise || Promise.resolve([]),
-      ]);
+      if (typeof window !== "undefined") {
+        try {
+          const qs = new URLSearchParams();
+          if (routeContext.orgSlug) qs.set("orgSlug", routeContext.orgSlug);
+          if (savedOrgId) qs.set("orgId", savedOrgId);
+          const bootRes = await fetch(`/api/bootstrap?${qs.toString()}`, { method: "GET" });
+          if (bootRes.ok) {
+            const bootData = await bootRes.json();
+            if (bootData?.success && Array.isArray(bootData.orgs)) {
+              orgs = bootData.orgs;
+              bootstrappedOrgId = bootData.activeOrgId || null;
+              bootstrappedProjects = Array.isArray(bootData.projects) ? bootData.projects : [];
+            }
+          }
+        } catch {
+          // Fallback cleanly to direct Supabase helpers below.
+        }
+      }
 
-      const orgs = orgsResult.status === "fulfilled" ? orgsResult.value : [];
+      let earlyProjectsValue: Project[] = [];
+      if (orgs.length === 0 && bootstrappedProjects === null) {
+        // Concurrently query organizations and projects for active org ID
+        const orgsPromise = getUserOrganizations(uid, email);
+        const earlyProjectsPromise = savedOrgId ? getOrgProjectSummaries(savedOrgId) : null;
+
+        const [orgsResult, earlyProjectsResult] = await Promise.allSettled([
+          orgsPromise,
+          earlyProjectsPromise || Promise.resolve([]),
+        ]);
+
+        orgs = orgsResult.status === "fulfilled" ? orgsResult.value : [];
+        if (earlyProjectsResult.status === "fulfilled" && Array.isArray(earlyProjectsResult.value)) {
+          earlyProjectsValue = earlyProjectsResult.value;
+        }
+      }
+
       if (typeof window !== "undefined" && orgs.length > 0) {
         try {
           localStorage.setItem("ts_cached_user_orgs", JSON.stringify(orgs));
@@ -1990,15 +2159,12 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       set({ currentOrg: activeOrg });
 
       if (activeOrg) {
-        // Use early parallel result if activeOrg matches savedOrgId, otherwise fetch for activeOrg
+        // Use bootstrap or early parallel result if activeOrg matches, otherwise fetch for activeOrg
         let projects: Project[] = [];
-        if (
-          savedOrgId === activeOrg.id &&
-          earlyProjectsResult.status === "fulfilled" &&
-          Array.isArray(earlyProjectsResult.value) &&
-          earlyProjectsResult.value.length > 0
-        ) {
-          projects = earlyProjectsResult.value;
+        if (bootstrappedProjects !== null && bootstrappedOrgId === activeOrg.id) {
+          projects = bootstrappedProjects;
+        } else if (savedOrgId === activeOrg.id && earlyProjectsValue.length > 0) {
+          projects = earlyProjectsValue;
         } else {
           projects = await getOrgProjectSummaries(activeOrg.id);
         }
@@ -2857,11 +3023,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     if (!currentOrg || !currentProject) return;
     set({ isLoadingAssets: true, r2StorageError: null });
     try {
-      const loaded = await loadAssetsFromStorage(currentOrg.id, currentProject.id);
+      const [loaded, config] = await Promise.all([
+        loadAssetsFromStorage(currentOrg.id, currentProject.id),
+        loadAssetConfigFromStorage(currentOrg.id, currentProject.id),
+      ]);
       if (isScopeActive(currentOrg.id, currentProject.id)) {
         set({ assets: loaded });
       }
-      const config = await loadAssetConfigFromStorage(currentOrg.id, currentProject.id);
       if (config && isScopeActive(currentOrg.id, currentProject.id)) {
         if (config.assetGitConfig !== undefined) set({ assetGitConfig: config.assetGitConfig });
         if (config.assetFigmaConfig !== undefined) set({ assetFigmaConfig: config.assetFigmaConfig });
@@ -3865,7 +4033,7 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
     }
   },
 
-  sidebarTab: "dashboard",
+  sidebarTab: (getInitialRouteContext().routeTab as any) || "dashboard",
   projectSettingsTab: "details",
   setSidebarTab: (tab) => {
     const currentProj = get().currentProject;
@@ -4286,7 +4454,42 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
           localStorage.setItem("ts_active_branch", targetBranch);
         } catch {}
       }
-      get().setRawTokens(data.tokens, data.syncMeta);
+      const incomingTokens = data.tokens || {};
+      const shouldOffloadGitResolve =
+        typeof window !== "undefined" &&
+        typeof Worker !== "undefined" &&
+        countTokensInDocument(incomingTokens) > 300;
+
+      if (shouldOffloadGitResolve) {
+        const canonical = canonicalizeTokenDocument(incomingTokens);
+        const currentRaw = get().rawTokens;
+        if (
+          currentRaw &&
+          Object.keys(currentRaw).length === Object.keys(canonical).length &&
+          get().resolvedTokens.length > 0 &&
+          JSON.stringify(currentRaw) === JSON.stringify(canonical)
+        ) {
+          set({ syncMeta: data.syncMeta || null });
+          lastLiveFetch = { key: fetchKey, at: Date.now() };
+          return true;
+        }
+
+        const groups = extractThemeGroups(canonical);
+        const updatedOptionIds = buildDefaultActiveOptionIds(groups, get().activeThemeOptionIds);
+        const themeConfig = getActiveThemeSets(groups, updatedOptionIds, canonical);
+        const resolveEpoch = ++tokenResolutionEpoch;
+        const resolved = await resolveTokensAsync(canonical, get().activeSet || "ALL", themeConfig);
+        if (resolveEpoch !== tokenResolutionEpoch || !isScopeActive(scopeOrgId, scopeProjectId)) {
+          return false;
+        }
+        get().setRawTokens(canonical, data.syncMeta, {
+          preCanonicalDoc: canonical,
+          preThemeGroups: groups,
+          preResolvedTokens: resolved,
+        });
+      } else {
+        get().setRawTokens(incomingTokens, data.syncMeta);
+      }
       lastLiveFetch = { key: fetchKey, at: Date.now() };
       return true;
     } catch (err: any) {
@@ -4369,8 +4572,11 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
       const savedTab = localStorage.getItem("ts_sidebar_tab");
       const isLegacySyncTab = ["integrations", "sync", "project-sync"].includes(savedTab || "");
       const currentTab = get().sidebarTab;
+      const routeTab = getInitialRouteContext().routeTab;
       const initialTab: any =
-        isLegacySyncTab
+        routeTab && validTabs.includes(routeTab)
+          ? routeTab
+          : isLegacySyncTab
           ? "project-settings"
           : currentTab && validTabs.includes(currentTab)
           ? currentTab
@@ -4549,11 +4755,13 @@ export const useTokenStore = create<TokenStoreState>((set, get) => {
   },
 
   setRawTokens: (doc, meta, options) => {
+    tokenResolutionEpoch++;
     const { activeSet, activeThemeGroupId } = get();
-    const canonical = canonicalizeTokenDocument(doc);
-    const groups = extractThemeGroups(canonical);
+    const canonical = options?.preCanonicalDoc || canonicalizeTokenDocument(doc);
+    const groups = options?.preThemeGroups || extractThemeGroups(canonical);
     const updatedOptionIds = buildDefaultActiveOptionIds(groups, get().activeThemeOptionIds);
-    const resolved = resolveTokensWithActiveThemes(canonical, activeSet, groups, updatedOptionIds);
+    const resolved =
+      options?.preResolvedTokens || resolveTokensWithActiveThemes(canonical, activeSet, groups, updatedOptionIds);
     const savedGroupId = typeof window !== "undefined" ? localStorage.getItem("ts_active_group_id") : null;
     const defaultGroup =
       groups.find((g) => g && g.id === activeThemeGroupId) ||

@@ -101,10 +101,15 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedCollection, setSelectedCollection] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
-  const [viewLayout, setViewLayout] = useState<"grid" | "table">("grid");
+  const [viewLayout, setViewLayout] = useState<"grid" | "table">("table");
   const [sortField, setSortField] = useState<"name" | "resolved" | "collection">("resolved");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [rowMenuState, setRowMenuState] = useState<{
+    item: FlattenedToken;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     setVisibleCount(100);
@@ -576,7 +581,17 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
           </div>
 
           {/* Variables Content View */}
-          <div className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 lg:p-6">
+          <div
+            className={viewLayout === "table" ? "flex-1 min-h-0 overflow-auto" : "flex-1 min-h-0 overflow-auto p-3 sm:p-4 lg:p-6"}
+            onScroll={(e) => {
+              const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+              if (scrollHeight - scrollTop - clientHeight < 500) {
+                setVisibleCount((prev) =>
+                  prev < sortedVariables.length ? Math.min(prev + 100, sortedVariables.length) : prev
+                );
+              }
+            }}
+          >
             {filteredVariables.length === 0 ? (
               <div className="py-16 text-center text-xs text-muted-foreground">
                 <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -588,56 +603,34 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
                 {sortedVariables.slice(0, visibleCount).map((item) => {
                   const isColor = item.type === "color";
-                  const isCopied = copiedId === item.id;
 
                   return (
-                    <ContextMenu key={item.id}>
-                      <ContextMenuTrigger asChild>
-                        <Card
-                          className="border-border transition-colors shadow-xs group flex flex-col justify-between cursor-default"
-                        >
+                    <Card
+                      key={item.id}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setRowMenuState({ item, x: e.clientX, y: e.clientY });
+                      }}
+                      className="border-border transition-colors shadow-xs group flex flex-col justify-between cursor-default"
+                    >
                       <CardHeader className="p-3.5 pb-2 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0">
                             {item.setName}
                           </Badge>
 
-                          {/* Quick Variable Dropdown */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <MoreHorizontal className="w-3.5 h-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40 text-xs font-sans">
-                              <DropdownMenuItem
-                                onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id, "Value")}
-                              >
-                                <Copy className="w-3.5 h-3.5 mr-2" />
-                                <span>Copy Value</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleCopyCssVar(item.name, item.id)}>
-                                <Code2 className="w-3.5 h-3.5 mr-2" />
-                                <span>Copy CSS Var</span>
-                              </DropdownMenuItem>
-                              {canUserEdit() && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => setVariableToDelete(item)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                    <span>Delete Variable</span>
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <button
+                            type="button"
+                            aria-label={`Actions for variable ${item.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setRowMenuState({ item, x: rect.right, y: rect.bottom + 4 });
+                            }}
+                            className="h-6 w-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
                         </div>
 
                         <div>
@@ -657,7 +650,6 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                       </CardHeader>
 
                       <CardContent className="p-3.5 pt-0 space-y-2">
-                        {/* Visual Swatch / Dimension Box */}
                         {isColor ? (
                           <div className="flex items-center gap-2.5 p-2 rounded-lg bg-muted/40 border border-border/80">
                             <div
@@ -679,7 +671,6 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                           </div>
                         )}
 
-                        {/* Alias Badge if bound */}
                         {item.isAlias && (
                           <div className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono truncate">
                             <span className="text-primary font-bold">↳</span>
@@ -688,231 +679,237 @@ export const VariablesView: React.FC<VariablesViewProps> = ({ onOpenSettings }) 
                         )}
                       </CardContent>
                     </Card>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-40 text-xs font-sans">
-                    <ContextMenuItem
-                      onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id, "Value")}
-                      className="cursor-pointer"
-                    >
-                      <Copy className="w-3.5 h-3.5 mr-2" />
-                      <span>Copy Value</span>
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => handleCopyCssVar(item.name, item.id)}
-                      className="cursor-pointer"
-                    >
-                      <Code2 className="w-3.5 h-3.5 mr-2" />
-                      <span>Copy CSS Var</span>
-                    </ContextMenuItem>
-                    {canUserEdit() && (
-                      <>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          onClick={() => setVariableToDelete(item)}
-                          className="text-destructive focus:text-destructive cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mr-2" />
-                          <span>Delete Variable</span>
-                        </ContextMenuItem>
-                      </>
-                    )}
-                  </ContextMenuContent>
-                </ContextMenu>
-              );
+                  );
                 })}
               </div>
             ) : (
-              /* TABLE VIEW */
-              <div className="w-full min-w-0 sm:min-w-[640px] rounded-xl border border-border bg-card shadow-xs overflow-x-auto">
-                <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
-                    <tr>
-                      <th
-                        onClick={() => handleSortToggle("collection")}
-                        className="py-2.5 px-4 border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
-                        title={`Sort by Collection (${sortField === "collection" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={sortField === "collection" ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                            Collection
-                          </span>
-                          {sortField === "collection" ? (
-                            sortDirection === "asc" ? (
-                              <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
-                            ) : (
-                              <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
-                            )
+              /* SIMPLE STUDIO TABLE VIEW */
+              <table className="w-full min-w-[640px] text-left border-collapse text-xs font-sans select-none">
+                <thead className="sticky top-0 z-10 bg-background border-b border-border text-[11px] font-medium text-muted-foreground">
+                  <tr className="h-9 bg-muted/20">
+                    <th
+                      onClick={() => handleSortToggle("name")}
+                      className="py-2 px-4 cursor-pointer hover:text-foreground transition-colors group/th"
+                      title={`Sort by Variable Name (${sortField === "name" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className={sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                          Variable
+                        </span>
+                        {sortField === "name" ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
                           ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSortToggle("name")}
-                        className="py-2.5 px-4 border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
-                        title={`Sort by Variable Name (${sortField === "name" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={sortField === "name" ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                            Variable Name
-                          </span>
-                          {sortField === "name" ? (
-                            sortDirection === "asc" ? (
-                              <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
-                            ) : (
-                              <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
-                            )
+                            <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="py-2 px-4 w-28">Type</th>
+                    <th
+                      onClick={() => handleSortToggle("resolved")}
+                      className="py-2 px-4 cursor-pointer hover:text-foreground transition-colors group/th"
+                      title={`Sort by Value (${sortField === "resolved" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className={sortField === "resolved" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                          Resolved Value
+                        </span>
+                        {sortField === "resolved" ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
                           ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
-                          )}
-                        </div>
-                      </th>
-                      <th className="py-2.5 px-4 border-r border-border/30">Preview</th>
-                      <th
-                        onClick={() => handleSortToggle("resolved")}
-                        className="py-2.5 px-4 border-r border-border/30 cursor-pointer hover:text-foreground transition-colors group/th select-none"
-                        title={`Sort by Resolved Value (${sortField === "resolved" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={sortField === "resolved" ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                            Resolved Value
-                          </span>
-                          {sortField === "resolved" ? (
-                            sortDirection === "asc" ? (
-                              <ArrowUp01 className="w-3.5 h-3.5 text-primary shrink-0" />
-                            ) : (
-                              <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
-                            )
+                            <ArrowDown01 className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="py-2 px-4">Alias</th>
+                    <th
+                      onClick={() => handleSortToggle("collection")}
+                      className="py-2 px-4 cursor-pointer hover:text-foreground transition-colors group/th"
+                      title={`Sort by Collection (${sortField === "collection" && sortDirection === "asc" ? "Descending" : "Ascending"})`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className={sortField === "collection" ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                          Collection
+                        </span>
+                        {sortField === "collection" ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUpAZ className="w-3.5 h-3.5 text-primary shrink-0" />
                           ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
-                          )}
-                        </div>
-                      </th>
-                      <th className="py-2.5 px-4 border-r border-border/30">Type</th>
-                      <th className="py-2.5 px-4 border-r border-border/30">Alias Binding</th>
-                      <th className="py-2.5 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/30">
-                    {sortedVariables.slice(0, visibleCount).map((item) => {
-                      const isColor = item.type === "color";
+                            <ArrowDownAZ className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/th:text-muted-foreground transition-colors shrink-0" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="py-2 px-3 w-10 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedVariables.slice(0, visibleCount).map((item) => {
+                    const isColor = item.type === "color";
+                    const valStr =
+                      typeof (item.resolvedValue || item.rawValue) === "object"
+                        ? JSON.stringify(item.resolvedValue || item.rawValue)
+                        : String(item.resolvedValue || item.rawValue || "");
 
-                      return (
-                        <ContextMenu key={item.id}>
-                          <ContextMenuTrigger asChild>
-                            <tr className="hover:bg-muted/30 transition-colors group cursor-default">
-                              <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground">
-                                {item.setName}
-                              </td>
-                              <td className="py-2.5 px-4 border-r border-border/30 font-mono font-medium text-foreground truncate max-w-[200px]">
-                                {item.name}
-                              </td>
-                              <td className="py-2.5 px-4 border-r border-border/30">
-                                {isColor ? (
-                                  <div
-                                    className="w-4 h-4 rounded-full border border-black/15 shadow-2xs"
-                                    style={{ backgroundColor: typeof (item.resolvedValue || item.rawValue) === "string" ? (item.resolvedValue || item.rawValue) : undefined }}
-                                  />
-                                ) : (
-                                  <span className="font-mono text-[11px] text-muted-foreground">—</span>
-                                )}
-                              </td>
-                              <td className="py-2.5 px-4 border-r border-border/30 font-mono text-foreground">
-                                {typeof (item.resolvedValue || item.rawValue) === "object" ? JSON.stringify(item.resolvedValue || item.rawValue) : String(item.resolvedValue || item.rawValue || "")}
-                              </td>
-                              <td className="py-2.5 px-4 border-r border-border/30 font-sans text-xs text-muted-foreground lowercase">
-                                {item.type}
-                              </td>
-                              <td className="py-2.5 px-4 border-r border-border/30 font-mono text-xs text-muted-foreground truncate max-w-[150px]">
-                                {item.isAlias ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
-                                    {typeof (item.aliasTarget || item.rawValue) === "object" ? JSON.stringify(item.aliasTarget || item.rawValue) : String(item.aliasTarget || item.rawValue || "")}
-                                  </span>
-                                ) : "—"}
-                              </td>
-                              <td className="py-2.5 px-4 text-right">
-                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleCopyCssVar(item.name, item.id)}
-                                    title="Copy CSS Variable"
-                                    className="h-7 w-7"
-                                  >
-                                    <Code2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id)}
-                                    title="Copy Value"
-                                    className="h-7 w-7"
-                                  >
-                                    <Copy className="w-3.5 h-3.5" />
-                                  </Button>
-                                  {canUserEdit() && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setVariableToDelete(item)}
-                                      title="Delete Variable"
-                                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          </ContextMenuTrigger>
-                          <ContextMenuContent className="w-40 text-xs font-sans">
-                            <ContextMenuItem
-                              onClick={() => handleCopyValue(item.resolvedValue || item.rawValue, item.id, "Value")}
-                              className="cursor-pointer"
-                            >
-                              <Copy className="w-3.5 h-3.5 mr-2" />
-                              <span>Copy Value</span>
-                            </ContextMenuItem>
-                            <ContextMenuItem
-                              onClick={() => handleCopyCssVar(item.name, item.id)}
-                              className="cursor-pointer"
-                            >
-                              <Code2 className="w-3.5 h-3.5 mr-2" />
-                              <span>Copy CSS Var</span>
-                            </ContextMenuItem>
-                            {canUserEdit() && (
-                              <>
-                                <ContextMenuSeparator />
-                                <ContextMenuItem
-                                  onClick={() => setVariableToDelete(item)}
-                                  className="text-destructive focus:text-destructive cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                  <span>Delete Variable</span>
-                                </ContextMenuItem>
-                              </>
+                    return (
+                      <tr
+                        key={item.id}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setRowMenuState({ item, x: e.clientX, y: e.clientY });
+                        }}
+                        className="h-10 border-b border-border/40 hover:bg-muted/25 group cursor-default"
+                      >
+                        <td className="py-2 px-4 font-mono font-medium text-foreground truncate max-w-[260px]">
+                          <span
+                            onClick={() => handleCopyCssVar(item.name, item.id)}
+                            className="cursor-pointer hover:text-primary transition-colors"
+                            title={`Click to copy CSS variable for ${item.name}`}
+                          >
+                            {item.name}
+                          </span>
+                        </td>
+                        <td className="py-2 px-4 font-sans text-xs text-muted-foreground lowercase">
+                          {item.type}
+                        </td>
+                        <td className="py-2 px-4 font-mono text-foreground">
+                          <div
+                            onClick={() => handleCopyValue(valStr, item.id)}
+                            className="inline-flex items-center gap-2 cursor-pointer hover:text-primary transition-colors max-w-[220px]"
+                            title={`Click to copy: ${valStr}`}
+                          >
+                            {isColor && (
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
+                                style={{ backgroundColor: valStr }}
+                              />
                             )}
-                          </ContextMenuContent>
-                        </ContextMenu>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            <span className="truncate">{valStr}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-4 font-mono text-xs text-muted-foreground truncate max-w-[180px]">
+                          {item.isAlias ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono border border-border bg-secondary text-secondary-foreground">
+                              {typeof (item.aliasTarget || item.rawValue) === "object"
+                                ? JSON.stringify(item.aliasTarget || item.rawValue)
+                                : String(item.aliasTarget || item.rawValue || "")}
+                            </span>
+                          ) : (
+                            <span className="opacity-40">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 font-mono text-xs text-muted-foreground truncate max-w-[160px]">
+                          {item.setName}
+                        </td>
+                        <td className="py-2 px-2 w-10 text-center">
+                          <button
+                            type="button"
+                            aria-label={`Actions for variable ${item.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setRowMenuState({ item, x: rect.right, y: rect.bottom + 4 });
+                            }}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer"
+                            title="More actions"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
             {sortedVariables.length > visibleCount && (
-              <div className="mt-4 flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
-                <span>Showing {Math.min(visibleCount, sortedVariables.length)} of {sortedVariables.length} variables</span>
-                <button
-                  type="button"
-                  onClick={() => setVisibleCount((prev) => Math.min(prev + 100, sortedVariables.length))}
-                  className="rounded px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors border border-border/50"
-                >
-                  Load more (+100)
-                </button>
+              <div className="py-3 px-4 flex items-center justify-center gap-2.5 border-t border-border/40 bg-muted/10 text-xs font-mono text-muted-foreground">
+                <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span>
+                  Loaded {Math.min(visibleCount, sortedVariables.length).toLocaleString()} of {sortedVariables.length.toLocaleString()} variables (scroll down to auto-load)
+                </span>
               </div>
             )}
           </div>
+
+          {/* Shared Variable Actions Menu (1 instance instead of 200 per-row menus) */}
+          {rowMenuState && (
+            <DropdownMenu
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) setRowMenuState(null);
+              }}
+            >
+              <DropdownMenuTrigger asChild>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "fixed",
+                    left: rowMenuState.x,
+                    top: rowMenuState.y,
+                    width: 1,
+                    height: 1,
+                    pointerEvents: "none",
+                  }}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40 text-xs font-sans">
+                <DropdownMenuItem
+                  onClick={() => {
+                    const item = rowMenuState.item;
+                    setRowMenuState(null);
+                    handleCopyValue(
+                      typeof (item.resolvedValue || item.rawValue) === "object"
+                        ? JSON.stringify(item.resolvedValue || item.rawValue)
+                        : String(item.resolvedValue || item.rawValue || ""),
+                      item.id,
+                      "Value"
+                    );
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-2" />
+                  <span>Copy Value</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const item = rowMenuState.item;
+                    setRowMenuState(null);
+                    handleCopyCssVar(item.name, item.id);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Code2 className="w-3.5 h-3.5 mr-2" />
+                  <span>Copy CSS Var</span>
+                </DropdownMenuItem>
+                {canUserEdit() && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const item = rowMenuState.item;
+                        setRowMenuState(null);
+                        setVariableToDelete(item);
+                      }}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      <span>Delete Variable</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       )}
 

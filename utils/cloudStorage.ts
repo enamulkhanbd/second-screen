@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ApiKeyRecord } from "./patAuth";
+import { cacheDel, cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
 
 // In-memory runtime store used only when Supabase is not configured
 const inMemoryApiKeys = new Map<string, ApiKeyRecord>();
@@ -41,6 +42,12 @@ export async function findApiKeyByHash(hash: string): Promise<ApiKeyRecord | nul
   if (!hash) return null;
 
   if (isSupabaseConfigured) {
+    const cacheKey = `auth:pat:${hash}`;
+    const cached = await cacheGetJson<ApiKeyRecord>(cacheKey);
+    if (cached && cached.keyHash === hash) {
+      return cached;
+    }
+
     const client = getClient();
     const { data, error } = await client
       .from("api_keys")
@@ -53,7 +60,9 @@ export async function findApiKeyByHash(hash: string): Promise<ApiKeyRecord | nul
       return null;
     }
     if (!data || !data.key_hash) return null;
-    return mapApiKeyRow(data);
+    const mapped = mapApiKeyRow(data);
+    await cacheSetJson(cacheKey, mapped, 120);
+    return mapped;
   }
 
   for (const record of Array.from(inMemoryApiKeys.values())) {
@@ -135,6 +144,9 @@ export async function saveApiKey(record: ApiKeyRecord): Promise<void> {
       console.warn("Supabase error saving API key:", error);
       throw new Error("Could not persist the API key. Please try again.");
     }
+    if (record.keyHash) {
+      await cacheDel(`auth:pat:${record.keyHash}`);
+    }
     return;
   }
   inMemoryApiKeys.set(record.id, record);
@@ -153,10 +165,16 @@ export async function deleteApiKey(id: string, ownerUid?: string): Promise<boole
     if (ownerUid) {
       query = query.eq("user_id", ownerUid);
     }
-    const { data, error } = await query.select("id");
+    const { data, error } = await query.select("id, key_hash");
     if (error) {
       console.warn("Supabase error deleting api key:", error);
       throw new Error("Could not revoke the API key. Please try again.");
+    }
+    const hashes: string[] = (data || [])
+      .map((row: any) => row?.key_hash)
+      .filter((h: unknown): h is string => typeof h === "string" && h.length > 0);
+    if (hashes.length > 0) {
+      await cacheDel(...hashes.map((h: string) => `auth:pat:${h}`));
     }
     inMemoryApiKeys.delete(id);
     return (data?.length ?? 0) > 0;

@@ -13,6 +13,8 @@ import {
 } from "@/services/organizationService";
 import { BranchCommit, ProjectBranch } from "@/types/tokens";
 import { computeTokensDiff } from "@/utils/tokenDiff";
+import { cacheDel, cacheGetJson, cacheSetJson } from "@/lib/cache/redis";
+import { hydrateProjectFromR2Snapshot } from "@/lib/r2Snapshots";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,21 @@ export async function GET(req: NextRequest) {
       return jsonWithCors({ success: false, error: access.error }, { status: access.status });
     }
 
+    const etagCacheKey = `tokens:etag:${orgId}:${projectId}:${requestedBranch || "default"}`;
+    const ifNoneMatchHeader = req.headers.get("if-none-match");
+    if (ifNoneMatchHeader) {
+      const cachedEtag = await cacheGetJson<{ etag: string }>(etagCacheKey);
+      if (cachedEtag?.etag && cachedEtag.etag === ifNoneMatchHeader) {
+        return new NextResponse(null, {
+          status: 304,
+          headers: {
+            ...corsHeaders,
+            ETag: cachedEtag.etag,
+          },
+        });
+      }
+    }
+
     let targetDoc: Record<string, any> = {};
     let figmaVariables: Record<string, any> = {};
     let figmaUpdatedAt: string | null = null;
@@ -99,6 +116,8 @@ export async function GET(req: NextRequest) {
         { status: 404 }
       );
     }
+
+    proj = await hydrateProjectFromR2Snapshot(proj);
 
     const gitBranch = proj.gitConfig?.branch || proj.activeBranch || "main";
     currentBranchName = requestedBranch || gitBranch;
@@ -125,6 +144,7 @@ export async function GET(req: NextRequest) {
     }
 
     const etag = `W/"${projectId}:${proj.updatedAt || "0"}:${currentBranchName}"`;
+    await cacheSetJson(etagCacheKey, { etag }, 30);
     const ifNoneMatch = req.headers.get("if-none-match");
     if (ifNoneMatch && ifNoneMatch === etag) {
       return new NextResponse(null, {
@@ -297,6 +317,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    targetProject = await hydrateProjectFromR2Snapshot(targetProject);
+
     const projectBranches: ProjectBranch[] = ensureProjectDefaultBranch(targetProject);
     const targetBranchName = requestedBranch || targetProject.activeBranch || "main";
     const branchObj =
@@ -410,6 +432,10 @@ export async function POST(req: NextRequest) {
           shouldUpdateRootTokens ? extractThemeGroups(mergedDoc) : undefined,
           projectBranches,
           targetBranchName
+        );
+        await cacheDel(
+          `tokens:etag:${orgId}:${projectId}:${targetBranchName}`,
+          `tokens:etag:${orgId}:${projectId}:default`
         );
       } catch (persistErr: any) {
         console.error("Error persisting project tokens:", persistErr);

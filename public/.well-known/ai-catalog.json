@@ -1,0 +1,21 @@
+{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:second-screen:tools:tokens-mcp",
+      "displayName": "Second Screen Design Tokens MCP",
+      "type": "application/mcp-server-card+json",
+      "data": {
+        "transport": "streamable-http",
+        "endpoint": "/api/v1/mcp",
+        "schemasEndpoint": "/api/v1/schemas",
+        "tokensEndpoint": "/api/v1/tokens",
+        "releasesEndpoint": "/api/v1/releases"
+      },
+      "representativeQueries": [
+        "List and search DTCG design tokens in this project",
+        "Inspect theme groups, token schemas, and release outputs"
+      ]
+    }
+  ]
+}

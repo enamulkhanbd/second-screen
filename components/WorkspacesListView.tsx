@@ -188,6 +188,7 @@ export const WorkspacesListView: React.FC = () => {
               <Link
                 key={org.id}
                 href={`/${encodeURIComponent(org.slug)}/overview`}
+                prefetch={false}
                 onClick={(event) => {
                   if (
                     event.button === 0 &&
